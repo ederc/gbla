@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 
   opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "f:hmtv")) != -1)
+  while ((opt = getopt(argc, argv, "f:hmt:v")) != -1)
   {
     switch (opt)
     {
@@ -40,16 +40,18 @@ int main(int argc, char *argv[])
         print_help();
         return 0;
       case 'f':
+        printf("%s\n",optarg);
         file_name = optarg;
         break;
       case 'm': 
-        free_mem = atoi(optarg);
+        free_mem  = 1;
         break;
       case 't': 
+        printf("%s\n",optarg);
         nthrds  = atoi(optarg);
         break;
       case 'v': 
-        validate_results  = atoi(optarg);
+        validate_results  = 1;
         break;
       case '?':
         if (optopt == 'f')
@@ -72,7 +74,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  printf("File %c\nNbr Threads %d\n",file_name,nthrds);
+  printf("File %s\nNbr Threads %d\n",file_name,nthrds);
 
   return 0;
 }

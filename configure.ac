@@ -2,7 +2,7 @@ AC_INIT([gb],[0.0.1])
 
 AC_CANONICAL_HOST
 
-AC_CONFIG_SRCDIR(src/gb.c)
+AC_CONFIG_SRCDIR(src/sparse_matrix.c)
 
 # Set up Automake
 dnl foreign: do not create the GNU-specific file COPYING and do not complain
@@ -24,7 +24,7 @@ AM_SILENT_RULES()
 # Set up the $(LN_S) macro, which creates symbolic links
 AC_PROG_LN_S
 
-AC_PROG_LIBTOOL
+LT_INIT
 
 # set output variable INSTALL to the name of a BSD-compatible install program.
 # Requires install-sh to be present as a fallback, even on systems where
@@ -379,6 +379,6 @@ fi
 
 AC_PROG_MAKE_SET
 
-AC_CONFIG_FILES([Makefile gb.pc:gb.pc.in])
+AC_CONFIG_FILES([Makefile gb.pc])
 AC_OUTPUT
 
