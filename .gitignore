@@ -50,3 +50,4 @@ src/gb_config.h.in
 src/stamp-h1
 test-driver
 testsuite/Makefile
+install

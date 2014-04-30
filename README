@@ -1,0 +1,11 @@
+=== OVERVIEW ===
+gb is a library for computing Groebner bases. Its core functionality at the
+moment is the special Gaussian Elimination of structured hybrid sparse-dense
+matrices coming from Groebner basis computations.
+
+
+
+=== DEBUGGING ===
+In order to debug gb one needs to use
+libtool e gdb --args ./gb --options
+since we build the library using libtool and link it than against the binary gb.
