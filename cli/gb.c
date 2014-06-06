@@ -25,8 +25,7 @@ void print_help() {
 }
 
 
-int main(int argc, char *argv[])
-{  
+int main(int argc, char *argv[]) {  
   const char *file_name = NULL;
   int free_mem          = 0;
   int validate_results  = 0;
@@ -38,10 +37,8 @@ int main(int argc, char *argv[])
 
   opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "f:hmt:v")) != -1)
-  {
-    switch (opt)
-    {
+  while ((opt = getopt(argc, argv, "f:hmt:v")) != -1) {
+    switch (opt) {
       case 'h':
         print_help();
         return 0;
@@ -75,13 +72,13 @@ int main(int argc, char *argv[])
   for (index = optind; index < argc; index++)
     file_name = argv[index];
 
-  if (file_name == NULL)
-  {
+  if (file_name == NULL) {
     fprintf(stderr, "File name is required.\nSee help using '-h' option.\n");
     return 1;
   }
 
-  printf("File %s\nNbr Threads %d\n",file_name,nthrds);
+  printf("file      - %s\n",file_name);
+  printf("#threads  - %d\n",nthrds);
 
   return 0;
 }

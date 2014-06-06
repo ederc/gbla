@@ -1,0 +1,26 @@
+#ifndef GB_GB_CONFIG_H
+#define GB_GB_CONFIG_H
+
+// Defines determined during configuration of gb.
+#define __GB_HAVE_MM_MALLOC		@GB_HAVE_MM_MALLOC@
+#define __GB_HAVE_POSIX_MEMALIGN	@GB_HAVE_POSIX_MEMALIGN@
+#define __GB_HAVE_SSE2		@GB_HAVE_SSE2@
+#define __GB_HAVE_OPENMP		@GB_HAVE_OPENMP@
+#define __GB_CPU_L1_CACHE		@GB_CPU_L1_CACHE@
+#define __GB_CPU_L2_CACHE		@GB_CPU_L2_CACHE@
+#define __GB_CPU_L3_CACHE		@GB_CPU_L3_CACHE@
+#define __GB_DEBUG_DUMP		(@GB_DEBUG_DUMP@ || @GB_DEBUG_MZD@)
+#define __GB_DEBUG_MZD		@GB_DEBUG_MZD@
+#define __GB_HAVE_LIBPNG              @GB_HAVE_LIBPNG@
+
+#define __GB_CC                       "@CC@"
+#define __GB_CFLAGS                   "@SIMD_CFLAGS@ @OPENMP_CFLAGS@ @CFLAGS@"
+#define __GB_SIMD_CFLAGS              "@SIMD_CFLAGS@"
+#define __GB_OPENMP_CFLAGS            "@OPENMP_CFLAGS@"
+
+// Helper macros.
+#define __GB_USE_MM_MALLOC		(__GB_HAVE_MM_MALLOC && __GB_HAVE_SSE2)
+#define __GB_USE_POSIX_MEMALIGN	(__GB_HAVE_POSIX_MEMALIGN && __GB_HAVE_SSE2)
+#define __GB_DD_QUIET			(@GB_DEBUG_MZD@ && !@GB_DEBUG_DUMP@)
+
+#endif

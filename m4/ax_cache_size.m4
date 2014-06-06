@@ -10,7 +10,7 @@
 #
 #   Find L1 and L2 caches size by reading the corresponding file on UNIX or
 #   by requesting cpuid. The results are available in the substituted variables
-#   GB_CPU_L1_CACHE and M4RI_CPU_L2_CACHE.
+#   GB_CPU_L1_CACHE and GB_CPU_L2_CACHE.
 #
 #   This macro depends on AX_GCC_X86_CPUID, AC_PROG_SED, and AX_CPU_VENDOR.
 #

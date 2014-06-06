@@ -45,8 +45,8 @@ m4/lt~obsolete.m4
 missing
 src/.dirstamp
 src/config.h
+src/config.h.in
 src/gb_config.h
-src/gb_config.h.in
 src/stamp-h1
 test-driver
 testsuite/Makefile

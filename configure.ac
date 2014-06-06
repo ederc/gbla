@@ -45,7 +45,7 @@ AC_CONFIG_MACRO_DIR([m4])
 dnl Compiling with per-target flags (test_elimination.c) requires AM_PROG_CC_C_O.
 AM_PROG_CC_C_O
 
-AC_CONFIG_HEADERS(src/gb_config.h)
+AC_CONFIG_HEADERS(src/config.h)
 
 AC_PROG_CC_C99()
 if test "$ac_cv_prog_cc_c99" = "no"; then
@@ -379,6 +379,6 @@ fi
 
 AC_PROG_MAKE_SET
 
-AC_CONFIG_FILES([Makefile gb.pc])
+AC_CONFIG_FILES([Makefile src/gb_config.h gb.pc])
 AC_OUTPUT
 

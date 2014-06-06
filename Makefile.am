@@ -29,6 +29,6 @@ bin_PROGRAMS = gb
 # set up the console program. Listing the headers in sources ensure that
 # those files are included in distributions.
 gb_SOURCES = \
-	src/cli/gb.h	src/cli/gb.c
+	cli/gb.h	cli/gb.c
 
 gb_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS)
