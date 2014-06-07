@@ -76,9 +76,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "File name is required.\nSee help using '-h' option.\n");
     return 1;
   }
-
-  printf("file      - %s\n",file_name);
-  printf("#threads  - %d\n",nthrds);
+  sparse_mat_t *A = NULL;
+  A = load_matrix_jcf_format(file_name, 1);
 
   return 0;
 }

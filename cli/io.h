@@ -16,7 +16,7 @@
 #include <sparse_matrix.h>
 
 // reading & writing
-void load_matrix_jcf_format(FILE *file, sparse_mat_t *mat);
+sparse_mat_t *load_matrix_jcf_format(const char *fn, int verbose);
 void write_matrix_jcf_format(sparse_mat_t *mat, FILE *file);
 
 #endif
