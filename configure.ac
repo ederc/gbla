@@ -243,16 +243,6 @@ else
 fi
 AC_SUBST(GB_DEBUG_DUMP)
 
-AC_ARG_ENABLE([debug-mzd],
-        AS_HELP_STRING([--enable-debug-mzd], [Add consistency checks on matrix structures.]))
-
-if test "x$enable_debug_mzd" = "xyes"; then
-  GB_DEBUG_MZD=1
-else
-  GB_DEBUG_MZD=0
-fi
-AC_SUBST(GB_DEBUG_MZD)
-
 if test "x$enable_debug" = x"yes"; then
   DEBUG_FLAGS="-g"
   AC_SUBST(DEBUG_FLAGS)
