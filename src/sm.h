@@ -10,13 +10,14 @@
 
 #include <typedefs.h>
 
-// matrix typedefs
-typedef uint16  entry_t;
-typedef uint32  col_idx_t;
-typedef uint32  row_idx_t;
-typedef uint32  col_dim_t;
-typedef uint32  row_dim_t;
+/// matrix row entry type
+typedef uint16  re_t;
+/// row and column index types
+typedef uint32  ci_t;
+typedef uint32  ri_t;
+/// number of nonzero elements type
 typedef uint64  nnz_t;
+/// tyoe of field characteristic
 typedef uint32  mod_t;
 
 /**
@@ -24,15 +25,17 @@ typedef uint32  mod_t;
  *
  */
 
-typedef struct sparse_mat_t {
-  row_dim_t nrows;    /*!< number of rows */
-  col_dim_t ncols;    /*!< number of columns */
-  nnz_t     nnz;      /*!< number of nonzero entries */
-  mod_t     mod;      /*!< modulo/field characteristic */
-  entry_t   **rows;   /*!< address of row: m->row[i] gives first
-                           address of ith row */
-  col_idx_t **pos;    /*!< position of entry in row: m->pos[i] gives first
-                           address of first position of nonzero entry in row i */
-} sparse_mat_t;
+typedef struct sm_t {
+  ri_t nrows;     /*!<  number of rows */
+  ci_t ncols;     /*!<  number of columns */
+  nnz_t nnz;      /*!<  number of nonzero entries */
+  mod_t mod;      /*!<  modulo/field characteristic */
+  re_t **rows;    /*!<  address of row: m->row[i] gives first
+                        address of ith row */
+  ci_t **pos;     /*!<  position of entry in row: m->pos[i] gives first
+                        address of first position of nonzero entry in row i */
+  ci_t *rwidth;   /*!<  width of row: m->width[i] gives number of nonzero
+                        entries in row i */
+} sm_t;
 
 #endif

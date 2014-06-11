@@ -26,25 +26,26 @@ void print_help() {
 
 
 int main(int argc, char *argv[]) {  
-  const char *file_name = NULL;
+  const char *fn        = NULL;
   int free_mem          = 0;
   int validate_results  = 0;
+  int verbose           = 0;
   int method            = 0;
   int nthrds            = 1;
-  
+
   int index;
   int opt;
 
   opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "f:hmt:v")) != -1) {
+  while ((opt = getopt(argc, argv, "f:hmt:cv")) != -1) {
     switch (opt) {
       case 'h':
         print_help();
         return 0;
       case 'f':
         printf("%s\n",optarg);
-        file_name = optarg;
+        fn = optarg;
         break;
       case 'm': 
         free_mem  = 1;
@@ -53,6 +54,9 @@ int main(int argc, char *argv[]) {
         nthrds  = atoi(optarg);
         break;
       case 'v': 
+        verbose = 1;
+        break;
+      case 'c': 
         validate_results  = 1;
         break;
       case '?':
@@ -62,22 +66,26 @@ int main(int argc, char *argv[]) {
           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
         else
           fprintf (stderr,
-                    "Unknown option character `\\x%x'.\n",
-                    optopt);
+              "Unknown option character `\\x%x'.\n",
+              optopt);
         return 1;
       default:
         abort ();
     }
   }
   for (index = optind; index < argc; index++)
-    file_name = argv[index];
+    fn = argv[index];
 
-  if (file_name == NULL) {
+  if (fn == NULL) {
     fprintf(stderr, "File name is required.\nSee help using '-h' option.\n");
     return 1;
   }
-  sparse_mat_t *A = NULL;
-  A = load_matrix_jcf_format(file_name, 1);
+  sm_t *A = NULL;
+  A = load_jcf_matrix(fn, verbose);
 
+  if (verbose) {
+    const char *pbm_fn  = "test.pbm";
+    write_jcf_matrix_to_pbm(A, pbm_fn);
+  }
   return 0;
 }

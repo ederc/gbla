@@ -1,11 +1,11 @@
 #include "io.h"
 
 // reading & writing
-sparse_mat_t *load_matrix_jcf_format(const char *fn, int verbose) {
+sm_t *load_jcf_matrix(const char *fn, int verbose) {
 
   // start loading the matrix
-  row_dim_t m;
-  col_dim_t n;
+  ri_t m;
+  ci_t n;
   mod_t     mod;
   nnz_t     nnz;
   uint64    fl;
@@ -77,77 +77,128 @@ sparse_mat_t *load_matrix_jcf_format(const char *fn, int verbose) {
   }
 
   // read entries from file
-  sparse_mat_t *A = (sparse_mat_t *)malloc(sizeof(sparse_mat_t));
-  A->rows         = (entry_t **)malloc(sizeof(entry_t **));
-  A->pos          = (col_idx_t **)malloc(sizeof(col_idx_t **));
+  sm_t *M   = (sm_t *)malloc(sizeof(sm_t));
+  M->rows   = (re_t **)malloc(m*sizeof(re_t *));
+  M->pos    = (ci_t **)malloc(m*sizeof(ci_t *));
+  M->rwidth = (ci_t *)malloc(m*sizeof(ci_t));
+  
   // get meta data
-  A->nrows   = m;
-  A->ncols   = n;
-  A->nnz     = nnz;
-  A->mod     = mod;
+  M->nrows   = m;
+  M->ncols   = n;
+  M->nnz     = nnz;
+  M->mod     = mod;
   
   // maximal possible nonzero entries per row is n*sizeof(entry_t)
-  entry_t   *nze  = (entry_t *)malloc(n * sizeof(entry_t));
-  col_idx_t *pos  = (col_idx_t *)malloc(n * sizeof(col_idx_t));
+  re_t *nze = (re_t *)malloc(n * sizeof(re_t));
+  ci_t *pos = (ci_t *)malloc(n * sizeof(ci_t));
 
   // store header size of file
   // size of m, n, mod and nb
   uint32 hs  = 3 * sizeof(uint32) + sizeof(uint64);
 
   // offsets for file handling
-  uint64 row_size_offset = nnz * sizeof(entry_t) + nnz * sizeof(uint32) + hs;
+  uint64 row_size_offset = nnz * sizeof(re_t) + nnz * sizeof(uint32) + hs;
   uint64 row_val_offset = hs;
-  uint64 row_pos_offset = nnz * sizeof(entry_t) + hs;
+  uint64 row_pos_offset = nnz * sizeof(re_t) + hs;
 
-  uint32 sz;
-  uint32 i, j;
+  ri_t i;
+  ci_t j;
+  ci_t sz;
 
   for (i = 0; i < m; ++i) {
     fseek(fh, row_size_offset, SEEK_SET);
-    if (fread(&sz, sizeof(col_idx_t), 1, fh) != 1) {
+    if (fread(&sz, sizeof(ci_t), 1, fh) != 1) {
       if (verbose)
         printf("Error while reading file '%s'\n",fn);
-      free(A);
+      free(M);
       fclose(fh);
       return NULL;
     }
 
-    row_size_offset +=  sizeof(uint32);
+    row_size_offset +=  sizeof(ci_t);
 
     fseek(fh, row_val_offset, SEEK_SET);
-    if (fread(nze, sizeof(entry_t), sz, fh) != sz) {
+    if (fread(nze, sizeof(re_t), sz, fh) != sz) {
       if (verbose)
         printf("Error while reading file '%s'\n",fn);
-      free(A);
+      free(M);
       fclose(fh);
       return NULL;
     }
 
-    row_val_offset +=  sz * sizeof(entry_t);
+    row_val_offset +=  sz * sizeof(re_t);
 
     fseek(fh, row_pos_offset, SEEK_SET);
-    if (fread(pos, sizeof(col_idx_t), sz, fh) != sz) {
+    if (fread(pos, sizeof(ci_t), sz, fh) != sz) {
       if (verbose)
         printf("Error while reading file '%s'\n",fn);
-      free(A);
+      free(M);
       fclose(fh);
       return NULL;
     }
 
-    row_pos_offset +=  sz * sizeof(uint32);
+    row_pos_offset +=  sz * sizeof(ci_t);
 
     // reserve memory in matrix A for row[i]
-    A->rows[i] = (entry_t *)malloc(sz * sizeof(entry_t));
-    A->pos[i]  = (col_idx_t *)malloc(sz * sizeof(col_idx_t));
+    M->rows[i] = (re_t *)malloc(sz * sizeof(re_t));
+    M->pos[i]     = (ci_t *)malloc(sz * sizeof(ci_t));
     for (j = 0; j < sz; ++j) {
-      A->rows[i][j]  = nze[j];
-      A->pos[i][j]   = pos[j];
+      M->rows[i][j] = nze[j];
+      M->pos[i][j]  = pos[j];
     }
+    M->rwidth[i]  = sz;
   }
 
   fclose(fh); 
-  return A;
+  return M;
 }
 
-void write_matrix_jcf_format(sparse_mat_t *mat, FILE *file) {
+void write_jcf_matrix_to_file(sm_t *M, const char *fn) {
+}
+
+void write_jcf_matrix_to_pbm(sm_t *M, const char *fn) {
+  char buffer[512];
+  unsigned char out_byte  = 0;
+
+  ri_t m = M->nrows;
+  ci_t n = M->ncols;
+
+  FILE *fh  = fopen(fn, "wb");
+
+  // magic PBM header
+#ifdef __LP64__ // 64bit machine
+  sprintf(buffer, "P4\n# matrix size(%lu, %lu)\n%lu %lu\n", m, n, n, m);
+#else // 32bit machine
+  sprintf(buffer, "P4\n# matrix size(%u, %u)\n%u %u\n", m, n, n, m);
+#endif
+
+  fwrite(buffer, sizeof(char), strlen(buffer), fh);
+
+  ri_t i;
+  ci_t j, k;
+  // row width: number of nonzero elements in current row
+  ci_t sz;
+
+  for (i = 0; i < m; ++i) {
+    k   = 0;
+    sz  = M->rwidth[i];
+    for (j = 0; j < n; ++j) {
+      if (k < sz && M->pos[i][k] == j) {
+        out_byte  |=  (1 << (7 - (j % 8)));
+        k++;
+      } else {
+        out_byte  &=  ~(1 << (7 - (j % 8)));
+      }
+      if (j % 8 == 7) {
+        fwrite(&out_byte, sizeof(unsigned char), 1, fh);
+        out_byte  = 0;
+      }
+    }
+    if (j % 8 != 0)
+      fwrite(&out_byte, sizeof(unsigned char), 1, fh);
+
+    fflush(fh);
+  }
+  fclose(fh);
+  
 }

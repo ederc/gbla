@@ -6,13 +6,13 @@ AM_CFLAGS=${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS}
 lib_LTLIBRARIES = libgb.la
 
 libgb_la_SOURCES = \
-	src/sparse_matrix.h	src/sparse_matrix.c
+	src/sm.h	src/sm.c
 
 BUILT_SOURCES = src/gb_config.h
 
 pkgincludesubdir = $(includedir)/src
 pkgincludesub_HEADERS = \
-	src/sparse_matrix.h
+	src/sm.h
 
 nodist_pkgincludesub_HEADERS = src/gb_config.h
 

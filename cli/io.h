@@ -13,10 +13,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <sparse_matrix.h>
+#include <sm.h>
 
 // reading & writing
-sparse_mat_t *load_matrix_jcf_format(const char *fn, int verbose);
-void write_matrix_jcf_format(sparse_mat_t *mat, FILE *file);
+sm_t *load_jcf_matrix(const char *fn, int verbose);
+void write_jcf_matrix_to_file(sm_t *mat, const char *fn);
 
+void write_jcf_matrix_to_pbm(sm_t *mat, const char *fn);
 #endif
