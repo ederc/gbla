@@ -13,6 +13,7 @@
 *.res
 *.so
 *.swp
+*.pbm
 *~
 .deps
 .dirstamp
