@@ -86,8 +86,17 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "File name is required.\nSee help using '-h' option.\n");
     return 1;
   }
+
+  struct timeval t_load_start;
+  gettimeofday(&t_load_start, NULL);
+
   sm_t *M = NULL;
   M = load_jcf_matrix(fn, verbose);
+
+  // print walltime
+  if (verbose > 1) {
+    printf("Time for loading JCF matrix: %7.3f sec\n", walltime(t_load_start) / (1000000));
+  }
 
   if (write_pbm) {
     const char *pbm_fn  = "input-matrix.pbm";

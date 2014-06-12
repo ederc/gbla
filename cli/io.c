@@ -2,13 +2,10 @@
 
 
 // ========== TIMINGS ==========
-uint64_t walltime(uint64_t t0) {
-  static time_t base_sec;
-  struct timeval tp;
-  gettimeofday(&tp, NULL);
-  if (base_sec == 0)
-    base_sec  = tp.tv_sec;
-  return (tp.tv_sec - base_sec) * 1000000 + tp.tv_sec - t0;
+double walltime(struct timeval t_start) {
+  struct timeval t_end;
+  gettimeofday(&t_end, NULL);
+  return (double)((t_end.tv_sec - t_start.tv_sec) * 1000000 + t_end.tv_usec - t_start.tv_usec);
 }
 
 

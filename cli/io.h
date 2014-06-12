@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <sys/time.h>
 #include <sm.h>
 
 // ========== TIMINGS ==========
@@ -25,7 +26,8 @@
  *
  * \return Difference in walltime between current time stamp and t0
  */
-uint64_t walltime(uint64_t t0);
+
+double walltime(struct timeval t_start);
 
 
 
