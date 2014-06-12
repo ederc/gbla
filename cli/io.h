@@ -15,9 +15,42 @@
 #include <string.h>
 #include <sm.h>
 
-// reading & writing
-sm_t *load_jcf_matrix(const char *fn, int verbose);
-void write_jcf_matrix_to_file(sm_t *mat, const char *fn);
+// ========== READING ==========
 
-void write_jcf_matrix_to_pbm(sm_t *mat, const char *fn);
+/**
+ * \brief Loads a matrix given in Jean-Charles Faugère's style to a sparse
+ * matrix in (sm_t *) format.
+ *
+ * \param fn File name
+ * \param vebose If 1: Printing of error messages 
+ *               If 2: Also printing of meta information
+ *
+ * \return Corresponding sparse matrix in (sm_t *) format
+ */
+sm_t *load_jcf_matrix(const char *fn, int verbose);
+
+
+
+// ========== WRITING ==========
+
+/**
+ * \brief Writes a sparse matrix in (sm_t *) format to a file in Jean-Charles Faugère's style.
+ *
+ * \param M Matrix in (sm_t *) format
+ * \param fn File name
+ * \param vebose If 1: Printing of error messages 
+ *               If 2: Also printing meta information
+ */
+void write_jcf_matrix_to_file(sm_t *M, const char *fn, int verbose);
+
+/**
+ * \brief Writes a sparse matrix in (sm_t *) format to a file as portable bitmap
+ * image.
+ *
+ * \param M Matrix in (sm_t *) format
+ * \param fn File name
+ * \param vebose If 1: Printing of error messages 
+ *               If 2: Also printing meta information
+ */
+void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);
 #endif

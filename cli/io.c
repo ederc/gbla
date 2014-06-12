@@ -13,7 +13,8 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   // open in binary mode first to get file size with fseek
   FILE *fh        = fopen(fn,"rb");
   if (fh == NULL) {
-    printf("File not found!\n");
+    if (verbose > 0)
+      printf("File not found!\n");
     return NULL;
   } else {
     fseek(fh, 0L, SEEK_END);
@@ -25,34 +26,34 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   fh  = fopen(fn,"r");
   // get columns
   if (fread(&m, sizeof(uint32), 1, fh) != 1) {
-    if (verbose)
+    if (verbose > 0)
       printf("Error while reading file '%s'\n",fn);
     fclose(fh);
     return NULL;
   }
   // get rows
   if (fread(&n, sizeof(uint32), 1, fh) != 1) {
-    if (verbose)
+    if (verbose > 0)
       printf("Error while reading file '%s'\n",fn);
     fclose(fh);
     return NULL;
   }
   // get modulus
   if ((fread(&mod, sizeof(uint32), 1, fh) != 1) || (mod == 1)) {
-    if (verbose)
+    if (verbose > 0)
       printf("Error while reading file '%s'\n",fn);
     fclose(fh);
     return NULL;
   }
   // get number of nonzero elements
   if (fread(&nnz, sizeof(uint64), 1, fh) != 1) {
-    if (verbose)
+    if (verbose > 0)
       printf("Error while reading file '%s'\n",fn);
     fclose(fh);
     return NULL;
   }
 
-  if (verbose) {
+  if (verbose > 1) {
     // density of matrix
     double density  = (double) n * (double) m;
     density   =   (double) (nnz) / density;
@@ -108,7 +109,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   for (i = 0; i < m; ++i) {
     fseek(fh, row_size_offset, SEEK_SET);
     if (fread(&sz, sizeof(ci_t), 1, fh) != 1) {
-      if (verbose)
+      if (verbose > 0)
         printf("Error while reading file '%s'\n",fn);
       free(M);
       fclose(fh);
@@ -119,7 +120,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 
     fseek(fh, row_val_offset, SEEK_SET);
     if (fread(nze, sizeof(re_t), sz, fh) != sz) {
-      if (verbose)
+      if (verbose > 0)
         printf("Error while reading file '%s'\n",fn);
       free(M);
       fclose(fh);
@@ -130,7 +131,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 
     fseek(fh, row_pos_offset, SEEK_SET);
     if (fread(pos, sizeof(ci_t), sz, fh) != sz) {
-      if (verbose)
+      if (verbose > 0)
         printf("Error while reading file '%s'\n",fn);
       free(M);
       fclose(fh);
@@ -153,10 +154,10 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   return M;
 }
 
-void write_jcf_matrix_to_file(sm_t *M, const char *fn) {
+void write_jcf_matrix_to_file(sm_t *M, const char *fn, int verbose) {
 }
 
-void write_jcf_matrix_to_pbm(sm_t *M, const char *fn) {
+void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose) {
   char buffer[512];
   unsigned char out_byte  = 0;
 

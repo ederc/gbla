@@ -6,13 +6,15 @@ AM_CFLAGS=${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS}
 lib_LTLIBRARIES = libgb.la
 
 libgb_la_SOURCES = \
-	src/sm.h	src/sm.c
+	src/sm.h	src/sm.c \
+	src/elim.h	src/elim.c
 
 BUILT_SOURCES = src/gb_config.h
 
 pkgincludesubdir = $(includedir)/src
 pkgincludesub_HEADERS = \
-	src/sm.h
+	src/sm.h \
+	src/elim.h 
 
 nodist_pkgincludesub_HEADERS = src/gb_config.h
 

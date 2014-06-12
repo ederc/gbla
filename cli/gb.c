@@ -31,6 +31,7 @@ int main(int argc, char *argv[]) {
   int validate_results  = 0;
   int verbose           = 0;
   int method            = 0;
+  int write_pbm         = 0;
   int nthrds            = 1;
 
   int index;
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
 
   opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "f:hmt:cv")) != -1) {
+  while ((opt = getopt(argc, argv, "f:hmt:cv:p")) != -1) {
     switch (opt) {
       case 'h':
         print_help();
@@ -54,10 +55,15 @@ int main(int argc, char *argv[]) {
         nthrds  = atoi(optarg);
         break;
       case 'v': 
-        verbose = 1;
+        verbose = atoi(optarg);
+        if (verbose > 2)
+          verbose = 2;
         break;
       case 'c': 
         validate_results  = 1;
+        break;
+      case 'p': 
+        write_pbm = 1;
         break;
       case '?':
         if (optopt == 'f')
@@ -80,12 +86,17 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "File name is required.\nSee help using '-h' option.\n");
     return 1;
   }
-  sm_t *A = NULL;
-  A = load_jcf_matrix(fn, verbose);
+  sm_t *M = NULL;
+  M = load_jcf_matrix(fn, verbose);
 
-  if (verbose) {
-    const char *pbm_fn  = "test.pbm";
-    write_jcf_matrix_to_pbm(A, pbm_fn);
+  if (write_pbm) {
+    const char *pbm_fn  = "input-matrix.pbm";
+    write_jcf_matrix_to_pbm(M, pbm_fn, verbose);
   }
+
+  // computing Gaussian Elimination of A using methods of Faugère & Lachartre
+  elim_fl(M);
+
+  free(M);
   return 0;
 }

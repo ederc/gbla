@@ -9,5 +9,6 @@
 #define GB_GB_H
 
 #include "io.h"
+#include <elim.h>
 
 #endif

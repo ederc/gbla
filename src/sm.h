@@ -1,12 +1,12 @@
 /**
- * \file sparse_matrix.h
+ * \file sm.h
  * \brief Interface for sparse matrix structures
  *
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 
-#ifndef GB_SPARSE_MATRIX_H
-#define GB_SPARSE_MATRIX_H
+#ifndef GB_SM_H
+#define GB_SM_H
 
 #include <typedefs.h>
 
