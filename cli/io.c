@@ -1,6 +1,18 @@
 #include "io.h"
 
-// reading & writing
+
+// ========== TIMINGS ==========
+uint64_t walltime(uint64_t t0) {
+  static time_t base_sec;
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  if (base_sec == 0)
+    base_sec  = tp.tv_sec;
+  return (tp.tv_sec - base_sec) * 1000000 + tp.tv_sec - t0;
+}
+
+
+// ========== READING ==========
 sm_t *load_jcf_matrix(const char *fn, int verbose) {
 
   // start loading the matrix
@@ -8,7 +20,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   ci_t n;
   mod_t     mod;
   nnz_t     nnz;
-  uint64    fl;
+  uint64_t    fl;
 
   // open in binary mode first to get file size with fseek
   FILE *fh        = fopen(fn,"rb");
@@ -25,28 +37,28 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   // now read data from file
   fh  = fopen(fn,"r");
   // get columns
-  if (fread(&m, sizeof(uint32), 1, fh) != 1) {
+  if (fread(&m, sizeof(uint32_t), 1, fh) != 1) {
     if (verbose > 0)
       printf("Error while reading file '%s'\n",fn);
     fclose(fh);
     return NULL;
   }
   // get rows
-  if (fread(&n, sizeof(uint32), 1, fh) != 1) {
+  if (fread(&n, sizeof(uint32_t), 1, fh) != 1) {
     if (verbose > 0)
       printf("Error while reading file '%s'\n",fn);
     fclose(fh);
     return NULL;
   }
   // get modulus
-  if ((fread(&mod, sizeof(uint32), 1, fh) != 1) || (mod == 1)) {
+  if ((fread(&mod, sizeof(uint32_t), 1, fh) != 1) || (mod == 1)) {
     if (verbose > 0)
       printf("Error while reading file '%s'\n",fn);
     fclose(fh);
     return NULL;
   }
   // get number of nonzero elements
-  if (fread(&nnz, sizeof(uint64), 1, fh) != 1) {
+  if (fread(&nnz, sizeof(uint64_t), 1, fh) != 1) {
     if (verbose > 0)
       printf("Error while reading file '%s'\n",fn);
     fclose(fh);
@@ -95,12 +107,12 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 
   // store header size of file
   // size of m, n, mod and nb
-  uint32 hs  = 3 * sizeof(uint32) + sizeof(uint64);
+  uint32_t hs  = 3 * sizeof(uint32_t) + sizeof(uint64_t);
 
   // offsets for file handling
-  uint64 row_size_offset = nnz * sizeof(re_t) + nnz * sizeof(uint32) + hs;
-  uint64 row_val_offset = hs;
-  uint64 row_pos_offset = nnz * sizeof(re_t) + hs;
+  uint64_t row_size_offset  = nnz * sizeof(re_t) + nnz * sizeof(uint32_t) + hs;
+  uint64_t row_val_offset   = hs;
+  uint64_t row_pos_offset   = nnz * sizeof(re_t) + hs;
 
   ri_t i;
   ci_t j;
@@ -153,6 +165,9 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   fclose(fh); 
   return M;
 }
+
+
+// ========== WRITING ==========
 
 void write_jcf_matrix_to_file(sm_t *M, const char *fn, int verbose) {
 }

@@ -13,7 +13,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include <sm.h>
+
+// ========== TIMINGS ==========
+
+/**
+ * \brief Returns walltime since time t0.
+ *
+ * \param Start time stamp t0
+ *
+ * \return Difference in walltime between current time stamp and t0
+ */
+uint64_t walltime(uint64_t t0);
+
+
 
 // ========== READING ==========
 
