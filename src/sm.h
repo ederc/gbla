@@ -38,6 +38,8 @@ typedef struct sm_t {
                         entries in row i */
 } sm_t;
 
+
+
 /**
  * \brief Indexer for subdividing sparse matrix into 4 parts as described by
  * Faugère and Lachartre in http://dx.doi.org/10.1145/1837210.1837225.
@@ -46,6 +48,7 @@ typedef struct sm_t {
  * M ---->     --+--
  *             C | D
  */
+
 typedef struct sm_idx_t {
   ci_t *piv_col_map;            /*!<  map of pivot columns: from input matrix M to
                                       submatrix A; has length M->ncols, maps non-pivot
@@ -61,6 +64,10 @@ typedef struct sm_idx_t {
                                       their corresponding row index, maps non-pivot
                                       columns to __GB_MINUS_ONE_32 */
   ri_t *non_piv_rows_idxs;      /*!<  indexes of non-pivot rows */
+
+  int idx_maps_done;            /*<   0 if indexer for M is not constructed
+                                      1 if indexer for M is constructed */
+  int n_idx_thrds;              /*!<  number of threads to be used for the indexer */
 } sm_idx_t;
 
 #endif
