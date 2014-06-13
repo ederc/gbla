@@ -23,4 +23,7 @@
 #define __GB_USE_POSIX_MEMALIGN	(__GB_HAVE_POSIX_MEMALIGN && __GB_HAVE_SSE2)
 #define __GB_DD_QUIET			(@GB_DEBUG_MZD@ && !@GB_DEBUG_DUMP@)
 
+static const uint32_t __GB_MINUS_ONE_32 = (uint32_t) -1;
+static const uint16_t __GB_MINUS_ONE_16 = (uint16_t) -1;
+static const uint8_t __GB_MINUS_ONE_16  = (uint8_t) -1;
 #endif

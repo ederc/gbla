@@ -175,7 +175,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   if (verbose > 1) {
     printf("Time for loading JCF matrix: %7.3f sec (%7.3f %s/sec)\n",
         walltime(t_load_start) / (1000000),
-        fs  / (walltime(t_load_start) / (1000000)), fsu);
+        fs / (walltime(t_load_start) / (1000000)), fsu);
   }
   return M;
 }
