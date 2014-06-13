@@ -12,13 +12,17 @@ void print_help() {
   printf("    dense matrix coming from Groebner basis computations.\n");
   printf("\n");
   printf("OPTIONS\n");
+  printf("    -c         Result checked resp. validated with structured Gaussian\n");
+  printf("               Elimination. By default there is no validation.\n");
   printf("    -h         Print help.\n");
   printf("    -m         Free memory on the go.\n");
   printf("               By default memory is freed only at the end.\n");
+  printf("    -p         Writes intermediate matrices in pbm format.\n");
   printf("    -t THRDS   Number of threads used.\n");
   printf("               Default: 1.\n");
-  printf("    -v         Result validated with structured Gaussian Elimination.\n");
-  printf("               By default there is no validation.\n");
+  printf("    -v LEVEL   Level of verbosity:\n");
+  printf("               1 -> only error messages printed\n");
+  printf("               2 -> additionally meta information printed\n");
   printf("\n");
 
   return; 
@@ -87,16 +91,9 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  struct timeval t_load_start;
-  gettimeofday(&t_load_start, NULL);
-
   sm_t *M = NULL;
   M = load_jcf_matrix(fn, verbose);
 
-  // print walltime
-  if (verbose > 1) {
-    printf("Time for loading JCF matrix: %7.3f sec\n", walltime(t_load_start) / (1000000));
-  }
 
   if (write_pbm) {
     const char *pbm_fn  = "input-matrix.pbm";

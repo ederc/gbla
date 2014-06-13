@@ -12,6 +12,17 @@ double walltime(struct timeval t_start) {
 // ========== READING ==========
 sm_t *load_jcf_matrix(const char *fn, int verbose) {
 
+  // meta information of matrix
+  double density;
+  double fs;
+  char *fsu;
+  // timing structs
+  struct timeval t_load_start;
+
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+  }
+
   // start loading the matrix
   ri_t m;
   ci_t n;
@@ -64,12 +75,12 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 
   if (verbose > 1) {
     // density of matrix
-    double density  = (double) n * (double) m;
-    density   =   (double) (nnz) / density;
-    density   *=  100.0;
+    density =   (double) n * (double) m;
+    density =   (double) (nnz) / density;
+    density *=  100.0;
     // file size of matrix
-    double fs =   (double) fl / 1024 / 1024;
-    char *fsu =   "MB";
+    fs  = (double) fl / 1024 / 1024;
+    fsu = "MB";
     if (fs > 1000) {
       fs  = fs / 1024;
       fsu = "GB";
@@ -81,8 +92,8 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
     printf("number of rows              %14d\n", m);
     printf("number of columns           %14d\n", n);
     printf("number of nonzero elements  %14ld\n", nnz);
-    printf("density                     %14.2f%\n", density);
-    printf("size                        %14.2f%s\n", fs, fsu);
+    printf("density                     %14.2f %\n", density);
+    printf("size                        %14.2f %s\n", fs, fsu);
     printf("--------------------------------------------------------------\n");
   }
 
@@ -160,6 +171,12 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   }
 
   fclose(fh); 
+  // print walltime
+  if (verbose > 1) {
+    printf("Time for loading JCF matrix: %7.3f sec (%7.3f %s/sec)\n",
+        walltime(t_load_start) / (1000000),
+        fs  / (walltime(t_load_start) / (1000000)), fsu);
+  }
   return M;
 }
 
