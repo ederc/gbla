@@ -28,7 +28,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   ci_t n;
   mod_t     mod;
   nnz_t     nnz;
-  uint64_t    fl;
+  uint64_t  fl;
 
   // open in binary mode first to get file size with fseek
   FILE *fh        = fopen(fn,"rb");

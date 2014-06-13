@@ -8,7 +8,7 @@
 #ifndef GB_ELIM_H
 #define GB_ELIM_H
 
-#include <sm.h>
+#include <maps.h>
 
 void elim_fl(sm_t *M);
 

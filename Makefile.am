@@ -7,13 +7,16 @@ lib_LTLIBRARIES = libgb.la
 
 libgb_la_SOURCES = \
 	src/sm.h	src/sm.c \
+	src/maps.h	src/maps.c \
 	src/elim.h	src/elim.c
 
 BUILT_SOURCES = src/gb_config.h
 
 pkgincludesubdir = $(includedir)/src
 pkgincludesub_HEADERS = \
+	src/types.h \
 	src/sm.h \
+	src/maps.h \
 	src/elim.h 
 
 nodist_pkgincludesub_HEADERS = src/gb_config.h
