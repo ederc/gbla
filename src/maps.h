@@ -21,15 +21,15 @@
  */
 
 typedef struct maps_fl_t {
-  ci_t *pc_map;           /*!<  map of pivot columns: from input matrix M to
+  ci_t *pc;               /*!<  map of pivot columns: from input matrix M to
                                 submatrix A; has length M->ncols, maps non-pivot
                                 columns to __GB_MINUS_ONE_32 */
-  ci_t *npc_map;          /*!<  map of non-pivot columns: from input matrix M to
+  ci_t *npc;              /*!<  map of non-pivot columns: from input matrix M to
                                 submatrix B; has length M->ncols, maps pivot
                                 columns to __GB_MINUS_ONE_32 */
-  ci_t *pc_rev_map;       /*!<  reverse map of pivot columns: from submatrices
+  ci_t *pc_rev;           /*!<  reverse map of pivot columns: from submatrices
                                 A and B to input matrix M */
-  ci_t *npc_rev_map;      /*!<  reverse map of non-pivot columns: from submatrices
+  ci_t *npc_rev;          /*!<  reverse map of non-pivot columns: from submatrices
                                 A and B to input matrix M */
   ri_t *pr_idxs_by_entry; /*!<  has length M->nrows, maps pivot columns to
                                 their corresponding row index, maps non-pivot
