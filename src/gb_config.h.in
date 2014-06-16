@@ -1,6 +1,8 @@
 #ifndef GB_GB_CONFIG_H
 #define GB_GB_CONFIG_H
 
+#include <stdint.h>
+
 // Defines determined during configuration of gb.
 #define __GB_HAVE_MM_MALLOC		@GB_HAVE_MM_MALLOC@
 #define __GB_HAVE_POSIX_MEMALIGN	@GB_HAVE_POSIX_MEMALIGN@
@@ -25,5 +27,5 @@
 
 static const uint32_t __GB_MINUS_ONE_32 = (uint32_t) -1;
 static const uint16_t __GB_MINUS_ONE_16 = (uint16_t) -1;
-static const uint8_t __GB_MINUS_ONE_16  = (uint8_t) -1;
+static const uint8_t __GB_MINUS_ONE_8   = (uint8_t) -1;
 #endif

@@ -2,7 +2,7 @@ AC_INIT([gb],[0.0.1])
 
 AC_CANONICAL_HOST
 
-AC_CONFIG_SRCDIR(src/sm.c)
+AC_CONFIG_SRCDIR(src/matrix.c)
 
 # Set up Automake
 dnl foreign: do not create the GNU-specific file COPYING and do not complain

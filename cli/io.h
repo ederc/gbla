@@ -15,7 +15,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
-#include <sm.h>
+#include <matrix.h>
 
 // ========== TIMINGS ==========
 

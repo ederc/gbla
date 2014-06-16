@@ -94,7 +94,6 @@ int main(int argc, char *argv[]) {
   sm_t *M = NULL;
   M = load_jcf_matrix(fn, verbose);
 
-
   if (write_pbm) {
     const char *pbm_fn  = "input-matrix.pbm";
     write_jcf_matrix_to_pbm(M, pbm_fn, verbose);

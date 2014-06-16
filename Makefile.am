@@ -6,18 +6,18 @@ AM_CFLAGS=${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS}
 lib_LTLIBRARIES = libgb.la
 
 libgb_la_SOURCES = \
-	src/sm.h	src/sm.c \
-	src/maps.h	src/maps.c \
-	src/elim.h	src/elim.c
+	src/matrix.h	src/matrix.c \
+	src/mapping.h	src/mapping.c \
+	src/elimination.h	src/elimination.c
 
 BUILT_SOURCES = src/gb_config.h
 
 pkgincludesubdir = $(includedir)/src
 pkgincludesub_HEADERS = \
 	src/types.h \
-	src/sm.h \
-	src/maps.h \
-	src/elim.h 
+	src/matrix.h \
+	src/mapping.h \
+	src/elimination.h 
 
 nodist_pkgincludesub_HEADERS = src/gb_config.h
 

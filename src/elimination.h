@@ -1,14 +1,14 @@
 /**
- * \file elim.h
+ * \file elimination.h
  * \brief Different Gaussian Elimination methods
  *
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 
-#ifndef GB_ELIM_H
-#define GB_ELIM_H
+#ifndef GB_ELIMINATION_H
+#define GB_ELIMINATION_H
 
-#include <maps.h>
+#include <mapping.h>
 
 void elim_fl(sm_t *M);
 
