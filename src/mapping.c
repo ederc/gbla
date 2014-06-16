@@ -1,8 +1,8 @@
 #include <mapping.h>
 
-maps_fl_t *construct_fl_map(sm_t *M) {
+map_fl_t *construct_fl_map(sm_t *M) {
   // initialize all map entries to __GB_MINUS_ONE_8
-  maps_fl_t *map  = init_fl_map(M);
+  map_fl_t *map = init_fl_map(M);
 
   uint32_t npiv = 0;  // number of pivots
   ri_t i = 0;         // current row index
@@ -46,10 +46,10 @@ maps_fl_t *construct_fl_map(sm_t *M) {
   return map;
 }
 
-maps_fl_t *splice_fl_matrix(sm_t *M, sbm_t *A, sbm_t *B, sbm_t *C, sbm_t *D) {
+void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, map_fl_t *map) {
   
   // construct index map for Faugère-Lachartre decomposition of matrix M
-  maps_fl_t *map  = construct_fl_map(M);
+  map  = construct_fl_map(M);
 
   // 
 }

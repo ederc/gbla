@@ -99,6 +99,14 @@ int main(int argc, char *argv[]) {
     write_jcf_matrix_to_pbm(M, pbm_fn, verbose);
   }
 
+  // construct splicing of matrix M into A, B, C and D
+  sbm_fl_t *A   = NULL;
+  sbm_fl_t *B   = NULL;
+  sbm_fl_t *C   = NULL;
+  sbm_fl_t *D   = NULL;
+  map_fl_t *map = NULL; // stores mappings from M <-> ABCD
+
+  splice_fl_matrix(M, A, B, C, D, map);
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
   elim_fl(M);
 

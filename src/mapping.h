@@ -24,7 +24,7 @@
  *                 C | D
  */
 
-typedef struct maps_fl_t {
+typedef struct map_fl_t {
   ci_t *pc;               /*!<  map of pivot columns: from input matrix M to
                                 submatrix A; has length M->ncols, maps non-pivot
                                 columns to __GB_MINUS_ONE_32 */
@@ -41,7 +41,7 @@ typedef struct maps_fl_t {
   ri_t *npr_idxs;         /*!<  indexes of non-pivot rows */
 
   int nthrds;             /*!<  number of threads to be used for the indexer */
-} maps_fl_t;
+} map_fl_t;
 
 
 /**
@@ -51,9 +51,9 @@ typedef struct maps_fl_t {
  * \param input matrix M
  * \return initialized map
  */
-static inline maps_fl_t *init_fl_map(sm_t *M) {
-  maps_fl_t *map  = NULL;
-  map             = (maps_fl_t *)malloc(sizeof(maps_fl_t));
+static inline map_fl_t *init_fl_map(sm_t *M) {
+  map_fl_t *map   = NULL;
+  map             = (map_fl_t *)malloc(sizeof(map_fl_t));
   
   // initialize map arrays and 
   // set initial values to __GB_MINUS_ONE_8
@@ -84,7 +84,7 @@ static inline maps_fl_t *init_fl_map(sm_t *M) {
  *
  * \return indexer map for M
  */
-maps_fl_t *construct_fl_map(sm_t *M);
+map_fl_t *construct_fl_map(sm_t *M);
 
 /**
  * \brief Constructs index maps for the subdivision of M into ABCD in the
@@ -94,6 +94,6 @@ maps_fl_t *construct_fl_map(sm_t *M);
  *
  *  \return corresponding index maps for ABCD decomposition
  */
-maps_fl_t *splice_fl_matrix(sm_t *M, sbm_t *A, sbm_t *B, sbm_t *C, sbm_t *D);
+void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, map_fl_t *map);
 
 #endif
