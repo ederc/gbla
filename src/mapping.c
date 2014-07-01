@@ -48,7 +48,8 @@ map_fl_t *construct_fl_map(sm_t *M) {
 }
 
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-                      map_fl_t *map, int block_dim, int rows_multiline) {
+                      map_fl_t *map, int block_dim, int rows_multiline,
+                      int nthreads) {
   
   A = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   B = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
@@ -100,60 +101,103 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   assert(M->nrows == A->nrows + D->nrows);
   assert(M->ncols == B->ncols + C->ncols);
 
-  ri_t rbi  = 0; // row block index
-  ri_t crb  = 0; // current row in block
-  ri_t rihb[A->bheight]; // row indices in horizontal block
+  uint32_t npiv = 0; // number pivots handled
+  // Take maximal number of rows in blocks to be able to use array
+  // piv_start_idx for construction of A & B as well as for the construction of
+  // C & D.
+  uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows; 
+  uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
+  piv_start_idx[0]  = M->nrows;
+  uint32_t block;
 
-  /*
-   * TODO:  1.  The following should be done in parallel, use M read
-   *            only and construct A,B and C,D in parallel.
-   *        2.  Destroy M on the fly or at the end of the construction of
-   *            A,B,C,D.
-   */
+  int i;
 
-  ri_t i;
-  // construct matrices A and B
-  for (i=M->nrows-1; i>-1; --i) {
-    if (map->pri[i] == __GB_MINUS_ONE_32) // no pivot row
-      continue;
+  // find blocks for construction of A & B
+  for (i = (int)M->nrows-1; i > -1; --i) {
+    if (map->pri[i] != __GB_MINUS_ONE_32)
+      npiv++;
 
-    rihb[crb] = map->pri[i];
-    crb++;
-
-    if (crb == A->bheight)
-      write_blocks_lr_matrix(M, A, B, rihb, crb, rbi);
-    // TODO: destruct original matrix on the fly here
-
-    rbi++;
-    crb = 0;
+    if (npiv % B->bheight == 0)
+      piv_start_idx[npiv / B->bheight]  = i;
   }
 
-  if (crb != 0)
-    write_blocks_lr_matrix(M, A, B, rihb, crb, rbi);
-  // TODO: destruct original matrix on the fly here
-  
+  piv_start_idx[(map->npiv / B->bheight) + 1] = 0;
 
-  // construct matrices C and D
-  rbi = 0;
-  crb = 0;
+  omp_set_dynamic(0);
+#pragma omp parallel num_threads(nthreads)
+  {
+    uint32_t rihb[B->bheight];  // rows indices horizontal block
+    uint16_t cvb  = 0;          // current vector in block
 
-  for (i=M->ncols-1; i>-1; --i) {
-    if (map->npri[i] == __GB_MINUS_ONE_32)
-      continue;
+#pragma omp for schedule(dynamic) nowait
+    for (block=0; block<=(map->npiv/B->bheight); ++block) {
+      // construct block submatrices A & B
+      for (i = ((int)piv_start_idx[block]-1); i >= (int)piv_start_idx[block+1];
+          --i) {
+        if (map->pri[i] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->pri[i];
+          cvb++;
+        }
+        if (cvb == B->bheight || i == 0) {
+          write_left_multiline_right_block(M, A, B, rihb, cvb, block);
 
-    rihb[crb] = map->npri[i];
-    crb++;
+          // TODO: Destruct input matrix on the go
+          /*
+          if (destruct_input_matrix) {
+          // free memory
+          }
+          */
+          cvb = 0;
+        }
+      }
+    }
+  } 
 
-    if (crb == C->bheight)
-      write_blocks_lr_matrix(M, C, D, rihb, crb, rbi);
-    // TODO: destruct original matrix on the fly here
+  // find blocks for construction of C & D
+  npiv  = 0;
+  piv_start_idx[0]  = M->nrows;
+  for (i = (int)M->nrows-1; i > -1; --i) {
+    if (map->npri[i] != __GB_MINUS_ONE_32)
+      npiv++;
 
-    rbi++;
-    crb = 0;
+    if (npiv % B->bheight == 0)
+      piv_start_idx[npiv / B->bheight]  = i;
   }
 
-  if (crb != 0)
-    write_blocks_lr_matrix(M, C, D, rihb, crb, rbi);
-  // TODO: destruct original matrix on the fly here
-  
+  piv_start_idx[(C->nrows / B->bheight) + 1] = 0;
+
+  omp_set_dynamic(0);
+#pragma omp parallel num_threads(nthreads)
+  {
+#pragma omp for schedule(dynamic) nowait
+    for (block=0; block<=(C->nrows/B->bheight); ++block) {
+      // construct block submatrices A & B
+      for (i = ((int)piv_start_idx[block]-1); i >= (int)piv_start_idx[block+1];
+          --i) {
+        if (map->npri[i] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->npri[i];
+          cvb++;
+        }
+        if (cvb == D->bheight || i == 0) {
+          write_left_multiline_right_block(M, C, D, rihb, cvb, block);
+
+          // TODO: Destruct input matrix on the go
+          /*
+          if (destruct_input_matrix) {
+          // free memory
+          }
+          */
+          cvb = 0;
+        }
+      }
+    }
+  } 
+}
+
+
+void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, ri_t *rihb,
+                            ri_t crb, ri_t rbi) {
+ 
+  uint32_t npivs  = 0;
+  uint32_t piv_start_idxs[
 }

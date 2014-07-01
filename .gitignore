@@ -49,6 +49,7 @@ src/config.h
 src/config.h.in
 src/gb_config.h
 src/stamp-h1
+tags
 test-driver
 testsuite/Makefile
 install

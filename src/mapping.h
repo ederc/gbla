@@ -14,6 +14,7 @@
 #include <string.h>
 #include <assert.h>
 #include <matrix.h>
+#include <omp.h>
 
 /**
  * \brief Indexer for subdividing sparse matrix into 4 parts as described by
@@ -44,7 +45,7 @@ typedef struct map_fl_t {
   ri_t *pri;      /*!<  has length M->nrows, maps pivot columns to
                         their corresponding row index, maps non-pivot
                         columns to __GB_MINUS_ONE_32 */
-  ri_t *npri;     /*!<  indexes of non-pivot rows */
+  ri_t *npri;     /*!<  indices of non-pivot rows */
 
   int nthrds;     /*!<  number of threads to be used for the indexer */
 } map_fl_t;
@@ -121,9 +122,12 @@ map_fl_t *construct_fl_map(sm_t *M);
  *  \param dimension of blocks block_dim
  *
  *  \param number of rows per multiline rows_multiline
+ *
+ *  \param number of threads to be used
  */
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-                      map_fl_t *map, int block_dim, int rows_multiline);
+                      map_fl_t *map, int block_dim, int rows_multiline,
+                      int nthreads);
 
 
 /**
