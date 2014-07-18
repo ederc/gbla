@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
   int nrows_multiline   = 1;
   int block_dimension   = 256;
   int write_pbm         = 0;
-  int nthrds            = 1;
+  int nthreads          = 1;
 
   int index;
   int opt;
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
         write_pbm = 1;
         break;
       case 't': 
-        nthrds  = atoi(optarg);
+        nthreads  = atoi(optarg);
         break;
       case 'v': 
         verbose = atoi(optarg);

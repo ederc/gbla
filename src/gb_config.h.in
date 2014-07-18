@@ -29,6 +29,10 @@
 #define __GB_UNROLL_STEP_16 16
 
 
+#define __GB_NROWS_MULTILINE  2
+#define __GB_HYBRID_THRESHOLD 0.5f
+
+
 static const uint32_t __GB_MINUS_ONE_32 = (uint32_t) -1;
 static const uint16_t __GB_MINUS_ONE_16 = (uint16_t) -1;
 static const uint8_t __GB_MINUS_ONE_8   = (uint8_t) -1;

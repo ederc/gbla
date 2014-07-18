@@ -160,7 +160,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 
     row_pos_offset +=  sz * sizeof(ci_t);
 
-    // reserve memory in matrix A for row[i]
+    // reserve memory in matrix M for rows[i]
     M->rows[i] = (re_t *)malloc(sz * sizeof(re_t));
     M->pos[i]     = (ci_t *)malloc(sz * sizeof(ci_t));
     for (j = 0; j < sz; ++j) {

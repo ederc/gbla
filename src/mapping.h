@@ -14,6 +14,7 @@
 #include <string.h>
 #include <assert.h>
 #include <matrix.h>
+#include <math.h>
 #include <omp.h>
 
 /**
@@ -142,12 +143,14 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
  *
  * \param block submatrix B (right side)
  *
+ * \param splicer mapping map  that stores pivots and non pivots
+ *
  * \param row indices in horizonal block rihb
  *
  * \param current row block crb
  *
  * \param row block index rbi
  */
-void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, ri_t *rihb,
-                            ri_t crb, ri_t rbi);
+void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
+                            ri_t *rihb, const ri_t cvb, const ri_t rbi);
 #endif

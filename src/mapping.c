@@ -59,6 +59,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   int bdim  = block_dim / rows_multiline;
   // construct index map for Faugère-Lachartre decomposition of matrix M
   map  = construct_fl_map(M);
+  
+  int i, j, k, l, m, idx;
 
   // initialize meta data for block submatrices
   A->nrows    = map->npiv;            // row dimension
@@ -69,6 +71,25 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   A->fe       = 0;                    // fill empty blocks?
   A->hr       = 0;                    // allow hybrid rows?
 
+  // allocate memory for blocks
+  A->blocks = (mbl_t **)malloc(A->nrows * sizeof(mbl_t *));
+  for (i=0; i<A->nrows; ++i) {
+    A->blocks[i]  = (mbl_t *)malloc(A->ncols * sizeof(mbl_t));
+    for (j=0; j<A->ncols; ++j) {
+      A->blocks[i][j].rows  = (re_t ***)malloc(
+          (A->bheight / __GB_NROWS_MULTILINE) * sizeof(re_t **));
+      for (k=0; k<(A->bheight / __GB_NROWS_MULTILINE); ++k) {
+        A->blocks[i][j].rows[k] = (re_t **)malloc(
+          A->bwidth * sizeof(re_t *));
+        for (l=0; l<A->bwidth; ++l) {
+          A->blocks[i][j].rows[k][l] = (re_t *)malloc(
+            __GB_NROWS_MULTILINE * sizeof(re_t));
+        }
+      }
+    }
+  }
+
+
   B->nrows    = map->npiv;            // row dimension
   B->ncols    = M->nrows - map->npiv; // col dimension
   B->bheight  = bdim;                 // block height
@@ -76,6 +97,25 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
   B->hr       = 1;                    // allow hybrid rows?
+
+  // allocate memory for blocks
+  B->blocks = (mbl_t **)malloc(B->nrows * sizeof(mbl_t *));
+  for (i=0; i<B->nrows; ++i) {
+    B->blocks[i]  = (mbl_t *)malloc(B->ncols * sizeof(mbl_t));
+    for (j=0; j<B->ncols; ++j) {
+      B->blocks[i][j].rows  = (re_t ***)malloc(
+          (B->bheight / __GB_NROWS_MULTILINE) * sizeof(re_t **));
+      for (k=0; k<(B->bheight / __GB_NROWS_MULTILINE); ++k) {
+        B->blocks[i][j].rows[k] = (re_t **)malloc(
+          B->bwidth * sizeof(re_t *));
+        for (l=0; l<B->bwidth; ++l) {
+          B->blocks[i][j].rows[k][l] = (re_t *)malloc(
+            __GB_NROWS_MULTILINE * sizeof(re_t));
+        }
+      }
+    }
+  }
+
 
   C->nrows    = M->nrows - map->npiv; // row dimension
   C->ncols    = map->npiv;            // col dimension
@@ -85,6 +125,25 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   C->fe       = 0;                    // fill empty blocks?
   C->hr       = 1;                    // allow hybrid rows?
 
+  // allocate memory for blocks
+  C->blocks = (mbl_t **)malloc(C->nrows * sizeof(mbl_t *));
+  for (i=0; i<C->nrows; ++i) {
+    C->blocks[i]  = (mbl_t *)malloc(C->ncols * sizeof(mbl_t));
+    for (j=0; j<C->ncols; ++j) {
+      C->blocks[i][j].rows  = (re_t ***)malloc(
+          (C->bheight / __GB_NROWS_MULTILINE) * sizeof(re_t **));
+      for (k=0; k<(C->bheight / __GB_NROWS_MULTILINE); ++k) {
+        C->blocks[i][j].rows[k] = (re_t **)malloc(
+          C->bwidth * sizeof(re_t *));
+        for (l=0; l<C->bwidth; ++l) {
+          C->blocks[i][j].rows[k][l] = (re_t *)malloc(
+            __GB_NROWS_MULTILINE * sizeof(re_t));
+        }
+      }
+    }
+  }
+
+
   D->nrows    = M->nrows - map->npiv; // row dimension
   D->ncols    = M->nrows - map->npiv; // col dimension
   D->bheight  = bdim;                 // block height
@@ -92,6 +151,25 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   D->ba       = dtlr;                 // block alignment
   D->fe       = 1;                    // fill empty blocks?
   D->hr       = 1;                    // allow hybrid rows?
+
+  // allocate memory for blocks
+  D->blocks = (mbl_t **)malloc(D->nrows * sizeof(mbl_t *));
+  for (i=0; i<D->nrows; ++i) {
+    D->blocks[i]  = (mbl_t *)malloc(D->ncols * sizeof(mbl_t));
+    for (j=0; j<D->ncols; ++j) {
+      D->blocks[i][j].rows  = (re_t ***)malloc(
+          (D->bheight / __GB_NROWS_MULTILINE) * sizeof(re_t **));
+      for (k=0; k<(D->bheight / __GB_NROWS_MULTILINE); ++k) {
+        D->blocks[i][j].rows[k] = (re_t **)malloc(
+          D->bwidth * sizeof(re_t *));
+        for (l=0; l<D->bwidth; ++l) {
+          D->blocks[i][j].rows[k][l] = (re_t *)malloc(
+            __GB_NROWS_MULTILINE * sizeof(re_t));
+        }
+      }
+    }
+  }
+
 
   assert(A->nrows == A->ncols);
   assert(A->nrows == B->nrows);
@@ -108,20 +186,24 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows; 
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
   piv_start_idx[0]  = M->nrows;
-  uint32_t block;
+  uint32_t block_idx;
 
-  int i;
-
+  idx = 0;
   // find blocks for construction of A & B
   for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->pri[i] != __GB_MINUS_ONE_32)
       npiv++;
 
-    if (npiv % B->bheight == 0)
-      piv_start_idx[npiv / B->bheight]  = i;
+    if (npiv % B->bheight == 0) {
+      idx++;
+      piv_start_idx[idx]  = i;
+    }
   }
 
-  piv_start_idx[(map->npiv / B->bheight) + 1] = 0;
+  // set leftout entries to zero
+  idx++;
+  for (idx; idx < (max_nrows / B->bheight) + 2; ++idx)
+    piv_start_idx[idx] = 0;
 
   omp_set_dynamic(0);
 #pragma omp parallel num_threads(nthreads)
@@ -130,16 +212,19 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     uint16_t cvb  = 0;          // current vector in block
 
 #pragma omp for schedule(dynamic) nowait
-    for (block=0; block<=(map->npiv/B->bheight); ++block) {
+    for (block_idx = 0; block_idx <= (map->npiv/B->bheight); ++block_idx) {
       // construct block submatrices A & B
-      for (i = ((int)piv_start_idx[block]-1); i >= (int)piv_start_idx[block+1];
-          --i) {
+      // Note: In the for loop we always construct block "block+1" and not block
+      // "block".
+      // TODO: Try to improve this rather strange looping. 
+      for (i = ((int)piv_start_idx[block_idx]-1);
+           i >= (int)piv_start_idx[block_idx+1]; --i) {
         if (map->pri[i] != __GB_MINUS_ONE_32) {
           rihb[cvb] = map->pri[i];
           cvb++;
         }
         if (cvb == B->bheight || i == 0) {
-          write_left_multiline_right_block(M, A, B, rihb, cvb, block);
+          write_blocks_lr_matrix(M, A, B, map, rihb, cvb, block_idx);
 
           // TODO: Destruct input matrix on the go
           /*
@@ -154,32 +239,44 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   } 
 
   // find blocks for construction of C & D
-  npiv  = 0;
   piv_start_idx[0]  = M->nrows;
+  npiv  = 0;
+  idx   = 0;
   for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
       npiv++;
 
-    if (npiv % B->bheight == 0)
-      piv_start_idx[npiv / B->bheight]  = i;
+    if (npiv % B->bheight == 0) {
+      idx++;
+      piv_start_idx[idx]  = i;
+    }
   }
 
-  piv_start_idx[(C->nrows / B->bheight) + 1] = 0;
+  // set leftout entries to zero
+  idx++;
+  for (idx; idx < (max_nrows / B->bheight) + 2; ++idx)
+    piv_start_idx[idx] = 0;
 
   omp_set_dynamic(0);
 #pragma omp parallel num_threads(nthreads)
   {
+    uint32_t rihb[B->bheight];  // rows indices horizontal block
+    uint16_t cvb  = 0;          // current vector in block
+
 #pragma omp for schedule(dynamic) nowait
-    for (block=0; block<=(C->nrows/B->bheight); ++block) {
-      // construct block submatrices A & B
-      for (i = ((int)piv_start_idx[block]-1); i >= (int)piv_start_idx[block+1];
-          --i) {
+    for (block_idx = 0; block_idx <= (C->nrows/B->bheight); ++block_idx) {
+      // construct block submatrices C & D
+      // Note: In the for loop we always construct block "block+1" and not block
+      // "block".
+      // TODO: Try to improve this rather strange looping. 
+      for (i = ((int)piv_start_idx[block_idx]-1);
+           i >= (int)piv_start_idx[block_idx+1]; --i) {
         if (map->npri[i] != __GB_MINUS_ONE_32) {
           rihb[cvb] = map->npri[i];
           cvb++;
         }
         if (cvb == D->bheight || i == 0) {
-          write_left_multiline_right_block(M, C, D, rihb, cvb, block);
+          write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx);
 
           // TODO: Destruct input matrix on the go
           /*
@@ -195,9 +292,139 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 }
 
 
-void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, ri_t *rihb,
-                            ri_t crb, ri_t rbi) {
- 
-  uint32_t npivs  = 0;
-  uint32_t piv_start_idxs[
+void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
+                            ri_t *rihb, const ri_t cvb, const ri_t rbi) {
+
+  uint32_t  bir;  // block index in row
+  uint32_t  eil;  // element index in line
+  uint32_t  lib;  // line index in block
+  ci_t      it1, it2, i1, i2;
+
+  // memory for block entries is already allocated in splice_fl_matrix()
+  uint32_t i;
+  const uint32_t loop_size  = (uint32_t) floor(cvb / __GB_NROWS_MULTILINE);
+
+  // NOTE: In LELA Martani uses a stack vector to store the values for sub
+  // block matrix A and first writes to B and this stack vector. Afterwards a
+  // looping is done over the stack vector and all values are written into A in
+  // one run.
+  // Here we do not use this feature, but write directly into A.
+
+  // NOTE: The following implementation (copied from Martani's LELA
+  // implementation) works only for __GB_NROWS_MULTILINE = 2 !
+  i1  = 0;
+  i2  = 0;
+  for (i=0; i<loop_size; i=i+2) {
+    lib  = i/2;
+
+    // loop over rows i and i+1 of M and splice correspondingly into A & B
+    while (i1 != (M->rwidth[i]-1) && i2 != (M->rwidth[i+1]-1)) {
+      it1 = M->pos[i][i1];
+      it2 = M->pos[i+1][i2];
+      if (it1 < it2) {
+        if (map->pc[it1] != __GB_MINUS_ONE_32) {
+          bir = (A->ncols - 1 - map->pc[it1]) / A->bwidth;
+          eil = (A->ncols - 1 - map->pc[it1]) % A->bwidth;
+          A->blocks[rbi][bir].rows[lib][eil][0] = M->rows[i][i1];
+          A->blocks[rbi][bir].rows[lib][eil][1] = 0;
+        } else {
+          bir = map->npc[it1] / B->bwidth;
+          eil = map->npc[it1] % B->bwidth;
+          B->blocks[rbi][bir].rows[lib][eil][0] = M->rows[i][i1];
+          B->blocks[rbi][bir].rows[lib][eil][1] = 0;
+        }
+        i1++;
+      } else {
+        if (it1 > it2) {
+          if (map->pc[it1] != __GB_MINUS_ONE_32) {
+            bir = (A->ncols - 1 - map->pc[it2]) / A->bwidth;
+            eil = (A->ncols - 1 - map->pc[it2]) % A->bwidth;
+            A->blocks[rbi][bir].rows[lib][eil][0] = 0;
+            A->blocks[rbi][bir].rows[lib][eil][1] = M->rows[i+1][i2];
+          } else {
+            bir = map->npc[it2] / B->bwidth;
+            eil = map->npc[it2] % B->bwidth;
+            B->blocks[rbi][bir].rows[lib][eil][0] = 0;
+            B->blocks[rbi][bir].rows[lib][eil][1] = M->rows[i+1][i2];
+          }
+          i2++;
+        } else { // it1 == it2
+          if (map->pc[it1] != __GB_MINUS_ONE_32) { // holds also for it2
+            bir = (A->ncols - 1 - map->pc[it2]) / A->bwidth;
+            eil = (A->ncols - 1 - map->pc[it2]) % A->bwidth;
+            A->blocks[rbi][bir].rows[lib][eil][0] = M->rows[i][i1];
+            A->blocks[rbi][bir].rows[lib][eil][1] = M->rows[i+1][i2];
+          } else {
+            bir = map->npc[it2] / B->bwidth;
+            eil = map->npc[it2] % B->bwidth;
+            B->blocks[rbi][bir].rows[lib][eil][0] = M->rows[i][i1];
+            B->blocks[rbi][bir].rows[lib][eil][1] = M->rows[i+1][i2];
+          }
+          i1++;
+          i2++;
+        }
+      }
+    }
+    // Now we splice rows i and i+1 separately (one of the rows we have already
+    // completely spliced since we are out of the above while loop. Thus maximal
+    // one of the following two while loops are executed (if rows i and i+1 have
+    // the same number of elements none of the following while loops is
+    // executed).
+    while (i1 != (M->rwidth[i]-1)) {
+      it1 = M->pos[i][i1];
+      if (map->pc[it1] != __GB_MINUS_ONE_32) {
+        bir = (A->ncols - 1 - map->pc[it1]) / A->bwidth;
+        eil = (A->ncols - 1 - map->pc[it1]) % A->bwidth;
+        A->blocks[rbi][bir].rows[lib][eil][0] = M->rows[i][i1];
+        A->blocks[rbi][bir].rows[lib][eil][1] = 0;
+      } else {
+        bir = map->npc[it1] / B->bwidth;
+        eil = map->npc[it1] % B->bwidth;
+        B->blocks[rbi][bir].rows[lib][eil][0] = M->rows[i][i1];
+        B->blocks[rbi][bir].rows[lib][eil][1] = 0;
+      }
+      i1++;
+    }
+    while (i2 != (M->rwidth[i+1]-1)) {
+      it2 = M->pos[i][i2];
+      if (map->pc[it2] != __GB_MINUS_ONE_32) {
+        bir = (A->ncols - 1 - map->pc[it2]) / A->bwidth;
+        eil = (A->ncols - 1 - map->pc[it2]) % A->bwidth;
+        A->blocks[rbi][bir].rows[lib][eil][0] = 0;
+        A->blocks[rbi][bir].rows[lib][eil][1] = M->rows[i+1][i2];
+      } else {
+        bir = map->npc[it2] / B->bwidth;
+        eil = map->npc[it2] % B->bwidth;
+        B->blocks[rbi][bir].rows[lib][eil][0] = 0;
+        B->blocks[rbi][bir].rows[lib][eil][1] = M->rows[i+1][i2];
+      }
+      i2++;
+    }
+  }
+
+  // Backup check if block size is not a multiple of 2:
+  // There is maximal one line left thus we only work with the current i.
+  if (i < cvb) {
+    lib = i/2;
+    while (i1 != (M->rwidth[i]-1)) {
+      it1 = M->pos[i][i1];
+      if (map->pc[it1] != __GB_MINUS_ONE_32) {
+        bir = (A->ncols - 1 - map->pc[it1]) / A->bwidth;
+        eil = (A->ncols - 1 - map->pc[it1]) % A->bwidth;
+        A->blocks[rbi][bir].rows[lib][eil][0] = M->rows[i][i1];
+        A->blocks[rbi][bir].rows[lib][eil][1] = 0;
+      } else {
+        bir = map->npc[it1] / B->bwidth;
+        eil = map->npc[it1] % B->bwidth;
+        B->blocks[rbi][bir].rows[lib][eil][0] = M->rows[i][i1];
+        B->blocks[rbi][bir].rows[lib][eil][1] = 0;
+      }
+      i1++;
+    }
+  }
+
+  // hybrid multirows?
+  if (B->hr) {
+    // TODO: Implement hybrid stuff
+  }
 }
