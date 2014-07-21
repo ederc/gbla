@@ -78,11 +78,13 @@ static inline map_fl_t *init_fl_map(sm_t *M) {
   map->npc_rev  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
   memset(map->npc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
   
-  map->pri  = (ri_t *)malloc(M->nrows * sizeof(ri_t));
-  memset(map->pri, __GB_MINUS_ONE_8, M->nrows * sizeof(ri_t));
+  map->pri  = (ri_t *)malloc(M->ncols * sizeof(ri_t));
+  memset(map->pri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
   
-  map->npri = (ri_t *)malloc(M->nrows * sizeof(ri_t));
-  memset(map->npri, __GB_MINUS_ONE_8, M->nrows * sizeof(ri_t));
+  map->npri = (ri_t *)malloc(M->ncols * sizeof(ri_t));
+  memset(map->npri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
+
+  return map;
 }
 
 /**
@@ -125,10 +127,12 @@ map_fl_t *construct_fl_map(sm_t *M);
  *  \param number of rows per multiline rows_multiline
  *
  *  \param number of threads to be used
+ *
+ *  \param level of verbosity
  */
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                       map_fl_t *map, int block_dim, int rows_multiline,
-                      int nthreads);
+                      int nthreads, int verbose);
 
 
 /**

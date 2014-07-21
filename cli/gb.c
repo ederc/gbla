@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
   sbm_fl_t *D   = NULL;
   map_fl_t *map = NULL; // stores mappings from M <-> ABCD
 
-  splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads);
+  splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads, verbose);
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
   elim_fl(M);
 

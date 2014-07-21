@@ -3,22 +3,26 @@
 map_fl_t *construct_fl_map(sm_t *M) {
   // initialize all map entries to __GB_MINUS_ONE_8
   map_fl_t *map = init_fl_map(M);
+  printf("map %p \n",map);
 
   uint32_t npiv = 0;  // number of pivots
   ri_t i = 0;         // current row index
-  re_t entry;         // possible pivot entry to be checked
+  ri_t idx;          // possible pivot entry index
 
   // sweeps the rows to identify the row pivots and column pivots
   for (i=0; i<M->nrows; ++i) {
     if (M->rwidth[i] != 0) {
-      entry = M->rows[i][M->pos[i][0]];
-      if (map->pri[entry] == __GB_MINUS_ONE_32) {
-        map->pri[entry] = i;
+      idx = M->pos[i][0];
+      printf("position: %d / %d // %d\n",map->pri[34815], 4404, M->nrows);
+      printf("position: %d / %d // %d\n",map->pri[idx], i, M->nrows);
+      if (map->pri[idx] == __GB_MINUS_ONE_32) {
+        map->pri[idx] = i;
         npiv++;
       } else { // check for a sparser pivot row (see ELAGB talk from Lachartre)
-        if (M->rwidth[map->pri[entry]] > M->rwidth[i]) {
-          map->npri[map->pri[entry]]  = map->pri[entry];
-          map->pri[entry] = i;
+        if (M->rwidth[map->pri[idx]] > M->rwidth[i]) {
+          printf("position: %d / %d // %d\n",map->pri[idx], i, M->nrows);
+          map->npri[map->pri[idx]]  = map->pri[idx];
+          map->pri[idx] = i;
         } else {
           map->npri[i]  = i;
         }
@@ -26,8 +30,11 @@ map_fl_t *construct_fl_map(sm_t *M) {
     } else {
       map->npri[i]  = i;
     }
+    printf("i: %d\t idx: %d\t map->pri[idx]: %d\t map->npri[idx] %d\n",
+        i, idx, map->pri[idx], map->npri[idx]);
   }
   map->npiv = npiv;
+  printf("Number of pivots: %d\n", map->npiv);
 
   ci_t pc_idx = 0, npc_idx = 0, j;
 
@@ -49,7 +56,7 @@ map_fl_t *construct_fl_map(sm_t *M) {
 
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                       map_fl_t *map, int block_dim, int rows_multiline,
-                      int nthreads) {
+                      int nthreads, int verbose) {
   
   A = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   B = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
@@ -289,6 +296,14 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       }
     }
   } 
+
+  // print inforamtion if verbose level >= 2
+  if (verbose > 1) {
+    printf("A [%d x %d]\n",A->nrows,A->ncols);
+    printf("B [%d x %d]\n",B->nrows,B->ncols);
+    printf("C [%d x %d]\n",C->nrows,C->ncols);
+    printf("D [%d x %d]\n",D->nrows,D->ncols);
+  }
 }
 
 
