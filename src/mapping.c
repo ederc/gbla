@@ -61,7 +61,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   map  = construct_fl_map(M);
   
   printf("H1\n");
-  int i, j, k, l, m, idx;
+  int i, j, k, l, m;
 
   // initialize meta data for block submatrices
   A->nrows    = map->npiv;            // row dimension
@@ -215,34 +215,45 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // C & D.
   uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows; 
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
+  printf("size psi %d\n",(max_nrows / B->bheight) + 2);
   piv_start_idx[0]  = M->nrows;
   uint32_t block_idx;
+  printf("npiv %d\n",map->npiv);
 
-  idx = 0;
   // find blocks for construction of A & B
+  printf("map %p\n",map);
+  printf("npiv %d\n", npiv);
   for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->pri[i] != __GB_MINUS_ONE_32)
       npiv++;
 
+  printf("npiv %d\n", npiv);
     if (npiv % B->bheight == 0) {
-      idx++;
-      piv_start_idx[idx]  = i;
+      //printf("idx %d\n", idx);
+      piv_start_idx[npiv/B->bheight]  = i;
     }
+    //printf("(%d / %d) npiv2 %d\n",i, M->nrows, map->npiv);
   }
+  printf("map2 %p\n",map);
+    printf("npiv22 %d\n",map->npiv);
 
   // set leftout entries to zero
-  idx++;
-  for (idx; idx < (max_nrows / B->bheight) + 2; ++idx)
-    piv_start_idx[idx] = 0;
+  for (i=npiv/B->bheight; i < (max_nrows / B->bheight) + 2; ++i)
+    piv_start_idx[i] = 0;
 
+    printf("npiv\t%d\n", map->npiv);
+    printf("div\t%d\n", map->npiv/B->bheight);
   omp_set_dynamic(0);
 #pragma omp parallel num_threads(nthreads)
   {
     uint32_t rihb[B->bheight];  // rows indices horizontal block
     uint16_t cvb  = 0;          // current vector in block
 
+    printf("npiv\t%d\n", map->npiv);
+    printf("div\t%d\n", map->npiv/B->bheight);
 #pragma omp for schedule(dynamic) nowait
     for (block_idx = 0; block_idx <= (map->npiv/B->bheight); ++block_idx) {
+      printf("bi %d\n", block_idx);
       // construct block submatrices A & B
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
@@ -271,21 +282,18 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // find blocks for construction of C & D
   piv_start_idx[0]  = M->nrows;
   npiv  = 0;
-  idx   = 0;
   for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
       npiv++;
 
     if (npiv % B->bheight == 0) {
-      idx++;
-      piv_start_idx[idx]  = i;
+      piv_start_idx[npiv/B->bheight]  = i;
     }
   }
 
   // set leftout entries to zero
-  idx++;
-  for (idx; idx < (max_nrows / B->bheight) + 2; ++idx)
-    piv_start_idx[idx] = 0;
+  for (i=npiv/B->bheight; i < (max_nrows / B->bheight) + 2; ++i)
+    piv_start_idx[i] = 0;
 
   omp_set_dynamic(0);
 #pragma omp parallel num_threads(nthreads)
