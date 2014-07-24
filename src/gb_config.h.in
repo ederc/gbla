@@ -2,6 +2,7 @@
 #define GB_GB_CONFIG_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 // Defines determined during configuration of gb.
 #define __GB_HAVE_MM_MALLOC		@GB_HAVE_MM_MALLOC@

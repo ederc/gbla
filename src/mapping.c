@@ -3,7 +3,6 @@
 map_fl_t *construct_fl_map(sm_t *M) {
   // initialize all map entries to __GB_MINUS_ONE_8
   map_fl_t *map = init_fl_map(M);
-  printf("map %p \n",map);
 
   uint32_t npiv = 0;  // number of pivots
   ri_t i = 0;         // current row index
@@ -13,14 +12,11 @@ map_fl_t *construct_fl_map(sm_t *M) {
   for (i=0; i<M->nrows; ++i) {
     if (M->rwidth[i] != 0) {
       idx = M->pos[i][0];
-      printf("position: %d / %d // %d\n",map->pri[34815], 4404, M->nrows);
-      printf("position: %d / %d // %d\n",map->pri[idx], i, M->nrows);
       if (map->pri[idx] == __GB_MINUS_ONE_32) {
         map->pri[idx] = i;
         npiv++;
       } else { // check for a sparser pivot row (see ELAGB talk from Lachartre)
         if (M->rwidth[map->pri[idx]] > M->rwidth[i]) {
-          printf("position: %d / %d // %d\n",map->pri[idx], i, M->nrows);
           map->npri[map->pri[idx]]  = map->pri[idx];
           map->pri[idx] = i;
         } else {
@@ -30,11 +26,8 @@ map_fl_t *construct_fl_map(sm_t *M) {
     } else {
       map->npri[i]  = i;
     }
-    printf("i: %d\t idx: %d\t map->pri[idx]: %d\t map->npri[idx] %d\n",
-        i, idx, map->pri[idx], map->npri[idx]);
   }
   map->npiv = npiv;
-  printf("Number of pivots: %d\n", map->npiv);
 
   ci_t pc_idx = 0, npc_idx = 0, j;
 
@@ -67,6 +60,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // construct index map for Faugère-Lachartre decomposition of matrix M
   map  = construct_fl_map(M);
   
+  printf("H1\n");
   int i, j, k, l, m, idx;
 
   // initialize meta data for block submatrices
@@ -79,12 +73,18 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   A->hr       = 0;                    // allow hybrid rows?
 
   // allocate memory for blocks
-  A->blocks = (mbl_t **)malloc(A->nrows * sizeof(mbl_t *));
-  for (i=0; i<A->nrows; ++i) {
-    A->blocks[i]  = (mbl_t *)malloc(A->ncols * sizeof(mbl_t));
-    for (j=0; j<A->ncols; ++j) {
+  
+  // row and column loops 
+  const uint32_t rlA  = (uint32_t) floor((float)A->nrows / A->bheight);
+  const uint32_t clA  = (uint32_t) floor((float)A->ncols / A->bwidth);
+
+  A->blocks = (mbl_t **)malloc(rlA * sizeof(mbl_t *));
+  for (i=0; i<rlA; ++i) {
+    A->blocks[i]  = (mbl_t *)malloc(clA * sizeof(mbl_t));
+    for (j=0; j<clA; ++j) {
       A->blocks[i][j].rows  = (re_t ***)malloc(
           (A->bheight / __GB_NROWS_MULTILINE) * sizeof(re_t **));
+      /*
       for (k=0; k<(A->bheight / __GB_NROWS_MULTILINE); ++k) {
         A->blocks[i][j].rows[k] = (re_t **)malloc(
           A->bwidth * sizeof(re_t *));
@@ -93,12 +93,12 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
             __GB_NROWS_MULTILINE * sizeof(re_t));
         }
       }
+      */
     }
   }
 
-
   B->nrows    = map->npiv;            // row dimension
-  B->ncols    = M->nrows - map->npiv; // col dimension
+  B->ncols    = M->ncols - map->npiv; // col dimension
   B->bheight  = bdim;                 // block height
   B->bwidth   = bdim;                 // block width
   B->ba       = dtlr;                 // block alignment
@@ -106,12 +106,18 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   B->hr       = 1;                    // allow hybrid rows?
 
   // allocate memory for blocks
-  B->blocks = (mbl_t **)malloc(B->nrows * sizeof(mbl_t *));
-  for (i=0; i<B->nrows; ++i) {
-    B->blocks[i]  = (mbl_t *)malloc(B->ncols * sizeof(mbl_t));
-    for (j=0; j<B->ncols; ++j) {
+
+  // row and column loops 
+  const uint32_t rlB  = (uint32_t) floor((float)B->nrows / B->bheight);
+  const uint32_t clB  = (uint32_t) floor((float)B->ncols / B->bwidth);
+
+  B->blocks = (mbl_t **)malloc(rlB * sizeof(mbl_t *));
+  for (i=0; i<rlB; ++i) {
+    B->blocks[i]  = (mbl_t *)malloc(clB * sizeof(mbl_t));
+    for (j=0; j<clB; ++j) {
       B->blocks[i][j].rows  = (re_t ***)malloc(
           (B->bheight / __GB_NROWS_MULTILINE) * sizeof(re_t **));
+      /*
       for (k=0; k<(B->bheight / __GB_NROWS_MULTILINE); ++k) {
         B->blocks[i][j].rows[k] = (re_t **)malloc(
           B->bwidth * sizeof(re_t *));
@@ -120,9 +126,9 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
             __GB_NROWS_MULTILINE * sizeof(re_t));
         }
       }
+      */
     }
   }
-
 
   C->nrows    = M->nrows - map->npiv; // row dimension
   C->ncols    = map->npiv;            // col dimension
@@ -133,12 +139,18 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   C->hr       = 1;                    // allow hybrid rows?
 
   // allocate memory for blocks
-  C->blocks = (mbl_t **)malloc(C->nrows * sizeof(mbl_t *));
-  for (i=0; i<C->nrows; ++i) {
-    C->blocks[i]  = (mbl_t *)malloc(C->ncols * sizeof(mbl_t));
-    for (j=0; j<C->ncols; ++j) {
+
+  // row and column loops 
+  const uint32_t rlC  = (uint32_t) floor((float)C->nrows / C->bheight);
+  const uint32_t clC  = (uint32_t) floor((float)C->ncols / C->bwidth);
+
+  C->blocks = (mbl_t **)malloc(rlC * sizeof(mbl_t *));
+  for (i=0; i<rlC; ++i) {
+    C->blocks[i]  = (mbl_t *)malloc(clC * sizeof(mbl_t));
+    for (j=0; j<clC; ++j) {
       C->blocks[i][j].rows  = (re_t ***)malloc(
           (C->bheight / __GB_NROWS_MULTILINE) * sizeof(re_t **));
+      /*
       for (k=0; k<(C->bheight / __GB_NROWS_MULTILINE); ++k) {
         C->blocks[i][j].rows[k] = (re_t **)malloc(
           C->bwidth * sizeof(re_t *));
@@ -147,12 +159,12 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
             __GB_NROWS_MULTILINE * sizeof(re_t));
         }
       }
+      */
     }
   }
 
-
   D->nrows    = M->nrows - map->npiv; // row dimension
-  D->ncols    = M->nrows - map->npiv; // col dimension
+  D->ncols    = M->ncols - map->npiv; // col dimension
   D->bheight  = bdim;                 // block height
   D->bwidth   = bdim;                 // block width
   D->ba       = dtlr;                 // block alignment
@@ -160,12 +172,18 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   D->hr       = 1;                    // allow hybrid rows?
 
   // allocate memory for blocks
-  D->blocks = (mbl_t **)malloc(D->nrows * sizeof(mbl_t *));
-  for (i=0; i<D->nrows; ++i) {
-    D->blocks[i]  = (mbl_t *)malloc(D->ncols * sizeof(mbl_t));
-    for (j=0; j<D->ncols; ++j) {
+
+  // row and column loops 
+  const uint32_t rlD  = (uint32_t) floor((float)D->nrows / D->bheight);
+  const uint32_t clD  = (uint32_t) floor((float)D->ncols / D->bwidth);
+
+  D->blocks = (mbl_t **)malloc(rlD * sizeof(mbl_t *));
+  for (i=0; i<rlD; ++i) {
+    D->blocks[i]  = (mbl_t *)malloc(clD * sizeof(mbl_t));
+    for (j=0; j<clD; ++j) {
       D->blocks[i][j].rows  = (re_t ***)malloc(
           (D->bheight / __GB_NROWS_MULTILINE) * sizeof(re_t **));
+      /*
       for (k=0; k<(D->bheight / __GB_NROWS_MULTILINE); ++k) {
         D->blocks[i][j].rows[k] = (re_t **)malloc(
           D->bwidth * sizeof(re_t *));
@@ -174,10 +192,15 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
             __GB_NROWS_MULTILINE * sizeof(re_t));
         }
       }
+      */
     }
   }
 
-
+  printf("M[%dx%d]\n",M->nrows,M->ncols);
+  printf("A[%dx%d]\n",A->nrows,A->ncols);
+  printf("B[%dx%d]\n",B->nrows,B->ncols);
+  printf("C[%dx%d]\n",C->nrows,C->ncols);
+  printf("D[%dx%d]\n",D->nrows,D->ncols);
   assert(A->nrows == A->ncols);
   assert(A->nrows == B->nrows);
   assert(A->ncols == C->ncols);
@@ -299,6 +322,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
   // print inforamtion if verbose level >= 2
   if (verbose > 1) {
+    printf("Number of pivots found: %d\n", map->npiv);
     printf("A [%d x %d]\n",A->nrows,A->ncols);
     printf("B [%d x %d]\n",B->nrows,B->ncols);
     printf("C [%d x %d]\n",C->nrows,C->ncols);
