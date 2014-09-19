@@ -88,6 +88,141 @@ static inline map_fl_t *init_fl_map(sm_t *M) {
 }
 
 /**
+ * \brief Reallocates memory for the rows of the blocks during the splicing of
+ * the input matrix. The buffer size bufferA is doubled during this process
+ *
+ * \param block matrix A
+ *
+ * \param row block index rbi in A
+ *
+ * \param block index in row bir* \param block index in row bir
+ *
+ * \param line index in block lib
+ *
+ * \param buffer size bufferA
+ *
+ */
+static inline void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
+    const bi_t lib, bi_t *bufferA) {
+  *bufferA +=  *bufferA;
+  A->blocks[rbi][bir][lib].idx = realloc(
+      A->blocks[rbi][bir][lib].idx,
+      (*bufferA) * sizeof(bi_t));
+  A->blocks[rbi][bir][lib].val = realloc(
+      A->blocks[rbi][bir][lib].val,
+      2 * (*bufferA) * sizeof(re_t));
+}
+
+/**
+ * \brief Swaps data arrangement in leftsided block matrices
+ * 
+ * \param block matrix A
+ *
+ * \param number of blocks in the corresponding row clA
+ *
+ * \param current row index for blocks rbi
+ *
+ * \param current line in block lib
+ *
+ */
+static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t rbi,
+    const bi_t cvb) {
+  int i, j, k, l;
+  bi_t *old_idx_ptr = NULL;
+  re_t *old_val_ptr = NULL;
+
+  for (i=0; i<cvb/2; ++i) {
+    // allocate memory for swapping data
+    bi_t *tmp_idx_ptr = (bi_t *)malloc(A->blocks[rbi][clA-1][i].sz * sizeof(bi_t));
+    re_t *tmp_val_ptr = (re_t *)malloc(2 * A->blocks[rbi][clA-1][i].sz * sizeof(re_t));
+    // swap data
+    l = 0;
+    for (k=A->blocks[rbi][clA-1][i].sz-1; k>-1; --k) {
+      tmp_idx_ptr[l]      = A->blocks[rbi][clA-1][i].idx[k];
+      tmp_val_ptr[2*l]    = A->blocks[rbi][clA-1][i].idx[2*k];
+      tmp_val_ptr[2*l+1]  = A->blocks[rbi][clA-1][i].idx[2*(k+1)];
+      l++;
+    }
+    // keep track of old ptr
+    old_idx_ptr = A->blocks[rbi][clA-1][i].idx;
+    old_val_ptr = A->blocks[rbi][clA-1][i].val;
+    // swap starting ptrs
+    A->blocks[rbi][clA-1][i].idx  = tmp_idx_ptr;
+    A->blocks[rbi][clA-1][i].val  = tmp_val_ptr;
+    // now go through all remaining blocks in the corresponding row (bir)
+    // check if the already allocated memory is enough for executing the swap
+    for (j=clA-2; j>-1; --j) {
+      if (A->blocks[rbi][j+1][i].sz == A->blocks[rbi][j][i].sz) {
+        //  Memory is not enough, so allocate new (reallocation is used
+        //  at the moment: It might be prolematic since the old entries are
+        //  useless and need not be copied, but often the already allocated memory
+        //  can be extended in place, thus this operation is often faster than
+        //  freeing memory and allocating new.
+        //  Note that this reallocation is also used if the old memory allocated
+        //  is bigger than what is needed. In this setting realloc just cuts the
+        //  useless memory off.
+      } else { 
+        tmp_idx_ptr = realloc(tmp_idx_ptr,
+            A->blocks[rbi][j][i].sz * sizeof(bi_t));
+        tmp_val_ptr = realloc(tmp_val_ptr,
+            2 * A->blocks[rbi][j][i].sz * sizeof(re_t));
+      }
+      l = 0;
+      for (k=A->blocks[rbi][j][i].sz-1; k>-1; --k) {
+        tmp_idx_ptr[l]      = A->blocks[rbi][j][i].idx[k];
+        tmp_val_ptr[2*l]    = A->blocks[rbi][j][i].idx[2*k];
+        tmp_val_ptr[2*l+1]  = A->blocks[rbi][j][i].idx[2*(k+1)];
+        l++;
+      }
+      // keep track of old ptr
+      old_idx_ptr = A->blocks[rbi][j][i].idx;
+      old_val_ptr = A->blocks[rbi][j][i].val;
+      // swap starting ptrs
+      A->blocks[rbi][j][i].idx  = tmp_idx_ptr;
+      A->blocks[rbi][j][i].val  = tmp_val_ptr;
+    }
+    // finally remove temporary memory used for swapping
+    free(old_idx_ptr);
+    free(old_val_ptr);
+  }
+}
+
+/**
+ * \brief Inserts elements from input matrix M in block rows of A corresponding
+ * to the given splicing and mapping precomputed. This is the version for multi
+ * line blocks
+ * 
+ * \param block matrix A
+ *
+ * \param original matrix M
+ *
+ * \param current row index for blocks rbi
+ *
+ * \param column index for the block in the current block row bir
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ * \param row index of corresponding element in M bi2
+ *
+ * \param index in row bi1 of corresponding element in M i2
+ *
+ */
+static inline void insert_block_row_data_ml(sbm_fl_t *A, const sm_t *M,
+    const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
+    const ci_t bi1, const ci_t i1, const ci_t bi2, const ci_t i2) {
+  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
+  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
+  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = 0;
+  A->blocks[rbi][bir][lib].sz++;
+}
+
+/**
  * \brief Constructs an indexer map for a Faugère-Lachartre decomposition of the
  * original matrix M
  * 
@@ -155,6 +290,6 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
  *
  * \param row block index rbi
  */
-void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
+void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
                             ri_t *rihb, const ri_t cvb, const ri_t rbi);
 #endif
