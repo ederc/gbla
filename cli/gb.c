@@ -47,6 +47,9 @@ int main(int argc, char *argv[]) {
   int index;
   int opt;
 
+  // timing structs
+  struct timeval t_load_start;
+
   opterr  = 0;
 
   while ((opt = getopt(argc, argv, "b:cfhm:t:v:p")) != -1) {
@@ -104,6 +107,15 @@ int main(int argc, char *argv[]) {
   }
 
   sm_t *M = NULL;
+
+  if (verbose > 0) {
+    printf("---------------------------------------------------------------------------\n");
+    printf("--- Computing a special Gaussian Elimination with the following options ---\n");
+    printf("---------------------------------------------------------------------------\n");
+    printf("number of threads   %4d\n", nthreads);
+    printf("dimension of blocks %4d\n", block_dimension, block_dimension);
+  }
+
   M = load_jcf_matrix(fn, verbose);
 
   if (write_pbm) {
@@ -118,7 +130,14 @@ int main(int argc, char *argv[]) {
   sbm_fl_t *D   = NULL;
   map_fl_t *map = NULL; // stores mappings from M <-> ABCD
 
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+  }
   splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads, verbose);
+  if (verbose > 1) {
+    printf("--- Time for constructing submatrices A, B, C and D: %7.3f sec ---\n",
+        walltime(t_load_start) / (1000000));
+  }
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
   elim_fl(M);
 
