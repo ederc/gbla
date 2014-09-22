@@ -109,11 +109,13 @@ int main(int argc, char *argv[]) {
   sm_t *M = NULL;
 
   if (verbose > 0) {
-    printf("---------------------------------------------------------------------------\n");
-    printf("--- Computing a special Gaussian Elimination with the following options ---\n");
-    printf("---------------------------------------------------------------------------\n");
+    printf("--------------------------------------------------------------\n");
+    printf("---------- Computing a special Gaussian Elimination ----------\n");
+    printf("-------------- with the following options set ----------------\n");
+    printf("--------------------------------------------------------------\n");
     printf("number of threads   %4d\n", nthreads);
     printf("dimension of blocks %4d\n", block_dimension, block_dimension);
+    printf("--------------------------------------------------------------\n");
   }
 
   M = load_jcf_matrix(fn, verbose);
@@ -135,7 +137,7 @@ int main(int argc, char *argv[]) {
   }
   splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads, verbose);
   if (verbose > 1) {
-    printf("--- Time for constructing submatrices A, B, C and D: %7.3f sec ---\n",
+    printf("||| Time for constructing submatrices A, B, C and D: %7.3f sec\n",
         walltime(t_load_start) / (1000000));
   }
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre

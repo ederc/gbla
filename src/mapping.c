@@ -147,7 +147,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   C->bwidth   = bdim;                 // block width
   C->ba       = dtrl;                 // block alignment
   C->fe       = 0;                    // fill empty blocks?
-  C->hr       = 1;                    // allow hybrid rows?
+  C->hr       = 0;                    // allow hybrid rows?
 
   // allocate memory for blocks
 
@@ -353,11 +353,15 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
   // print inforamtion if verbose level >= 2
   if (verbose > 1) {
+    printf("--------------------------------------------------------------\n");
+    printf("Splicing and mapping of input matrix done.\n");
     printf("Number of pivots found: %d\n", map->npiv);
+    printf("--------------------------------------------------------------\n");
     printf("A [%d x %d]\n",A->nrows,A->ncols);
     printf("B [%d x %d]\n",B->nrows,B->ncols);
     printf("C [%d x %d]\n",C->nrows,C->ncols);
     printf("D [%d x %d]\n",D->nrows,D->ncols);
+    printf("--------------------------------------------------------------\n");
   }
 }
 
@@ -654,59 +658,28 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         2 * B->blocks[rbi][j][lib].sz  * sizeof(re_t));
   }
 
-  // write data into A (right to left)
-  // allocate memory for 2 lines in block
-  // TODO: Do we need to allocate memory for the full block or can we keep the
-  // 2 lines splices in different memory regions? Is this possibly even better
-  // in multithreaded computations?
-
-
-
-  // ASSUMPTION: BLOCK SIZES HAVE TO BE A MULTIPLE OF 2 AT THE MOMENT!
-  // Backup check if block size is not a multiple of 2:
-  // There is maximal one line left thus we only work with the current i.
-  /*
-     if (i < cvb) {
-     i1  = 0;
-     lib = i/2;
-     while (i1 != (M->rwidth[bi1]-1)) {
-     it1 = M->pos[bi1][i1];
-     if (map->pc[it1] != __GB_MINUS_ONE_32) {
-     bir = (A->ncols - 1 - map->pc[it1]) / A->bwidth;
-     eil = (A->ncols - 1 - map->pc[it1]) % A->bwidth;
-  // reallocate memory
-  length  = A->blocks[rbi][bir][lib].length;
-  A->blocks[rbi][bir][lib].entries  = realloc(
-  A->blocks[rbi][bir][lib].entries, (length + 1) * 2 * sizeof(re_t));
-  A->blocks[rbi][bir][lib].idx  = realloc(
-  A->blocks[rbi][bir][lib].idx, (length + 1) * sizeof(bi_t));
-  // set values
-  A->blocks[rbi][bir][lib].idx[length]            = eil;
-  A->blocks[rbi][bir][lib].entries[2*length]      = M->rows[bi1][i1];
-  A->blocks[rbi][bir][lib].entries[(2*length)+1]  = 0;
-  A->blocks[rbi][bir][lib].length++;
-  } else {
-  bir = map->npc[it1] / B->bwidth;
-  eil = map->npc[it1] % B->bwidth;
-  // reallocate memory
-  length  = B->blocks[rbi][bir][lib].length;
-  B->blocks[rbi][bir][lib].entries  = realloc(
-  B->blocks[rbi][bir][lib].entries, (length + 1) * 2 * sizeof(re_t));
-  B->blocks[rbi][bir][lib].idx  = realloc(
-  B->blocks[rbi][bir][lib].idx, (length + 1) * sizeof(bi_t));
-  // set values
-  B->blocks[rbi][bir][lib].idx[length]            = eil;
-  B->blocks[rbi][bir][lib].entries[2*length]      = M->rows[bi1][i1];
-  B->blocks[rbi][bir][lib].entries[(2*length)+1]  = 0;
-  B->blocks[rbi][bir][lib].length++;
-  }
-  i1++;
-  }
-  }
-  */
-
-  // hybrid multirows?
+  // hybrid multirows for the righthand side block matrices?
   if (B->hr) {
+    uint32_t idx  = 0;
     // TODO: Implement hybrid stuff
+    for (i=0; i<clB; ++i) {
+      for (j=0; j<B->bheight/__GB_NROWS_MULTILINE; ++j) {
+        if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
+            < __GB_HYBRID_THRESHOLD) {
+          re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
+          idx  = 0;
+          for (k=0; k<B->bwidth; ++k) {
+            if (idx < B->blocks[rbi][i][j].sz && B->blocks[rbi][i][j].idx[idx] == k) {
+              tmp_val_ptr[2*k]  = B->blocks[rbi][i][j].val[2*idx];
+              tmp_val_ptr[2*k+1]  = B->blocks[rbi][i][j].val[2*idx+1];
+              idx++;
+            } else {
+              tmp_val_ptr[2*k]    = 0;
+              tmp_val_ptr[2*k+1]  = 0;
+            }
+          }
+        }
+      }
+    }
   }
 }
