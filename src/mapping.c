@@ -241,6 +241,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   piv_start_idx[0]  = M->nrows;
   uint32_t block_idx;
 
+  uint16_t destruct_input_matrix  = 1;
+
   // find blocks for construction of A & B
   for (i = (int)M->ncols-1; i > -1; --i) {
     if (map->pri[i] != __GB_MINUS_ONE_32) {
@@ -291,11 +293,13 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
           write_blocks_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx);
 
           // TODO: Destruct input matrix on the go
-          /*
-             if (destruct_input_matrix) {
+          if (destruct_input_matrix) {
+            for (j=0; j<cvb; ++j) {
+              free(M->pos[rihb[j]]);
+              free(M->rows[rihb[j]]);
+            }
           // free memory
           }
-          */
           cvb = 0;
         }
       }
@@ -340,11 +344,12 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
           write_blocks_lr_matrix_ml(M, C, D, map, rihb, cvb, block_idx);
 
           // TODO: Destruct input matrix on the go
-          /*
-             if (destruct_input_matrix) {
-          // free memory
+          if (destruct_input_matrix) {
+            for (j=0; j<cvb; ++j) {
+              free(M->pos[rihb[j]]);
+              free(M->rows[rihb[j]]);
+            }
           }
-          */
           cvb = 0;
         }
       }
@@ -388,8 +393,8 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 
   // usually blocks in B tend to be denser than blocks in A, thus we allocate
   // already at the beginning more memory for those lines
-  bi_t init_bufferA = A->bwidth / (A->bwidth/4);
-  bi_t init_bufferB = B->bwidth / (B->bwidth/16);
+  bi_t init_bufferA = A->bwidth / (A->bwidth/16);
+  bi_t init_bufferB = B->bwidth / (B->bwidth/64);
 
   bi_t bufferA[clA];
   bi_t bufferB[clB];
