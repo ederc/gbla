@@ -678,20 +678,23 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     for (i=0; i<clB; ++i) {
       for (j=0; j<B->bheight/__GB_NROWS_MULTILINE; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
-            < __GB_HYBRID_THRESHOLD) {
-          re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
-          idx  = 0;
-          for (k=0; k<B->bwidth; ++k) {
-            if (idx < B->blocks[rbi][i][j].sz && B->blocks[rbi][i][j].idx[idx] == k) {
-              tmp_val_ptr[2*k]  = B->blocks[rbi][i][j].val[2*idx];
-              tmp_val_ptr[2*k+1]  = B->blocks[rbi][i][j].val[2*idx+1];
-              idx++;
-            } else {
-              tmp_val_ptr[2*k]    = 0;
-              tmp_val_ptr[2*k+1]  = 0;
-            }
+            < __GB_HYBRID_THRESHOLD)
+          continue;
+        re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
+        idx  = 0;
+        for (k=0; k<B->bwidth; ++k) {
+          if (idx < B->blocks[rbi][i][j].sz && B->blocks[rbi][i][j].idx[idx] == k) {
+            tmp_val_ptr[2*k]    = B->blocks[rbi][i][j].val[2*idx];
+            tmp_val_ptr[2*k+1]  = B->blocks[rbi][i][j].val[2*idx+1];
+            idx++;
+          } else {
+            tmp_val_ptr[2*k]    = 0;
+            tmp_val_ptr[2*k+1]  = 0;
           }
         }
+        free(B->blocks[rbi][i][j].idx);
+        free(B->blocks[rbi][i][j].val);
+        B->blocks[rbi][i][j].val  = tmp_val_ptr;
       }
     }
   }
