@@ -19,6 +19,8 @@ typedef struct sm_t {
   ri_t nrows;     /*!<  number of rows */
   ci_t ncols;     /*!<  number of columns */
   nnz_t nnz;      /*!<  number of nonzero entries */
+  float density;  /*!<  density used for adjusting memory allocation during
+                        splicing and generation of ABCD blocks */
   mod_t mod;      /*!<  modulo/field characteristic */
   re_t **rows;    /*!<  address of row: M->rows[i] gives first
                         address of ith row */

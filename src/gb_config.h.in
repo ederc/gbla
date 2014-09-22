@@ -32,6 +32,7 @@
 
 #define __GB_NROWS_MULTILINE  2
 #define __GB_HYBRID_THRESHOLD 0.5f
+#define __GB_DENSITY_THRESHOLD 10.0f
 
 
 static const uint32_t __GB_MINUS_ONE_32 = (uint32_t) -1;

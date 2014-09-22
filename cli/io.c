@@ -108,6 +108,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   M->ncols   = n;
   M->nnz     = nnz;
   M->mod     = mod;
+  M->density = (float)density;
   
   // maximal possible nonzero entries per row is n*sizeof(entry_t)
   re_t *nze = (re_t *)malloc(n * sizeof(re_t));

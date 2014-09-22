@@ -392,9 +392,17 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
 
   // usually blocks in B tend to be denser than blocks in A, thus we allocate
-  // already at the beginning more memory for those lines
-  bi_t init_bufferA = A->bwidth / (A->bwidth/16);
-  bi_t init_bufferB = B->bwidth / (B->bwidth/64);
+  // already at the beginning more memory for those lines.
+  // we use a density threshold (which is globally defined in gb_config.h.in) to
+  // specify how much memory we allocate initially.
+  bi_t init_bufferA, init_bufferB;
+  if (M->density > __GB_DENSITY_THRESHOLD) {
+    init_bufferA = A->bwidth / (A->bwidth/8);
+    init_bufferB = B->bwidth / (B->bwidth/32);
+  } else {
+    init_bufferA = A->bwidth / (A->bwidth/4);
+    init_bufferB = B->bwidth / (B->bwidth/8);
+  }
 
   bi_t bufferA[clA];
   bi_t bufferB[clB];
