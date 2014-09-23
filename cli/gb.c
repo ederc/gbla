@@ -109,13 +109,13 @@ int main(int argc, char *argv[]) {
   sm_t *M = NULL;
 
   if (verbose > 0) {
-    printf("--------------------------------------------------------------\n");
-    printf("---------- Computing a special Gaussian Elimination ----------\n");
-    printf("-------------- with the following options set ----------------\n");
-    printf("--------------------------------------------------------------\n");
+    printf("----------------------------------------------------------------\n");
+    printf("----------- Computing a special Gaussian Elimination -----------\n");
+    printf("--------------- with the following options set -----------------\n");
+    printf("----------------------------------------------------------------\n");
     printf("number of threads   %4d\n", nthreads);
     printf("dimension of blocks %4d\n", block_dimension, block_dimension);
-    printf("--------------------------------------------------------------\n");
+    printf("----------------------------------------------------------------\n");
   }
 
   M = load_jcf_matrix(fn, verbose);
@@ -126,20 +126,37 @@ int main(int argc, char *argv[]) {
   }
 
   // construct splicing of matrix M into A, B, C and D
-  sbm_fl_t *A   = NULL;
-  sbm_fl_t *B   = NULL;
-  sbm_fl_t *C   = NULL;
-  sbm_fl_t *D   = NULL;
-  map_fl_t *map = NULL; // stores mappings from M <-> ABCD
+  sbm_fl_t *A   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *B   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *C   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *D   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
+  /*
+  sbm_fl_t A   = NULL;
+  sbm_fl_t B   = NULL;
+  sbm_fl_t C   = NULL;
+  sbm_fl_t D   = NULL;
+  map_fl_t map = NULL; // stores mappings from M <-> ABCD
+  */
+  if (verbose > 1)
+    gettimeofday(&t_load_start, NULL);
+
+  splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads, verbose);
 
   if (verbose > 1) {
-    gettimeofday(&t_load_start, NULL);
-  }
-  splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads, verbose);
-  if (verbose > 1) {
+    printf("----------------------------------------------------------------\n");
+    printf("Splicing and mapping of input matrix done.\n");
+    printf("Number of pivots found: %d\n", map->npiv);
+    printf("----------------------------------------------------------------\n");
+    printf("A [%d x %d]\n",A->nrows,A->ncols);
+    printf("B [%d x %d]\n",B->nrows,B->ncols);
+    printf("C [%d x %d]\n",C->nrows,C->ncols);
+    printf("D [%d x %d]\n",D->nrows,D->ncols);
+    printf("----------------------------------------------------------------\n");
     printf("||| Time for constructing submatrices A, B, C and D: %7.3f sec\n",
         walltime(t_load_start) / (1000000));
   }
+
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
   elim_fl(M);
 

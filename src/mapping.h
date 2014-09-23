@@ -58,12 +58,10 @@ typedef struct map_fl_t {
  *
  * \param original matrix M
  *
- * \return initialized map
+ * \param map to be initialized
+ *
  */
-static inline map_fl_t *init_fl_map(sm_t *M) {
-  map_fl_t *map   = NULL;
-  map             = (map_fl_t *)malloc(sizeof(map_fl_t));
-  
+static inline void init_fl_map(sm_t *M, map_fl_t *map) {
   // initialize map arrays and 
   // set initial values to __GB_MINUS_ONE_8
   map->pc = (ci_t *)malloc(M->ncols * sizeof(ci_t));
@@ -83,8 +81,6 @@ static inline map_fl_t *init_fl_map(sm_t *M) {
   
   map->npri = (ri_t *)malloc(M->ncols * sizeof(ri_t));
   memset(map->npri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
-
-  return map;
 }
 
 /**
@@ -103,8 +99,8 @@ static inline map_fl_t *init_fl_map(sm_t *M) {
  *
  */
 static inline void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
-    const bi_t lib, bi_t *bufferA) {
-  *bufferA +=  *bufferA;
+    const bi_t lib, const bi_t init_bufferA, bi_t *bufferA) {
+  *bufferA +=  init_bufferA;
   A->blocks[rbi][bir][lib].idx = realloc(
       A->blocks[rbi][bir][lib].idx,
       (*bufferA) * sizeof(bi_t));
@@ -216,6 +212,9 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
 static inline void insert_block_row_data_ml(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
     const ci_t bi1, const ci_t i1, const ci_t bi2, const ci_t i2) {
+  //if (rbi>65)
+  //  printf("rbi %d -- bir %d -- lib %d -- sz %d\n",
+  //    rbi, bir, lib, A->blocks[rbi][bir][lib].sz);
   A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
   A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
   A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = 0;
@@ -228,9 +227,9 @@ static inline void insert_block_row_data_ml(sbm_fl_t *A, const sm_t *M,
  * 
  * \param original matrix M
  *
- * \return indexer map for M
+ * \param indexer map for M
  */
-map_fl_t *construct_fl_map(sm_t *M);
+void construct_fl_map(sm_t *M, map_fl_t *map);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the

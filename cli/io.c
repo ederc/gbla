@@ -85,16 +85,16 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
       fs  = fs / 1024;
       fsu = "GB";
     }
-    printf("--------------------------------------------------------------\n");
+    printf("----------------------------------------------------------------\n");
     printf("Data for %s\n", fn);
-    printf("--------------------------------------------------------------\n");
+    printf("----------------------------------------------------------------\n");
     printf("modulus                     %14d\n", mod);
     printf("number of rows              %14d\n", m);
     printf("number of columns           %14d\n", n);
     printf("number of nonzero elements  %14ld\n", nnz);
     printf("density                     %14.2f %\n", density);
     printf("size                        %14.2f %s\n", fs, fsu);
-    printf("--------------------------------------------------------------\n");
+    printf("----------------------------------------------------------------\n");
   }
 
   // read entries from file
