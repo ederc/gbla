@@ -255,7 +255,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     piv_start_idx[i] = 0;
 
   omp_set_dynamic(0);
-#pragma omp parallel num_threads(nthreads)
+#pragma omp parallel private(block_idx, i, j) num_threads(nthreads)
   {
     uint32_t rihb[B->bheight];  // rows indices horizontal block
     uint16_t cvb  = 0;          // current vector in block
@@ -318,7 +318,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     piv_start_idx[i] = 0;
 
   omp_set_dynamic(0);
-#pragma omp parallel num_threads(nthreads)
+#pragma omp parallel private(block_idx, i, j) num_threads(nthreads)
   {
     uint32_t rihb[B->bheight];  // rows indices horizontal block
     uint16_t cvb  = 0;          // current vector in block
