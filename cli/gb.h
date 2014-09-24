@@ -10,5 +10,6 @@
 
 #include "io.h"
 #include <elimination.h>
+#include <math.h>
 
 #endif

@@ -1,6 +1,7 @@
 #include <mapping.h>
 
-#define __GB_DEBUG  0
+#define __GB_DEBUG_LL 0
+#define __GB_DEBUG    0
 
 void construct_fl_map(sm_t *M, map_fl_t *map) {
   // initialize all map entries to __GB_MINUS_ONE_8
@@ -444,7 +445,7 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
             //printf("bufferA[bir] after  %d\n",bufferA[bir]);
           }
           // set values
-          insert_block_row_data_ml(A, M, rbi, bir, lib, eil, bi1, i1, 0, 0);
+          insert_block_row_data_ml_1_1(A, M, rbi, bir, lib, eil, bi1, i1);
 #if __GB_DEBUG
           printf("1 %d -- %d -- %d\n", rbi,bir,lib);
           printf("1 eil %d\n",eil);
@@ -456,7 +457,13 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           if (B->blocks[rbi][bir][lib].sz == bufferB[bir])
             realloc_block_rows(B, rbi, bir, lib, init_bufferB, &bufferB[bir]);
           // set values
-          insert_block_row_data_ml(B, M, rbi, bir, lib, eil, bi1, i1, 0, 0);
+          insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
+#if __GB_DEBUG_LL
+            printf("1 %d -- %d -- %d\n", rbi,bir,lib);
+            printf("1 eil %d\n",eil);
+            printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
+            printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
+#endif
 #if __GB_DEBUG
           printf("2 %d -- %d -- %d\n", rbi,bir,lib);
           printf("2 eil %d\n",eil);
@@ -472,7 +479,7 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
             if (A->blocks[rbi][bir][lib].sz == bufferA[bir])
               realloc_block_rows(A, rbi, bir, lib, init_bufferA, &bufferA[bir]);
             // set values
-            insert_block_row_data_ml(A, M, rbi, bir, lib, eil, 0, 0, bi2, i2);
+            insert_block_row_data_ml_1_2(A, M, rbi, bir, lib, eil, bi2, i2);
 #if __GB_DEBUG
             printf("3 %d -- %d -- %d\n", rbi,bir,lib);
             printf("3 eil %d\n",eil);
@@ -484,7 +491,13 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
             if (B->blocks[rbi][bir][lib].sz == bufferB[bir])
               realloc_block_rows(B, rbi, bir, lib, init_bufferB, &bufferB[bir]);
             // set values
-            insert_block_row_data_ml(B, M, rbi, bir, lib, eil, 0, 0, bi2, i2);
+            insert_block_row_data_ml_1_2(B, M, rbi, bir, lib, eil, bi2, i2);
+#if __GB_DEBUG_LL
+            printf("2 %d -- %d -- %d\n", rbi,bir,lib);
+            printf("2 eil %d\n",eil);
+            printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
+            printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
+#endif
 #if __GB_DEBUG
             printf("4 %d -- %d -- %d\n", rbi,bir,lib);
             printf("4 eil %d\n",eil);
@@ -499,7 +512,7 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
             if (A->blocks[rbi][bir][lib].sz == bufferA[bir])
               realloc_block_rows(A, rbi, bir, lib, init_bufferA, &bufferA[bir]);
             // set values
-            insert_block_row_data_ml(A, M, rbi, bir, lib, eil, bi1, i1, bi2, i2);
+            insert_block_row_data_ml_2(A, M, rbi, bir, lib, eil, bi1, i1, bi2, i2);
 #if __GB_DEBUG
             printf("5 %d -- %d -- %d\n", rbi,bir,lib);
             printf("5 eil %d\n",eil);
@@ -511,12 +524,12 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
             if (B->blocks[rbi][bir][lib].sz == bufferB[bir])
               realloc_block_rows(B, rbi, bir, lib, init_bufferB, &bufferB[bir]);
             // set values
-            insert_block_row_data_ml(B, M, rbi, bir, lib, eil, bi1, i1, bi2, i2);
-#if __GB_DEBUG
-            printf("6 %d -- %d -- %d\n", rbi,bir,lib);
-            printf("6 eil %d\n",eil);
-            printf("1 %d\n",M->rows[bi1][i1]);
-            printf("2 %d\n",M->rows[bi2][i2]);
+            insert_block_row_data_ml_2(B, M, rbi, bir, lib, eil, bi1, i1, bi2, i2);
+#if __GB_DEBUG_LL
+            printf("3 %d -- %d -- %d\n", rbi,bir,lib);
+            printf("3 eil %d\n",eil);
+            printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
+            printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
           }
           i1++;
@@ -538,7 +551,7 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         if (A->blocks[rbi][bir][lib].sz == bufferA[bir])
           realloc_block_rows(A, rbi, bir, lib, init_bufferA, &bufferA[bir]);
         // set values
-        insert_block_row_data_ml(A, M, rbi, bir, lib, eil, bi1, i1, 0, 0);
+        insert_block_row_data_ml_1_1(A, M, rbi, bir, lib, eil, bi1, i1);
 #if __GB_DEBUG
         printf("7 %d -- %d -- %d\n", rbi,bir,lib);
         printf("7 eil %d\n",eil);
@@ -550,7 +563,13 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         if (B->blocks[rbi][bir][lib].sz == bufferB[bir])
           realloc_block_rows(B, rbi, bir, lib, init_bufferB, &bufferB[bir]);
         // set values
-        insert_block_row_data_ml(B, M, rbi, bir, lib, eil, bi1, i1, 0, 0);
+        insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
+#if __GB_DEBUG_LL
+            printf("4 %d -- %d -- %d\n", rbi,bir,lib);
+            printf("4 eil %d\n",eil);
+            printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
+            printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
+#endif
 #if __GB_DEBUG
         printf("8 %d -- %d -- %d\n", rbi,bir,lib);
         printf("8 eil %d\n",eil);
@@ -568,7 +587,7 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         if (A->blocks[rbi][bir][lib].sz == bufferA[bir])
           realloc_block_rows(A, rbi, bir, lib, init_bufferA, &bufferA[bir]);
         // set values
-        insert_block_row_data_ml(A, M, rbi, bir, lib, eil, 0, 0, bi2, i2);
+        insert_block_row_data_ml_1_2(A, M, rbi, bir, lib, eil, bi2, i2);
 #if __GB_DEBUG
         printf("9 %d -- %d -- %d\n", rbi,bir,lib);
         printf("9 eil %d\n",eil);
@@ -580,7 +599,13 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         if (B->blocks[rbi][bir][lib].sz == bufferB[bir])
           realloc_block_rows(B, rbi, bir, lib, init_bufferB, &bufferB[bir]);
         // set values
-        insert_block_row_data_ml(B, M, rbi, bir, lib, eil, 0, 0, bi2, i2);
+        insert_block_row_data_ml_1_2(B, M, rbi, bir, lib, eil, bi2, i2);
+#if __GB_DEBUG_LL
+            printf("5 %d -- %d -- %d\n", rbi,bir,lib);
+            printf("5 eil %d\n",eil);
+            printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
+            printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
+#endif
 #if __GB_DEBUG
         printf("10 %d -- %d -- %d\n", rbi,bir,lib);
         printf("10 eil %d\n",eil);
@@ -627,7 +652,7 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         if (A->blocks[rbi][bir][lib].sz == bufferA[bir])
           realloc_block_rows(A, rbi, bir, lib, init_bufferA, &bufferA[bir]);
         // set values
-        insert_block_row_data_ml(A, M, rbi, bir, lib, eil, bi1, i1, 0, 0);
+        insert_block_row_data_ml_1_1(A, M, rbi, bir, lib, eil, bi1, i1);
 #if __GB_DEBUG
         printf("11 %d -- %d -- %d\n", rbi,bir,lib);
         printf("11 eil %d\n",eil);
@@ -639,7 +664,13 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         if (B->blocks[rbi][bir][lib].sz == bufferB[bir])
           realloc_block_rows(B, rbi, bir, lib, init_bufferB, &bufferB[bir]);
         // set values
-        insert_block_row_data_ml(B, M, rbi, bir, lib, eil, bi1, i1, 0, 0);
+        insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
+#if __GB_DEBUG_LL
+            printf("6 %d -- %d -- %d\n", rbi,bir,lib);
+            printf("6 eil %d\n",eil);
+            printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
+            printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
+#endif
 #if __GB_DEBUG
         printf("12 %d -- %d -- %d\n", rbi,bir,lib);
         printf("12 eil %d\n",eil);
@@ -650,6 +681,16 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   }
   // write data to A (from right to left)
   swap_block_data(A, clA, rbi, cvb);
+  /*
+  for (j=0; j<clA; ++j) {
+    A->blocks[rbi][j][lib].idx = realloc(
+        A->blocks[rbi][j][lib].idx,
+        A->blocks[rbi][j][lib].sz * sizeof(bi_t));
+    A->blocks[rbi][j][lib].val = realloc(
+        A->blocks[rbi][j][lib].val,
+        2 * A->blocks[rbi][j][lib].sz  * sizeof(re_t));
+  }
+  */
   // Realloc memory usage:
   // We do not need to realloc memory for A since we have already fixed memory
   // for A in the swapping of the data above.
@@ -686,6 +727,7 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         free(B->blocks[rbi][i][j].idx);
         free(B->blocks[rbi][i][j].val);
         B->blocks[rbi][i][j].val  = tmp_val_ptr;
+        B->blocks[rbi][i][j].sz   = B->bwidth;
       }
     }
   }

@@ -1,4 +1,7 @@
 #include "gb.h"
+
+#define __GB_CLI_DEBUG  0
+
 void print_help() {
   printf("\n");
   printf("NAME\n");
@@ -156,6 +159,77 @@ int main(int argc, char *argv[]) {
     printf("||| Time for constructing submatrices A, B, C and D: %7.3f sec\n",
         walltime(t_load_start) / (1000000));
   }
+
+#if __GB_CLI_DEBUG
+  // column loops 
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  // row loops 
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
+
+  int ii,jj,kk,ll;
+  for (ii=0; ii<rlA; ++ii) {
+    for (jj=0; jj<clA; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", A->blocks[ii][jj][kk].sz * 2);
+        if (A->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<A->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", A->blocks[ii][jj][kk].val[2*ll], A->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlB; ++ii) {
+    for (jj=0; jj<clB; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", B->blocks[ii][jj][kk].sz * 2);
+        if (B->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlC; ++ii) {
+    for (jj=0; jj<clC; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", C->blocks[ii][jj][kk].sz * 2);
+        if (C->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<C->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", C->blocks[ii][jj][kk].val[2*ll], C->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlD; ++ii) {
+    for (jj=0; jj<clD; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", D->blocks[ii][jj][kk].sz * 2);
+        if (D->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+#endif
 
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
   elim_fl(M);

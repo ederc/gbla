@@ -127,7 +127,10 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
   bi_t *old_idx_ptr = NULL;
   re_t *old_val_ptr = NULL;
 
-  for (i=0; i<cvb/2; ++i) {
+  bi_t rounded_cvb_half = cvb/2;
+  if (cvb % 2) // odd cvb
+    rounded_cvb_half  +=  1;
+  for (i=0; i<rounded_cvb_half; ++i) {
     // allocate memory for swapping data
     bi_t *tmp_idx_ptr = (bi_t *)malloc(A->blocks[rbi][clA-1][i].sz * sizeof(bi_t));
     re_t *tmp_val_ptr = (re_t *)malloc(2 * A->blocks[rbi][clA-1][i].sz * sizeof(re_t));
@@ -135,8 +138,8 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
     l = 0;
     for (k=A->blocks[rbi][clA-1][i].sz-1; k>-1; --k) {
       tmp_idx_ptr[l]      = A->blocks[rbi][clA-1][i].idx[k];
-      tmp_val_ptr[2*l]    = A->blocks[rbi][clA-1][i].idx[2*k];
-      tmp_val_ptr[2*l+1]  = A->blocks[rbi][clA-1][i].idx[2*(k+1)];
+      tmp_val_ptr[2*l]    = A->blocks[rbi][clA-1][i].val[2*k];
+      tmp_val_ptr[2*l+1]  = A->blocks[rbi][clA-1][i].val[2*k+1];
       l++;
     }
     // keep track of old ptr
@@ -145,6 +148,9 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
     // swap starting ptrs
     A->blocks[rbi][clA-1][i].idx  = tmp_idx_ptr;
     A->blocks[rbi][clA-1][i].val  = tmp_val_ptr;
+    // try to reuse old, already allocated memory in the following
+    tmp_idx_ptr = old_idx_ptr;
+    tmp_val_ptr = old_val_ptr;
     // now go through all remaining blocks in the corresponding row (bir)
     // check if the already allocated memory is enough for executing the swap
     for (j=clA-2; j>-1; --j) {
@@ -166,8 +172,8 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
       l = 0;
       for (k=A->blocks[rbi][j][i].sz-1; k>-1; --k) {
         tmp_idx_ptr[l]      = A->blocks[rbi][j][i].idx[k];
-        tmp_val_ptr[2*l]    = A->blocks[rbi][j][i].idx[2*k];
-        tmp_val_ptr[2*l+1]  = A->blocks[rbi][j][i].idx[2*(k+1)];
+        tmp_val_ptr[2*l]    = A->blocks[rbi][j][i].val[2*k];
+        tmp_val_ptr[2*l+1]  = A->blocks[rbi][j][i].val[2*k+1];
         l++;
       }
       // keep track of old ptr
@@ -176,6 +182,9 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
       // swap starting ptrs
       A->blocks[rbi][j][i].idx  = tmp_idx_ptr;
       A->blocks[rbi][j][i].val  = tmp_val_ptr;
+      // try to reuse old, already allocated memory in the following
+      tmp_idx_ptr = old_idx_ptr;
+      tmp_val_ptr = old_val_ptr;
     }
     // finally remove temporary memory used for swapping
     free(old_idx_ptr);
@@ -186,7 +195,75 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
 /**
  * \brief Inserts elements from input matrix M in block rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
- * line blocks
+ * line blocks inserting one entry in the first field, 0 in the second field.
+ * 
+ * \param block matrix A
+ *
+ * \param original matrix M
+ *
+ * \param current row index for blocks rbi
+ *
+ * \param column index for the block in the current block row bir
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ */
+static inline void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
+    const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
+    const ci_t bi1, const ci_t i1) {
+  //if (rbi>65)
+  //  printf("rbi %d -- bir %d -- lib %d -- sz %d\n",
+  //    rbi, bir, lib, A->blocks[rbi][bir][lib].sz);
+  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
+  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
+  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = 0;
+  A->blocks[rbi][bir][lib].sz++;
+}
+
+/**
+ * \brief Inserts elements from input matrix M in block rows of A corresponding
+ * to the given splicing and mapping precomputed. This is the version for multi
+ * line blocks inserting one entry in the second field, 0 in the first field.
+ * 
+ * \param block matrix A
+ *
+ * \param original matrix M
+ *
+ * \param current row index for blocks rbi
+ *
+ * \param column index for the block in the current block row bir
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi2
+ *
+ * \param index in row bi1 of corresponding element in M i2
+ *
+ */
+
+static inline void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
+    const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
+    const ci_t bi2, const ci_t i2) {
+  //if (rbi>65)
+  //  printf("rbi %d -- bir %d -- lib %d -- sz %d\n",
+  //    rbi, bir, lib, A->blocks[rbi][bir][lib].sz);
+  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
+  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = 0;
+  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
+  A->blocks[rbi][bir][lib].sz++;
+}
+/**
+ * \brief Inserts elements from input matrix M in block rows of A corresponding
+ * to the given splicing and mapping precomputed. This is the version for multi
+ * line blocks inserting two entries.
  * 
  * \param block matrix A
  *
@@ -209,7 +286,7 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
  * \param index in row bi1 of corresponding element in M i2
  *
  */
-static inline void insert_block_row_data_ml(sbm_fl_t *A, const sm_t *M,
+static inline void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
     const ci_t bi1, const ci_t i1, const ci_t bi2, const ci_t i2) {
   //if (rbi>65)
@@ -217,7 +294,7 @@ static inline void insert_block_row_data_ml(sbm_fl_t *A, const sm_t *M,
   //    rbi, bir, lib, A->blocks[rbi][bir][lib].sz);
   A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
   A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
-  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = 0;
+  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
   A->blocks[rbi][bir][lib].sz++;
 }
 
