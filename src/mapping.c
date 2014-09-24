@@ -382,8 +382,8 @@ void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     init_bufferA = A->bwidth / (A->bwidth/16);
     init_bufferB = B->bwidth / (B->bwidth/64);
   } else {
-    init_bufferA = A->bwidth / (A->bwidth/8);
-    init_bufferB = B->bwidth / (B->bwidth/16);
+    init_bufferA = A->bwidth / (A->bwidth/16);
+    init_bufferB = B->bwidth / (B->bwidth/64);
   }
 
   bi_t bufferA[clA];
