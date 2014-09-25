@@ -15,21 +15,22 @@ void print_help() {
   printf("    dense matrix coming from Groebner basis computations.\n");
   printf("\n");
   printf("OPTIONS\n");
-  printf("    -b         Dimensions of a block in submatrices.\n");
-  printf("               Default: 256.\n");
-  printf("    -c         Result checked resp. validated with structured Gaussian\n");
-  printf("               Elimination. By default there is no validation.\n");
-  printf("    -h         Print help.\n");
-  printf("    -f         Free memory on the go.\n");
-  printf("               By default memory is freed only at the end.\n");
-  printf("    -m         Number of rows per multiline.\n");
-  printf("               Default: 1.\n");
-  printf("    -p         Writes intermediate matrices in pbm format.\n");
-  printf("    -t THRDS   Number of threads used.\n");
-  printf("               Default: 1.\n");
-  printf("    -v LEVEL   Level of verbosity:\n");
-  printf("               1 -> only error messages printed\n");
-  printf("               2 -> additionally meta information printed\n");
+  printf("    -b          Dimensions of a block in submatrices.\n");
+  printf("                Default: 256.\n");
+  printf("    -c          Result checked resp. validated with structured Gaussian\n");
+  printf("                Elimination. By default there is no validation.\n");
+  printf("    -h          Print help.\n");
+  printf("    -f          Free memory on the go.\n");
+  printf("                Default: 1, memory is freed on the go.\n");
+  printf("                Use 0 for keeping complete memory until the end.\n");
+  printf("    -m          Number of rows per multiline.\n");
+  printf("                Default: 1.\n");
+  printf("    -p          Writes intermediate matrices in pbm format.\n");
+  printf("    -t THRDS    Number of threads used.\n");
+  printf("                Default: 1.\n");
+  printf("    -v LEVEL    Level of verbosity:\n");
+  printf("                1 -> only error messages printed\n");
+  printf("                2 -> additionally meta information printed\n");
   printf("\n");
 
   return; 
@@ -38,7 +39,7 @@ void print_help() {
 
 int main(int argc, char *argv[]) {  
   const char *fn        = NULL;
-  int free_mem          = 0;
+  int free_mem          = 1;
   int validate_results  = 0;
   int verbose           = 0;
   int method            = 0;
@@ -55,7 +56,7 @@ int main(int argc, char *argv[]) {
 
   opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "b:cfhm:t:v:p")) != -1) {
+  while ((opt = getopt(argc, argv, "b:cf:hm:t:v:p")) != -1) {
     switch (opt) {
       case 'b': 
         block_dimension = atoi(optarg);
@@ -66,7 +67,9 @@ int main(int argc, char *argv[]) {
         validate_results  = 1;
         break;
       case 'f':
-        free_mem  = 1;
+        free_mem = atoi(optarg);
+        if (free_mem < 0)
+          free_mem  = 1;
         break;
       case 'h':
         print_help();
@@ -112,20 +115,62 @@ int main(int argc, char *argv[]) {
   sm_t *M = NULL;
 
   if (verbose > 0) {
-    printf("----------------------------------------------------------------\n");
-    printf("----------- Computing a special Gaussian Elimination -----------\n");
-    printf("--------------- with the following options set -----------------\n");
-    printf("----------------------------------------------------------------\n");
-    printf("number of threads   %4d\n", nthreads);
-    printf("dimension of blocks %4d\n", block_dimension, block_dimension);
-    printf("----------------------------------------------------------------\n");
+    printf("---------------------------------------------------------------------\n");
+    printf("-------------- Computing a special Gaussian Elimination -------------\n");
+    printf("------------------ with the following options set -------------------\n");
+    printf("---------------------------------------------------------------------\n");
+    printf("number of threads               %4d\n", nthreads);
+    printf("dimension of blocks             %4d\n", block_dimension);
+    printf("free memory on the go           %4d\n", free_mem);
+    printf("write PBM file of input matrix  %4d\n", write_pbm);
+    printf("---------------------------------------------------------------------\n");
   }
 
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>> START loading JCF matrix ...\n");
+  }
+  // load JCF matrix
   M = load_jcf_matrix(fn, verbose);
+  if (verbose > 1) {
+    printf("<<< DONE  loading JCF matrix.\n");
+    // print walltime
+    printf("||| %.3f sec (%.3f %s/sec)\n",
+        walltime(t_load_start) / (1000000),
+        M->fs / (walltime(t_load_start) / (1000000)), M->fsu);
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+    printf("---------------------------------------------------------------------\n");
+    printf("Data for %s\n", fn);
+    printf("---------------------------------------------------------------------\n");
+    printf("modulus                     %14d\n", M->mod);
+    printf("number of rows              %14d\n", M->nrows);
+    printf("number of columns           %14d\n", M->ncols);
+    printf("number of nonzero elements  %14ld\n", M->nnz);
+    printf("density                     %14.2f %\n", M->density);
+    printf("size                        %14.2f %s\n", M->fs, M->fsu);
+    printf("---------------------------------------------------------------------\n");
+  }
 
+  // write JCF matrix to PBM file
   if (write_pbm) {
+    if (verbose > 1) {
+      gettimeofday(&t_load_start, NULL);
+      printf("---------------------------------------------------------------------\n");
+      printf(">>> START writing input matrix to PBM file ...\n");
+    }
     const char *pbm_fn  = "input-matrix.pbm";
     write_jcf_matrix_to_pbm(M, pbm_fn, verbose);
+    if (verbose > 1) {
+      printf("<<< DONE writing input matrix to PBM file.\n");
+      // print walltime
+      printf("||| %.3f sec (%.3f %s/sec)\n",
+          walltime(t_load_start) / (1000000),
+          M->fs / (walltime(t_load_start) / (1000000)), M->fsu);
+      printf("---------------------------------------------------------------------\n");
+      printf("\n");
+    }
   }
 
   // construct splicing of matrix M into A, B, C and D
@@ -134,30 +179,26 @@ int main(int argc, char *argv[]) {
   sbm_fl_t *C   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   sbm_fl_t *D   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
-  /*
-  sbm_fl_t A   = NULL;
-  sbm_fl_t B   = NULL;
-  sbm_fl_t C   = NULL;
-  sbm_fl_t D   = NULL;
-  map_fl_t map = NULL; // stores mappings from M <-> ABCD
-  */
-  if (verbose > 1)
-    gettimeofday(&t_load_start, NULL);
-
-  splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads, verbose);
-
   if (verbose > 1) {
-    printf("----------------------------------------------------------------\n");
-    printf("Splicing and mapping of input matrix done.\n");
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>> START splicing and mapping of input matrix ...\n");
+  }
+  splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
+      free_mem, verbose);
+  if (verbose > 1) {
+    printf("<<< DONE  splicing and mapping of input matrix.\n");
+    printf("||| %.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
-    printf("----------------------------------------------------------------\n");
+    printf("---------------------------------------------------------------------\n");
     printf("A [%d x %d]\n",A->nrows,A->ncols);
     printf("B [%d x %d]\n",B->nrows,B->ncols);
     printf("C [%d x %d]\n",C->nrows,C->ncols);
     printf("D [%d x %d]\n",D->nrows,D->ncols);
-    printf("----------------------------------------------------------------\n");
-    printf("||| Time for constructing submatrices A, B, C and D: %7.3f sec\n",
-        walltime(t_load_start) / (1000000));
+    printf("---------------------------------------------------------------------\n");
   }
 
 #if __GB_CLI_DEBUG

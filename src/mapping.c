@@ -51,7 +51,7 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
 
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                     map_fl_t *map, int block_dim, int rows_multiline,
-                    int nthreads, int verbose) {
+                    int nthreads, int destruct_input_matrix, int verbose) {
 
   int bdim  = block_dim / rows_multiline;
   // construct index map for Faugère-Lachartre decomposition of matrix M
@@ -235,8 +235,6 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
   piv_start_idx[0]  = M->nrows;
   uint32_t block_idx;
-
-  uint16_t destruct_input_matrix  = 1;
 
   // find blocks for construction of A & B
   for (i = (int)M->ncols-1; i > -1; --i) {

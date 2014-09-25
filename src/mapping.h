@@ -337,13 +337,15 @@ void construct_fl_map(sm_t *M, map_fl_t *map);
  *
  *  \param number of rows per multiline rows_multiline
  *
+ *  \param destructing input matrix on the go? destruct_input_matrix
+ *
  *  \param number of threads to be used
  *
  *  \param level of verbosity
  */
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                       map_fl_t *map, int block_dim, int rows_multiline,
-                      int nthreads, int verbose);
+                      int nthreads, int destruct_input_matrix, int verbose);
 
 
 /**

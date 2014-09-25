@@ -22,6 +22,8 @@ typedef struct sm_t {
   float density;  /*!<  density used for adjusting memory allocation during
                         splicing and generation of ABCD blocks */
   mod_t mod;      /*!<  modulo/field characteristic */
+  float fs;       /*!<  file size of input matrix */
+  char *fsu;      /*!<  file size unit of input matrix, e.g. GB */
   re_t **rows;    /*!<  address of row: M->rows[i] gives first
                         address of ith row */
   ci_t **pos;     /*!<  position of entry in row: M->pos[i] gives first

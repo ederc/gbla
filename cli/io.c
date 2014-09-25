@@ -73,28 +73,16 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
     return NULL;
   }
 
-  if (verbose > 1) {
-    // density of matrix
-    density =   (double) n * (double) m;
-    density =   (double) (nnz) / density;
-    density *=  100.0;
-    // file size of matrix
-    fs  = (double) fl / 1024 / 1024;
-    fsu = "MB";
-    if (fs > 1000) {
-      fs  = fs / 1024;
-      fsu = "GB";
-    }
-    printf("----------------------------------------------------------------\n");
-    printf("Data for %s\n", fn);
-    printf("----------------------------------------------------------------\n");
-    printf("modulus                     %14d\n", mod);
-    printf("number of rows              %14d\n", m);
-    printf("number of columns           %14d\n", n);
-    printf("number of nonzero elements  %14ld\n", nnz);
-    printf("density                     %14.2f %\n", density);
-    printf("size                        %14.2f %s\n", fs, fsu);
-    printf("----------------------------------------------------------------\n");
+  // density of matrix
+  density =   (double) n * (double) m;
+  density =   (double) (nnz) / density;
+  density *=  100.0;
+  // file size of matrix
+  fs  = (double) fl / 1024 / 1024;
+  fsu = "MB";
+  if (fs > 1000) {
+    fs  = fs / 1024;
+    fsu = "GB";
   }
 
   // read entries from file
@@ -104,11 +92,13 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   M->rwidth = (ci_t *)malloc(m*sizeof(ci_t));
   
   // get meta data
-  M->nrows   = m;
-  M->ncols   = n;
-  M->nnz     = nnz;
-  M->mod     = mod;
-  M->density = (float)density;
+  M->nrows    = m;
+  M->ncols    = n;
+  M->nnz      = nnz;
+  M->mod      = mod;
+  M->density  = (float)density;
+  M->fs       = (float)fs;
+  M->fsu      = fsu;
   
   // maximal possible nonzero entries per row is n*sizeof(entry_t)
   re_t *nze = (re_t *)malloc(n * sizeof(re_t));
@@ -172,12 +162,6 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
   }
 
   fclose(fh); 
-  // print walltime
-  if (verbose > 1) {
-    printf("||| Time for loading JCF matrix: %7.3f sec (%7.3f %s/sec)\n",
-        walltime(t_load_start) / (1000000),
-        fs / (walltime(t_load_start) / (1000000)), fsu);
-  }
   return M;
 }
 
