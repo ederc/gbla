@@ -327,7 +327,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   if (A->nrows % 2)
     rlA++;
 
-  A->ml = (mbl_t *)malloc(rlA * sizeof(mbl_t));
+  A->ml = (ml_t *)malloc(rlA * sizeof(ml_t));
   for (i=0; i<rlA; ++i) {
     A->ml[i].val  = NULL;
     A->ml[i].idx  = NULL;
@@ -574,7 +574,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   if (A->nrows % 2)
     rlA++;
 
-  A->ml = (mbl_t *)malloc(rlA * sizeof(mbl_t));
+  A->ml = (ml_t *)malloc(rlA * sizeof(ml_t));
   for (i=0; i<rlA; ++i) {
     A->ml[i].val  = NULL;
     A->ml[i].idx  = NULL;
@@ -592,7 +592,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   if (C->nrows % 2)
     rlC++;
 
-  C->ml = (mbl_t *)malloc(rlC * sizeof(mbl_t));
+  C->ml = (ml_t *)malloc(rlC * sizeof(ml_t));
   for (i=0; i<rlC; ++i) {
     C->ml[i].val  = NULL;
     C->ml[i].idx  = NULL;
@@ -810,8 +810,8 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 
 
   // column loops 
-  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
-  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const ci_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
+  const ci_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
 
   // Usually blocks in B tend to be denser than blocks in A, thus we allocate
   // already at the beginning more memory for those lines.
@@ -1147,13 +1147,13 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
 
   // current loop variable i, block indices 1 (rihb[i]) and 2 (rihb[i+1])
   uint32_t i, j, k, l, bi1, bi2;
-  ri_t mli; // multiline index in A
+  mli_t mli; // multiline index in A
 
   //const uint32_t loop_size  = (uint32_t) ceil(cvb / __GB_NROWS_MULTILINE);
 
 
   // column loops 
-  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const ci_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
 
   // Usually blocks in B tend to be denser than blocks in A, but here A is just
   // a multiline sub matrix without blocks, so we also allocate enough initial
@@ -1169,7 +1169,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     init_bufferB = B->bwidth / (B->bwidth/64);
   }
 
-  uint32_t bufferA; // 16bit is not enough, overflows appear for lager matrices!
+  mli_t bufferA; // 16bit is not enough, overflows appear for lager matrices!
   bi_t bufferB[clB];
 
   // NOTE: In LELA Martani uses a stack vector to store the values for sub

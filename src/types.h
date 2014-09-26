@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+/// index type
+typedef uint32_t  mli_t;
 /// block index type
 typedef uint16_t  bi_t;
 /// matrix row entry type

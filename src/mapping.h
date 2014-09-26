@@ -94,8 +94,8 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
  * \param buffer size bufferA
  *
  */
-static inline void realloc_rows_ml(sm_fl_ml_t *A, const ri_t mli,
-    const bi_t init_bufferA, uint32_t *bufferA) {
+static inline void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
+    const bi_t init_bufferA, mli_t *bufferA) {
   *bufferA +=  init_bufferA;
   A->ml[mli].idx = realloc(A->ml[mli].idx, (*bufferA) * sizeof(bi_t));
   A->ml[mli].val = realloc(A->ml[mli].val, 2 * (*bufferA) * sizeof(re_t));
@@ -141,7 +141,7 @@ static inline void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bi
  * \param current line in block lib
  *
  */
-static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t rbi,
+static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
     const bi_t cvb) {
   int i, j, k, l;
   bi_t *old_idx_ptr = NULL;
@@ -232,7 +232,7 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
  *
  */
 static inline void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
-    const ri_t mli, const bi_t eil, const ci_t bi1, const ci_t i1) {
+    const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1) {
   A->ml[mli].idx[A->ml[mli].sz]       = eil;
   A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
   A->ml[mli].val[(2*A->ml[mli].sz)+1] = 0;
@@ -258,7 +258,7 @@ static inline void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
  *
  */
 static inline void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
-    const ri_t mli, const bi_t eil, const ci_t bi2, const ci_t i2) {
+    const mli_t mli, const ci_t eil, const ci_t bi2, const ci_t i2) {
   A->ml[mli].idx[A->ml[mli].sz]       = eil;
   A->ml[mli].val[2*A->ml[mli].sz]     = 0;
   A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
@@ -288,7 +288,7 @@ static inline void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
  *
  */
 static inline void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
-    const ri_t mli, const bi_t eil, const ci_t bi1, const ci_t i1,
+    const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1,
     const ci_t bi2, const ci_t i2) {
   A->ml[mli].idx[A->ml[mli].sz]       = eil;
   A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];

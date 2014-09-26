@@ -44,6 +44,22 @@ typedef struct mbl_t {
   bi_t sz;    /*!< current length of the block row */
 } mbl_t;
 
+/**
+ * \brief A multiline is a vector of an vector of multilines. It consists of
+ * an index for the column of the value entries in rows. For each index rows stores
+ * __GB_NROWS_MULTILINE elements, i.e. this many rows are taken care of at once.
+ *
+ * \note In spite of type mbl_t the index idx as well as the size sz might
+ * excced 2^16, thus bi_t is not enough and we need them to be of type ci_t
+ * resp. uint32_t at least.
+ *
+ */
+typedef struct ml_t {
+  ci_t *idx;  /*!< column index in the multiline vector */
+  re_t *val;  /*!< multiline row, must be __GB_NROWS_MULTILINE * length(idx) */
+  ci_t sz;    /*!< current length of the block row */
+} ml_t;
+
 
 /**
  * \brief Enum of block alignments: Entries in the block submatrices are stored
@@ -101,7 +117,7 @@ typedef struct sm_fl_ml_t {
                           if 0 then no fill is done */
   int hr;           /*!<  if 1 then hybrid (sparse/dense) rows are accepted
                           if 0 then those rows are not accepted */
-  mbl_t *ml;        /*!<  address of multilines: M->ml[i] gives address of 
+  ml_t *ml;         /*!<  address of multilines: M->ml[i] gives address of 
                           multiline i. There are nrows/__GB_NROWS_MULTILINE
                           multilines. */
 } sm_fl_ml_t;
