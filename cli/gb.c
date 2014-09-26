@@ -355,29 +355,24 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
 
 #if __GB_CLI_DEBUG
   // column loops 
-  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
   // row loops 
-  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
 
   int ii,jj,kk,ll;
   for (ii=0; ii<rlA; ++ii) {
-    for (jj=0; jj<clA; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", A->blocks[ii][jj][kk].sz * 2);
-        if (A->blocks[ii][jj][kk].sz>0) {
-          for (ll=0; ll<A->blocks[ii][jj][kk].sz; ++ll) {
-            printf("%d %d ", A->blocks[ii][jj][kk].val[2*ll], A->blocks[ii][jj][kk].val[2*ll+1]);
-          }
-          printf("\n");
-        }
+    printf("%d .. \n",ii);
+    printf("size %d\n", A->ml[ii].sz * 2);
+    if (A->ml[ii].sz>0) {
+      for (ll=0; ll<A->ml[ii].sz; ++ll) {
+        printf("%d %d ", A->ml[ii].val[2*ll], A->ml[ii].val[2*ll+1]);
       }
+      printf("\n");
     }
   }
   for (ii=0; ii<rlB; ++ii) {
@@ -464,29 +459,23 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
 
 #if __GB_CLI_DEBUG
   // column loops 
-  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
-  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
   // row loops 
-  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
-  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / __GB_NROWS_MULTILINE);
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
 
   int ii,jj,kk,ll;
   for (ii=0; ii<rlA; ++ii) {
-    for (jj=0; jj<clA; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", A->blocks[ii][jj][kk].sz * 2);
-        if (A->blocks[ii][jj][kk].sz>0) {
-          for (ll=0; ll<A->blocks[ii][jj][kk].sz; ++ll) {
-            printf("%d %d ", A->blocks[ii][jj][kk].val[2*ll], A->blocks[ii][jj][kk].val[2*ll+1]);
-          }
-          printf("\n");
-        }
+    printf("%d .. \n",ii);
+    printf("size %d\n", A->ml[ii].sz * 2);
+    if (A->ml[ii].sz>0) {
+      for (ll=0; ll<A->ml[ii].sz; ++ll) {
+        printf("%d %d ", A->ml[ii].val[2*ll], A->ml[ii].val[2*ll+1]);
       }
+      printf("\n");
     }
   }
   for (ii=0; ii<rlB; ++ii) {
@@ -504,17 +493,13 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     }
   }
   for (ii=0; ii<rlC; ++ii) {
-    for (jj=0; jj<clC; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", C->blocks[ii][jj][kk].sz * 2);
-        if (C->blocks[ii][jj][kk].sz>0) {
-          for (ll=0; ll<C->blocks[ii][jj][kk].sz; ++ll) {
-            printf("%d %d ", C->blocks[ii][jj][kk].val[2*ll], C->blocks[ii][jj][kk].val[2*ll+1]);
-          }
-          printf("\n");
-        }
+    printf("%d .. \n",ii);
+    printf("size %d\n", C->ml[ii].sz * 2);
+    if (C->ml[ii].sz>0) {
+      for (ll=0; ll<C->ml[ii].sz; ++ll) {
+        printf("%d %d ", C->ml[ii].val[2*ll], C->ml[ii].val[2*ll+1]);
       }
+      printf("\n");
     }
   }
   for (ii=0; ii<rlD; ++ii) {
