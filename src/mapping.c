@@ -1032,7 +1032,15 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       i2++;
     }
-
+    // Realloc memory usage:
+    for (k=0; k<clB; ++k) {
+      B->blocks[rbi][k][lib].idx = realloc(
+          B->blocks[rbi][k][lib].idx,
+          B->blocks[rbi][k][lib].sz * sizeof(bi_t));
+      B->blocks[rbi][k][lib].val = realloc(
+          B->blocks[rbi][k][lib].val,
+          2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
+    }
   }
 
 #if __GB_DEBUG
@@ -1080,26 +1088,20 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       i1++;
     }
+    // Realloc memory usage:
+    // Note that A is reallocated during the swapping of the data, so we
+    // reallocate only B here.
+    for (k=0; k<clB; ++k) {
+      B->blocks[rbi][k][lib].idx = realloc(
+          B->blocks[rbi][k][lib].idx,
+          B->blocks[rbi][k][lib].sz * sizeof(bi_t));
+      B->blocks[rbi][k][lib].val = realloc(
+          B->blocks[rbi][k][lib].val,
+          2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
+    }
   }
   // write data to A (from right to left)
   swap_block_data(A, clA, rbi, cvb);
-
-  // Realloc memory usage:
-  // We do not need to realloc memory for A since we have already fixed memory
-  // for A in the swapping of the data above.
-  bi_t rounded_cvb_half = cvb/2;
-  if (cvb % 2) // odd cvb
-    rounded_cvb_half  +=  1;
-  for (j=0; j<rounded_cvb_half; ++j) {
-    for (i=0; i<clB; ++i) {
-      B->blocks[rbi][i][j].idx = realloc(
-          B->blocks[rbi][i][j].idx,
-          B->blocks[rbi][i][j].sz * sizeof(bi_t));
-      B->blocks[rbi][i][j].val = realloc(
-          B->blocks[rbi][i][j].val,
-          2 * B->blocks[rbi][i][j].sz  * sizeof(re_t));
-    }
-  }
 
   // hybrid multirows for the righthand side block matrices?
   if (B->hr) {
@@ -1160,10 +1162,10 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   // specify how much memory we allocate initially.
   bi_t init_bufferA, init_bufferB;
   if (M->density > __GB_DENSITY_THRESHOLD) {
-    init_bufferA = 128;
+    init_bufferA = (bi_t)(M->density*M->ncols);
     init_bufferB = B->bwidth / (B->bwidth/128);
   } else {
-    init_bufferA = 64;
+    init_bufferA = (bi_t)(M->density*M->ncols);
     init_bufferB = B->bwidth / (B->bwidth/64);
   }
 
@@ -1369,7 +1371,17 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       i2++;
     }
-
+    // Realloc memory usage:
+    for (k=0; k<clB; ++k) {
+      B->blocks[rbi][k][lib].idx = realloc(
+          B->blocks[rbi][k][lib].idx,
+          B->blocks[rbi][k][lib].sz * sizeof(bi_t));
+      B->blocks[rbi][k][lib].val = realloc(
+          B->blocks[rbi][k][lib].val,
+          2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
+    }
+    A->ml[lib].idx  = realloc(A->ml[lib].idx, A->ml[lib].sz* sizeof(bi_t));
+    A->ml[lib].val  = realloc(A->ml[lib].val, 2 * A->ml[lib].sz* sizeof(re_t));
   }
 
 #if __GB_DEBUG
@@ -1407,10 +1419,10 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
         // set values
         insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
 #if __GB_DEBUG_LL
-            printf("6 %d -- %d -- %d\n", rbi,bir,lib);
-            printf("6 eil %d\n",eil);
-            printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
-            printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
+        printf("6 %d -- %d -- %d\n", rbi,bir,lib);
+        printf("6 eil %d\n",eil);
+        printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
+        printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
 #if __GB_DEBUG
         printf("12 %d -- %d -- %d\n", rbi,bir,lib);
@@ -1419,41 +1431,19 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       i1++;
     }
-  }
-
-  /********************************************************************************
-   * WHICH REALLOC IS BETTER IN THIS SETTING?
-   *******************************************************************************/
-  // Realloc memory usage:
-  // We do not need to realloc memory for A since we have already fixed memory
-  // for A in the swapping of the data above.
-  bi_t rounded_cvb_half = cvb/2;
-  if (cvb % 2) // odd cvb
-    rounded_cvb_half  +=  1;
-  for (j=0; j<rounded_cvb_half; ++j) {
-    for (i=0; i<clB; ++i) {
-      B->blocks[rbi][i][j].idx = realloc(
-          B->blocks[rbi][i][j].idx,
-          B->blocks[rbi][i][j].sz * sizeof(bi_t));
-      B->blocks[rbi][i][j].val = realloc(
-          B->blocks[rbi][i][j].val,
-          2 * B->blocks[rbi][i][j].sz  * sizeof(re_t));
+    // Realloc memory usage:
+    for (k=0; k<clB; ++k) {
+      B->blocks[rbi][k][lib].idx = realloc(
+          B->blocks[rbi][k][lib].idx,
+          B->blocks[rbi][k][lib].sz * sizeof(bi_t));
+      B->blocks[rbi][k][lib].val = realloc(
+          B->blocks[rbi][k][lib].val,
+          2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
     }
-    A->ml[j].idx  = realloc(A->ml[j].idx, A->ml[j].sz* sizeof(bi_t)); 
-    A->ml[j].val  = realloc(A->ml[j].val, 2 * A->ml[j].sz* sizeof(re_t)); 
+    A->ml[lib].idx  = realloc(A->ml[lib].idx, A->ml[lib].sz* sizeof(bi_t));
+    A->ml[lib].val  = realloc(A->ml[lib].val, 2 * A->ml[lib].sz* sizeof(re_t));
   }
 
-  /*
-  // Realloc memory usage:
-  for (j=0; j<clB; ++j) {
-    B->blocks[rbi][j][lib].idx = realloc(
-        B->blocks[rbi][j][lib].idx,
-        B->blocks[rbi][j][lib].sz * sizeof(bi_t));
-    B->blocks[rbi][j][lib].val = realloc(
-        B->blocks[rbi][j][lib].val,
-        2 * B->blocks[rbi][j][lib].sz  * sizeof(re_t));
-  }
-  */
   // hybrid multirows for the righthand side block matrices?
   /*
   if (B->hr) {

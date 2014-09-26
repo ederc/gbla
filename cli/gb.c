@@ -132,11 +132,11 @@ int main(int argc, char *argv[]) {
     printf("-------------- Computing a special Gaussian Elimination -------------\n");
     printf("------------------ with the following options set -------------------\n");
     printf("---------------------------------------------------------------------\n");
-    printf("number of threads                             %4d\n", nthreads);
-    printf("splicing option                               %4d\n", splicing);
-    printf("dimension of blocks                           %4d\n", block_dimension);
-    printf("free memory on the go                         %4d\n", free_mem);
-    printf("write PBM file of input matrix                %4d\n", write_pbm);
+    printf("number of threads           %4d\n", nthreads);
+    printf("splicing option             %4d\n", splicing);
+    printf("dimension of blocks         %4d\n", block_dimension);
+    printf("free memory on the go       %4d\n", free_mem);
+    printf("write PBM file              %4d\n", write_pbm);
     printf("---------------------------------------------------------------------\n");
   }
 
