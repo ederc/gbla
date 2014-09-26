@@ -26,6 +26,11 @@ void print_help() {
   printf("    -m          Number of rows per multiline.\n");
   printf("                Default: 1.\n");
   printf("    -p          Writes intermediate matrices in pbm format.\n");
+  printf("    -s          Splicing options:\n");
+  printf("                0: standard Faugère-Lachartre block method,\n");
+  printf("                1: A is multiline, all other submatrices are blocks,\n");
+  printf("                2: A and C are multiline, B and D are blocks.\n");
+  printf("                Default: 0.\n");
   printf("    -t THRDS    Number of threads used.\n");
   printf("                Default: 1.\n");
   printf("    -v LEVEL    Level of verbosity:\n");
@@ -47,6 +52,7 @@ int main(int argc, char *argv[]) {
   int block_dimension   = 256;
   int write_pbm         = 0;
   int nthreads          = 1;
+  int splicing          = 0;
 
   int index;
   int opt;
@@ -56,7 +62,7 @@ int main(int argc, char *argv[]) {
 
   opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "b:cf:hm:t:v:p")) != -1) {
+  while ((opt = getopt(argc, argv, "b:cf:hm:t:v:ps:")) != -1) {
     switch (opt) {
       case 'b': 
         block_dimension = atoi(optarg);
@@ -84,6 +90,13 @@ int main(int argc, char *argv[]) {
         break;
       case 't': 
         nthreads  = atoi(optarg);
+        break;
+      case 's': 
+        splicing = atoi(optarg);
+        if (splicing<0)
+          splicing  = 0;
+        if (splicing>2)
+          splicing  = 2;
         break;
       case 'v': 
         verbose = atoi(optarg);
@@ -119,10 +132,11 @@ int main(int argc, char *argv[]) {
     printf("-------------- Computing a special Gaussian Elimination -------------\n");
     printf("------------------ with the following options set -------------------\n");
     printf("---------------------------------------------------------------------\n");
-    printf("number of threads               %4d\n", nthreads);
-    printf("dimension of blocks             %4d\n", block_dimension);
-    printf("free memory on the go           %4d\n", free_mem);
-    printf("write PBM file of input matrix  %4d\n", write_pbm);
+    printf("number of threads                             %4d\n", nthreads);
+    printf("splicing option                               %4d\n", splicing);
+    printf("dimension of blocks                           %4d\n", block_dimension);
+    printf("free memory on the go                         %4d\n", free_mem);
+    printf("write PBM file of input matrix                %4d\n", write_pbm);
     printf("---------------------------------------------------------------------\n");
   }
 
@@ -173,17 +187,47 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  switch (splicing) {
+    // all submatrices are of block type
+    case 0:
+      if (fl(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose)) {
+        printf("Error while trying to eliminate matrix from file '%s' in all block type mode.\n",fn);
+      }
+      break;
+    // submatrix A of multiline type, other submatrices are of block type
+    case 1:
+      if (fl_ml_A(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose)) {
+        printf("Error while trying to eliminate matrix from file '%s' in A multiline,\n",fn);
+        printf("all others block type mode.\n");
+      }
+      break;
+    // submatrices A and C of multiline type, submatrices B and D are of block type
+    case 2:
+      if (fl_ml_A_C(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose)) {
+        printf("Error while trying to eliminate matrix from file '%s' in A and C multiline,\n",fn);
+        printf("B and D block type mode.\n");
+      }
+      break;
+  }
+
+  free(M);
+  return 0;
+}
+
+int fl(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem, int verbose) {
+  struct timeval t_load_start;
+  // all submatrices of block type
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>> START splicing and mapping of input matrix ...\n");
+  }
   // construct splicing of matrix M into A, B, C and D
   sbm_fl_t *A   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   sbm_fl_t *B   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   sbm_fl_t *C   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   sbm_fl_t *D   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
-  if (verbose > 1) {
-    gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>> START splicing and mapping of input matrix ...\n");
-  }
   splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
   if (verbose > 1) {
@@ -275,6 +319,223 @@ int main(int argc, char *argv[]) {
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
   elim_fl(M);
 
-  free(M);
   return 0;
 }
+
+int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem, int verbose) {
+  struct timeval t_load_start;
+  // submatrix A of multiline type, rest of block type
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>> START splicing and mapping of input matrix ...\n");
+  }
+  // construct splicing of matrix M into A, B, C and D
+  sm_fl_ml_t *A = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
+  sbm_fl_t *B   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *C   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *D   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
+  splice_fl_matrix_ml_A(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
+      free_mem, verbose);
+  if (verbose > 1) {
+    printf("<<< DONE  splicing and mapping of input matrix.\n");
+    printf("||| %.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+    printf("Number of pivots found: %d\n", map->npiv);
+    printf("---------------------------------------------------------------------\n");
+    printf("A [%d x %d]\n",A->nrows,A->ncols);
+    printf("B [%d x %d]\n",B->nrows,B->ncols);
+    printf("C [%d x %d]\n",C->nrows,C->ncols);
+    printf("D [%d x %d]\n",D->nrows,D->ncols);
+    printf("---------------------------------------------------------------------\n");
+  }
+
+#if __GB_CLI_DEBUG
+  // column loops 
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  // row loops 
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
+
+  int ii,jj,kk,ll;
+  for (ii=0; ii<rlA; ++ii) {
+    for (jj=0; jj<clA; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", A->blocks[ii][jj][kk].sz * 2);
+        if (A->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<A->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", A->blocks[ii][jj][kk].val[2*ll], A->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlB; ++ii) {
+    for (jj=0; jj<clB; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", B->blocks[ii][jj][kk].sz * 2);
+        if (B->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlC; ++ii) {
+    for (jj=0; jj<clC; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", C->blocks[ii][jj][kk].sz * 2);
+        if (C->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<C->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", C->blocks[ii][jj][kk].val[2*ll], C->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlD; ++ii) {
+    for (jj=0; jj<clD; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", D->blocks[ii][jj][kk].sz * 2);
+        if (D->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+#endif
+
+  // computing Gaussian Elimination of A using methods of Faugère & Lachartre
+  elim_fl(M);
+
+  return 0;
+}
+
+int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem, int verbose) {
+  struct timeval t_load_start;
+  // submatrices A and C of multiline type, B and D of block type
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>> START splicing and mapping of input matrix ...\n");
+  }
+  // construct splicing of matrix M into A, B, C and D
+  sm_fl_ml_t *A = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
+  sbm_fl_t *B   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sm_fl_ml_t *C = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
+  sbm_fl_t *D   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
+  splice_fl_matrix_ml_A_C(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
+      free_mem, verbose);
+
+  if (verbose > 1) {
+    printf("<<< DONE  splicing and mapping of input matrix.\n");
+    printf("||| %.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+    printf("Number of pivots found: %d\n", map->npiv);
+    printf("---------------------------------------------------------------------\n");
+    printf("A [%d x %d]\n",A->nrows,A->ncols);
+    printf("B [%d x %d]\n",B->nrows,B->ncols);
+    printf("C [%d x %d]\n",C->nrows,C->ncols);
+    printf("D [%d x %d]\n",D->nrows,D->ncols);
+    printf("---------------------------------------------------------------------\n");
+  }
+
+#if __GB_CLI_DEBUG
+  // column loops 
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  // row loops 
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
+
+  int ii,jj,kk,ll;
+  for (ii=0; ii<rlA; ++ii) {
+    for (jj=0; jj<clA; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", A->blocks[ii][jj][kk].sz * 2);
+        if (A->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<A->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", A->blocks[ii][jj][kk].val[2*ll], A->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlB; ++ii) {
+    for (jj=0; jj<clB; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", B->blocks[ii][jj][kk].sz * 2);
+        if (B->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlC; ++ii) {
+    for (jj=0; jj<clC; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", C->blocks[ii][jj][kk].sz * 2);
+        if (C->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<C->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", C->blocks[ii][jj][kk].val[2*ll], C->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  for (ii=0; ii<rlD; ++ii) {
+    for (jj=0; jj<clD; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        printf("size %d\n", D->blocks[ii][jj][kk].sz * 2);
+        if (D->blocks[ii][jj][kk].sz>0) {
+          for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+            printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+#endif
+
+  // computing Gaussian Elimination of A using methods of Faugère & Lachartre
+  elim_fl(M);
+
+  return 0;
+}
+

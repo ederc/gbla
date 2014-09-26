@@ -83,4 +83,27 @@ typedef struct sbm_fl_t {
                           block. There are nrows/bheight * ncols/bwidth blocks. */
 } sbm_fl_t;
 
+/**
+ * \brief Sparse matrix with multiline row structure for Faugère-Lachartre
+ * decompositions. Can be used for multiline implementations, the corresponding
+ * multiline functions are labeled with an "_ml".
+ */
+
+typedef struct sm_fl_ml_t {
+  ri_t nrows;       /*!<  number of rows */
+  ci_t ncols;       /*!<  number of columns */
+  enum ba_t ba;     /*!<  memory alignment in the block: depending on
+                          the block parts A,B,C and D the entries are
+                          stored top-to-down, left-to-right, or any
+                          combination and inversion of these two */
+  int fe;           /*!<  if 1 then empty blocks are used to fill
+                          block matrix
+                          if 0 then no fill is done */
+  int hr;           /*!<  if 1 then hybrid (sparse/dense) rows are accepted
+                          if 0 then those rows are not accepted */
+  mbl_t *ml;        /*!<  address of multilines: M->ml[i] gives address of 
+                          multiline i. There are nrows/__GB_NROWS_MULTILINE
+                          multilines. */
+} sm_fl_ml_t;
+
 #endif

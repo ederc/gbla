@@ -84,6 +84,24 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
 }
 
 /**
+ * \brief Reallocates memory for the rows of the multiline during the splicing of
+ * the input matrix. The buffer size bufferA is doubled during this process
+ *
+ * \param multiline sub matrix A
+ *
+ * \param multiline index mli
+ *
+ * \param buffer size bufferA
+ *
+ */
+static inline void realloc_rows_ml(sm_fl_ml_t *A, const ri_t mli,
+    const bi_t init_bufferA, bi_t *bufferA) {
+  *bufferA +=  init_bufferA;
+  A->ml[mli].idx = realloc(A->ml[mli].idx, (*bufferA) * sizeof(bi_t));
+  A->ml[mli].val = realloc(A->ml[mli].val, 2 * (*bufferA) * sizeof(re_t));
+}
+
+/**
  * \brief Reallocates memory for the rows of the blocks during the splicing of
  * the input matrix. The buffer size bufferA is doubled during this process
  *
@@ -91,7 +109,9 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
  *
  * \param row block index rbi in A
  *
- * \param block index in row bir* \param block index in row bir
+ * \param block index in row bir
+ *
+ * \param block index in row bir
  *
  * \param line index in block lib
  *
@@ -192,6 +212,91 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
   }
 }
 
+
+/**
+ * \brief Inserts elements from input matrix M in multiline rows of A corresponding
+ * to the given splicing and mapping precomputed. This is the version for multi
+ * line rows inserting one entry in the first field, 0 in the second field. 
+ * 
+ * \param multiline sub matrix A
+ *
+ * \param original matrix M
+ *
+ * \param current multiline index mli
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ */
+static inline void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
+    const ri_t mli, const bi_t eil, const ci_t bi1, const ci_t i1) {
+  A->ml[mli].idx[A->ml[mli].sz]       = eil;
+  A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
+  A->ml[mli].val[(2*A->ml[mli].sz)+1] = 0;
+  A->ml[mli].sz++;
+}
+
+/**
+ * \brief Inserts elements from input matrix M in multiline rows of A corresponding
+ * to the given splicing and mapping precomputed. This is the version for multi
+ * line rows inserting one entry in the second field, 0 in the first field. 
+ * 
+ * \param multiline sub matrix A
+ *
+ * \param original matrix M
+ *
+ * \param current multiline index mli
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi2
+ *
+ * \param index in row bi1 of corresponding element in M i2
+ *
+ */
+static inline void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
+    const ri_t mli, const bi_t eil, const ci_t bi2, const ci_t i2) {
+  A->ml[mli].idx[A->ml[mli].sz]       = eil;
+  A->ml[mli].val[2*A->ml[mli].sz]     = 0;
+  A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
+  A->ml[mli].sz++;
+}
+
+/**
+ * \brief Inserts elements from input matrix M in multiline rows of A corresponding
+ * to the given splicing and mapping precomputed. This is the version for multi
+ * line ml inserting two entries.
+ * 
+ * \param multiline sub matrix A
+ *
+ * \param original matrix M
+ *
+ * \param current multiline index mli
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ * \param row index of corresponding element in M bi2
+ *
+ * \param index in row bi1 of corresponding element in M i2
+ *
+ */
+static inline void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
+    const ri_t mli, const bi_t eil, const ci_t bi1, const ci_t i1,
+    const ci_t bi2, const ci_t i2) {
+  A->ml[mli].idx[A->ml[mli].sz]       = eil;
+  A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
+  A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
+  A->ml[mli].sz++;
+}
+
+
 /**
  * \brief Inserts elements from input matrix M in block rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
@@ -217,9 +322,6 @@ static inline void swap_block_data(sbm_fl_t *A, const uint32_t clA, const bi_t r
 static inline void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
     const ci_t bi1, const ci_t i1) {
-  //if (rbi>65)
-  //  printf("rbi %d -- bir %d -- lib %d -- sz %d\n",
-  //    rbi, bir, lib, A->blocks[rbi][bir][lib].sz);
   A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
   A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
   A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = 0;
@@ -252,9 +354,6 @@ static inline void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
 static inline void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
     const ci_t bi2, const ci_t i2) {
-  //if (rbi>65)
-  //  printf("rbi %d -- bir %d -- lib %d -- sz %d\n",
-  //    rbi, bir, lib, A->blocks[rbi][bir][lib].sz);
   A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
   A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = 0;
   A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
@@ -289,9 +388,6 @@ static inline void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
 static inline void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
     const ci_t bi1, const ci_t i1, const ci_t bi2, const ci_t i2) {
-  //if (rbi>65)
-  //  printf("rbi %d -- bir %d -- lib %d -- sz %d\n",
-  //    rbi, bir, lib, A->blocks[rbi][bir][lib].sz);
   A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
   A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
   A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
@@ -339,12 +435,94 @@ void construct_fl_map(sm_t *M, map_fl_t *map);
  *
  *  \param destructing input matrix on the go? destruct_input_matrix
  *
- *  \param number of threads to be used
+ *  \param number of threads to be used nthreads
  *
  *  \param level of verbosity
  */
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                       map_fl_t *map, int block_dim, int rows_multiline,
+                      int nthreads, int destruct_input_matrix, int verbose);
+
+/**
+ * \brief Constructs the subdivision of M into ABCD in the
+ * Faugère-Lachartre style
+ *
+ *                 A | B
+ * M     ---->     --+--
+ *                 C | D
+ * In the subdivision the following dimensions hold:
+ * A->nrows = B->nrows = map->npiv // number of pivots found
+ * C->nrows = D->nrows = M->nrows - map->npiv // non-pivots
+ * A->ncols = C->ncols = map->npiv
+ * B->ncols = D->ncols = M->ncols - map->npiv
+ *
+ *  \note Submatrix A is in multiline format.
+ *
+ *  \param original matrix M
+ *
+ *  \param multiline submatrix A
+ *
+ *  \param block submatrix B
+ *
+ *  \param block submatrix C
+ *
+ *  \param block submatrix D
+ *
+ *  \param indexer mapping map
+ *
+ *  \param dimension of blocks block_dim
+ *
+ *  \param number of rows per multiline rows_multiline
+ *
+ *  \param destructing input matrix on the go? destruct_input_matrix
+ *
+ *  \param number of threads to be used nthreads
+ *
+ *  \param level of verbosity
+ */
+void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
+                      map_fl_t *map, int block_dim, int rows_multiline,
+                      int nthreads, int destruct_input_matrix, int verbose);
+
+/**
+ * \brief Constructs the subdivision of M into ABCD in the
+ * Faugère-Lachartre style
+ *
+ *                 A | B
+ * M     ---->     --+--
+ *                 C | D
+ * In the subdivision the following dimensions hold:
+ * A->nrows = B->nrows = map->npiv // number of pivots found
+ * C->nrows = D->nrows = M->nrows - map->npiv // non-pivots
+ * A->ncols = C->ncols = map->npiv
+ * B->ncols = D->ncols = M->ncols - map->npiv
+ *
+ *  \note Submatrices A and C are in multiline format.
+ *
+ *  \param original matrix M
+ *
+ *  \param multiline submatrix A
+ *
+ *  \param block submatrix B
+ *
+ *  \param multiline submatrix C
+ *
+ *  \param block submatrix D
+ *
+ *  \param indexer mapping map
+ *
+ *  \param dimension of blocks block_dim
+ *
+ *  \param number of rows per multiline rows_multiline
+ *
+ *  \param destructing input matrix on the go? destruct_input_matrix
+ *
+ *  \param number of threads to be used nthreads
+ *
+ *  \param level of verbosity
+ */
+void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
+                      sbm_fl_t *D, map_fl_t *map, int block_dim, int rows_multiline,
                       int nthreads, int destruct_input_matrix, int verbose);
 
 
@@ -368,6 +546,34 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
  *
  * \param row block index rbi
  */
-void write_blocks_lr_matrix_ml(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
+void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
+                            ri_t *rihb, const ri_t cvb, const ri_t rbi);
+
+
+/**
+ * \brief Writes corresponding entries of original matrix M into the mutiline
+ * submatrix A and the block submatrix B. The entries are defined by the
+ * mappings from M given by rihb, crb and rbi:
+ * parts of M --> A|B
+ *
+ * \note The main differene to the function write_blocks_lr_matrix() is that the
+ * lefthand side sub matrix A is in multiline row format and not in block format.
+ * The handling of the righthand side block sub matrix B is exactly the same.
+ *
+ * \param original matrix M
+ *
+ * \param multiline submatrix A (left side)
+ *
+ * \param block submatrix B (right side)
+ *
+ * \param splicer mapping map  that stores pivots and non pivots
+ *
+ * \param row indices in horizonal block rihb
+ *
+ * \param current row block crb
+ *
+ * \param row block index rbi
+ */
+void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
                             ri_t *rihb, const ri_t cvb, const ri_t rbi);
 #endif
