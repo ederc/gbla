@@ -1169,7 +1169,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     init_bufferB = B->bwidth / (B->bwidth/64);
   }
 
-  bi_t bufferA;
+  uint32_t bufferA; // 16bit is not enough, overflows appear for lager matrices!
   bi_t bufferB[clB];
 
   // NOTE: In LELA Martani uses a stack vector to store the values for sub
