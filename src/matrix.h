@@ -55,9 +55,9 @@ typedef struct mbl_t {
  *
  */
 typedef struct ml_t {
-  ci_t *idx;  /*!< column index in the multiline vector */
+  mli_t *idx; /*!< column index in the multiline vector */
   re_t *val;  /*!< multiline row, must be __GB_NROWS_MULTILINE * length(idx) */
-  ci_t sz;    /*!< current length of the block row */
+  ci_t sz;    /*!< current length of the multiline row */
 } ml_t;
 
 

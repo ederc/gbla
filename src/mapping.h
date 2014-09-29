@@ -97,7 +97,7 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
 static inline void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
     const bi_t init_bufferA, mli_t *bufferA) {
   *bufferA +=  init_bufferA;
-  A->ml[mli].idx = realloc(A->ml[mli].idx, (*bufferA) * sizeof(bi_t));
+  A->ml[mli].idx = realloc(A->ml[mli].idx, (*bufferA) * sizeof(mli_t));
   A->ml[mli].val = realloc(A->ml[mli].val, 2 * (*bufferA) * sizeof(re_t));
 }
 

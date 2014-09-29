@@ -1380,10 +1380,9 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
             2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
       }
     }
-    if (A->ml[lib].sz>0) {
-      printf("A->ml sz %d\n",A->ml[lib].sz);
-      A->ml[lib].idx  = realloc(A->ml[lib].idx, A->ml[lib].sz* sizeof(bi_t));
-      A->ml[lib].val  = realloc(A->ml[lib].val, 2 * A->ml[lib].sz* sizeof(re_t));
+    if (A->ml[mli].sz>0) {
+      A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
+      A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
     }
   }
 
@@ -1443,8 +1442,8 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
           B->blocks[rbi][k][lib].val,
           2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
     }
-    A->ml[lib].idx  = realloc(A->ml[lib].idx, A->ml[lib].sz* sizeof(bi_t));
-    A->ml[lib].val  = realloc(A->ml[lib].val, 2 * A->ml[lib].sz* sizeof(re_t));
+    A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
+    A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
   }
 
   // hybrid multirows for the righthand side block matrices?
