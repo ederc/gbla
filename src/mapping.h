@@ -259,6 +259,7 @@ static inline void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
  */
 static inline void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
     const mli_t mli, const ci_t eil, const ci_t bi2, const ci_t i2) {
+  //printf("sz %d -- %d\n", A->ml[mli].sz, eil);
   A->ml[mli].idx[A->ml[mli].sz]       = eil;
   A->ml[mli].val[2*A->ml[mli].sz]     = 0;
   A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];

@@ -245,6 +245,7 @@ AC_SUBST(GB_DEBUG_DUMP)
 
 if test "x$enable_debug" = x"yes"; then
   DEBUG_FLAGS="-g"
+  CFLAGS="-O0"
   AC_SUBST(DEBUG_FLAGS)
 else
   if test "x$enable_debug_mzd" != "xyes"; then

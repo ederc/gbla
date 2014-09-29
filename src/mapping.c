@@ -1160,10 +1160,10 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   // specify how much memory we allocate initially.
   bi_t init_bufferA, init_bufferB;
   if (M->density > __GB_DENSITY_THRESHOLD) {
-    init_bufferA = (bi_t)(M->density*M->ncols);
+    init_bufferA = (bi_t)(M->density*(M->ncols/100/5));
     init_bufferB = B->bwidth / (B->bwidth/128);
   } else {
-    init_bufferA = (bi_t)(M->density*M->ncols);
+    init_bufferA = (bi_t)(M->density*(M->ncols/100/10));
     init_bufferB = B->bwidth / (B->bwidth/64);
   }
 
