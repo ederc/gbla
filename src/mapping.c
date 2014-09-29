@@ -1032,21 +1032,14 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       i2++;
     }
-    // Realloc memory usage:
-    for (k=0; k<clB; ++k) {
-      B->blocks[rbi][k][lib].idx = realloc(
-          B->blocks[rbi][k][lib].idx,
-          B->blocks[rbi][k][lib].sz * sizeof(bi_t));
-      B->blocks[rbi][k][lib].val = realloc(
-          B->blocks[rbi][k][lib].val,
-          2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
-    }
   }
 
 #if __GB_DEBUG
   printf("i %d -- cvb %d\n",i,cvb);
 #endif
   if (i<cvb) {
+    // now we know the correct number of multilines per block
+    rounded_cvb = (rounded_cvb+2);
     bi1 = rihb[i];
     i1  = 0;
     lib = i/2;
@@ -1088,17 +1081,6 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       i1++;
     }
-    // Realloc memory usage:
-    // Note that A is reallocated during the swapping of the data, so we
-    // reallocate only B here.
-    for (k=0; k<clB; ++k) {
-      B->blocks[rbi][k][lib].idx = realloc(
-          B->blocks[rbi][k][lib].idx,
-          B->blocks[rbi][k][lib].sz * sizeof(bi_t));
-      B->blocks[rbi][k][lib].val = realloc(
-          B->blocks[rbi][k][lib].val,
-          2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
-    }
   }
   // write data to A (from right to left)
   swap_block_data(A, clA, rbi, cvb);
@@ -1108,7 +1090,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     uint32_t idx  = 0;
     // TODO: Implement hybrid stuff
     for (i=0; i<clB; ++i) {
-      for (j=0; j<B->bheight/__GB_NROWS_MULTILINE; ++j) {
+      for (j=0; j<rounded_cvb/2; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
             < __GB_HYBRID_THRESHOLD)
           continue;
@@ -1128,6 +1110,22 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         free(B->blocks[rbi][i][j].val);
         B->blocks[rbi][i][j].val  = tmp_val_ptr;
         B->blocks[rbi][i][j].sz   = B->bwidth;
+      }
+    }
+  } else { // cut down memory usage
+    // Realloc memory usage:
+    // Note that A is reallocated during the swapping of the data, so we
+    // reallocate only B here.
+    for (k=0; k<clB; ++k) {
+      for (l=0; l<rounded_cvb/2; ++l) {
+        if (B->blocks[rbi][k][l].sz>0) {
+          B->blocks[rbi][k][l].idx = realloc(
+              B->blocks[rbi][k][l].idx,
+              B->blocks[rbi][k][l].sz * sizeof(bi_t));
+          B->blocks[rbi][k][l].val = realloc(
+              B->blocks[rbi][k][l].val,
+              2 * B->blocks[rbi][k][l].sz  * sizeof(re_t));
+        }
       }
     }
   }
@@ -1373,15 +1371,20 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     }
     // Realloc memory usage:
     for (k=0; k<clB; ++k) {
-      B->blocks[rbi][k][lib].idx = realloc(
-          B->blocks[rbi][k][lib].idx,
-          B->blocks[rbi][k][lib].sz * sizeof(bi_t));
-      B->blocks[rbi][k][lib].val = realloc(
-          B->blocks[rbi][k][lib].val,
-          2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
+      if (B->blocks[rbi][k][lib].sz>0) {
+        B->blocks[rbi][k][lib].idx = realloc(
+            B->blocks[rbi][k][lib].idx,
+            B->blocks[rbi][k][lib].sz * sizeof(bi_t));
+        B->blocks[rbi][k][lib].val = realloc(
+            B->blocks[rbi][k][lib].val,
+            2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
+      }
     }
-    A->ml[lib].idx  = realloc(A->ml[lib].idx, A->ml[lib].sz* sizeof(bi_t));
-    A->ml[lib].val  = realloc(A->ml[lib].val, 2 * A->ml[lib].sz* sizeof(re_t));
+    if (A->ml[lib].sz>0) {
+      printf("A->ml sz %d\n",A->ml[lib].sz);
+      A->ml[lib].idx  = realloc(A->ml[lib].idx, A->ml[lib].sz* sizeof(bi_t));
+      A->ml[lib].val  = realloc(A->ml[lib].val, 2 * A->ml[lib].sz* sizeof(re_t));
+    }
   }
 
 #if __GB_DEBUG
