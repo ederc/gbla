@@ -1,3 +1,6 @@
+unsigned long long reallocs_A = 0;
+unsigned long long reallocs_B = 0;
+
 #include <mapping.h>
 
 #define __GB_DEBUG_LL 0
@@ -239,7 +242,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
           cvb++;
         }
         if (cvb == B->bheight || i == 0) {
-          write_blocks_lr_matrix(M, A, B, map, rihb, cvb, block_idx);
+          write_blocks_lr_matrix(M, A, B, map, rihb, cvb, block_idx, 0);
 
           // TODO: Destruct input matrix on the go
           if (destruct_input_matrix) {
@@ -290,7 +293,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
           cvb++;
         }
         if (cvb == D->bheight || i == 0) {
-          write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx);
+          write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx, 1);
 
           if (destruct_input_matrix) {
             for (j=0; j<cvb; ++j) {
@@ -487,7 +490,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
         }
         if (cvb == B->bheight || i == 0) {
           // multiline version for A
-          write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx);
+          write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx, 0);
 
           // TODO: Destruct input matrix on the go
           if (destruct_input_matrix) {
@@ -538,7 +541,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
           cvb++;
         }
         if (cvb == D->bheight || i == 0) {
-          write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx);
+          write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx, 1);
 
           if (destruct_input_matrix) {
             for (j=0; j<cvb; ++j) {
@@ -725,7 +728,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         }
         if (cvb == B->bheight || i == 0) {
           // multiline version for A
-          write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx);
+          write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx, 0);
 
           // TODO: Destruct input matrix on the go
           if (destruct_input_matrix) {
@@ -740,6 +743,10 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       }
     }
   } 
+  printf("Overall reallocs A: %ld\n", reallocs_A);
+  printf("Overall reallocs B: %ld\n", reallocs_B);
+  reallocs_A  = 0;
+  reallocs_B  = 0;
 
   // find blocks for construction of C & D
   piv_start_idx[0]  = M->nrows;
@@ -777,7 +784,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         }
         if (cvb == D->bheight || i == 0) {
           // multiline version for C
-          write_lr_matrix_ml(M, C, D, map, rihb, cvb, block_idx);
+          write_lr_matrix_ml(M, C, D, map, rihb, cvb, block_idx, 1);
 
           if (destruct_input_matrix) {
             for (j=0; j<cvb; ++j) {
@@ -790,11 +797,15 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       }
     }
   } 
+  printf("Overall reallocs A: %ld\n", reallocs_A);
+  printf("Overall reallocs B: %ld\n", reallocs_B);
+  reallocs_A  = 0;
+  reallocs_B  = 0;
 }
 
 
 void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
-    ri_t *rihb, const ri_t cvb, const ri_t rbi) {
+    ri_t *rihb, const ri_t cvb, const ri_t rbi, const bi_t density_level) {
 
   bi_t  bir;    // block index in row
   bi_t  eil;    // element index in line
@@ -818,12 +829,25 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   // We use a density threshold (which is globally defined in gb_config.h.in) to
   // specify how much memory we allocate initially.
   bi_t init_bufferA, init_bufferB;
-  if (M->density > __GB_DENSITY_THRESHOLD) {
-    init_bufferA = A->bwidth / (A->bwidth/32);
-    init_bufferB = B->bwidth / (B->bwidth/128);
-  } else {
-    init_bufferA = A->bwidth / (A->bwidth/16);
-    init_bufferB = B->bwidth / (B->bwidth/64);
+  switch (density_level) {
+    case 0: // splicing upper part (A & B) -- tends to be sparse
+      if (M->density > __GB_DENSITY_THRESHOLD) {
+        init_bufferA = (bi_t)(A->bwidth/16);
+        init_bufferB = (bi_t)(B->bwidth/4);
+      } else {
+        init_bufferA = (bi_t)(A->bwidth/32);
+        init_bufferB = (bi_t)(B->bwidth/4);
+      }
+      break;
+    case 1: // splicing lower part (C & D) -- tends to be denser
+      if (M->density > __GB_DENSITY_THRESHOLD) {
+        init_bufferA = (bi_t)(A->bwidth/4);
+        init_bufferB = (bi_t)(B->bwidth/2);
+      } else {
+        init_bufferA = (bi_t)(A->bwidth/8);
+        init_bufferB = (bi_t)(B->bwidth/2);
+      }
+      break;
   }
 
   bi_t bufferA[clA];
@@ -1133,7 +1157,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 
 
 void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
-    ri_t *rihb, const ri_t cvb, const ri_t rbi) {
+    ri_t *rihb, const ri_t cvb, const ri_t rbi, const bi_t density_level) {
 
   bi_t  bir;    // block index in row
   bi_t  eil;    // element index in line
@@ -1159,12 +1183,25 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   // We use a density threshold (which is globally defined in gb_config.h.in) to
   // specify how much memory we allocate initially.
   bi_t init_bufferA, init_bufferB;
-  if (M->density > __GB_DENSITY_THRESHOLD) {
-    init_bufferA = (bi_t)(M->density*(M->ncols/100/5));
-    init_bufferB = B->bwidth / (B->bwidth/128);
-  } else {
-    init_bufferA = (bi_t)(M->density*(M->ncols/100/10));
-    init_bufferB = B->bwidth / (B->bwidth/64);
+  switch (density_level) {
+    case 0: // splicing upper part (A & B) -- tends to be sparse
+      if (M->density > __GB_DENSITY_THRESHOLD) {
+        init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
+        init_bufferB = (bi_t)(B->bwidth/2);
+      } else {
+        init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
+        init_bufferB = (bi_t)(B->bwidth/2);
+      }
+      break;
+    case 1: // splicing lower part (C & D) -- tends to be denser
+      if (M->density > __GB_DENSITY_THRESHOLD) {
+        init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
+        init_bufferB = (bi_t)( B->bwidth/2);
+      } else {
+        init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
+        init_bufferB = (bi_t)(B->bwidth/2);
+      }
+      break;
   }
 
   mli_t bufferA; // 16bit is not enough, overflows appear for lager matrices!
