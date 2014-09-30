@@ -743,8 +743,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       }
     }
   } 
-  printf("Overall reallocs A: %ld\n", reallocs_A);
-  printf("Overall reallocs B: %ld\n", reallocs_B);
   reallocs_A  = 0;
   reallocs_B  = 0;
 
@@ -797,8 +795,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       }
     }
   } 
-  printf("Overall reallocs A: %ld\n", reallocs_A);
-  printf("Overall reallocs B: %ld\n", reallocs_B);
   reallocs_A  = 0;
   reallocs_B  = 0;
 }
@@ -1189,8 +1185,8 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
         init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
         init_bufferB = (bi_t)(B->bwidth/2);
       } else {
-        init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
-        init_bufferB = (bi_t)(B->bwidth/2);
+        init_bufferA = (bi_t)(M->density*(M->ncols/100/8));
+        init_bufferB = (bi_t)(B->bwidth/4);
       }
       break;
     case 1: // splicing lower part (C & D) -- tends to be denser
@@ -1198,7 +1194,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
         init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
         init_bufferB = (bi_t)( B->bwidth/2);
       } else {
-        init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
+        init_bufferA = (bi_t)(M->density*(M->ncols/100/4));
         init_bufferB = (bi_t)(B->bwidth/2);
       }
       break;
