@@ -1,4 +1,4 @@
-AUTOMAKE_OPTIONS = gnu subdir-objects
+AUTOMAKE_OPTIONS = gnu subdir-objects parallel-tests
 ACLOCAL_AMFLAGS = -I m4
 
 AM_CFLAGS=${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS} -lm
@@ -38,3 +38,6 @@ gb_SOURCES = \
 	cli/io.h	cli/io.c 
 
 gb_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS)
+
+SUBDIRS = test
+check:

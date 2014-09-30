@@ -370,6 +370,6 @@ fi
 
 AC_PROG_MAKE_SET
 
-AC_CONFIG_FILES([Makefile src/gb_config.h gb.pc])
+AC_CONFIG_FILES([Makefile test/Makefile src/gb_config.h gb.pc])
 AC_OUTPUT
 
