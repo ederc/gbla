@@ -3,20 +3,43 @@ ACLOCAL_AMFLAGS = -I m4
 
 AM_CFLAGS=${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS} -lm
 	
-TESTS = unit_tests unit_tests2
-XFAIL_TESTS = unit_tests2
-check_PROGRAMS = unit_tests unit_tests2
+TESTS =	\
+	read-jcf-matrix-mod			\
+	read-jcf-matrix-ncols		\
+	read-jcf-matrix-nrows		\
+	read-jcf-matrix-nnz			\
+	read-jcf-matrix-density
+
+check_PROGRAMS =	\
+	read-jcf-matrix-mod			\
+	read-jcf-matrix-ncols		\
+	read-jcf-matrix-nrows		\
+	read-jcf-matrix-nnz			\
+	read-jcf-matrix-density
 
 # set up the console program. Listing the headers in sources ensure that
 # those files are included in distributions.
-unit_tests_SOURCES = \
-	unit-tests.h \
-	unit-tests.c
+read_jcf_matrix_mod_SOURCES = \
+	../cli/io.h	../cli/io.c		\
+	read-jcf-matrix-mod.c
+read_jcf_matrix_mod_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS) 
 
-unit_tests_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS)
+read_jcf_matrix_ncols_SOURCES = \
+	../cli/io.h	../cli/io.c		\
+	read-jcf-matrix-ncols.c
+read_jcf_matrix_ncols_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS) 
 
-unit_tests2_SOURCES = \
-	unit-tests2.h \
-	unit-tests2.c
+read_jcf_matrix_nrows_SOURCES = \
+	../cli/io.h	../cli/io.c		\
+	read-jcf-matrix-nrows.c
+read_jcf_matrix_nrows_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS) 
 
-unit_tests2_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS)
+read_jcf_matrix_nnz_SOURCES = \
+	../cli/io.h	../cli/io.c		\
+	read-jcf-matrix-nnz.c
+read_jcf_matrix_nnz_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS) 
+
+read_jcf_matrix_density_SOURCES = \
+	../cli/io.h	../cli/io.c		\
+	read-jcf-matrix-density.c
+read_jcf_matrix_density_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS) 
