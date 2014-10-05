@@ -85,25 +85,25 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
 
 /**
  * \brief Reallocates memory for the rows of the multiline during the splicing of
- * the input matrix. The buffer size bufferA is doubled during this process
+ * the input matrix. The buffer size buffer_A is doubled during this process
  *
  * \param multiline sub matrix A
  *
  * \param multiline index mli
  *
- * \param buffer size bufferA
+ * \param buffer size buffer_A
  *
  */
 static inline void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
-    const bi_t init_buffer_A, mli_t *bufferA) {
-  *bufferA +=  init_buffer_A;
-  A->ml[mli].idx = realloc(A->ml[mli].idx, (*bufferA) * sizeof(mli_t));
-  A->ml[mli].val = realloc(A->ml[mli].val, 2 * (*bufferA) * sizeof(re_t));
+    const bi_t init_buffer_A, mli_t *buffer_A) {
+  *buffer_A +=  init_buffer_A;
+  A->ml[mli].idx = realloc(A->ml[mli].idx, (*buffer_A) * sizeof(mli_t));
+  A->ml[mli].val = realloc(A->ml[mli].val, 2 * (*buffer_A) * sizeof(re_t));
 }
 
 /**
  * \brief Reallocates memory for the rows of the blocks during the splicing of
- * the input matrix. The buffer size bufferA is doubled during this process
+ * the input matrix. The buffer size buffer_A is doubled during this process
  *
  * \param block matrix A
  *
@@ -115,18 +115,18 @@ static inline void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
  *
  * \param line index in block lib
  *
- * \param buffer size bufferA
+ * \param buffer size buffer_A
  *
  */
 static inline void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
-    const bi_t lib, const bi_t init_buffer_A, bi_t *bufferA) {
-  *bufferA +=  init_buffer_A;
+    const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) {
+  *buffer_A +=  init_buffer_A;
   A->blocks[rbi][bir][lib].idx = realloc(
       A->blocks[rbi][bir][lib].idx,
-      (*bufferA) * sizeof(bi_t));
+      (*buffer_A) * sizeof(bi_t));
   A->blocks[rbi][bir][lib].val = realloc(
       A->blocks[rbi][bir][lib].val,
-      2 * (*bufferA) * sizeof(re_t));
+      2 * (*buffer_A) * sizeof(re_t));
 }
 
 /**
