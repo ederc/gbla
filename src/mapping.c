@@ -817,24 +817,24 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   // already at the beginning more memory for those lines.
   // We use a density threshold (which is globally defined in gb_config.h.in) to
   // specify how much memory we allocate initially.
-  bi_t init_bufferA, init_bufferB;
+  bi_t init_buffer_A, init_buffer_B;
   switch (density_level) {
     case 0: // splicing upper part (A & B) -- tends to be sparse
       if (M->density > __GB_DENSITY_THRESHOLD) {
-        init_bufferA = (bi_t)(A->bwidth/16);
-        init_bufferB = (bi_t)(B->bwidth/4);
+        init_buffer_A = (bi_t)(A->bwidth/16);
+        init_buffer_B = (bi_t)(B->bwidth/4);
       } else {
-        init_bufferA = (bi_t)(A->bwidth/32);
-        init_bufferB = (bi_t)(B->bwidth/4);
+        init_buffer_A = (bi_t)(A->bwidth/32);
+        init_buffer_B = (bi_t)(B->bwidth/4);
       }
       break;
     case 1: // splicing lower part (C & D) -- tends to be denser
       if (M->density > __GB_DENSITY_THRESHOLD) {
-        init_bufferA = (bi_t)(A->bwidth/4);
-        init_bufferB = (bi_t)(B->bwidth/2);
+        init_buffer_A = (bi_t)(A->bwidth/4);
+        init_buffer_B = (bi_t)(B->bwidth/2);
       } else {
-        init_bufferA = (bi_t)(A->bwidth/8);
-        init_bufferB = (bi_t)(B->bwidth/2);
+        init_buffer_A = (bi_t)(A->bwidth/8);
+        init_buffer_B = (bi_t)(B->bwidth/2);
       }
       break;
   }
@@ -1171,24 +1171,28 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   // memory for the multilines in A.
   // We use a density threshold (which is globally defined in gb_config.h.in) to
   // specify how much memory we allocate initially.
-  bi_t init_bufferA, init_bufferB;
+  bi_t init_buffer_A, init_buffer_B;
   switch (density_level) {
     case 0: // splicing upper part (A & B) -- tends to be sparse
       if (M->density > __GB_DENSITY_THRESHOLD) {
-        init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
-        init_bufferB = (bi_t)(B->bwidth/2);
+        //init_buffer_A = (bi_t)(M->density*(M->ncols/100/2));
+        init_buffer_A = (bi_t)(B->bwidth);
+        init_buffer_B = (bi_t)(B->bwidth/2);
       } else {
-        init_bufferA = (bi_t)(M->density*(M->ncols/100/8));
-        init_bufferB = (bi_t)(B->bwidth/4);
+        //init_buffer_A = (bi_t)(M->density*(M->ncols/100/8));
+        init_buffer_A = (bi_t)(B->bwidth/2);
+        init_buffer_B = (bi_t)(B->bwidth/4);
       }
       break;
     case 1: // splicing lower part (C & D) -- tends to be denser
       if (M->density > __GB_DENSITY_THRESHOLD) {
-        init_bufferA = (bi_t)(M->density*(M->ncols/100/2));
-        init_bufferB = (bi_t)( B->bwidth/2);
+        //init_buffer_A = (bi_t)(M->density*(M->ncols/100/2));
+        init_buffer_A = (bi_t)(4*B->bwidth);
+        init_buffer_B = (bi_t)( B->bwidth/2);
       } else {
-        init_bufferA = (bi_t)(M->density*(M->ncols/100/4));
-        init_bufferB = (bi_t)(B->bwidth/2);
+        //init_buffer_A = (bi_t)(M->density*(M->ncols/100/4));
+        init_buffer_A = (bi_t)(2*B->bwidth);
+        init_buffer_B = (bi_t)(B->bwidth/2);
       }
       break;
   }
