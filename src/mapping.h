@@ -17,9 +17,6 @@
 #include <math.h>
 #include <omp.h>
 
-extern unsigned long long reallocs_A;
-extern unsigned long long reallocs_B;
-
 /**
  * \brief Indexer for subdividing sparse matrix into 4 parts as described by
  * Faugère and Lachartre in http://dx.doi.org/10.1145/1837210.1837225.
@@ -98,10 +95,8 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
  *
  */
 static inline void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
-    const bi_t init_bufferA, mli_t *bufferA) {
-  if (A->ml[mli].sz>0)
-    reallocs_A++;
-  *bufferA +=  init_bufferA;
+    const bi_t init_buffer_A, mli_t *bufferA) {
+  *bufferA +=  init_buffer_A;
   A->ml[mli].idx = realloc(A->ml[mli].idx, (*bufferA) * sizeof(mli_t));
   A->ml[mli].val = realloc(A->ml[mli].val, 2 * (*bufferA) * sizeof(re_t));
 }
@@ -124,10 +119,8 @@ static inline void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
  *
  */
 static inline void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
-    const bi_t lib, const bi_t init_bufferA, bi_t *bufferA) {
-  if (A->blocks[rbi][bir][lib].sz>0)
-    reallocs_B++;
-  *bufferA +=  init_bufferA;
+    const bi_t lib, const bi_t init_buffer_A, bi_t *bufferA) {
+  *bufferA +=  init_buffer_A;
   A->blocks[rbi][bir][lib].idx = realloc(
       A->blocks[rbi][bir][lib].idx,
       (*bufferA) * sizeof(bi_t));
