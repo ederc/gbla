@@ -190,7 +190,7 @@ int main(int argc, char *argv[]) {
   switch (splicing) {
     // all submatrices are of block type
     case 0:
-      if (fl(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose)) {
+      if (fl_block(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose)) {
         printf("Error while trying to eliminate matrix from file '%s' in all block type mode.\n",fn);
       }
       break;
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-int fl(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem, int verbose) {
+int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem, int verbose) {
   struct timeval t_load_start;
   // all submatrices of block type
   if (verbose > 1) {
@@ -321,8 +321,10 @@ int fl(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free
 #endif
 
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
-  elim_fl(M);
-
+  if (elim_fl_block(A, B, C, D)) {
+    printf("Error while reducing ABCD splices of input matrix M.\n");
+    return 1;
+  }
   return 0;
 }
 
@@ -424,8 +426,10 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
 #endif
 
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
-  elim_fl(M);
-
+  if (elim_fl_ml_block(A, B, C, D)) {
+    printf("Error while reducing ABCD splices of input matrix M.\n");
+    return 1;
+  }
   return 0;
 }
 
@@ -527,8 +531,10 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
 #endif
 
   // computing Gaussian Elimination of A using methods of Faugère & Lachartre
-  elim_fl(M);
-
+  if (elim_fl_ml(A, B, C, D)) {
+    printf("Error while reducing ABCD splices of input matrix M.\n");
+    return 1;
+  }
   return 0;
 }
 

@@ -38,7 +38,7 @@
  *
  *  \param level of verbosity
  */
-int fl(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem, int verbose);
+int fl_block(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem, int verbose);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
