@@ -215,5 +215,86 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose) {
     fflush(fh);
   }
   fclose(fh);
-  
 }
+
+void print_mem_usage() {
+  char    *unit = "KB";
+  double  vms   = 0.0; // virtual memory size
+  double  rss   = 0.0; // resident set size
+  // possibly x86-64 is configured to use 2MB pages
+  long    page_size_kb  = sysconf(_SC_PAGE_SIZE) / 1024;
+
+  unsigned long _vms;
+  long          _rss;
+  // get memory usage from 'file' stat which is not perfect, but gives most
+  // reliable information.
+  // Note: This corresponds to Martani's memory usage printing in his LELA
+  // implementation, thus it is used for comparison reasons. It might be changed
+  // in later versions of the gb.
+  const char *fn  = "/proc/self/stat";
+  FILE *fh        = fopen(fn,"r");
+
+  // dummy vars for leading entries in /proc/self/stat we are not interested in
+  char *pid, *comm, *state, *ppid, *pgrp, *session, *tty_nr;
+  char *tpgid, *flags, *minflt, *cminflt, *majflt, *cmajflt;
+  char *utime, *stime, *cutime, *cstime, *priority, *nice;
+  char *nthrds, *itrealvalue, *starttime;
+
+  // dummy reading of useless information
+  fscanf(fh, "%s", &pid);
+  fscanf(fh, "%s", &comm);
+  fscanf(fh, "%s", &state);
+  fscanf(fh, "%s", &ppid);
+  fscanf(fh, "%s", &pgrp);
+  fscanf(fh, "%s", &session);
+  fscanf(fh, "%s", &tty_nr);
+  fscanf(fh, "%s", &tpgid);
+  fscanf(fh, "%s", &flags);
+  fscanf(fh, "%s", &minflt);
+  fscanf(fh, "%s", &cminflt);
+  fscanf(fh, "%s", &majflt);
+  fscanf(fh, "%s", &cmajflt);
+  fscanf(fh, "%s", &utime);
+  fscanf(fh, "%s", &stime);
+  fscanf(fh, "%s", &cutime);
+  fscanf(fh, "%s", &cstime);
+  fscanf(fh, "%s", &priority);
+  fscanf(fh, "%s", &nice);
+  fscanf(fh, "%s", &nthrds);
+  fscanf(fh, "%s", &itrealvalue);
+  fscanf(fh, "%s", &starttime);
+
+  // get real memory information
+  fscanf(fh, "%ul", &_vms);
+  fscanf(fh, "%ld", &_rss);
+
+  // close file
+  fclose(fh);
+
+  // TODO: How to read /proc/self/stat ???
+  
+  vms = _vms / 1024.0;
+  rss = _rss * page_size_kb;
+
+  // MB ?
+  if (vms > 1024) {
+    vms   = vms/1024.0;
+    rss   = rss/1024.0;
+    unit  = "MB";
+  }
+  // GB ?
+  if (vms > 1024) {
+    vms   = vms/1024.0;
+    rss   = rss/1024.0;
+    unit  = "GB";
+  }
+  // TB ? Just joking!
+  if (vms > 1024) {
+    vms   = vms/1024.0;
+    rss   = rss/1024.0;
+    unit  = "TB";
+  }
+  printf("MMRY\tRSS - %.3f %s | VMS - %.3f %s\n", rss, unit, vms, unit);
+}
+
+

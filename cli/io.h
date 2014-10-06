@@ -69,4 +69,10 @@ void write_jcf_matrix_to_file(sm_t *M, const char *fn, int verbose);
  *               If 2: Also printing meta information
  */
 void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);
+
+/**
+ * \brief Prints memory usage by getting information from /proc/self/stat.
+ *
+ */
+void print_mem_usage();
 #endif

@@ -143,16 +143,17 @@ int main(int argc, char *argv[]) {
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>> START loading JCF matrix ...\n");
+    printf(">>>>\tSTART loading JCF matrix ...\n");
   }
   // load JCF matrix
   M = load_jcf_matrix(fn, verbose);
   if (verbose > 1) {
-    printf("<<< DONE  loading JCF matrix.\n");
+    printf("<<<<\tDONE  loading JCF matrix.\n");
     // print walltime
-    printf("||| %.3f sec (%.3f %s/sec)\n",
+    printf("TIME\t%.3f sec (%.3f %s/sec)\n",
         walltime(t_load_start) / (1000000),
         M->fs / (walltime(t_load_start) / (1000000)), M->fsu);
+    print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
     printf("---------------------------------------------------------------------\n");
@@ -172,16 +173,17 @@ int main(int argc, char *argv[]) {
     if (verbose > 1) {
       gettimeofday(&t_load_start, NULL);
       printf("---------------------------------------------------------------------\n");
-      printf(">>> START writing input matrix to PBM file ...\n");
+      printf(">>>>\tSTART writing input matrix to PBM file ...\n");
     }
     const char *pbm_fn  = "input-matrix.pbm";
     write_jcf_matrix_to_pbm(M, pbm_fn, verbose);
     if (verbose > 1) {
-      printf("<<< DONE writing input matrix to PBM file.\n");
+      printf("<<<<\tDONE writing input matrix to PBM file.\n");
       // print walltime
-      printf("||| %.3f sec (%.3f %s/sec)\n",
+      printf("TIME\t%.3f sec (%.3f %s/sec)\n",
           walltime(t_load_start) / (1000000),
           M->fs / (walltime(t_load_start) / (1000000)), M->fsu);
+      print_mem_usage();
       printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
@@ -220,7 +222,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>> START splicing and mapping of input matrix ...\n");
+    printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
   }
   // construct splicing of matrix M into A, B, C and D
   sbm_fl_t *A   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
@@ -231,9 +233,10 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
   if (verbose > 1) {
-    printf("<<< DONE  splicing and mapping of input matrix.\n");
-    printf("||| %.3f sec\n",
+    printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
+    printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
+    print_mem_usage();
     A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
     B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
     C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
@@ -242,13 +245,13 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("A [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
         A->nrows, A->ncols, A->nnz, A->density);
-    printf("B [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("B [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
         B->nrows, B->ncols, B->nnz, B->density);
-    printf("C [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("C [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
         C->nrows, C->ncols, C->nnz, C->density);
-    printf("D [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("D [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
         D->nrows, D->ncols, D->nnz, D->density);
     printf("---------------------------------------------------------------------\n");
   }
@@ -333,16 +336,17 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>> START reducing A ...\n");
+    printf(">>>>\tSTART reducing A ...\n");
   }
   if (elim_fl_A_block(A, B)) {
     printf("Error while reducing A.\n");
     return 1;
   }
   if (verbose > 1) {
-    printf("<<< DONE  reducing A.\n");
-    printf("||| %.3f sec\n",
+    printf("<<<<\tDONE  reducing A.\n");
+    printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
+    print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
@@ -355,7 +359,7 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>> START splicing and mapping of input matrix ...\n");
+    printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
   }
   // construct splicing of matrix M into A, B, C and D
   sm_fl_ml_t *A = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
@@ -366,9 +370,10 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
   splice_fl_matrix_ml_A(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
   if (verbose > 1) {
-    printf("<<< DONE  splicing and mapping of input matrix.\n");
-    printf("||| %.3f sec\n",
+    printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
+    printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
+    print_mem_usage();
     A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
     B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
     C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
@@ -377,13 +382,13 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("A [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
         A->nrows, A->ncols, A->nnz, A->density);
-    printf("B [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("B [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
         B->nrows, B->ncols, B->nnz, B->density);
-    printf("C [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("C [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
         C->nrows, C->ncols, C->nnz, C->density);
-    printf("D [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("D [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
         D->nrows, D->ncols, D->nnz, D->density);
     printf("---------------------------------------------------------------------\n");
   }
@@ -458,16 +463,17 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>> START reducing A ...\n");
+    printf(">>>>\tSTART reducing A ...\n");
   }
   if (elim_fl_A_ml_block(A, B)) {
     printf("Error while reducing A.\n");
     return 1;
   }
   if (verbose > 1) {
-    printf("<<< DONE  reducing A.\n");
-    printf("||| %.3f sec\n",
+    printf("<<<<\tDONE  reducing A.\n");
+    printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
+    print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
@@ -480,7 +486,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>> START splicing and mapping of input matrix ...\n");
+    printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
   }
   // construct splicing of matrix M into A, B, C and D
   sm_fl_ml_t *A = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
@@ -492,9 +498,10 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
       free_mem, verbose);
 
   if (verbose > 1) {
-    printf("<<< DONE  splicing and mapping of input matrix.\n");
-    printf("||| %.3f sec\n",
+    printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
+    printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
+    print_mem_usage();
     A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
     B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
     C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
@@ -503,13 +510,13 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("A [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
         A->nrows, A->ncols, A->nnz, A->density);
-    printf("B [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("B [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
         B->nrows, B->ncols, B->nnz, B->density);
-    printf("C [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("C [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
         C->nrows, C->ncols, C->nnz, C->density);
-    printf("D [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+    printf("D [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
         D->nrows, D->ncols, D->nnz, D->density);
     printf("---------------------------------------------------------------------\n");
   }
@@ -583,16 +590,17 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>> START reducing A ...\n");
+    printf(">>>>\tSTART reducing A ...\n");
   }
   if (elim_fl_A_ml_block(A, B)) {
     printf("Error while reducing A.\n");
     return 1;
   }
   if (verbose > 1) {
-    printf("<<< DONE  reducing A.\n");
-    printf("||| %.3f sec\n",
+    printf("<<<<\tDONE  reducing A.\n");
+    printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
+    print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
