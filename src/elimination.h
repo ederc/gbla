@@ -11,20 +11,16 @@
 #include <mapping.h>
 
 /**
- * \brief Elimination procedure which reduces the block submatrices A, B, C and
- * D correspondingly.
+ * \brief Elimination procedure which reduces the block submatrix A to the unit
+ * matrix. Corresponding changes in block submatrix B are carried out, too.
  *
  * \param block submatrix A (left upper side)
  *
  * \param block submatrix B (right upper side)
  *
- * \param block submatrix C (left lower side)
- *
- * \param block submatrix D (right lower side)
- *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_block(sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D);
+int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B);
 
 /**
  * \brief Elimination procedure which reduces the multiline submatrix A
@@ -34,28 +30,8 @@ int elim_fl_block(sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D);
  *
  * \param block submatrix B (right upper side)
  *
- * \param block submatrix C (left lower side)
- *
- * \param block submatrix D (right lower side)
- *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_ml_block(sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D);
-
-/**
- * \brief Elimination procedure which reduces the multiline submatrices A and C
- * and the block submatrices B and D.
- *
- * \param multiline submatrix A (left upper side)
- *
- * \param block submatrix B (right upper side)
- *
- * \param multiline submatrix C (left lower side)
- *
- * \param block submatrix D (right lower side)
- *
- * \return 0 if success, 1 if failure
- */
-int elim_fl_ml(sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C, sbm_fl_t *D);
+int elim_fl_A_ml_block(sm_fl_ml_t *A, sbm_fl_t *B);
 
 #endif

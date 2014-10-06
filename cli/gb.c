@@ -320,10 +320,22 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   }
 #endif
 
-  // computing Gaussian Elimination of A using methods of Faugère & Lachartre
-  if (elim_fl_block(A, B, C, D)) {
+  // reducing submatrix A using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>> START reducing A ...\n");
+  }
+  if (elim_fl_A_block(A, B)) {
     printf("Error while reducing ABCD splices of input matrix M.\n");
     return 1;
+  }
+  if (verbose > 1) {
+    printf("<<< DONE  reducing A.\n");
+    printf("||| %.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
   }
   return 0;
 }
@@ -425,10 +437,22 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
   }
 #endif
 
-  // computing Gaussian Elimination of A using methods of Faugère & Lachartre
-  if (elim_fl_ml_block(A, B, C, D)) {
-    printf("Error while reducing ABCD splices of input matrix M.\n");
+  // reducing submatrix A using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>> START reducing A ...\n");
+  }
+  if (elim_fl_A_ml_block(A, B)) {
+    printf("Error while reducing A.\n");
     return 1;
+  }
+  if (verbose > 1) {
+    printf("<<< DONE  reducing A.\n");
+    printf("||| %.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
   }
   return 0;
 }
@@ -530,10 +554,22 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   }
 #endif
 
-  // computing Gaussian Elimination of A using methods of Faugère & Lachartre
-  if (elim_fl_ml(A, B, C, D)) {
+  // reducing submatrix A using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>> START reducing A ...\n");
+  }
+  if (elim_fl_A_ml_block(A, B)) {
     printf("Error while reducing ABCD splices of input matrix M.\n");
     return 1;
+  }
+  if (verbose > 1) {
+    printf("<<< DONE  reducing A.\n");
+    printf("||| %.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
   }
   return 0;
 }
