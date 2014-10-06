@@ -67,6 +67,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   A->ba       = dtrl;                 // block alignment
   A->fe       = 0;                    // fill empty blocks?
   A->hr       = 0;                    // allow hybrid rows?
+  A->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 
@@ -95,6 +96,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
   B->hr       = 1;                    // allow hybrid rows?
+  B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 
@@ -123,6 +125,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   C->ba       = dtrl;                 // block alignment
   C->fe       = 0;                    // fill empty blocks?
   C->hr       = 0;                    // allow hybrid rows?
+  C->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 
@@ -151,6 +154,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   D->ba       = dtlr;                 // block alignment
   D->fe       = 1;                    // fill empty blocks?
   D->hr       = 1;                    // allow hybrid rows?
+  D->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 
@@ -321,6 +325,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   A->ba       = dtrl;                 // block alignment
   A->fe       = 0;                    // fill empty blocks?
   A->hr       = 0;                    // allow hybrid rows?
+  A->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
   ri_t rlA  = A->nrows / 2;
@@ -342,6 +347,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
   B->hr       = 1;                    // allow hybrid rows?
+  B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 
@@ -370,6 +376,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   C->ba       = dtrl;                 // block alignment
   C->fe       = 0;                    // fill empty blocks?
   C->hr       = 0;                    // allow hybrid rows?
+  C->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 
@@ -398,6 +405,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   D->ba       = dtlr;                 // block alignment
   D->fe       = 1;                    // fill empty blocks?
   D->hr       = 1;                    // allow hybrid rows?
+  D->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 
@@ -569,6 +577,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   A->ba       = dtrl;                 // block alignment
   A->fe       = 0;                    // fill empty blocks?
   A->hr       = 0;                    // allow hybrid rows?
+  A->nnz      = 0;                    // number nonzero elements
 
   ri_t rlA  = A->nrows / 2;
   if (A->nrows % 2)
@@ -587,6 +596,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   C->ba       = dtrl;                 // block alignment
   C->fe       = 0;                    // fill empty blocks?
   C->hr       = 0;                    // allow hybrid rows?
+  C->nnz      = 0;                    // number nonzero elements
 
   ri_t rlC  = C->nrows / 2;
   if (C->nrows % 2)
@@ -608,6 +618,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
   B->hr       = 1;                    // allow hybrid rows?
+  B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 
@@ -636,6 +647,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   D->ba       = dtlr;                 // block alignment
   D->fe       = 1;                    // fill empty blocks?
   D->hr       = 1;                    // allow hybrid rows?
+  D->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
 

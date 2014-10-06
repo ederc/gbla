@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
     printf("number of rows              %14d\n", M->nrows);
     printf("number of columns           %14d\n", M->ncols);
     printf("number of nonzero elements  %14ld\n", M->nnz);
-    printf("density                     %14.2f %\n", M->density);
+    printf("density                     %14.2f %%\n", M->density);
     printf("size                        %14.2f %s\n", M->fs, M->fsu);
     printf("---------------------------------------------------------------------\n");
   }
@@ -234,14 +234,22 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("<<< DONE  splicing and mapping of input matrix.\n");
     printf("||| %.3f sec\n",
         walltime(t_load_start) / (1000000));
+    A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
+    B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
+    C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
+    D->density  = (double) (D->nnz * 100) / (double)(D->nrows * D->ncols);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\n",A->nrows,A->ncols);
-    printf("B [%d x %d]\n",B->nrows,B->ncols);
-    printf("C [%d x %d]\n",C->nrows,C->ncols);
-    printf("D [%d x %d]\n",D->nrows,D->ncols);
+    printf("A [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        A->nrows, A->ncols, A->nnz, A->density);
+    printf("B [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        B->nrows, B->ncols, B->nnz, B->density);
+    printf("C [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        C->nrows, C->ncols, C->nnz, C->density);
+    printf("D [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        D->nrows, D->ncols, D->nnz, D->density);
     printf("---------------------------------------------------------------------\n");
   }
 
@@ -273,6 +281,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       }
     }
   }
+  printf("NNZ %ld\n\n",ctr_nnz);
   for (ii=0; ii<rlB; ++ii) {
     for (jj=0; jj<clB; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
@@ -327,7 +336,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf(">>> START reducing A ...\n");
   }
   if (elim_fl_A_block(A, B)) {
-    printf("Error while reducing ABCD splices of input matrix M.\n");
+    printf("Error while reducing A.\n");
     return 1;
   }
   if (verbose > 1) {
@@ -360,14 +369,22 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
     printf("<<< DONE  splicing and mapping of input matrix.\n");
     printf("||| %.3f sec\n",
         walltime(t_load_start) / (1000000));
+    A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
+    B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
+    C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
+    D->density  = (double) (D->nnz * 100) / (double)(D->nrows * D->ncols);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\n",A->nrows,A->ncols);
-    printf("B [%d x %d]\n",B->nrows,B->ncols);
-    printf("C [%d x %d]\n",C->nrows,C->ncols);
-    printf("D [%d x %d]\n",D->nrows,D->ncols);
+    printf("A [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        A->nrows, A->ncols, A->nnz, A->density);
+    printf("B [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        B->nrows, B->ncols, B->nnz, B->density);
+    printf("C [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        C->nrows, C->ncols, C->nnz, C->density);
+    printf("D [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        D->nrows, D->ncols, D->nnz, D->density);
     printf("---------------------------------------------------------------------\n");
   }
 
@@ -478,14 +495,22 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("<<< DONE  splicing and mapping of input matrix.\n");
     printf("||| %.3f sec\n",
         walltime(t_load_start) / (1000000));
+    A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
+    B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
+    C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
+    D->density  = (double) (D->nnz * 100) / (double)(D->nrows * D->ncols);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\n",A->nrows,A->ncols);
-    printf("B [%d x %d]\n",B->nrows,B->ncols);
-    printf("C [%d x %d]\n",C->nrows,C->ncols);
-    printf("D [%d x %d]\n",D->nrows,D->ncols);
+    printf("A [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        A->nrows, A->ncols, A->nnz, A->density);
+    printf("B [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        B->nrows, B->ncols, B->nnz, B->density);
+    printf("C [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        C->nrows, C->ncols, C->nnz, C->density);
+    printf("D [%d x %d]\t - %10ld nonzero elements\t - %7.3f %% density\n",
+        D->nrows, D->ncols, D->nnz, D->density);
     printf("---------------------------------------------------------------------\n");
   }
 
@@ -561,7 +586,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf(">>> START reducing A ...\n");
   }
   if (elim_fl_A_ml_block(A, B)) {
-    printf("Error while reducing ABCD splices of input matrix M.\n");
+    printf("Error while reducing A.\n");
     return 1;
   }
   if (verbose > 1) {
