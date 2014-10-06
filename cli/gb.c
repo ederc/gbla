@@ -35,7 +35,10 @@ void print_help() {
   printf("                Default: 1.\n");
   printf("    -v LEVEL    Level of verbosity:\n");
   printf("                1 -> only error messages printed\n");
-  printf("                2 -> additionally meta information printed\n");
+  printf("                2 -> some meta information printed\n");
+  printf("                3 -> additionally meta information printed\n");
+  printf("                Note: Everything >2 is time consuming and slows down\n");
+  printf("                      the overall computations.\n");
   printf("\n");
 
   return; 
@@ -100,7 +103,7 @@ int main(int argc, char *argv[]) {
         break;
       case 'v': 
         verbose = atoi(optarg);
-        if (verbose > 2)
+        if (verbose > 3)
           verbose = 2;
         break;
       case '?':
@@ -232,27 +235,39 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
   splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
+
   if (verbose > 1) {
     printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
     printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
     print_mem_usage();
-    A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
-    B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
-    C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
-    D->density  = (double) (D->nnz * 100) / (double)(D->nrows * D->ncols);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
-        A->nrows, A->ncols, A->nnz, A->density);
-    printf("B [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
-        B->nrows, B->ncols, B->nnz, B->density);
-    printf("C [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
-        C->nrows, C->ncols, C->nnz, C->density);
-    printf("D [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
-        D->nrows, D->ncols, D->nnz, D->density);
+    if (verbose > 2) {
+      compute_density_block_submatrix(A);
+      compute_density_block_submatrix(B);
+      compute_density_block_submatrix(C);
+      compute_density_block_submatrix(D);
+      printf("A [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          A->nrows, A->ncols, A->nnz, A->density);
+      printf("B [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          B->nrows, B->ncols, B->nnz, B->density);
+      printf("C [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          C->nrows, C->ncols, C->nnz, C->density);
+      printf("D [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          D->nrows, D->ncols, D->nnz, D->density);
+    } else {
+      printf("A [%d x %d]\n",
+          A->nrows, A->ncols);
+      printf("B [%d x %d]\n",
+          B->nrows, B->ncols);
+      printf("C [%d x %d]\n",
+          C->nrows, C->ncols);
+      printf("D [%d x %d]\n",
+          D->nrows, D->ncols);
+    }
     printf("---------------------------------------------------------------------\n");
   }
 
@@ -369,27 +384,39 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
   map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
   splice_fl_matrix_ml_A(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
+
   if (verbose > 1) {
     printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
     printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
     print_mem_usage();
-    A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
-    B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
-    C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
-    D->density  = (double) (D->nnz * 100) / (double)(D->nrows * D->ncols);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
-        A->nrows, A->ncols, A->nnz, A->density);
-    printf("B [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
-        B->nrows, B->ncols, B->nnz, B->density);
-    printf("C [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
-        C->nrows, C->ncols, C->nnz, C->density);
-    printf("D [%d x %d]\t - %10ld nze\t - %7.3f %% density\n",
-        D->nrows, D->ncols, D->nnz, D->density);
+    if (verbose > 2) {
+      compute_density_ml_submatrix(A);
+      compute_density_block_submatrix(B);
+      compute_density_block_submatrix(C);
+      compute_density_block_submatrix(D);
+      printf("A [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          A->nrows, A->ncols, A->nnz, A->density);
+      printf("B [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          B->nrows, B->ncols, B->nnz, B->density);
+      printf("C [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          C->nrows, C->ncols, C->nnz, C->density);
+      printf("D [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          D->nrows, D->ncols, D->nnz, D->density);
+    } else {
+      printf("A [%d x %d]\n",
+          A->nrows, A->ncols);
+      printf("B [%d x %d]\n",
+          B->nrows, B->ncols);
+      printf("C [%d x %d]\n",
+          C->nrows, C->ncols);
+      printf("D [%d x %d]\n",
+          D->nrows, D->ncols);
+    }
     printf("---------------------------------------------------------------------\n");
   }
 
@@ -502,22 +529,33 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
     print_mem_usage();
-    A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
-    B->density  = (double) (B->nnz * 100) / (double)(B->nrows * B->ncols);
-    C->density  = (double) (C->nnz * 100) / (double)(C->nrows * C->ncols);
-    D->density  = (double) (D->nnz * 100) / (double)(D->nrows * D->ncols);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
     printf("---------------------------------------------------------------------\n");
-    printf("A [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
-        A->nrows, A->ncols, A->nnz, A->density);
-    printf("B [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
-        B->nrows, B->ncols, B->nnz, B->density);
-    printf("C [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
-        C->nrows, C->ncols, C->nnz, C->density);
-    printf("D [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
-        D->nrows, D->ncols, D->nnz, D->density);
+    if (verbose > 2) {
+      compute_density_ml_submatrix(A);
+      compute_density_block_submatrix(B);
+      compute_density_ml_submatrix(C);
+      compute_density_block_submatrix(D);
+      printf("A [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          A->nrows, A->ncols, A->nnz, A->density);
+      printf("B [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          B->nrows, B->ncols, B->nnz, B->density);
+      printf("C [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          C->nrows, C->ncols, C->nnz, C->density);
+      printf("D [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+          D->nrows, D->ncols, D->nnz, D->density);
+    } else {
+      printf("A [%d x %d]\n",
+          A->nrows, A->ncols);
+      printf("B [%d x %d]\n",
+          B->nrows, B->ncols);
+      printf("C [%d x %d]\n",
+          C->nrows, C->ncols);
+      printf("D [%d x %d]\n",
+          D->nrows, D->ncols);
+    }
     printf("---------------------------------------------------------------------\n");
   }
 

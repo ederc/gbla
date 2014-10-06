@@ -237,7 +237,6 @@ static inline void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
   A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
   A->ml[mli].val[(2*A->ml[mli].sz)+1] = 0;
   A->ml[mli].sz++;
-  A->nnz++;
 }
 
 /**
@@ -265,7 +264,6 @@ static inline void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
   A->ml[mli].val[2*A->ml[mli].sz]     = 0;
   A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
   A->ml[mli].sz++;
-  A->nnz++;
 }
 
 /**
@@ -297,7 +295,6 @@ static inline void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
   A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
   A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
   A->ml[mli].sz++;
-  A->nnz  +=  2;
 }
 
 
@@ -330,7 +327,6 @@ static inline void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
   A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
   A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = 0;
   A->blocks[rbi][bir][lib].sz++;
-  A->nnz++;
 }
 
 /**
@@ -363,7 +359,6 @@ static inline void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
   A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = 0;
   A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
   A->blocks[rbi][bir][lib].sz++;
-  A->nnz++;
 }
 /**
  * \brief Inserts elements from input matrix M in block rows of A corresponding
@@ -398,7 +393,6 @@ static inline void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
   A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
   A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
   A->blocks[rbi][bir][lib].sz++;
-  A->nnz  +=  2;
 }
 
 /**
