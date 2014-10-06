@@ -97,7 +97,7 @@ static inline void compute_density_ml_submatrix(sm_fl_ml_t *A) {
       }
     }
   }
-  A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
+  A->density  = (double) (A->nnz * 100) / (A->nrows * (nnz_t)A->ncols);
 }
 
 /**
@@ -127,7 +127,7 @@ static inline void compute_density_block_submatrix(sbm_fl_t *A) {
       }
     }
   }
-  A->density  = (double) (A->nnz * 100) / (double)(A->nrows * A->ncols);
+  A->density  = (double) (A->nnz * 100) / (A->nrows * (nnz_t)A->ncols);
 }
 
 /**
