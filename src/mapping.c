@@ -242,6 +242,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
           rihb[cvb] = map->pri[i];
           cvb++;
         }
+      #pragma omp task
         if (cvb == B->bheight || i == 0) {
           write_blocks_lr_matrix(M, A, B, map, rihb, cvb, block_idx, 0);
 
@@ -293,6 +294,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
           rihb[cvb] = map->npri[i];
           cvb++;
         }
+      #pragma omp task
         if (cvb == D->bheight || i == 0) {
           write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx, 1);
 
@@ -493,6 +495,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
           rihb[cvb] = map->pri[i];
           cvb++;
         }
+      #pragma omp task
         if (cvb == B->bheight || i == 0) {
           // multiline version for A
           write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx, 0);
@@ -545,6 +548,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
           rihb[cvb] = map->npri[i];
           cvb++;
         }
+      #pragma omp task
         if (cvb == D->bheight || i == 0) {
           write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx, 1);
 
@@ -1186,12 +1190,12 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     case 0: // splicing upper part (A & B) -- tends to be sparse
       if (M->density > __GB_DENSITY_THRESHOLD) {
         //init_buffer_A = (bi_t)(M->density*(M->ncols/100/2));
-        init_buffer_A = (bi_t)(B->bwidth);
+        init_buffer_A = (bi_t)(2*B->bwidth);
         init_buffer_B = (bi_t)(B->bwidth/2);
       } else {
         //init_buffer_A = (bi_t)(M->density*(M->ncols/100/8));
-        init_buffer_A = (bi_t)(B->bwidth/2);
-        init_buffer_B = (bi_t)(B->bwidth/4);
+        init_buffer_A = (bi_t)(B->bwidth);
+        init_buffer_B = (bi_t)(B->bwidth/2);
       }
       break;
     case 1: // splicing lower part (C & D) -- tends to be denser
