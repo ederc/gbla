@@ -242,7 +242,6 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
           rihb[cvb] = map->pri[i];
           cvb++;
         }
-      #pragma omp task
         if (cvb == B->bheight || i == 0) {
           write_blocks_lr_matrix(M, A, B, map, rihb, cvb, block_idx, 0);
 
@@ -294,7 +293,6 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
           rihb[cvb] = map->npri[i];
           cvb++;
         }
-      #pragma omp task
         if (cvb == D->bheight || i == 0) {
           write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx, 1);
 
@@ -495,7 +493,6 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
           rihb[cvb] = map->pri[i];
           cvb++;
         }
-      #pragma omp task
         if (cvb == B->bheight || i == 0) {
           // multiline version for A
           write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx, 0);
@@ -548,7 +545,6 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
           rihb[cvb] = map->npri[i];
           cvb++;
         }
-      #pragma omp task
         if (cvb == D->bheight || i == 0) {
           write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx, 1);
 
