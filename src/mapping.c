@@ -691,7 +691,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows; 
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
   piv_start_idx[0]  = M->nrows;
-  uint32_t block_idx;
+  uint32_t block_idx, block_idx_2;
 
   // find blocks for construction of A & B
   for (i = (int)M->ncols-1; i > -1; --i) {
@@ -703,28 +703,115 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     }
   }
 
+  uint32_t rihb[B->bheight];  // rows indices horizontal block
+  uint16_t cvb  = 0;          // current vector in block
+  uint32_t nb   = npiv/B->bheight;
+
+
   // set leftout entries to zero
   for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
     piv_start_idx[i] = 0;
 
-  omp_set_dynamic(0);
-#pragma omp parallel private(block_idx, i, j) num_threads(nthreads)
-  {
-    uint32_t rihb[B->bheight];  // rows indices horizontal block
-    uint16_t cvb  = 0;          // current vector in block
+  if (nb % 2) {
+    nb--;
+    for (i = ((int)piv_start_idx[nb]-1);
+        i > (int)piv_start_idx[nb+1]-1; --i) {
+      if (map->pri[i] != __GB_MINUS_ONE_32) {
+        rihb[cvb] = map->pri[i];
+        cvb++;
+      }
+      if (cvb == B->bheight || i == 0) {
+        // multiline version for A
+        write_lr_matrix_ml(M, A, B, map, rihb, cvb, nb, 0);
 
+        // TODO: Destruct input matrix on the go
+        if (destruct_input_matrix) {
+          for (j=0; j<cvb; ++j) {
+            free(M->pos[rihb[j]]);
+            free(M->rows[rihb[j]]);
+          }
+        // free memory
+        }
+        cvb = 0;
+      }
+    }
+  }
+  printf("nb %d\n",nb);
+  omp_set_dynamic(0);
+#pragma omp parallel private(cvb, rihb, block_idx, block_idx_2, i, j) num_threads(nthreads)
+  {
+    cvb  = 0;        
 #if __GB_DEBUG
     printf("nthreads %d\n",nthreads);
     printf("npiv %d -- bheight %d\n",map->npiv,B->bheight);
     printf("div %d\n", map->npiv/B->bheight);
 #endif
-#pragma omp for schedule(dynamic) nowait
+
+#pragma omp for schedule(dynamic) nowait 
+    for (block_idx = 0; block_idx < nb/2; ++block_idx) {
+      // construct block submatrices A & B
+      // Note: In the for loop we always construct block "block+1" and not block
+      // "block".
+      // TODO: Try to improve this rather strange looping. 
+      block_idx_2 = nb - block_idx - 1;
+      for (i = ((int)piv_start_idx[block_idx]-1);
+          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+        if (map->pri[i] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->pri[i];
+          cvb++;
+        }
+        if (cvb == B->bheight || i == 0) {
+          // multiline version for A
+          write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx, 0);
+
+          // TODO: Destruct input matrix on the go
+          if (destruct_input_matrix) {
+            for (j=0; j<cvb; ++j) {
+              free(M->pos[rihb[j]]);
+              free(M->rows[rihb[j]]);
+            }
+          // free memory
+          }
+          cvb = 0;
+        }
+      }
+      for (i = ((int)piv_start_idx[block_idx_2]-1);
+          i > (int)piv_start_idx[block_idx_2+1]-1; --i) {
+        if (map->pri[i] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->pri[i];
+          cvb++;
+        }
+        if (cvb == B->bheight || i == 0) {
+          // multiline version for A
+          write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx_2, 0);
+
+          // TODO: Destruct input matrix on the go
+          if (destruct_input_matrix) {
+            for (j=0; j<cvb; ++j) {
+              free(M->pos[rihb[j]]);
+              free(M->rows[rihb[j]]);
+            }
+          // free memory
+          }
+          cvb = 0;
+        }
+      }
+    }
+  } 
+
+  // find blocks for construction of C & D
+  piv_start_idx[0]  = M->nrows;
+  npiv  = 0;
+  for (i = (int)M->ncols-1; i > -1; --i) {
+    if (map->npri[i] != __GB_MINUS_ONE_32)
+      npiv++;
+
+    if (npiv % D->bheight == 0) {
+      piv_start_idx[npiv/D->bheight]  = i;
+    }
+  }
+    /*
     for (block_idx = 0; block_idx <= npiv/B->bheight; ++block_idx) {
-#if __GB_DEBUG
-      printf("bi %d\n", block_idx);
-      printf("piv_idx[block] %d\n",piv_start_idx[block_idx]);
-      printf("piv_idx[block+1] %d\n",piv_start_idx[block_idx+1]);
-#endif
       // construct block submatrices A & B
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
@@ -751,36 +838,49 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         }
       }
     }
-  } 
-
-  // find blocks for construction of C & D
-  piv_start_idx[0]  = M->nrows;
-  npiv  = 0;
-  for (i = (int)M->ncols-1; i > -1; --i) {
-    if (map->npri[i] != __GB_MINUS_ONE_32)
-      npiv++;
-
-    if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = i;
-    }
-  }
+    */
 
   // set leftout entries to zero
-  for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
+  for (i=npiv/D->bheight+1; i < (max_nrows / D->bheight) + 2; ++i)
     piv_start_idx[i] = 0;
 
-  omp_set_dynamic(0);
-#pragma omp parallel private(block_idx, i, j) num_threads(nthreads)
-  {
-    uint32_t rihb[B->bheight];  // rows indices horizontal block
-    uint16_t cvb  = 0;          // current vector in block
+  nb  = npiv/D->bheight;
+  printf("npiv %d\n",npiv);
+  printf("nb %d\n",nb);
+  if (nb % 2) {
+    nb--;
+    for (i = ((int)piv_start_idx[nb]-1);
+        i > (int)piv_start_idx[nb+1]-1; --i) {
+      if (map->npri[i] != __GB_MINUS_ONE_32) {
+        rihb[cvb] = map->npri[i];
+        cvb++;
+      }
+      if (cvb == D->bheight || i == 0) {
+        // multiline version for C
+        write_lr_matrix_ml(M, C, D, map, rihb, cvb, nb, 1);
 
+        if (destruct_input_matrix) {
+          for (j=0; j<cvb; ++j) {
+            free(M->pos[rihb[j]]);
+            free(M->rows[rihb[j]]);
+          }
+        }
+        cvb = 0;
+      }
+    }
+  }
+  omp_set_dynamic(0);
+#pragma omp parallel private(block_idx, block_idx_2, i, j) num_threads(nthreads)
+  {
+    cvb  = 0;
 #pragma omp for schedule(dynamic) nowait
-    for (block_idx = 0; block_idx <= npiv/D->bheight; ++block_idx) {
+    for (block_idx = 0; block_idx < nb/2; ++block_idx) {
       // construct block submatrices C & D
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
       // TODO: Try to improve this rather strange looping. 
+      block_idx_2 = nb - block_idx - 1;
+      printf("idx %d -- idx2 %d\n",block_idx,block_idx_2);
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
         if (map->npri[i] != __GB_MINUS_ONE_32) {
@@ -790,6 +890,25 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         if (cvb == D->bheight || i == 0) {
           // multiline version for C
           write_lr_matrix_ml(M, C, D, map, rihb, cvb, block_idx, 1);
+
+          if (destruct_input_matrix) {
+            for (j=0; j<cvb; ++j) {
+              free(M->pos[rihb[j]]);
+              free(M->rows[rihb[j]]);
+            }
+          }
+          cvb = 0;
+        }
+      }
+      for (i = ((int)piv_start_idx[block_idx_2]-1);
+          i > (int)piv_start_idx[block_idx_2+1]-1; --i) {
+        if (map->npri[i] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->npri[i];
+          cvb++;
+        }
+        if (cvb == D->bheight || i == 0) {
+          // multiline version for C
+          write_lr_matrix_ml(M, C, D, map, rihb, cvb, block_idx_2, 1);
 
           if (destruct_input_matrix) {
             for (j=0; j<cvb; ++j) {
