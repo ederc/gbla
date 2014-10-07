@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
 
   if (verbose > 0) {
     printf("---------------------------------------------------------------------\n");
-    printf("-------------- Computing a special Gaussian Elimination -------------\n");
+    printf("------------- Computing an FL-style Gaussian Elimination ------------\n");
     printf("------------------ with the following options set -------------------\n");
     printf("---------------------------------------------------------------------\n");
     printf("number of threads           %4d\n", nthreads);
