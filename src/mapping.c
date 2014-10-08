@@ -210,6 +210,10 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       piv_start_idx[npiv/B->bheight]  = i;
     }
   }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  piv_start_idx[0]  = M->nrows;
 
 #if __GB_NEW_SPLICER
   /*
@@ -318,7 +322,6 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   } 
 
   // find blocks for construction of C & D
-  piv_start_idx[0]  = M->nrows;
   npiv  = 0;
   for (i = (int)M->ncols-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
@@ -328,6 +331,10 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       piv_start_idx[npiv/D->bheight]  = i;
     }
   }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  piv_start_idx[0]  = M->nrows;
   // set leftout entries to zero
   for (i=npiv/D->bheight+1; i < (max_nrows / D->bheight) + 2; ++i)
     piv_start_idx[i] = 0;
@@ -460,7 +467,6 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   } 
 
   // find blocks for construction of C & D
-  piv_start_idx[0]  = M->nrows;
   npiv  = 0;
   for (i = (int)M->ncols-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
@@ -470,6 +476,10 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       piv_start_idx[npiv/B->bheight]  = i;
     }
   }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  piv_start_idx[0]  = M->nrows;
 
   // set leftout entries to zero
   for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
@@ -649,7 +659,6 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   // C & D.
   uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows; 
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
-  piv_start_idx[0]  = M->nrows;
   uint32_t block_idx;
 
   // find blocks for construction of A & B
@@ -661,6 +670,10 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
       piv_start_idx[npiv/B->bheight]  = i;
     }
   }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  piv_start_idx[0]  = M->nrows;
 
   // set leftout entries to zero
   for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
@@ -713,7 +726,6 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   } 
 
   // find blocks for construction of C & D
-  piv_start_idx[0]  = M->nrows;
   npiv  = 0;
   for (i = (int)M->ncols-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
@@ -723,6 +735,10 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
       piv_start_idx[npiv/B->bheight]  = i;
     }
   }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  piv_start_idx[0]  = M->nrows;
 
   // set leftout entries to zero
   for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
@@ -891,7 +907,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   // C & D.
   uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows; 
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
-  piv_start_idx[0]  = M->nrows;
   uint32_t block_idx, block_idx_2;
 
   // find blocks for construction of A & B
@@ -903,6 +918,10 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       piv_start_idx[npiv/B->bheight]  = i;
     }
   }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  piv_start_idx[0]  = M->nrows;
 
 #if __GB_NEW_SPLICER
   /*
@@ -1011,7 +1030,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   } 
 
   // find blocks for construction of C & D
-  piv_start_idx[0]  = M->nrows;
   npiv  = 0;
   for (i = (int)M->ncols-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
@@ -1021,6 +1039,10 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       piv_start_idx[npiv/D->bheight]  = i;
     }
   }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  piv_start_idx[0]  = M->nrows;
   // set leftout entries to zero
   for (i=npiv/D->bheight+1; i < (max_nrows / D->bheight) + 2; ++i)
     piv_start_idx[i] = 0;
@@ -1153,7 +1175,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   } 
 
   // find blocks for construction of C & D
-  piv_start_idx[0]  = M->nrows;
   npiv  = 0;
   for (i = (int)M->ncols-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
@@ -1163,6 +1184,10 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       piv_start_idx[npiv/B->bheight]  = i;
     }
   }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  piv_start_idx[0]  = M->nrows;
 
   // set leftout entries to zero
   for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
