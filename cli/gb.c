@@ -288,8 +288,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     for (jj=0; jj<clA; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", A->blocks[ii][jj][kk].sz * 2);
-        if (A->blocks[ii][jj][kk].sz>0) {
+        if (A->blocks[ii][jj] != NULL) {
           for (ll=0; ll<A->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d -- ", A->blocks[ii][jj][kk].idx[ll]);
             printf("%d %d ", A->blocks[ii][jj][kk].val[2*ll], A->blocks[ii][jj][kk].val[2*ll+1]);
@@ -304,8 +303,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     for (jj=0; jj<clB; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", B->blocks[ii][jj][kk].sz * 2);
-        if (B->blocks[ii][jj][kk].sz>0) {
+        if (B->blocks[ii][jj] != NULL) {
           for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d -- ", B->blocks[ii][jj][kk].idx[ll]);
             printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
@@ -319,8 +317,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     for (jj=0; jj<clC; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", C->blocks[ii][jj][kk].sz * 2);
-        if (C->blocks[ii][jj][kk].sz>0) {
+        if (C->blocks[ii][jj] != NULL) {
           for (ll=0; ll<C->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d -- ", C->blocks[ii][jj][kk].idx[ll]);
             printf("%d %d ", C->blocks[ii][jj][kk].val[2*ll], C->blocks[ii][jj][kk].val[2*ll+1]);
@@ -334,8 +331,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     for (jj=0; jj<clD; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", D->blocks[ii][jj][kk].sz * 2);
-        if (D->blocks[ii][jj][kk].sz>0) {
+        if (D->blocks[ii][jj] != NULL) {
           for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
             printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
@@ -353,7 +349,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing A ...\n");
   }
-  if (elim_fl_A_block(A, B)) {
+  if (elim_fl_A_block(A, B, nthreads)) {
     printf("Error while reducing A.\n");
     return 1;
   }
@@ -434,7 +430,6 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
   int ii,jj,kk,ll;
   for (ii=0; ii<rlA; ++ii) {
     printf("%d .. \n",ii);
-    printf("size %d\n", A->ml[ii].sz * 2);
     if (A->ml[ii].sz>0) {
       for (ll=0; ll<A->ml[ii].sz; ++ll) {
         printf("%d %d ", A->ml[ii].val[2*ll], A->ml[ii].val[2*ll+1]);
@@ -446,8 +441,7 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
     for (jj=0; jj<clB; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", B->blocks[ii][jj][kk].sz * 2);
-        if (B->blocks[ii][jj][kk].sz>0) {
+        if (B->blocks[ii][jj] != NULL) {
           for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
           }
@@ -460,8 +454,7 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
     for (jj=0; jj<clC; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", C->blocks[ii][jj][kk].sz * 2);
-        if (C->blocks[ii][jj][kk].sz>0) {
+        if (C->blocks[ii][jj] != NULL) {
           for (ll=0; ll<C->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d %d ", C->blocks[ii][jj][kk].val[2*ll], C->blocks[ii][jj][kk].val[2*ll+1]);
           }
@@ -474,8 +467,7 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
     for (jj=0; jj<clD; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", D->blocks[ii][jj][kk].sz * 2);
-        if (D->blocks[ii][jj][kk].sz>0) {
+        if (D->blocks[ii][jj] != NULL) {
           for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
           }
@@ -492,7 +484,7 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing A ...\n");
   }
-  if (elim_fl_A_ml_block(A, B)) {
+  if (elim_fl_A_ml_block(A, B, nthreads)) {
     printf("Error while reducing A.\n");
     return 1;
   }
@@ -585,8 +577,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     for (jj=0; jj<clB; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", B->blocks[ii][jj][kk].sz * 2);
-        if (B->blocks[ii][jj][kk].sz>0) {
+        if (B->blocks[ii][jj] != NULL) {
           for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d -- ", B->blocks[ii][jj][kk].idx[ll]);
             printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
@@ -611,8 +602,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     for (jj=0; jj<clD; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
         printf("%d .. %d .. %d\n",ii,jj,kk);
-        printf("size %d\n", D->blocks[ii][jj][kk].sz * 2);
-        if (D->blocks[ii][jj][kk].sz>0) {
+        if (D->blocks[ii][jj] != NULL) {
           for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
             printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
             printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
@@ -630,7 +620,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing A ...\n");
   }
-  if (elim_fl_A_ml_block(A, B)) {
+  if (elim_fl_A_ml_block(A, B, nthreads)) {
     printf("Error while reducing A.\n");
     return 1;
   }

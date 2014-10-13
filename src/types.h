@@ -16,6 +16,8 @@ typedef uint32_t  mli_t;
 typedef uint16_t  bi_t;
 /// matrix row entry type
 typedef uint16_t  re_t;
+/// matrix row entry type enlarged for delayed modulus
+typedef uint64_t  re_l_t;
 /// row and column index types
 typedef uint32_t  ci_t;
 typedef uint32_t  ri_t;

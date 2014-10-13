@@ -144,6 +144,8 @@ static inline void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bi
 static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
     const bi_t cvb) {
   int i, j, k, l;
+  uint16_t ctr[clA];
+  memset(ctr, 0, clA * sizeof(uint16_t));
   bi_t *old_idx_ptr = NULL;
   re_t *old_val_ptr = NULL;
 
@@ -161,6 +163,7 @@ static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
       tmp_val_ptr[2*l]    = A->blocks[rbi][clA-1][i].val[2*k];
       tmp_val_ptr[2*l+1]  = A->blocks[rbi][clA-1][i].val[2*k+1];
       l++;
+      ctr[clA-1]  = 1;
     }
     // keep track of old ptr
     old_idx_ptr = A->blocks[rbi][clA-1][i].idx;
@@ -195,6 +198,7 @@ static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
         tmp_val_ptr[2*l]    = A->blocks[rbi][j][i].val[2*k];
         tmp_val_ptr[2*l+1]  = A->blocks[rbi][j][i].val[2*k+1];
         l++;
+        ctr[j]  = 1;
       }
       // keep track of old ptr
       old_idx_ptr = A->blocks[rbi][j][i].idx;
@@ -209,6 +213,12 @@ static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
     // finally remove temporary memory used for swapping
     free(old_idx_ptr);
     free(old_val_ptr);
+  }
+  for (i=0; i<clA; ++i) {
+    if (ctr[i]  ==  0) {
+      free(A->blocks[rbi][i]);
+      A->blocks[rbi][i] = NULL;
+    }
   }
 }
 

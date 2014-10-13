@@ -113,8 +113,8 @@ static inline void compute_density_block_submatrix(sbm_fl_t *A) {
   int i, j, k, l;
   for (i=0; i<rlA; ++i) {
     for (j=0; j<clA; ++j) {
-      for (k=0; k<A->bwidth/2; ++k) {
-        if (A->blocks[i][j][k].sz>0) {
+      if (A->blocks[i][j] != NULL) {
+        for (k=0; k<A->bwidth/2; ++k) {
           for (l=0; l<A->blocks[i][j][k].sz; ++l) {
             if (A->blocks[i][j][k].val[2*l]) {
               A->nnz++;

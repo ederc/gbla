@@ -96,7 +96,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   B->bwidth   = bdim;                 // block width
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
-  B->hr       = 1;                    // allow hybrid rows?
+  B->hr       = 0;                    // allow hybrid rows?
   B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
@@ -557,7 +557,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   B->bwidth   = bdim;                 // block width
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
-  B->hr       = 1;                    // allow hybrid rows?
+  B->hr       = 0;                    // allow hybrid rows?
   B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
@@ -834,7 +834,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   B->bwidth   = bdim;                 // block width
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
-  B->hr       = 1;                    // allow hybrid rows?
+  B->hr       = 0;                    // allow hybrid rows?
   B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
@@ -1564,9 +1564,12 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     // Realloc memory usage:
     // Note that A is reallocated during the swapping of the data, so we
     // reallocate only B here.
+    int ctr;
     for (k=0; k<clB; ++k) {
+      ctr = 0;
       for (l=0; l<rounded_cvb/2; ++l) {
         if (B->blocks[rbi][k][l].sz>0) {
+          ctr = 1;
           B->blocks[rbi][k][l].idx = realloc(
               B->blocks[rbi][k][l].idx,
               B->blocks[rbi][k][l].sz * sizeof(bi_t));
@@ -1574,6 +1577,11 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
               B->blocks[rbi][k][l].val,
               2 * B->blocks[rbi][k][l].sz  * sizeof(re_t));
         }
+      }
+      // if full block is empty, remove it!
+      if (ctr == 0) {
+        free(B->blocks[rbi][k]);
+        B->blocks[rbi][k] = NULL;
       }
     }
   }
@@ -1909,6 +1917,16 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     }
     A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
     A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
+  }
+  for (k=0; k<clB; ++k) {
+    for (l=0; l<rounded_cvb/2; ++l) {
+      if (B->blocks[rbi][k][l].sz>0) {
+        break;
+      }
+    }
+    // if full block is empty, remove it!
+      free(B->blocks[rbi][k]);
+      B->blocks[rbi][k] = NULL;
   }
 
   // hybrid multirows for the righthand side block matrices?
