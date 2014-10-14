@@ -26,9 +26,10 @@
 #define __GB_USE_POSIX_MEMALIGN	(__GB_HAVE_POSIX_MEMALIGN && __GB_HAVE_SSE2)
 #define __GB_DD_QUIET			(@GB_DEBUG_MZD@ && !@GB_DEBUG_DUMP@)
 
-#define __GB_UNROLL_STEP_64 16
-#define __GB_UNROLL_STEP_16 16
+#define __GB_LOOP_UNROLL_SMALL  16
+#define __GB_LOOP_UNROLL_BIG    64
 
+#define __GB_ROUND_DOWN(x, s) ((x) & ~((s)-1))
 
 #define __GB_NROWS_MULTILINE  2
 #define __GB_HYBRID_THRESHOLD 0.5f

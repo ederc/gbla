@@ -96,7 +96,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   B->bwidth   = bdim;                 // block width
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
-  B->hr       = 0;                    // allow hybrid rows?
+  B->hr       = 1;                    // allow hybrid rows?
   B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
@@ -557,7 +557,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   B->bwidth   = bdim;                 // block width
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
-  B->hr       = 0;                    // allow hybrid rows?
+  B->hr       = 1;                    // allow hybrid rows?
   B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
@@ -834,7 +834,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   B->bwidth   = bdim;                 // block width
   B->ba       = dtlr;                 // block alignment
   B->fe       = 1;                    // fill empty blocks?
-  B->hr       = 0;                    // allow hybrid rows?
+  B->hr       = 1;                    // allow hybrid rows?
   B->nnz      = 0;                    // number nonzero elements
 
   // allocate memory for blocks
@@ -1540,8 +1540,11 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     for (i=0; i<clB; ++i) {
       for (j=0; j<rounded_cvb/2; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
-            < __GB_HYBRID_THRESHOLD)
+            < __GB_HYBRID_THRESHOLD) {
+          B->blocks[rbi][i][j].dense  = 0;
           continue;
+        }
+        B->blocks[rbi][i][j].dense  = 1;
         re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
         idx  = 0;
         for (k=0; k<B->bwidth; ++k) {
@@ -1930,15 +1933,17 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   }
 
   // hybrid multirows for the righthand side block matrices?
-  /*
   if (B->hr) {
     uint32_t idx  = 0;
     // TODO: Implement hybrid stuff
     for (i=0; i<clB; ++i) {
       for (j=0; j<B->bheight/__GB_NROWS_MULTILINE; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
-            < __GB_HYBRID_THRESHOLD)
+            < __GB_HYBRID_THRESHOLD) {
+          B->blocks[rbi][i][j].dense  = 0;
           continue;
+        }
+        B->blocks[rbi][i][j].dense  = 1;
         re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
         idx  = 0;
         for (k=0; k<B->bwidth; ++k) {
@@ -1958,5 +1963,4 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       }
     }
   }
-  */
 }

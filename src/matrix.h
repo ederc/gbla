@@ -39,6 +39,7 @@ typedef struct sm_t {
  * __GB_NROWS_MULTILINE elements, i.e. this many rows are taken care of at once.
  */
 typedef struct mbl_t {
+  bi_t dense; /*!< if 1 the multiline row is in dense representation */
   bi_t *idx;  /*!< column index in the multiline vector */
   re_t *val;  /*!< multiline row, must be __GB_NROWS_MULTILINE * length(idx) */
   bi_t sz;    /*!< current length of the block row */
@@ -93,8 +94,8 @@ typedef struct sbm_fl_t {
   int fe;           /*!<  if 1 then empty blocks are used to fill
                           block matrix
                           if 0 then no fill is done */
-  int hr;           /*!<  if 1 then hybrid (sparse/dense) rows are accepted
-                          if 0 then those rows are not accepted */
+  int hr;           /*!<  if 0 then those rows are not accepted
+                          if 1 then hybrid (sparse/dense) rows are accepted */
   nnz_t nnz;        /*!<  number of nonzero elements */
   double density;   /*!<  density of this submatrix */
   mbl_t ***blocks;  /*!<  address of blocks: M->blocks[i][j] gives address of 

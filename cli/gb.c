@@ -349,7 +349,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing A ...\n");
   }
-  if (elim_fl_A_block(A, B, nthreads)) {
+  if (elim_fl_A_block(A, B, M->mod, nthreads)) {
     printf("Error while reducing A.\n");
     return 1;
   }
