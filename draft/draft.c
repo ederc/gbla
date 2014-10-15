@@ -1,44 +1,3 @@
-#define MAT_ROW_BLOCK 128      // read matrix MAT_ROW_BLOCK by MAT_ROW_BLOCK
-#define Element       int32_t  // Element representation mod p
-#define index_t       int32_t  // indexing elements
-
-struct matrixFile {
-
-	index_t row, col, nnz ; // 1
-	Element mod ;           // 1
-	index_t * start_zo ;    // 2
-	index_t * map_zo_pol ;  // 2
-	index_t * colid_zo ;    // 3
-	index_t * start_pol;    // 4
-	Element * vals_pol;   // 4
-} ;
-
-struct CSR_POL {
-	int row, int col ;
-	index_t * start_pol ;
-	Element * vals_pol ;
-} ;
-
-struct CSR_ZO {
-	index_t row; index_t col;
-	index_t * start_zo ;
-	index_t * colid_zo ;
-} ;
-
-
-struct GBMatrix {
-	
-	index_t block_size = MAT_ROW_BLOCK  ;
-	index_t row, col, nnz ; 
-	index_t mod ;           
-	index_t * matrix_nb ; // nb of 0/1 matrices
-	CSR_ZO  * positions ; // 0/1 matrices reprensenting positions
-	index_t ** map_zo_pol ; // maps rows in positions to polynomials
-} ;
-
-struct GBpolynomials {
-	CSR_POL * polynomials ; // polynomials value list
-} ;
 
 
 /*
@@ -60,50 +19,6 @@ struct GBpolynomials {
 
 
 
-// matrix reader and row splitter
-int read_file(GBMatrix * A_init, GBMatrix * B_init
-		, GBpolynomials * polys
-		, FILE * in) 
-{
-	// first lines
-	in >> row >> col >> nnz ;
-	in >> mod ;
-	// start in ZO
-	in >> start_zo ;
-	// pol/zo correspondance
-	in >> map_zo_pol ;
-	// colid in ZO
-	while( doing_zo) {
-		// read in MAT_ROW_BLOCK rows 
-		tmp_rows[MAT_ROW_BLOCK] ;
-		while (reading) {
-			in >> tmp_rows[i] ;
-			// get the first nz in this row (colid) and density (start[i+1]-start[i])
-			get_first_nz(tmp_rows[i],map_first,map_sparse);
-		}
-		// select the rows in map_first/map_sparse 
-		while (update_a_init) {
-			if (current_line >= MAT_ROW_BLOCK) {
-				matrix_nb ++ ;
-				realloc(positions,matrix_nb);
-				realloc(map_zo_pol,matrix_nb);
-				// create new positions
-			}
-			// update current position[matrix_nb] 
-			copy(A_init.positions[matrix_nb].colid_zo,tmp_rows[j]);
-			// update the start_zo in the current matrix
-			update(A_init.positions[matrix_nb].start_zo,start_zo,j);
-			// update map_zo_pol[matrix_nb] for this one
-			update(A_init.map_zo_pol[matrix_nb],map_zo_pol,j);
-		}
-		// update_b_init the same
-	}
-	// create GBpolynomials shared by A_init and B_init
-	in >> start_pol ;
-	in >> vals_pol ;
-
-	return status ;
-}
 
 
  /* Splitting the columns
