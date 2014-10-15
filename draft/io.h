@@ -47,16 +47,58 @@ int prepare_split(uint32_t * buffer
 	}
 }
 
+void insert_row(CSR_zo * A, uint32_t * colid, uint32_t nnz, uint32_t pol)
+{
+	A->row += 1 ;
+	A->map_zo_pol = (uint32_t*) realloc(A->map_zo_pol,A->row*sizeof(uint32_t));
+	A->map_zo_pol[A->row-1] = pol ;
+	uint32_t last = A->nnz();
+	A->start_zo = (uint32_t *) realloc(A->start_zo,(A->row+1)*sizeof(uint32_t));
+	A->start_zo[A->row] = last+nnz ;
+	A->colid_zo = (uint32_t *) realloc(A->colid_zo, A->nnz() *sizeof(uint32_t));
+	for (uint32_t i = 0 ; i < nnz ; ++i) {
+		A->colid_zo[last+i] = colid[i] ;
+	}
+}
+
 void fix_last_row(
 		GBMatrix_t * A
 		GBMatrix_t * B
 		)
 {
-	// in A reduce  row, reduce nnz
-	// move last to last
-	// update start
-	// update zo_map
-	// in B augment row, add nnz
+	CSR_zo * A_mat = A->matrix_zo[A->matrix_nb-1] ;
+	CSR_zo * B_mat = B->matrix_zo[B->matrix_nb-1] ;
+	if (B_mat->row == MAT_ROW_BLOCK) {
+		B_mat->matrix_nb += 1 ;
+		B_mat->matrix_zo = (CSR_zo  *) realloc(B_mat->matrix_zo, B_mat->matrix_nb * sizeof(CSR_zo));
+		B_mat.init();
+	}
+	uint32_t last_row_size = A_mat->nnz() ;
+
+	insert_row(B_mat,A_mat->getRow(A_mat->row),last_row_size, A_mat->map_zo_pol[A_mat->row]);
+
+	A_mat->row -= 1 ;
+}
+
+int append_rows_in_buffer(
+		GBMatrix_t * A
+		, GBMatrix_t * B
+		, int32_t  * buffer
+		, int buffer_row_size
+		, uint32_t * start_zo
+		, uint32_t row0
+		, uint32_t * discard
+		, uint32_t * discarded
+		, uint32_t * map_zo_pol
+		)
+{
+	int i = 0 ;
+	for (i = 0 ; i < buffer_size ; ++i)  {
+		// until next non discarded
+		populate B ;
+		// is discarded
+		populate A
+	}
 }
 
 // matrix reader and row splitter
@@ -153,39 +195,18 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 			// for the first one, check that it is not in the previous batch
 			if (i > 0) {
 				if (A->last_pivot() == pivots[0]) {
-					if (A->sparsity(A->row) > sparse[pivots[0]])
+					if (A->sparsity(A->row) > sparse[pivots[0]]) {
 						fix_last_row(A,B);
+					}
 				}
 			}
-			// GROW A with seleted pivots
-			append_rows_A();
-			// GROW B with discarded
-			append_rows_B();
+			// GROW A,B with seleted pivots
+			append_rows_in_buffer(A,B,buffer,READ_MAT_ROW_BLOCK,start_zo,i,discard,discarded,map_pol_zo);
 			// ADD POLYS
-			map_pol_zo_A()  ;
-			map_pol_zo_B() ;
 
 		}
 	}
-	int append_rows_A(
-			GBMatrix_t * A
-			, GBMatrix_t * B
-			, int32_t  * buffer
-			, int buffer_row_size
-			, uint32_t * start_zo
-			, uint32_t row0
-			, uint32_t * discard
-			, uint32_t * discarded
-			)
-	{
-		int i = 0 ;
-		for (i = 0 ; i < buffer_size ; ++i)  {
-			// until next non discarded
-			populate B ;
-			// is discarded
-			populate A
-		}
-	}
+
 
 	{
 		if (fread(&buffer, sizeof(int32_t),start[m+1]-start[i]) != 1) {

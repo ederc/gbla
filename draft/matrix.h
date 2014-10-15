@@ -25,10 +25,18 @@ struct CSR_pol {
 struct CSR_zo {
 	index_t row;
 	// index_t col; // useless
-	index_t nnz;
+	// index_t nnz;
 	index_t * start_zo ; // size row+1
 	index_t * colid_zo ; // size nnz
 	index_t * map_zo_pol ; // size row
+
+	index_t nnz() const
+	{
+		return start_zo[row] ;
+	}
+	index_t * getRow(int i) const {
+		return colid_zo[start_zo[i]];
+	}
 } ;
 
 
@@ -39,7 +47,7 @@ struct GBMatrix_t {
 	index_t col ;
 	index_t nnz ;
 	index_t mod ;
-	index_t * matrix_nb ; // nb of 0/1 matrices
+	index_t   matrix_nb ; // nb of 0/1 matrices
 	CSR_zo  * matrix_zo ; // 0/1 matrices reprensenting positions
 } ;
 
