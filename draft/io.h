@@ -8,10 +8,56 @@
 	return -1 ; \
 }
 
+int prepare_split(uint32_t * buffer
+				, uint32_t buffer_rows
+				, uint32_t * pivots
+				, uint32_t * sparse
+				, uint32_t * discard
+				, uint32_t * discarded
+				, uint32_t * start
+				, uint32_t i
+				)
+{
+	for (int j = 0 ; j < buffer_row_size ; ++j) {
+		pivots[j] = buffer[start[i+j]] ; // first column in each row
+		sparse[j] = start[i+j+1]-start[i]; // length of each row
+		repet[pivots[j]] += 1 ;
+	}
+	for (int k = 0 ; k < buffer_row_size ; ++k) { // check that we are increasing
+		if (pivots[k+1] < pivots[k]) exit(-2);
+	}
+	for (int k = 0 ; k < buffer_row_size ; ++k) {
+		if (repet[k] == 0) {
+			break;
+		}
+		if (repet[k] > 1) {
+			uint32_t idx = k; // find the sparsest
+			for (int l = 1 ; l < repet[k] ; ++l)
+				if (sparse[l] < sparse[idx]) {
+					idx = l ;
+				}
+			for (int l = 0 ; l < repet[k] ; ++l) {
+				if (l != idx) {
+					discard[discarded++] = l ;
+				}
+			}
+		}
 
-#define FREE_MATRIX(m) \
-	free(m)
 
+	}
+}
+
+void fix_last_row(
+		GBMatrix_t * A
+		GBMatrix_t * B
+		)
+{
+	// in A reduce  row, reduce nnz
+	// move last to last
+	// update start
+	// update zo_map
+	// in B augment row, add nnz
+}
 
 // matrix reader and row splitter
 int read_file(GBMatrix * A_init, GBMatrix * B_init
@@ -63,12 +109,17 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 
 
 	// pol/zo correspondance
-	uint32_t * map_pol_zo = (uint32_t *) malloc((m+1)*sizeof(uint32_t));
+	uint32_t * map_pol_zo = (uint32_t *) malloc((m)*sizeof(uint32_t));
 	if (fread(&map_pol_zo, sizeof(uint32_t),m,fh) != 1) {
 		free(start_zo);
 		free(map_pol_zo);
 		ERROR_READING ;
 	}
+
+	uint32_t * map_pol_zo_A = (uint32_t *) malloc((m)*sizeof(uint32_t));
+	uint32_t map_pol_zo_A_size = 0 ;
+	uint32_t * map_pol_zo_B = (uint32_t *) malloc((m)*sizeof(uint32_t));
+	uint32_t map_pol_zo_B_size = 0 ;
 
 
 	// colid in ZO
@@ -81,6 +132,13 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 	uint32_t last_start = 0 ;
 	i = 0 ;
 	if (MAT_ROW_BLOCK <= m) {
+		uint32_t * pivots = (uint32_t) malloc(MAT_ROW_BLOCK*sizeof(uint32_t));
+		uint32_t * sparse = (uint32_t) malloc(MAT_ROW_BLOCK*sizeof(uint32_t));
+		uint32_t * repet  = (uint32_t) calloc(MAT_ROW_BLOCK*sizeof(uint32_t));
+		uint32_t * discard = (uint32_t *) malloc(MAT_ROW_BLOCK*sizeof(int32_t));
+		uint32_t discarded = 0 ;
+
+		// read in MAT_ROW_BLOCK rows
 		for (; i < m ; i += MAT_ROW_BLOCK ) {
 			if (fread(&buffer, sizeof(int32_t),start[i+MAT_ROW_BLOCK+1]-start[i]) != 1) {
 				free(start_zo);
@@ -89,8 +147,46 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 				ERROR_READING ;
 			}
 			// split buffer
+			prepare_split(buffer,MAT_ROW_BLOCK,pivots,sparse,discard,&discarded,start_zo,i);
+
+
+			// for the first one, check that it is not in the previous batch
+			if (i > 0) {
+				if (A->last_pivot() == pivots[0]) {
+					if (A->sparsity(A->row) > sparse[pivots[0]])
+						fix_last_row(A,B);
+				}
+			}
+			// GROW A with seleted pivots
+			append_rows_A();
+			// GROW B with discarded
+			append_rows_B();
+			// ADD POLYS
+			map_pol_zo_A()  ;
+			map_pol_zo_B() ;
+
 		}
 	}
+	int append_rows_A(
+			GBMatrix_t * A
+			, GBMatrix_t * B
+			, int32_t  * buffer
+			, int buffer_row_size
+			, uint32_t * start_zo
+			, uint32_t row0
+			, uint32_t * discard
+			, uint32_t * discarded
+			)
+	{
+		int i = 0 ;
+		for (i = 0 ; i < buffer_size ; ++i)  {
+			// until next non discarded
+			populate B ;
+			// is discarded
+			populate A
+		}
+	}
+
 	{
 		if (fread(&buffer, sizeof(int32_t),start[m+1]-start[i]) != 1) {
 			free(start_zo);
@@ -101,32 +197,6 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 		// split buffer
 	}
 
-
-	while( doing_zo) {
-		// read in MAT_ROW_BLOCK rows
-		tmp_rows[MAT_ROW_BLOCK] ;
-		while (reading) {
-			in >> tmp_rows[i] ;
-			// get the first nz in this row (colid) and density (start[i+1]-start[i])
-			get_first_nz(tmp_rows[i],map_first,map_sparse);
-		}
-		// select the rows in map_first/map_sparse
-		while (update_a_init) {
-			if (current_line >= MAT_ROW_BLOCK) {
-				matrix_nb ++ ;
-				realloc(positions,matrix_nb);
-				realloc(map_zo_pol,matrix_nb);
-				// create new positions
-			}
-			// update current position[matrix_nb]
-			copy(A_init.positions[matrix_nb].colid_zo,tmp_rows[j]);
-			// update the start_zo in the current matrix
-			update(A_init.positions[matrix_nb].start_zo,start_zo,j);
-			// update map_zo_pol[matrix_nb] for this one
-			update(A_init.map_zo_pol[matrix_nb],map_zo_pol,j);
-		}
-		// update_b_init the same
-	}
 	free(buffer);
 
 	// create GBpolynomials shared by A_init and B_init
@@ -137,7 +207,7 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 		// free(map_pol_zo);
 		ERROR_READING;
 	}
-	// populate
+	// populate A and B
 
 	uint32_t * vals_pol =  (uint32_t*) malloc(start_pol[m+1]*sizeof(uint32_t));
 	if (fread(&vals_pol, sizeof(int32_t),m) != 1) {
@@ -146,7 +216,7 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 		// free(map_pol_zo);
 		ERROR_READING;
 	}
-	// populate
+	// populate A and B
 
 	return 0 ;
 }

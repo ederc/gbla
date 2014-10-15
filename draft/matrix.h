@@ -24,9 +24,11 @@ struct CSR_pol {
 
 struct CSR_zo {
 	index_t row;
-	index_t col;
-	index_t * start_zo ;
-	index_t * colid_zo ;
+	// index_t col; // useless
+	index_t nnz;
+	index_t * start_zo ; // size row+1
+	index_t * colid_zo ; // size nnz
+	index_t * map_zo_pol ; // size row
 } ;
 
 
@@ -39,7 +41,6 @@ struct GBMatrix_t {
 	index_t mod ;
 	index_t * matrix_nb ; // nb of 0/1 matrices
 	CSR_zo  * matrix_zo ; // 0/1 matrices reprensenting positions
-	index_t ** map_zo_pol ; // maps rows in positions to polynomials
 } ;
 
 struct GBpolynomials {
