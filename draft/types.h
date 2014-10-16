@@ -9,5 +9,25 @@
 #define element_t     int64_t // Element representation mod p in memory
 #define integer_t     int32_t // modulo representation/storage
 
+#define SAFE_MALLOC(ptr,size,elt) \
+{ \
+	elt * ptr = (elt *) malloc(size*sizeof(elt)); \
+	assert(ptr); \
+}
+
+#define SAFE_CALLOC(ptr,size,elt) \
+{ \
+	elt * ptr = (elt *) calloc(size*sizeof(elt)); \
+	assert(ptr); \
+}
+
+
+
+#define SAFE_REALLOC(ptr,size,elt) \
+{ \
+	ptr = realloc(ptr,size*sizeof(elt)); \
+	assert(ptr); \
+}
+
 
 #endif // __GB_types_H

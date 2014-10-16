@@ -63,11 +63,11 @@ void insert_row(CSR_zo * A, uint32_t * colid, uint32_t nnz, uint32_t pol)
 
 void fix_last_row(
 		GBMatrix_t * A
-		GBMatrix_t * B
+		GBMatrix_t * C
 		)
 {
 	CSR_zo * A_mat = A->matrix_zo[A->matrix_nb-1] ;
-	CSR_zo * B_mat = B->matrix_zo[B->matrix_nb-1] ;
+	CSR_zo * B_mat = C->matrix_zo[C->matrix_nb-1] ;
 	if (B_mat->row == MAT_ROW_BLOCK) {
 		B_mat->matrix_nb += 1 ;
 		B_mat->matrix_zo = (CSR_zo  *) realloc(B_mat->matrix_zo, B_mat->matrix_nb * sizeof(CSR_zo));
@@ -82,7 +82,7 @@ void fix_last_row(
 
 int append_rows_in_buffer(
 		GBMatrix_t * A
-		, GBMatrix_t * B
+		, GBMatrix_t * C
 		, int32_t  * buffer
 		, int buffer_row_size
 		, uint32_t * start_zo
@@ -95,7 +95,7 @@ int append_rows_in_buffer(
 	int i = 0 ;
 	for (i = 0 ; i < buffer_size ; ++i)  {
 		// until next non discarded
-		populate B ;
+		populate C ;
 		// is discarded
 		populate A
 	}
@@ -196,12 +196,12 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 			if (i > 0) {
 				if (A->last_pivot() == pivots[0]) {
 					if (A->sparsity(A->row) > sparse[pivots[0]]) {
-						fix_last_row(A,B);
+						fix_last_row(A,C);
 					}
 				}
 			}
-			// GROW A,B with seleted pivots
-			append_rows_in_buffer(A,B,buffer,READ_MAT_ROW_BLOCK,start_zo,i,discard,discarded,map_pol_zo);
+			// GROW A,C with seleted pivots
+			append_rows_in_buffer(A,C,buffer,READ_MAT_ROW_BLOCK,start_zo,i,discard,discarded,map_pol_zo);
 			// ADD POLYS
 
 		}
@@ -228,7 +228,7 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 		// free(map_pol_zo);
 		ERROR_READING;
 	}
-	// populate A and B
+	// populate A and C
 
 	uint32_t * vals_pol =  (uint32_t*) malloc(start_pol[m+1]*sizeof(uint32_t));
 	if (fread(&vals_pol, sizeof(int32_t),m) != 1) {
@@ -237,9 +237,60 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 		// free(map_pol_zo);
 		ERROR_READING;
 	}
-	// populate A and B
+	// populate A and C
 
 	return 0 ;
+}
+
+void permute_columns(
+		GBMatrix_t * A
+		// , GBMatrix_t * C
+		, uint32_t *  perm
+		)
+{
+	SAFE_MALLOC(col_size,A->col,uint32_t);
+	SAFE_MALLOC(last_elt,A->row,uint32_t);
+	// copy last columns of A,C to B,D
+
+	for (uint32_t k = 0 ; k < A->matrix_nb ; ++k ) {
+		CSR_zo * A_k = A->matrix_zo[k] ;
+
+		for (uint32_t i = 0 ; i < A_k->row ; ++i) {
+			for (uint32_t j = A_k->start_zo[i] ; j < A_k->start_zo[i+1] ; ++j) {
+				col_size[A_k->colid_zo[j]] += 1 ;
+				last_elt[A_k->colid_zo[j]] = i ;
+			}
+		}
+	}
+	for (uint32_t j = A->row ; j < A->col ; ++j) {
+		uint32_t k = last_elt[j] ;
+		if (perm[k] != 0 && (col_size[perm[k]] > col_size[j]));
+		perm[k] = j ;
+	}
+}
+
+
+
+int split_columns(
+		GBMatrix_t * A
+		, GBMatrix_t * B
+		, GBMatrix_t * C
+		, DenseMatrix_t * D
+		)
+{
+	// search for columns to permute to make A sparser
+	SAFE_MALLOC(perm,A->row,uint32_t);
+	for (uint32_t i = 0 ; i < A->row ; ++i)
+		perm[i] = i ;
+	permute_columns(A,perm);
+	// get col size of C
+	uint32_t kC =0;
+	for (uint32_t i = 0 ; i < A->row ; ++i) {
+		if (perm[i] != i) {
+			k1 ++ ;
+		}
+	}
+	// copy last columns of A,C to B,D in proper format
 }
 
 #endif // __GB_io_H

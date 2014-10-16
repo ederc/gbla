@@ -42,7 +42,7 @@ struct CSR_zo {
 
 struct GBMatrix_t {
 
-	index_t block   ; // size of blocks
+	// index_t block   ; // size of blocks
 	index_t row ;
 	index_t col ;
 	index_t nnz ;
