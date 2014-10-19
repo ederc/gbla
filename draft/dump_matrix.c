@@ -50,6 +50,14 @@ typedef void* Any;
 #include <stdio.h>
 #include <assert.h>
 
+#include <stdint.h>
+
+#define max(a,b) \
+	({ __typeof__ (a) _a = (a); \
+	 __typeof__ (b) _b = (b); \
+	 _a > _b ? _a : _b; })
+
+
 FILE* ouvrir(char* a,char* b)
 {
   if ((strcmp(a,"-") EQ 0) and (strcmp(b,"r") EQ 0))
@@ -79,7 +87,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
   unsigned int  mod;
   unsigned long long  nb;
   size_t n_inp;
-  fprintf(stderr,"current format printing",);
+  fprintf(stderr,"current format printing");
 
   assert(n_inp=fread(&n,sizeof(unsigned int),        1,f)==1);
   assert(n_inp=fread(&m,sizeof(unsigned int),       1,f)==1);
@@ -148,44 +156,34 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 #else
 
 #define SAFE_MALLOC(ptr,size,elt) \
-{ \
 	        elt * ptr = (elt *) malloc(size*sizeof(elt)); \
-	        assert(ptr); \
-}
+	        assert(ptr)
 
 #define SAFE_CALLOC(ptr,size,elt) \
-{ \
 	        elt * ptr = (elt *) calloc(size*sizeof(elt)); \
-	        assert(ptr); \
-}
+	        assert(ptr)
 
 
 
 #define SAFE_REALLOC(ptr,size,elt) \
-{ \
 	        ptr = realloc(ptr,size*sizeof(elt)); \
-	        assert(ptr); \
-}
+	        assert(ptr)
 
 #define SAFE_READ_V(val,elt,file) \
-{ \
 	elt val ; \
-	assert(fread(&(val),sizeof(elt),1,file)==1) ; \
-}
+	assert(fread(&(val),sizeof(elt),1,file)==1) 
 
 
 #define SAFE_READ_P(val,size,elt,file) \
-{ \
 	SAFE_MALLOC(val,size,elt); \
-	assert(fread(val,sizeof(elt),size,file)==size) ; \
-}
+	assert(fread(val,sizeof(elt),size,file)==size) 
 
 
 static void dump_matrix(char *fic,int all,int strict,int magma)
 {
 	FILE* fh=ouvrir(fic,"r");
 
-	fprintf(stderr,"proposed format printing",);
+	fprintf(stderr,"proposed format printing");
 
 	size_t n_imp;
 	SAFE_READ_V(m,  uint32_t,fh);
@@ -200,7 +198,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 		double Nz=(double)(n)*(double)(m);
 		Nz=(double)(nnz)/Nz;
 		Nz*=100.0;
-		fprintf(stderr,"Nb of Nz elements %Lu (density %.2f)\n",nnz,Nz);
+		fprintf(stderr,"Nb of Nz elements %lu (density %.2f)\n",nnz,Nz);
 	}
 
 	if (all)
@@ -219,7 +217,6 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 		SAFE_READ_P(map_pol_zo,m,uint32_t,fh);
 
 		// if compressed, we need to know the size of colid_zo
-		uint32_t colid_zo_size ;
 		SAFE_READ_V(colid_zo_size,uint32_t,fh);
 		// colid_zo
 		SAFE_READ_P(colid_zo,colid_zo_size,uint32_t,fh);
@@ -229,7 +226,6 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 
 		// start_pol
 		SAFE_READ_P(start_pol,m,uint32_t,fh);
-		uint64_t nnz_pol = 0 ;
 
 		// vals_pol
 		SAFE_READ_P(vals_pol,nnz_pol,uint32_t,fh);
@@ -251,17 +247,18 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 			else
 				printf("%u\n%u\n",m,n);
 
+		uint32_t pos = 0 ;
 		for(i=0;i<m;i++)
 		{
 			uint32_t v ;
 			uint32_t col = 0 ;
-			uint32_t pos = 0 ;
-			for ( uint32_t j = 0 ; j < start_zo [i] ; ++j ) {
+			uint32_t j = 0 ; // C99 inside for :-(
+			for (  ; j < start_zo [i] ; ++j ) {
 				uint32_t first = colid_zo[col++] ; 
 				uint32_t repet = colid_zo[col++];
 				// repet col after first
-				for (k = 0 ; k < repet ; ++k) {
-					uint32_t i_pol = map_pol_zo[i] ; // poly associated to i
+				uint32_t k = 0 ; // C99 inside for :-(
+				for ( ; k < repet ; ++k) {
 					v = vals_pol[pos++];
 
 					/* fprintf(stderr,"<%u>",szi); */
@@ -275,6 +272,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 			}
 			assert(col == 2*start_zo[i]); // ou pas loin
 			// assert(pos == ?);
+			pos+= map_pol_zo[i] ; // poly associated to i */
 		}
 		fprintf(stderr,"\n");
 	}
