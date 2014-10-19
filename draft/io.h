@@ -134,33 +134,33 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 		ERROR_READING ;
 	}
 
-	uint32_t * start_zo = (int32_t *) malloc((m+1)*sizeof(uint32_t));
-	assert(start_zo);
+	SAFE_MALLOC(start_zo, m+1, uint32_t);
 
 
 	// READ in ZO start
-	if (fread(&start_zo, sizeof(uint32_t),m+1,fh) != 1) {
+	if (fread(start_zo, sizeof(uint32_t),m+1,fh) != (m+1)) {
 		free(start_zo);
 		ERROR_READING ;
 	}
 
 	// largest row
-	int32_t big_row = 0 ;
+	uint32_t big_row = 0 ;
 	for (i = 0 ; i < m ; ++i)
-		big_row = max(start_zo[i+1]-start_zo[i]);
+		big_row = max(big_row,start_zo[i]);
+
 
 
 	// pol/zo correspondance
-	uint32_t * map_pol_zo = (uint32_t *) malloc((m)*sizeof(uint32_t));
-	if (fread(&map_pol_zo, sizeof(uint32_t),m,fh) != 1) {
+	SAFE_MALLOC(map_pol_zo,m,uint32_t);
+	if (fread(map_pol_zo, sizeof(uint32_t),m,fh) != m) {
 		free(start_zo);
 		free(map_pol_zo);
 		ERROR_READING ;
 	}
 
-	uint32_t * map_pol_zo_A = (uint32_t *) malloc((m)*sizeof(uint32_t));
+	SAFE_MALLOC(map_pol_zo_A,m,uint32_t);
 	uint32_t map_pol_zo_A_size = 0 ;
-	uint32_t * map_pol_zo_B = (uint32_t *) malloc((m)*sizeof(uint32_t));
+	SAFE_MALLOC(map_pol_zo_B,m,uint32_t);
 	uint32_t map_pol_zo_B_size = 0 ;
 
 
@@ -182,7 +182,8 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 
 		// read in MAT_ROW_BLOCK rows
 		for (; i < m ; i += MAT_ROW_BLOCK ) {
-			if (fread(&buffer, sizeof(int32_t),start[i+MAT_ROW_BLOCK+1]-start[i]) != 1) {
+			uint32_t nnz_buffer = start[i+MAT_ROW_BLOCK+1]-start[i]
+			if (fread(buffer, sizeof(int32_t),) != nnz_buffer) {
 				free(start_zo);
 				free(map_pol_zo);
 				free(buffer);
@@ -209,7 +210,8 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 
 
 	{
-		if (fread(&buffer, sizeof(int32_t),start[m+1]-start[i]) != 1) {
+			uint32_t nnz_buffer = start[i+MAT_ROW_BLOCK+1]-start[i]
+		if (fread(buffer, sizeof(int32_t),start[m+1]-start[i]) != 1) {
 			free(start_zo);
 			free(map_pol_zo);
 			free(buffer);
