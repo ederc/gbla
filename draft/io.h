@@ -2,21 +2,49 @@
 #define __GB_io_H
 
 #define ERROR_READING \
-{ \ 	if (verbose > 0) \
+	if (verbose > 0) { \
 		printf("Error while reading file '%s'\n",fn); \
-	fclose(fh); \
-	return -1 ; \
-}
+		fclose(fh); \
+		return -1 ; \
+	}
+
+#define SAFE_MALLOC(ptr,size,elt) \
+	elt * ptr = (elt *) malloc(size*sizeof(elt)); \
+	assert(ptr)
+
+#define SAFE_CALLOC(ptr,size,elt) \
+	elt * ptr = (elt *) calloc(size*sizeof(elt)); \
+	assert(ptr)
+
+#define SAFE_REALLOC(ptr,size,elt) \
+	ptr = realloc(ptr,size*sizeof(elt)); \
+	assert(ptr)
+
+#define SAFE_READ_v(val,elt,file) \
+	assert(fread(&(val),sizeof(elt),1,file)==1)
+
+#define SAFE_READ_V(val,elt,file) \
+	elt val ; \
+	SAFE_READ_v(val,elt,file)
+
+#define SAFE_READ_p(val,size,elt,file) \
+	assert(fread(val,sizeof(elt),size,file)==size)
+
+#define SAFE_READ_P(val,size,elt,file) \
+	SAFE_MALLOC(val,size,elt); \
+	SAFE_READ_p(val,size,elt,file)
+
+
 
 int prepare_split(uint32_t * buffer
-				, uint32_t buffer_rows
-				, uint32_t * pivots
-				, uint32_t * sparse
-				, uint32_t * discard
-				, uint32_t * discarded
-				, uint32_t * start
-				, uint32_t i
-				)
+		, uint32_t buffer_rows
+		, uint32_t * pivots
+		, uint32_t * sparse
+		, uint32_t * discard
+		, uint32_t * discarded
+		, uint32_t * start
+		, uint32_t i
+		)
 {
 	for (int j = 0 ; j < buffer_row_size ; ++j) {
 		pivots[j] = buffer[start[i+j]] ; // first column in each row
@@ -113,50 +141,29 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 	int64_t nnz ;
 
 	// sanity
-	if (fh == NULL) {
-		ERROR_READING ;
-	}
+	assert(fh);
 
 	// READ in row col nnz mod
-	if (fread(&m, sizeof(uint32_t), 1, fh) != 1) {
-		ERROR_READING ;
-	}
+	SAFE_READ_V(m,uint32_t,fh);
+	SAFE_READ_V(n,uint32_t,fh);
+	SAFE_READ_V(mod,uint32_t,fh);
+	assert(mod > 1);
+	SAFE_READ_V(nnz,uint32_t,fh);
 
-	if (fread(&n, sizeof(uint32_t), 1, fh) != 1) {
-		ERROR_READING ;
-	}
-
-	if (fread(&nnz, sizeof(uint64_t), 1, fh) != 1) {
-		ERROR_READING ;
-	}
-
-	if ((fread(&mod, sizeof(uint32_t), 1, fh) != 1) || (mod ==1)) {
-		ERROR_READING ;
-	}
 
 	SAFE_MALLOC(start_zo, m+1, uint32_t);
 
 
 	// READ in ZO start
-	if (fread(start_zo, sizeof(uint32_t),m+1,fh) != (m+1)) {
-		free(start_zo);
-		ERROR_READING ;
-	}
+	SAFE_READ_V(start_zo,m,uint32_t,fh);
 
 	// largest row
 	uint32_t big_row = 0 ;
 	for (i = 0 ; i < m ; ++i)
 		big_row = max(big_row,start_zo[i]);
 
-
-
 	// pol/zo correspondance
-	SAFE_MALLOC(map_pol_zo,m,uint32_t);
-	if (fread(map_pol_zo, sizeof(uint32_t),m,fh) != m) {
-		free(start_zo);
-		free(map_pol_zo);
-		ERROR_READING ;
-	}
+	SAFE_READ_V(map_zo_pol,m,uint32_t,fh);
 
 	SAFE_MALLOC(map_pol_zo_A,m,uint32_t);
 	uint32_t map_pol_zo_A_size = 0 ;
@@ -165,14 +172,11 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 
 
 	// colid in ZO
-	// uint64_t header_seek_offset = 3*sizeof(uint32_t) + sizeof(uint64_t);
-	// uint64_t start_zo_seek_offset = (m+1)*sizeof(uint32_t) ;
-	// uint64_t map_pol_zo_seek_offset = (m)*sizeof(uint32_t) ;
-	// uint64_t colid_zo_seek_offset = (nnz)*sizeof(int32_t) ;
-
-	int32_t * buffer = (int32_t *) malloc(MAT_ROW_BLOCK*big_row*sizeof(int32_t));
+	SAFE_MALLOC(buffer,MAT_ROW_BLOCK*big_row,uint32_t);
+	SAFE_READ_V(colid_size,uint32_t,fh);
 	uint32_t last_start = 0 ;
 	i = 0 ;
+	// FIXME
 	if (MAT_ROW_BLOCK <= m) {
 		uint32_t * pivots = (uint32_t) malloc(MAT_ROW_BLOCK*sizeof(uint32_t));
 		uint32_t * sparse = (uint32_t) malloc(MAT_ROW_BLOCK*sizeof(uint32_t));
@@ -182,13 +186,8 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 
 		// read in MAT_ROW_BLOCK rows
 		for (; i < m ; i += MAT_ROW_BLOCK ) {
-			uint32_t nnz_buffer = start[i+MAT_ROW_BLOCK+1]-start[i]
-			if (fread(buffer, sizeof(int32_t),) != nnz_buffer) {
-				free(start_zo);
-				free(map_pol_zo);
-				free(buffer);
-				ERROR_READING ;
-			}
+			uint32_t nnz_buffer = start[i+MAT_ROW_BLOCK+1]-start[i];
+			SAFE_READ_v(buffer,nnz_buffer,uint32_t,fh);
 			// split buffer
 			prepare_split(buffer,MAT_ROW_BLOCK,pivots,sparse,discard,&discarded,start_zo,i);
 
@@ -210,35 +209,21 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 
 
 	{
-			uint32_t nnz_buffer = start[i+MAT_ROW_BLOCK+1]-start[i]
-		if (fread(buffer, sizeof(int32_t),start[m+1]-start[i]) != 1) {
-			free(start_zo);
-			free(map_pol_zo);
-			free(buffer);
-			ERROR_READING ;
-		}
+		uint32_t nnz_buffer = start[i+MAT_ROW_BLOCK+1]-start[i];
+		// same
 		// split buffer
 	}
 
 	free(buffer);
 
+	// size of nnz for pols:
+	SAFE_READ_P(size_pol,uint64_t,fh);
+
 	// create GBpolynomials shared by A_init and B_init
-	uint32_t * start_pol =  (uint32_t*) malloc((m+1)*sizeof(uint32_t));
-	if (fread(&start_pol, sizeof(int32_t),(m+1)) != 1) {
-		free(start_pol);
-		// free(start_zo);
-		// free(map_pol_zo);
-		ERROR_READING;
-	}
+	SAFE_READ_V(start_pol,m,uint32_t,fh);
 	// populate A and C
 
-	uint32_t * vals_pol =  (uint32_t*) malloc(start_pol[m+1]*sizeof(uint32_t));
-	if (fread(&vals_pol, sizeof(int32_t),m) != 1) {
-		free(vals_pol);
-		// free(start_zo);
-		// free(map_pol_zo);
-		ERROR_READING;
-	}
+	SAFE_READ_V(vals_pol,size_pol,uint32_t,fh);
 	// populate A and C
 
 	return 0 ;

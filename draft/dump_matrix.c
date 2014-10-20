@@ -47,15 +47,12 @@ typedef I32 Boolean;
 typedef void* Any;
 
 #include <stdlib.h>
+#include <string.h> // strcmp
 #include <stdio.h>
 #include <assert.h>
 
-#include <stdint.h>
+#include <stdint.h> // uint32_t et cie.
 
-#define max(a,b) \
-	({ __typeof__ (a) _a = (a); \
-	 __typeof__ (b) _b = (b); \
-	 _a > _b ? _a : _b; })
 
 
 FILE* ouvrir(char* a,char* b)
@@ -80,7 +77,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
   FILE* f=ouvrir(fic,"r");
   unsigned short int *nz;
   unsigned int       *pos;
-  unsigned int       *row;
+  //unsigned int       *row;
   unsigned int        *sz;
   unsigned int n;
   unsigned int m;
@@ -155,6 +152,13 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 }
 #else
 
+#define max(a,b) \
+	({ __typeof__ (a) _a = (a); \
+	 __typeof__ (b) _b = (b); \
+	 _a > _b ? _a : _b; })
+
+#define NEGMASK  (1<<31)
+
 #define SAFE_MALLOC(ptr,size,elt) \
 	        elt * ptr = (elt *) malloc(size*sizeof(elt)); \
 	        assert(ptr)
@@ -163,21 +167,30 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 	        elt * ptr = (elt *) calloc(size*sizeof(elt)); \
 	        assert(ptr)
 
-
-
 #define SAFE_REALLOC(ptr,size,elt) \
 	        ptr = realloc(ptr,size*sizeof(elt)); \
 	        assert(ptr)
 
 #define SAFE_READ_V(val,elt,file) \
 	elt val ; \
-	assert(fread(&(val),sizeof(elt),1,file)==1) 
+	assert(fread(&(val),sizeof(elt),1,file)==1)
 
 
 #define SAFE_READ_P(val,size,elt,file) \
 	SAFE_MALLOC(val,size,elt); \
-	assert(fread(val,sizeof(elt),size,file)==size) 
+	assert(fread(val,sizeof(elt),size,file)==size)
 
+/* matrix file is :
+ * (everything in uint32_t unless specified
+ * m n mod nnz (u64)
+ * start_zo (u64) of size m+1 s.t. start_zo[i] points at the beginning of row[i] and start_zo[m] = nnz
+ * map_pol_zo of size m that tells what polynomial is used in row i
+ * colid_zo_size (u64) size of compressed colid_zo
+ * colid_zo first one of each sequence followed by repetition, of size colid_sz
+ * size_pol (u64) : number of polynomials
+ * start_pol (u64) of size size_pol
+ * vals_pol (s32) of size start_pol[size_pol]
+ */
 
 static void dump_matrix(char *fic,int all,int strict,int magma)
 {
@@ -185,7 +198,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 
 	fprintf(stderr,"proposed format printing");
 
-	size_t n_imp;
+	//size_t n_imp;
 	SAFE_READ_V(m,  uint32_t,fh);
 	SAFE_READ_V(n,  uint32_t,fh);
 	SAFE_READ_V(mod,uint32_t,fh);
@@ -206,18 +219,14 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 		uint32_t i;
 
 		// start_zo
-		// @warning start is not a start but the number of elt in the row (this is smaller that a pointer)
-		SAFE_READ_P(start_zo, m, uint32_t, fh);
-
-		uint32_t big_row = 0 ;
-		for (i = 0 ; i < m ; ++i)
-			big_row = max(big_row,start_zo[i]);
+		SAFE_READ_P(start_zo, m+1, uint32_t, fh);
 
 		// map_pol_zo correspondance
 		SAFE_READ_P(map_pol_zo,m,uint32_t,fh);
 
 		// if compressed, we need to know the size of colid_zo
 		SAFE_READ_V(colid_zo_size,uint32_t,fh);
+
 		// colid_zo
 		SAFE_READ_P(colid_zo,colid_zo_size,uint32_t,fh);
 
@@ -251,26 +260,26 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 		for(i=0;i<m;i++)
 		{
 			uint32_t v ;
-			uint32_t col = 0 ;
-			uint32_t j = 0 ; // C99 inside for :-(
-			for (  ; j < start_zo [i] ; ++j ) {
-				uint32_t first = colid_zo[col++] ; 
-				uint32_t repet = colid_zo[col++];
+			// uint32_t col = 0 ;
+			uint32_t j = start_zo[i] ; // C99 inside for :-(
+			for (  ; j < start_zo [i+1] ; ) {
+				uint32_t first = colid_zo[j++] ;
+				uint32_t repet = ((first & NEGMASK)==NEGMASK) || (repet = colid_zo[j++]);
+				first ^= NEGMASK ;
 				// repet col after first
 				uint32_t k = 0 ; // C99 inside for :-(
 				for ( ; k < repet ; ++k) {
-					v = vals_pol[pos++];
+					v = vals_pol[first++];
 
 					/* fprintf(stderr,"<%u>",szi); */
 					if (magma)
-						printf("A[%u,%u]:=%u;\n",i+1,first+k+1,v);
+						printf("A[%u,%u]:=%u;\n",i+1,first,v);
 					else
-						printf("%u %u %d\n",i+1,first+k+1,v);
+						printf("%u %u %d\n",i+1,first,v);
 
 				}
-				// assert something
+				// assert something sur first
 			}
-			assert(col == 2*start_zo[i]); // ou pas loin
 			// assert(pos == ?);
 			pos+= map_pol_zo[i] ; // poly associated to i */
 		}
