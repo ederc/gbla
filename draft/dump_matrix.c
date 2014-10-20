@@ -256,20 +256,19 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 			else
 				printf("%u\n%u\n",m,n);
 
-		uint32_t pos = 0 ;
-		for(i=0;i<m;i++)
-		{
+		for(i=0;i<m;i++) {
+			uint32_t * vals_pol_begin = vals_pol[start_pol[map_pol_zo[i]]];
 			uint32_t v ;
 			// uint32_t col = 0 ;
 			uint32_t j = start_zo[i] ; // C99 inside for :-(
 			for (  ; j < start_zo [i+1] ; ) {
 				uint32_t first = colid_zo[j++] ;
-				uint32_t repet = ((first & NEGMASK)==NEGMASK) || (repet = colid_zo[j++]);
+				uint32_t repet = ((first & NEGMASK)==NEGMASK)?1:(colid_zo[j++]);
 				first ^= NEGMASK ;
 				// repet col after first
 				uint32_t k = 0 ; // C99 inside for :-(
 				for ( ; k < repet ; ++k) {
-					v = vals_pol[first++];
+					v = vals_pol_begin[first++];
 
 					/* fprintf(stderr,"<%u>",szi); */
 					if (magma)
@@ -279,9 +278,8 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 
 				}
 				// assert something sur first
+				vals_pol_begin += repet ;
 			}
-			// assert(pos == ?);
-			pos+= map_pol_zo[i] ; // poly associated to i */
 		}
 		fprintf(stderr,"\n");
 	}
