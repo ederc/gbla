@@ -237,7 +237,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 		SAFE_READ_P(start_pol,m,uint32_t,fh);
 
 		// vals_pol
-		SAFE_READ_P(vals_pol,nnz_pol,uint32_t,fh);
+		SAFE_READ_P(vals_pol,nnz_pol,int32_t,fh);
 
 
 		if (magma)
@@ -257,7 +257,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 				printf("%u\n%u\n",m,n);
 
 		for(i=0;i<m;i++) {
-			uint32_t * vals_pol_begin = vals_pol[start_pol[map_pol_zo[i]]];
+			int32_t * vals_pol_begin = vals_pol[start_pol[map_pol_zo[i]]];
 			uint32_t v ;
 			// uint32_t col = 0 ;
 			uint32_t j = start_zo[i] ; // C99 inside for :-(
@@ -268,13 +268,13 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 				// repet col after first
 				uint32_t k = 0 ; // C99 inside for :-(
 				for ( ; k < repet ; ++k) {
-					v = vals_pol_begin[first++];
+					v = vals_pol_begin[k];
 
 					/* fprintf(stderr,"<%u>",szi); */
 					if (magma)
-						printf("A[%u,%u]:=%u;\n",i+1,first,v);
+						printf("A[%u,%u]:=%u;\n",i+1,first+k+1,v);
 					else
-						printf("%u %u %d\n",i+1,first,v);
+						printf("%u %u %d\n",i+1,first+k+1,v);
 
 				}
 				// assert something sur first
