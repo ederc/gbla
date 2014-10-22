@@ -35,7 +35,6 @@
 	SAFE_READ_p(val,size,elt,file)
 
 
-
 int prepare_split(uint32_t * buffer
 		, uint32_t buffer_rows
 		, uint32_t * pivots
@@ -229,7 +228,7 @@ int read_file(GBMatrix * A_init, GBMatrix * B_init
 	return 0 ;
 }
 
-void permute_columns(
+void get_permute_columns(
 		GBMatrix_t * A
 		// , GBMatrix_t * C
 		, uint32_t *  perm
@@ -257,6 +256,45 @@ void permute_columns(
 }
 
 
+void do_permute_columns_up(
+		GBMatrix_t * A,
+		GBMatrix_t * B
+		, uint32_t * perm
+	)
+{
+	uint32_t * start_col_A ;
+	uint32_t ** start_col_B ;
+	uint32_t k = A->rowdim();
+	uint32_t i = 0 ;
+	for (uint32_t blk = 0 ; blk < A->blocks() ; ++blk) {
+		// get columns in old a and pointers to insert the new ones
+		// compute start
+		B->new_block();
+		SAFE_CALLOC(B->start_zo,A->col()+1,uint64_t);
+		for (i = 0 ; i < A->col() ; ++i) {
+			A->start_zo[A->colid_zo[i]]+=1;
+		}
+
+		if (perm[i] == i) {
+			// add this column to new B
+		}
+		else {
+			// put the column from new A in new B
+			// put the column from old A to new A
+		}
+		// shrink old A if k % ROW_NB
+	}
+
+}
+
+void do_permute_columns_lo(
+		GBMatrix_t * C,
+		GBMatrix_t * D
+		, uint32_t * perm
+	)
+{
+}
+
 
 int split_columns(
 		GBMatrix_t * A
@@ -269,7 +307,7 @@ int split_columns(
 	SAFE_MALLOC(perm,A->row,uint32_t);
 	for (uint32_t i = 0 ; i < A->row ; ++i)
 		perm[i] = i ;
-	permute_columns(A,perm);
+	get_permute_columns(A,perm);
 	// get col size of C
 	uint32_t kC =0;
 	for (uint32_t i = 0 ; i < A->row ; ++i) {
@@ -278,6 +316,8 @@ int split_columns(
 		}
 	}
 	// copy last columns of A,C to B,D in proper format
+	do_permute_columns_up(A,C,perm);
+	do_permute_columns_lo(B,D,perm);
 }
 
 #endif // __GB_io_H
