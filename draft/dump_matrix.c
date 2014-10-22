@@ -213,18 +213,19 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 
 
 /* matrix file is :
- * (everything in uint32_t unless specified
+ * (everything in uint32_t unless specified)
  * bitseq :
  * * bit 0   | 0 iff unsigned
  * * bit 1,2 | 0 : 8 bit ; 1 : 16 bit ; 2 : 32bit ; 3 : 64 bit (this is 8*2^k)
- * m n mod nnz (u64)
+ * m n mod nnz (u64) everything is 0 based.
  * start_zo (u64) of size m+1 s.t. start_zo[i] points at the beginning of row[i] and start_zo[m] = nnz
  * map_pol_zo of size m that tells what polynomial is used in row i
  * colid_zo_size (u64) size of compressed colid_zo
  * colid_zo first one of each sequence followed by repetition, of size colid_sz
  * size_pol  : number of polynomials
- * start_pol (u64) of size size_pol
+ * start_pol : of size size_pol+1
  * vals_pol (s32) of size start_pol[size_pol]
+ * idx_pol : indexation for polyomials (size size_pol) ie. unique id for each pol.
  */
 
 static void dump_matrix(char *fic,int all,int strict,int magma)
