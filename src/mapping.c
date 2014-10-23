@@ -85,7 +85,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       for (k=0; k<(A->bheight / __GB_NROWS_MULTILINE); ++k) {
         A->blocks[i][j][k].val  = NULL;
         A->blocks[i][j][k].idx  = NULL;
-        A->blocks[i][j][k].sz   = 0;
+        A->blocks[i][j][k].sz   = A->blocks[i][j][k].dense  = 0;
       }
     }
   }
@@ -114,7 +114,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       for (k=0; k<(B->bheight / __GB_NROWS_MULTILINE); ++k) {
         B->blocks[i][j][k].val  = NULL;
         B->blocks[i][j][k].idx  = NULL;
-        B->blocks[i][j][k].sz   = 0;
+        B->blocks[i][j][k].sz   = B->blocks[i][j][k].dense  = 0;
       }
     }
   }
@@ -143,7 +143,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       for (k=0; k<(C->bheight / __GB_NROWS_MULTILINE); ++k) {
         C->blocks[i][j][k].val  = NULL;
         C->blocks[i][j][k].idx  = NULL;
-        C->blocks[i][j][k].sz   = 0;
+        C->blocks[i][j][k].sz   = C->blocks[i][j][k].dense  = 0;
       }
     }
   }
@@ -172,7 +172,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       for (k=0; k<(D->bheight / __GB_NROWS_MULTILINE); ++k) {
         D->blocks[i][j][k].val  = NULL;
         D->blocks[i][j][k].idx  = NULL;
-        D->blocks[i][j][k].sz   = 0;
+        D->blocks[i][j][k].sz   = D->blocks[i][j][k].dense  = 0;
       }
     }
   }
@@ -213,7 +213,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // loop might overwrite piv_start_idx[0] with a wrong index;
   // instead of checking "npiv > 0" in each if clause we just reset
   // piv_start_idx[0] after the for loop
-  piv_start_idx[0]  = M->nrows;
+  piv_start_idx[0]  = M->ncols;
 
 #if __GB_NEW_SPLICER
   /*
@@ -479,7 +479,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // loop might overwrite piv_start_idx[0] with a wrong index;
   // instead of checking "npiv > 0" in each if clause we just reset
   // piv_start_idx[0] after the for loop
-  piv_start_idx[0]  = M->nrows;
+  piv_start_idx[0]  = M->ncols;
 
   // set leftout entries to zero
   for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
@@ -662,7 +662,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
   uint32_t block_idx;
 
   // find blocks for construction of A & B
-  for (i = (int)M->ncols-1; i > -1; --i) {
+  for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->pri[i] != __GB_MINUS_ONE_32) {
       npiv++;
     }
@@ -727,7 +727,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
 
   // find blocks for construction of C & D
   npiv  = 0;
-  for (i = (int)M->ncols-1; i > -1; --i) {
+  for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
       npiv++;
 
@@ -852,7 +852,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       for (k=0; k<(B->bheight / __GB_NROWS_MULTILINE); ++k) {
         B->blocks[i][j][k].val  = NULL;
         B->blocks[i][j][k].idx  = NULL;
-        B->blocks[i][j][k].sz   = 0;
+        B->blocks[i][j][k].sz   = B->blocks[i][j][k].dense  = 0;
       }
     }
   }
@@ -881,7 +881,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       for (k=0; k<(D->bheight / __GB_NROWS_MULTILINE); ++k) {
         D->blocks[i][j][k].val  = NULL;
         D->blocks[i][j][k].idx  = NULL;
-        D->blocks[i][j][k].sz   = 0;
+        D->blocks[i][j][k].sz   = D->blocks[i][j][k].dense  = 0;
       }
     }
   }
@@ -910,7 +910,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   uint32_t block_idx, block_idx_2;
 
   // find blocks for construction of A & B
-  for (i = (int)M->ncols-1; i > -1; --i) {
+  for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->pri[i] != __GB_MINUS_ONE_32) {
       npiv++;
     }
@@ -1031,7 +1031,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 
   // find blocks for construction of C & D
   npiv  = 0;
-  for (i = (int)M->ncols-1; i > -1; --i) {
+  for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
       npiv++;
 
@@ -1159,7 +1159,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         if (cvb == B->bheight || i == 0) {
           // multiline version for A
           write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx, 0);
-
           // TODO: Destruct input matrix on the go
           if (destruct_input_matrix) {
             for (j=0; j<cvb; ++j) {
@@ -1214,6 +1213,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         if (cvb == D->bheight || i == 0) {
           // multiline version for C
           write_lr_matrix_ml(M, C, D, map, rihb, cvb, block_idx, 1);
+        
 
           if (destruct_input_matrix) {
             for (j=0; j<cvb; ++j) {
@@ -1541,10 +1541,14 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
       for (j=0; j<rounded_cvb/2; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
             < __GB_HYBRID_THRESHOLD) {
-          B->blocks[rbi][i][j].dense  = 0;
+          B->blocks[rbi][i][j].idx =  realloc(
+              B->blocks[rbi][i][j].idx,
+              B->blocks[rbi][i][j].sz * sizeof(bi_t));
+          B->blocks[rbi][i][j].val =  realloc(
+              B->blocks[rbi][i][j].val,
+              2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
           continue;
         }
-        B->blocks[rbi][i][j].dense  = 1;
         re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
         idx  = 0;
         for (k=0; k<B->bwidth; ++k) {
@@ -1558,9 +1562,11 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           }
         }
         free(B->blocks[rbi][i][j].idx);
+        B->blocks[rbi][i][j].idx    = NULL;
         free(B->blocks[rbi][i][j].val);
-        B->blocks[rbi][i][j].val  = tmp_val_ptr;
-        B->blocks[rbi][i][j].sz   = B->bwidth;
+        B->blocks[rbi][i][j].val    = tmp_val_ptr;
+        B->blocks[rbi][i][j].sz     = B->bwidth;
+        B->blocks[rbi][i][j].dense  = 1;
       }
     }
   } else { // cut down memory usage
@@ -1940,10 +1946,14 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       for (j=0; j<B->bheight/__GB_NROWS_MULTILINE; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
             < __GB_HYBRID_THRESHOLD) {
-          B->blocks[rbi][i][j].dense  = 0;
+          B->blocks[rbi][i][j].idx =  realloc(
+              B->blocks[rbi][i][j].idx,
+              B->blocks[rbi][i][j].sz * sizeof(bi_t));
+          B->blocks[rbi][i][j].val =  realloc(
+              B->blocks[rbi][i][j].val,
+              2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
           continue;
         }
-        B->blocks[rbi][i][j].dense  = 1;
         re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
         idx  = 0;
         for (k=0; k<B->bwidth; ++k) {
@@ -1957,9 +1967,11 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
           }
         }
         free(B->blocks[rbi][i][j].idx);
+        B->blocks[rbi][i][j].idx    = NULL;
         free(B->blocks[rbi][i][j].val);
-        B->blocks[rbi][i][j].val  = tmp_val_ptr;
-        B->blocks[rbi][i][j].sz   = B->bwidth;
+        B->blocks[rbi][i][j].val    = tmp_val_ptr;
+        B->blocks[rbi][i][j].sz     = B->bwidth;
+        B->blocks[rbi][i][j].dense  = 1;
       }
     }
   }

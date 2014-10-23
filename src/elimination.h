@@ -24,6 +24,7 @@
  */
 static inline void copy_sparse_to_dense_block(
     mbl_t *sparse_block, re_l_t **dense_block, int bheight, int bwidth) {
+
   bi_t i,j;
   for (i=0; i<bheight/2; ++i) {
     mli_t idx;
@@ -48,6 +49,24 @@ static inline void copy_sparse_to_dense_block(
 }
 
 /**
+ * \brief Copies entry from dense block to sparse rows
+ * for elimination purposes.
+ *
+ * \param dense block dense_block
+ *
+ * \param sparse block sparse_block
+ *
+ * \param block height bheight
+ *
+ * \param block width bwidth
+ *
+ * \param modulus resp. field characteristic modulus
+ */
+mbl_t *copy_dense_block_to_sparse(
+    re_l_t **dense_block, mbl_t *sparse_block, int bheight, int bwidth,
+    mod_t modulus);
+
+/**
  * \brief Computes a dense AXPY for one row
  *
  * \param value 1 from A Av1_col1
@@ -68,19 +87,20 @@ static inline void dense_scal_mul_sub_1_row_vect_array(
               const uint32_t Av1_col1,
               const uint32_t Av2_col1,
               const mbl_t multiline,
-              const uint32_t line_idx,
+              const bi_t line_idx,
               const bi_t  bwidth,
               re_l_t *dense_val1,
               re_l_t *dense_val2) {
-  const re_t *p_val = &(multiline.val[0]);
+
+  const re_t *p_val = multiline.val;
   p_val +=  line_idx;
   uint32_t i;
   bi_t j;
 
   register uint32_t v__;
-  register uint32_t idx;
 
   // both cannot be zero at the same time
+  //printf("mlsize %d\n",multiline.sz);
   if (Av1_col1 != 0 && Av2_col1 != 0) {
     for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
       for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
@@ -91,20 +111,22 @@ static inline void dense_scal_mul_sub_1_row_vect_array(
       }
     }
   } else { // one of them is zero
-    if (Av1_col1 != 0) {
+    if (Av1_col1 == 0) {
       for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
         for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
           v__ = p_val[2*(i+j)];
 
-          dense_val1[i+j] +=  v__ * Av1_col1;
+          dense_val2[i+j] +=  v__ * Av2_col1;
         }
       }
     } else {
-      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-        for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
-          v__ = p_val[2*(i+j)];
+      if (Av2_col1 == 0) {
+        for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
+          for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+            v__ = p_val[2*(i+j)];
 
-          dense_val1[i+j] +=  v__ * Av1_col1;
+            dense_val1[i+j] +=  v__ * Av1_col1;
+          }
         }
       }
     }
@@ -130,21 +152,24 @@ static inline void sparse_scal_mul_sub_1_row_vect_array(
               const uint32_t Av1_col1,
               const uint32_t Av2_col1,
               const mbl_t multiline,
-              const uint32_t line_idx,
+              const bi_t line_idx,
               re_l_t *dense_val1,
               re_l_t *dense_val2) {
+
   const uint32_t N  = multiline.sz;
-  const bi_t *p_idx = (N != 0) ? &(multiline.idx[0]) : NULL;
-  const re_t *p_val = (N != 0) ? &(multiline.val[0]) : NULL;
+  //printf("mlsz %d\n",multiline.sz);
+  const bi_t *p_idx = (N != 0) ? multiline.idx : NULL;
+  const re_t *p_val = (N != 0) ? multiline.val : NULL;
   p_val +=  line_idx;
-  uint32_t i;
+  uint32_t i  = 0;
 
   register uint32_t v__;
   register uint32_t idx;
 
+  //printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1);
   // both cannot be zero at the same time
   if (Av1_col1 != 0 && Av2_col1 != 0) {
-    for (i=0; i<N; ++i) {
+    for (; i<N; ++i) {
       idx = p_idx[i];
       v__ = p_val[2*i];
 
@@ -153,14 +178,15 @@ static inline void sparse_scal_mul_sub_1_row_vect_array(
     }
   } else { // one of them is zero
     if (Av1_col1 != 0) {
-      for (i=0; i<N; ++i) {
+      //printf("i %d -- N %d\n",i,N);
+      for (; i<N; ++i) {
         idx = p_idx[i];
         v__ = p_val[2*i];
 
         dense_val1[idx] +=  v__ * Av1_col1;
       }
     } else {
-      for (i=0; i<N; ++i) {
+      for (; i<N; ++i) {
         idx = p_idx[i];
         v__ = p_val[2*i];
 
@@ -198,6 +224,7 @@ static inline void dense_scal_mul_sub_2_rows_vect_array(
               const bi_t  bwidth,
               re_l_t *dense_val1,
               re_l_t *dense_val2) {
+
   // check cases where one pair of the elements is zero
   if (Av1_col1 == 0 && Av2_col1 == 0) {
     dense_scal_mul_sub_1_row_vect_array(
@@ -210,7 +237,7 @@ static inline void dense_scal_mul_sub_2_rows_vect_array(
     return;
   }
   
-  const re_t *p_val = &(multiline.val[0]);
+  const re_t *p_val = multiline.val;
   uint32_t i;
   bi_t j;
 
@@ -219,19 +246,23 @@ static inline void dense_scal_mul_sub_2_rows_vect_array(
 
   for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
     for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      //printf(";;%d..%d::",i,j);
       v1__ = p_val[2*(i+j)];
       v2__ = p_val[2*(i+j)+1];
+        //printf("v11 %d v21 %d !! ",v1__,v2__);
 
       dense_val1[i+j] +=  v1__ * Av1_col1;
       dense_val1[i+j] +=  v2__ * Av1_col2;
 
       v1__  *=  Av2_col1;
       v2__  *=  Av2_col2;
+        //printf("v12 %d v22 %d !! ",v1__,v2__);
 
       dense_val2[i+j] +=  v1__;
       dense_val2[i+j] +=  v2__;
     }
   }
+  //printf("\n");
 }
 
 /**
@@ -259,6 +290,7 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array(
               const mbl_t multiline,
               re_l_t *dense_val1,
               re_l_t *dense_val2) {
+ 
   // check cases where one pair of the elements is zero
   if (Av1_col1 == 0 && Av2_col1 == 0) {
     sparse_scal_mul_sub_1_row_vect_array(
@@ -272,8 +304,8 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array(
   }
 
   const uint32_t N    = multiline.sz;
-  const bi_t *p_idx   = (N != 0) ? &(multiline.idx[0]) : NULL;
-  const re_t *p_val   = (N != 0) ? &(multiline.val[0]) : NULL;
+  const bi_t *p_idx   = (N != 0) ? multiline.idx : NULL;
+  const re_t *p_val   = (N != 0) ? multiline.val : NULL;
   const re_t *p_val2  = p_val + 1;
   uint32_t i;
   bi_t j;
@@ -295,15 +327,149 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array(
     }
   }
   for ( ; i<N; ++i) {
-    idx   = p_idx[i+j];
-    v1__  = p_val[2*(i+j)];
-    v2__  = p_val2[2*(i+j)];
+    idx   = p_idx[i];
+    v1__  = p_val[2*i];
+    v2__  = p_val2[2*i];
 
     dense_val1[idx] +=  Av1_col1 * v1__;
     dense_val1[idx] +=  Av1_col2 * v2__;
 
     dense_val2[idx] +=  Av2_col1 * v1__;
     dense_val2[idx] +=  Av2_col2 * v2__;
+  }
+}
+
+/**
+ * \brief Computes a dense AXPY for one dense row (in triangular A^-1B situation)
+ *
+ * \param value 1 from A Av1_col1
+ *
+ * \param value 2 from A Av2_col1
+ *
+ * \param block width bwidth
+ *
+ * \param dense source array dense_array_source
+ *
+ * \param dense array 1 holder for delayed modulus dense_array1
+ *
+ * \param dense array 2 holder for delayed modulus dense_array2
+ */
+static inline void dense_scal_mul_sub_1_row_array_array(
+              const uint32_t Av1_col1,
+              const uint32_t Av2_col1,
+              const bi_t bwidth,
+              const re_l_t *dense_array_source,
+              re_l_t *dense_array1,
+              re_l_t *dense_array2) {
+ 
+  bi_t i, j;
+  register uint32_t v__;
+
+  if (Av1_col1 == 0) { // only one of them can be zero
+    for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
+      for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+        v__ = dense_array_source[i+j] & 0x000000000000ffff;
+        dense_array2[i+j] +=  v__ * Av2_col1;
+      }
+    }
+  } else {
+    if (Av2_col1 == 0) { // only second one is zero
+      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
+        for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+          v__ = dense_array_source[i+j] & 0x000000000000ffff;
+          dense_array1[i+j] +=  v__ * Av1_col1;
+        }
+      }
+    } else { // both are nonzero
+      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
+        for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+          v__ = dense_array_source[i+j] & 0x000000000000ffff;
+          dense_array1[i+j] +=  v__ * Av1_col1;
+          dense_array2[i+j] +=  v__ * Av2_col1;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * \brief Computes a dense AXPY for two dense rows (in triangular A^-1B situation)
+ *
+ * \param value 1,1 from A Av1_col1
+ *
+ * \param value 2,1 from A Av2_col1
+ *
+ * \param value 1,2 from A Av1_col2
+ *
+ * \param value 2,2 from A Av2_col2
+ *
+ * \param block width bwidth
+ *
+ * \param dense source array dense_array_source1
+ *
+ * \param dense source array dense_array_source2
+ *
+ * \param dense array 1 holder for delayed modulus dense_array1
+ *
+ * \param dense array 2 holder for delayed modulus dense_array2
+ */
+static inline void dense_scal_mul_sub_2_rows_array_array(
+              const uint32_t Av1_col1,
+              const uint32_t Av2_col1,
+              const uint32_t Av1_col2,
+              const uint32_t Av2_col2,
+              const bi_t bwidth,
+              const re_l_t *dense_array_source1,
+              const re_l_t *dense_array_source2,
+              re_l_t *dense_array1,
+              re_l_t *dense_array2) {
+
+  // check cases where one pair of the elements is zero
+  if (Av1_col1 == 0 && Av2_col1 == 0) {
+    dense_scal_mul_sub_1_row_array_array(
+        Av1_col2, Av2_col2, bwidth,
+        dense_array_source2,
+        dense_array1, dense_array2);
+    return;
+  }
+  if (Av1_col2 == 0 && Av2_col2 == 0) {
+    dense_scal_mul_sub_1_row_array_array(
+        Av1_col1, Av2_col1, bwidth,
+        dense_array_source1,
+        dense_array1, dense_array2);
+    return;
+  }
+
+  bi_t i, j;
+  register uint32_t v1__, v2__;
+
+  for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
+    for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+      v1__  = dense_array_source1[i+j] & 0x000000000000ffff;
+      v2__  = dense_array_source2[i+j] & 0x000000000000ffff;
+      
+      dense_array1[i+j] +=  v1__ * Av1_col1;
+      dense_array1[i+j] +=  v2__ * Av1_col2;
+      
+      dense_array2[i+j] +=  v1__ * Av2_col1;
+      dense_array2[i+j] +=  v2__ * Av2_col2;
+    }
+  }
+}
+
+/**
+ * \brief Modular reduction of dense row array
+ *
+ * \param dense row array to be reduced dense_array
+ *
+ * \param block width bwidth
+ *
+ * \param modulus resp. field characteristic modulus
+ */
+static inline void red_dense_array_modular(re_l_t *dense_array, bi_t bwidth, mod_t modulus) {
+  bi_t i;
+  for (i=0; i<bwidth; ++i) {
+    dense_array[i]  = (re_l_t)(dense_array[i] % modulus);
   }
 }
 
@@ -318,9 +484,9 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array(
  *
  * \param block height bheight
  *
- * \param invert scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
+ *
+ * \param invert scalars? inv_scalars
  */
 void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B, ri_t bheight, mod_t modulus, int inv_scalars);
 
@@ -329,15 +495,15 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B
  *
  * \param sparse block block_A
  *
- * \param sparse block block_B
- *
  * \param dense block dense_B
  *
  * \param block height bheight
  *
  * \param characteristic of underlying field modulus
+ *
+ * \param invert scalars? inv_scalars
  */
-void red_with_triangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B, ri_t bheight, mod_t modulus);
+void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B, ri_t bheight, mod_t modulus, int inv_scalars);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix A to the unit

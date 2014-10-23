@@ -17,6 +17,9 @@ void print_help() {
   printf("OPTIONS\n");
   printf("    -b          Dimensions of a block in submatrices.\n");
   printf("                Default: 256.\n");
+  printf("                NOTE: The block dimension must be a multiple of __GB_LOOP_UNROLL_BIG\n");
+  printf("                      which is by default 64. You can reset __GB_LOOP_UNROLL_BIG in \n");
+  printf("                      src/gb_config.h.in (you need to rebuild the library afterwards).\n");
   printf("    -c          Result checked resp. validated with structured Gaussian\n");
   printf("                Elimination. By default there is no validation.\n");
   printf("    -h          Print help.\n");
@@ -270,8 +273,45 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     }
     printf("---------------------------------------------------------------------\n");
   }
-
 #if __GB_CLI_DEBUG
+  // column loops 
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  // row loops 
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
+
+  int ii,jj,kk,ll;
+  for (ii=0; ii<rlA; ++ii) {
+    for (jj=0; jj<clA; ++jj) {
+      if (A->blocks[ii][jj] != NULL) {
+        for (kk=0; kk<block_dimension/2; ++kk) {
+          printf("%d .. %d .. %d\n",ii,jj,kk);
+          printf("%d | %d\n", A->blocks[ii][jj][kk].sz, A->blocks[ii][jj][kk].dense);
+        }
+      } else {
+        for (kk=0; kk<block_dimension/2; ++kk) {
+          printf("%d .. %d .. %d\n",ii,jj,kk);
+          printf("0 | 0\n");
+        }
+      }
+    }
+  }
+  printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (ii=0; ii<rlB; ++ii) {
+    for (jj=0; jj<clB; ++jj) {
+      if (B->blocks[ii][jj] != NULL) {
+        for (kk=0; kk<block_dimension/2; ++kk) {
+          printf("%d .. %d .. %d\n",ii,jj,kk);
+          printf("%d | %d\n", B->blocks[ii][jj][kk].sz, B->blocks[ii][jj][kk].dense);
+        }
+      }
+    }
+  }
   // column loops 
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);

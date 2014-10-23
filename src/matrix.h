@@ -39,10 +39,10 @@ typedef struct sm_t {
  * __GB_NROWS_MULTILINE elements, i.e. this many rows are taken care of at once.
  */
 typedef struct mbl_t {
-  bi_t dense; /*!< if 1 the multiline row is in dense representation */
   bi_t *idx;  /*!< column index in the multiline vector */
   re_t *val;  /*!< multiline row, must be __GB_NROWS_MULTILINE * length(idx) */
   bi_t sz;    /*!< current length of the block row */
+  bi_t dense; /*!< if 1 the multiline row is in dense representation */
 } mbl_t;
 
 /**
