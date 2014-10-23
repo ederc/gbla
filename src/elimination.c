@@ -5,8 +5,10 @@
 
 int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, mod_t modulus, int nthrds) {
   ci_t i, rc;
+  ri_t j, k;
   const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
-  const ri_t rlA  = (ci_t) ceil((float) A->nrows / A->bheight);
+  const ri_t rlA  = (ri_t) ceil((float) A->nrows / A->bheight);
+  const ci_t clA  = (ci_t) ceil((float) A->ncols / A->bwidth);
   #pragma omp parallel num_threads(nthrds)
   {
     #pragma omp for
@@ -19,11 +21,25 @@ int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, mod_t modulus, int nthrds) {
       }
     #pragma omp taskwait
   }
+  // free A
+  for (j=0; j<rlA; ++j) {
+    for (i=0; i<clA; ++i) {
+      if (A->blocks[j][i] != NULL) {
+        for (k=0; k<A->bheight/__GB_NROWS_MULTILINE; ++k) {
+          if (A->blocks[j][i][k].dense == 0)
+            free(A->blocks[j][i][k].idx);
+          free(A->blocks[j][i][k].val);
+        }
+        free(A->blocks[j][i]);
+      }
+    }
+  }
   return 0;
 }
 
 int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, mod_t modulus, int nthrds) {
   ci_t i, rc;
+  ri_t j, k;
   const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
   const ri_t rlC  = (ri_t) ceil((float) C->nrows / C->bheight);
   const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
@@ -38,6 +54,19 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, mod_t modulus, int nt
         }
       }
     #pragma omp taskwait
+  }
+  // free C
+  for (j=0; j<rlC; ++j) {
+    for (i=0; i<clC; ++i) {
+      if (C->blocks[j][i] != NULL) {
+        for (k=0; k<C->bheight/__GB_NROWS_MULTILINE; ++k) {
+          if (C->blocks[j][i][k].dense == 0)
+            free(C->blocks[j][i][k].idx);
+          free(C->blocks[j][i][k].val);
+        }
+        free(C->blocks[j][i]);
+      }
+    }
   }
   return 0;
 }
