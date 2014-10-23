@@ -250,10 +250,6 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_b
                 block_B[Ap1 / __GB_NROWS_MULTILINE],
                 dense_block[2*i], dense_block[2*i+1]);
             //printf("1 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]);
-#if DDEBUG
-          if (i == 43) 
-            printf("1S(%d,%d,%d) %ld|  ",Ap1,Ap1/__GB_NROWS_MULTILINE,block_B[Ap1/__GB_NROWS_MULTILINE].sz,dense_block[86][203]);
-#endif
           } else {
             //printf("1D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE);
             dense_scal_mul_sub_2_rows_vect_array(
@@ -261,10 +257,6 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_b
                 block_B[Ap1 / __GB_NROWS_MULTILINE], bheight,
                 dense_block[2*i], dense_block[2*i+1]);
             //printf("2 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]);
-#if DDEBUG
-          if (i == 43) 
-            printf("||%d|%d|%d|%d|1D(%d,%d,%d) %ld|  ",Av1_col1,Av2_col1,Av1_col2,Av2_col2,Ap1,Ap1/__GB_NROWS_MULTILINE,block_B[Ap1/__GB_NROWS_MULTILINE].sz,dense_block[86][203]);
-#endif
           }
         } else { // AXPY one row
           if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
@@ -275,10 +267,6 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_b
                 Ap1 % __GB_NROWS_MULTILINE,
                 dense_block[2*i], dense_block[2*i+1]);
             //printf("3 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]);
-#if DDEBUG
-          if (i == 43) 
-            printf("2S(%d,%d,%d) %ld|  ",Ap1,Ap1/__GB_NROWS_MULTILINE,block_B[Ap1/__GB_NROWS_MULTILINE].sz,dense_block[86][203]);
-#endif
           } else {
             //printf("2D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE);
             dense_scal_mul_sub_1_row_vect_array(
@@ -287,10 +275,6 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_b
                 Ap1 % __GB_NROWS_MULTILINE, bheight,
                 dense_block[2*i], dense_block[2*i+1]);
             //printf("4 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]);
-#if DDEBUG
-          if (i == 43) 
-            printf("||%d|%d|2D(%d,%d,%d) %ld|  ",Av1_col1,Av2_col1,Ap1,Ap1/__GB_NROWS_MULTILINE,block_B[Ap1/__GB_NROWS_MULTILINE].sz,dense_block[86][203]);
-#endif
           }
         }
       } else { // AXPY one row
@@ -302,10 +286,6 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_b
               Ap1 % __GB_NROWS_MULTILINE,
               dense_block[2*i], dense_block[2*i+1]);
             //printf("5 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]);
-#if DDEBUG
-          if (i == 43) 
-            printf("3S(%d,%d,%d) %ld|  ",Ap1,Ap1/__GB_NROWS_MULTILINE,block_B[Ap1/__GB_NROWS_MULTILINE].sz,dense_block[86][203]);
-#endif
         } else {
         //printf("3D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE);
           dense_scal_mul_sub_1_row_vect_array(
@@ -313,10 +293,6 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_b
               block_B[Ap1 / __GB_NROWS_MULTILINE],
               Ap1 % __GB_NROWS_MULTILINE, bheight,
               dense_block[2*i], dense_block[2*i+1]);
-#if DDEBUG
-          if (i == 43) 
-            printf("3D(%d,%d,%d) %ld|  ",Ap1,Ap1/__GB_NROWS_MULTILINE,block_B[Ap1/__GB_NROWS_MULTILINE].sz,dense_block[86][203]);
-#endif
         }
       }
     }
@@ -347,26 +323,12 @@ mbl_t *copy_dense_block_to_sparse(
       sparse_block[i].sz  = 0;
       sparse_block[i].dense = 0;
       for (j=0; j<bwidth; ++j) {
-#if DDDEBUG
-        if (i==97)
-          printf("!%ld",dense_block[2*i][j]);
-#endif
         if (dense_block[2*i][j] != 0) {
           dense_block[2*i][j] = (re_l_t)(dense_block[2*i][j] % modulus);
         }
-#if DDDEBUG
-        if (i==97)
-          printf("!%ld",dense_block[2*i][j]);
-        if (i==97)
-          printf("!%ld",dense_block[2*i+1][j]);
-#endif
         if (dense_block[2*i+1][j] != 0) {
           dense_block[2*i+1][j] = (re_l_t)(dense_block[2*i+1][j] % modulus);
         }
-#if DDDEBUG
-        if (i==97)
-          printf("!%ld",dense_block[2*i+1][j]);
-#endif
         if (dense_block[2*i][j] != 0 || dense_block[2*i+1][j] != 0) {
           if (ctr >= buffer) {
             // if this happens just allocate memory for full block multiline row
