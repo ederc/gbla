@@ -401,6 +401,25 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
+
+  // reducing submatrix C to zero using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reducing C to zero ...\n");
+  }
+  if (elim_fl_C_block(B, C, D, M->mod, nthreads)) {
+    printf("Error while reducing C.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reducing C to zero.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
   return 0;
 }
 

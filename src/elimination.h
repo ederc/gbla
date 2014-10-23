@@ -539,6 +539,44 @@ int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, mod_t modulus, int nthrds);
 int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus);
 
 /**
+ * \brief Elimination procedure which reduces the block submatrix C to zero.
+ * Corresponding changes in block submatrix D are carried out using B, too.
+ *
+ * \param block submatrix B (right upper side)
+ *
+ * \param block submatrix C (left lower side)
+ *
+ * \param block submatrix D (right lower side)
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, mod_t modulus, int nthrds);
+
+/**
+ * \brief Different block tasks when reducing block submatrix C.
+ *
+ * \param block submatrix B (right upper side)
+ *
+ * \param block submatrix C (left lower side)
+ *
+ * \param block submatrix D (right lower side)
+ *
+ * \param column index of blocks in D block_col_idx_D
+ *
+ * \param number of block rows in C nblock_rows_C
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
+    ci_t block_col_idx_D, ri_t nbrows_C, ci_t nbcols_C, mod_t modulus);
+
+/**
  * \brief Elimination procedure which reduces the multiline submatrix A
  * and the block submatrices B, C and D.
  *

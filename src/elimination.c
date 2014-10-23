@@ -1,6 +1,7 @@
 #include "elimination.h"
 
 #define DDEBUG 0
+#define DDEBUG_C 0
 
 int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, mod_t modulus, int nthrds) {
   ci_t i, rc;
@@ -14,6 +15,26 @@ int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, mod_t modulus, int nthrds) {
         #pragma omp task
         {
           rc  = elim_fl_A_blocks_task(A, B, i, rlA, modulus);
+        }
+      }
+    #pragma omp taskwait
+  }
+  return 0;
+}
+
+int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, mod_t modulus, int nthrds) {
+  ci_t i, rc;
+  const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
+  const ri_t rlC  = (ri_t) ceil((float) C->nrows / C->bheight);
+  const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
+  #pragma omp parallel num_threads(nthrds)
+  {
+    #pragma omp for
+      // each task takes one block column of B
+      for (i=0; i<clD; ++i) {
+        #pragma omp task
+        {
+          rc  = elim_fl_C_blocks_task(B, C, D, i, rlC, clC, modulus);
         }
       }
     #pragma omp taskwait
@@ -55,6 +76,91 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
 #endif
       red_with_rectangular_block(A->blocks[j][k], B->blocks[k][block_col_idx_B],
           dense_block, B->bheight, modulus, 1);
+      /*
+         printf("RECTANGULAR DONE\n");
+         for (int kk=0; kk<B->bheight; ++kk) {
+         for (int ll=0; ll<B->bheight; ++ll) {
+         printf("(%d,%d) %ld ",kk,ll,dense_block[kk][ll]);
+         }
+         printf("\n");
+         }
+         */
+    }
+
+
+#if DDDEBUG
+    printf("j %d -- lbi %d\n", j, last_block_idx);
+#endif
+    red_with_triangular_block(A->blocks[j][last_block_idx], dense_block,
+        B->bheight, modulus, 1);
+    /*printf("TRIANGULAR DONE\n");
+      for (int kk=0; kk<B->bheight; ++kk) {
+      for (int ll=0; ll<B->bheight; ++ll) {
+      printf("%ld ",dense_block[kk][ll]);
+      }
+      printf("\n");
+      }
+      */
+
+
+    //printf("OUT BEFORE %p\n",B->blocks[j][block_col_idx_B]);
+    B->blocks[j][block_col_idx_B] = copy_dense_block_to_sparse(
+        dense_block, B->blocks[j][block_col_idx_B],
+        B->bheight, B->bwidth, modulus);
+    //printf("OUT AFTERWARDS %p\n",B->blocks[j][block_col_idx_B]);
+#if DDDEBUG
+    printf("after copying\n");
+    if (B->blocks[j][block_col_idx_B] != NULL) {
+      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+        if (B->blocks[j][block_col_idx_B][kk].sz>0) {
+          printf("%d\n",kk);
+          for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
+            printf("%d %d ",B->blocks[j][block_col_idx_B][kk].val[2*ll], B->blocks[j][block_col_idx_B][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+#endif
+  }
+
+  return 0;
+}
+
+int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
+    ci_t block_col_idx_D, ri_t nbrows_C, ci_t nbcols_C, mod_t modulus) {
+  bi_t i;
+  ri_t j, k;
+  re_l_t *dense_block[D->bheight] __attribute__((aligned(0x1000)));
+  //re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
+  uint64_t size = D->bwidth * sizeof(re_l_t);
+  for (i=0; i<D->bheight; ++i) {
+    posix_memalign((void **)&dense_block[i], 16, size);
+  }
+
+  // take maximum number and check if blocks are NULL in loop
+  const ri_t last_block_idx = nbcols_C;
+
+  for (j=0; j<nbrows_C; ++j) {
+    const ri_t first_block_idx  = 0;
+
+    // set dense block entries to zero
+    for (k=0; k<D->bheight; ++k)
+      memset(dense_block[k], 0, size);
+
+    // copy sparse block data to dense representation
+    if (D->blocks[j][block_col_idx_D] != NULL)
+      copy_sparse_to_dense_block(D->blocks[j][block_col_idx_D], dense_block,
+          D->bheight, D->bwidth);
+
+    for (k=0; k<last_block_idx; ++k) {
+#if DDEBUG_C
+      printf("j %d -- k %d -- lci %d\n", j, k, block_col_idx_D);
+#endif
+      if (C->blocks[j][k] != NULL) {
+        red_with_rectangular_block(C->blocks[j][k], B->blocks[k][block_col_idx_D],
+            dense_block, B->bheight, modulus, 1);
+      }
      /*
       printf("RECTANGULAR DONE\n");
       for (int kk=0; kk<B->bheight; ++kk) {
@@ -65,36 +171,19 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
       }
       */
     }
-  
-
-#if DDDEBUG
-    printf("j %d -- lbi %d\n", j, last_block_idx);
-#endif
-    red_with_triangular_block(A->blocks[j][last_block_idx], dense_block,
-        B->bheight, modulus, 1);
-    /*printf("TRIANGULAR DONE\n");
-    for (int kk=0; kk<B->bheight; ++kk) {
-      for (int ll=0; ll<B->bheight; ++ll) {
-        printf("%ld ",dense_block[kk][ll]);
-      }
-      printf("\n");
-    }
-    */
-
-
     //printf("OUT BEFORE %p\n",B->blocks[j][block_col_idx_B]);
-    B->blocks[j][block_col_idx_B] = copy_dense_block_to_sparse(
-        dense_block, B->blocks[j][block_col_idx_B],
-        B->bheight, B->bwidth, modulus);
+    D->blocks[j][block_col_idx_D] = copy_dense_block_to_sparse(
+        dense_block, D->blocks[j][block_col_idx_D],
+        D->bheight, D->bwidth, modulus);
     //printf("OUT AFTERWARDS %p\n",B->blocks[j][block_col_idx_B]);
-#if DDDEBUG
+#if DDEBUG_C
       printf("after copying\n");
-      if (B->blocks[j][block_col_idx_B] != NULL) {
-      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
-        if (B->blocks[j][block_col_idx_B][kk].sz>0) {
+      if (D->blocks[j][block_col_idx_D] != NULL) {
+      for (int kk=0; kk<D->bheight/__GB_NROWS_MULTILINE; ++kk) {
+        if (D->blocks[j][block_col_idx_D][kk].sz>0) {
         printf("%d\n",kk);
-        for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
-          printf("%d %d ",B->blocks[j][block_col_idx_B][kk].val[2*ll], B->blocks[j][block_col_idx_B][kk].val[2*ll+1]);
+        for (int ll=0; ll<D->blocks[j][block_col_idx_D][kk].sz; ++ll) {
+          printf("%d %d ",D->blocks[j][block_col_idx_D][kk].val[2*ll], D->blocks[j][block_col_idx_D][kk].val[2*ll+1]);
         }
         printf("\n");
       }
