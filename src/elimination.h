@@ -9,6 +9,7 @@
 #define GB_ELIMINATION_H
 
 #include <mapping.h>
+#include <matrix.h>
 
 /**
  * \brief Copies entry from sparse block sparse_block to dense block dense_block

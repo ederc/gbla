@@ -40,6 +40,7 @@ int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, mod_t modulus, int nthrds) {
     }
   }
   free(A);
+  A = NULL;
   return 0;
 }
 
@@ -80,6 +81,7 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, mod_t modulus, int nt
     }
   }
   free(C);
+  C = NULL;
   return 0;
 }
 
@@ -538,5 +540,6 @@ mbl_t *copy_dense_block_to_sparse(
 }
 
 int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
-
+  // copy D to D_red and delete D
+  copyBlockMatrixToMultilineMatrix(D, D_red, 1, nthrds);
 }
