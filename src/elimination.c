@@ -536,3 +536,7 @@ mbl_t *copy_dense_block_to_sparse(
   }
   return sparse_block;
 }
+
+int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
+
+}

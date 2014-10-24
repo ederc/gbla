@@ -577,6 +577,24 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
     ci_t block_col_idx_D, ri_t nbrows_C, ci_t nbcols_C, mod_t modulus);
 
 /**
+ * \brief Elimination procedure which reduces the block submatrix D to an
+ * upper triangular matrix. Note that the input matrix D will be removed
+ * later on and the output matrix D_red is in multiline format for further
+ * reduction steps.
+ *
+ * \param block submatrix D (right lower side), input matrix
+ *
+ * \param multiline submatrix D_red, output matrix
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds);
+
+/**
  * \brief Elimination procedure which reduces the multiline submatrix A
  * and the block submatrices B, C and D.
  *
