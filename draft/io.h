@@ -1,6 +1,18 @@
 #ifndef __GB_io_H
 #define __GB_io_H
 
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <assert.h>
+
+#include "matrix.h"
+
+#define max(a,b) \
+	({ __typeof__ (a) _a = (a); \
+	 __typeof__ (b) _b = (b); \
+	 _a > _b ? _a : _b; })
+
 #define ERROR_READING \
 	if (verbose > 0) { \
 		printf("Error while reading file '%s'\n",fn); \
@@ -8,72 +20,75 @@
 		return -1 ; \
 	}
 
-#define SAFE_MALLOC(ptr,size,elt) \
-	elt * ptr = (elt *) malloc(size*sizeof(elt)); \
-	assert(ptr)
+#define SWAP(a,b)  \
+	t = a ; \
+        a = b ; \
+        b = t
 
-#define SAFE_CALLOC(ptr,size,elt) \
-	elt * ptr = (elt *) calloc(size*sizeof(elt)); \
-	assert(ptr)
-
-#define SAFE_REALLOC(ptr,size,elt) \
-	ptr = realloc(ptr,size*sizeof(elt)); \
-	assert(ptr)
-
-#define SAFE_READ_v(val,elt,file) \
-	assert(fread(&(val),sizeof(elt),1,file)==1)
-
-#define SAFE_READ_V(val,elt,file) \
-	elt val ; \
-	SAFE_READ_v(val,elt,file)
-
-#define SAFE_READ_p(val,size,elt,file) \
-	assert(fread(val,sizeof(elt),size,file)==size)
-
-#define SAFE_READ_P(val,size,elt,file) \
-	SAFE_MALLOC(val,size,elt); \
-	SAFE_READ_p(val,size,elt,file)
-
-
-int prepare_split(uint32_t * buffer
-		, uint32_t buffer_rows
-		, uint32_t * pivots
-		, uint32_t * sparse
-		, uint32_t * discard
-		, uint32_t * discarded
-		, uint32_t * start
-		, uint32_t i
-		)
+void insert_sort(uint32_t * liste, uint32_t  size)
 {
-	for (int j = 0 ; j < buffer_row_size ; ++j) {
-		pivots[j] = buffer[start[i+j]] ; // first column in each row
-		sparse[j] = start[i+j+1]-start[i]; // length of each row
-		repet[pivots[j]] += 1 ;
-	}
-	for (int k = 0 ; k < buffer_row_size ; ++k) { // check that we are increasing
-		if (pivots[k+1] < pivots[k]) exit(-2);
-	}
-	for (int k = 0 ; k < buffer_row_size ; ++k) {
-		if (repet[k] == 0) {
-			break;
+	uint32_t d , c = 1 , t ;
+	for ( ; c < size ; ++c) {
+		d = c;
+		while ( d > 0 && liste[d] < liste[d-1]) {
+			SWAP(liste[d],liste[d-1]);
+			d--;
 		}
-		if (repet[k] > 1) {
-			uint32_t idx = k; // find the sparsest
-			for (int l = 1 ; l < repet[k] ; ++l)
-				if (sparse[l] < sparse[idx]) {
-					idx = l ;
-				}
-			for (int l = 0 ; l < repet[k] ; ++l) {
-				if (l != idx) {
-					discard[discarded++] = l ;
-				}
-			}
-		}
-
-
 	}
 }
 
+
+void insert_sort(uint32_t * liste, uint32_t  size, uint32_t * copain)
+{
+	uint32_t d , c = 1 , t ;
+	for ( ; c < size ; ++c) {
+		d = c;
+		while ( d > 0 && liste[d] < liste[d-1]) {
+			SWAP(liste[d],liste[d-1]);
+			SWAP(copain[d],copain[d-1]);
+			d--;
+		}
+	}
+}
+#undef SWAP
+
+
+void copy( uint32_t * to , uint32_t * from, uint32_t size)
+{
+	uint32_t i = 0 ;
+	for ( ; i < size ; ++i) {
+		to[i] = from[i] ;
+	}
+}
+
+
+/* buffer:
+ */
+void getSparsestRows(uint32_t * colid
+		, uint64_t * start
+		, uint32_t row
+		, uint32_t * pivots /* pivots[j] is the sparsest row with j as pivot */
+		// , uint32_t * sparse
+		// , uint32_t * discard /* discard[k] = 1 iff this row is not sparsest */
+		// , uint32_t * discarded
+		// , uint32_t i
+		)
+{
+	SAFE_MALLOC_DECL(sparse,row,uint32_t);
+	uint32_t j = 0;
+	for ( ; j < row ; ++j) {
+		uint32_t pivot = colid[start[j]] ; /* first column in each row */
+		uint32_t creux = start[j+1]-start[j] ; /* length of the row */
+		if (sparse[j] > creux) { /* this row is sparsest */
+			sparse[j] = creux ;
+			pivots[j]  = pivot ;
+		}
+	}
+
+	return ;
+}
+
+#if 0
 void insert_row(CSR_zo * A, uint32_t * colid, uint32_t nnz, uint32_t pol)
 {
 	A->row += 1 ;
@@ -86,6 +101,7 @@ void insert_row(CSR_zo * A, uint32_t * colid, uint32_t nnz, uint32_t pol)
 	for (uint32_t i = 0 ; i < nnz ; ++i) {
 		A->colid_zo[last+i] = colid[i] ;
 	}
+	return ;
 }
 
 void fix_last_row(
@@ -107,139 +123,135 @@ void fix_last_row(
 	A_mat->row -= 1 ;
 }
 
-int append_rows_in_buffer(
+#endif
+
+void splitRowsUpBottom(
 		GBMatrix_t * A
 		, GBMatrix_t * C
-		, int32_t  * buffer
-		, int buffer_row_size
-		, uint32_t * start_zo
-		, uint32_t row0
-		, uint32_t * discard
-		, uint32_t * discarded
-		, uint32_t * map_zo_pol
+		, uint32_t  * colid
+		, uint64_t * start
+		// , uint64_t nnz
+		, uint32_t row
+		, uint32_t * pivots
+		, uint32_t * pols
 		)
 {
-	int i = 0 ;
-	for (i = 0 ; i < buffer_size ; ++i)  {
+	// checkFull(A_init)  ;
+	// checkFull(B_init);
+
+	uint32_t last_pivot=0;
+	uint32_t i = 0 ;
+	for ( ; i < row ; ++i)  {
+		if (i == pivots[last_pivot]) {
+			appendRow(A,colid+start[i],start[i+1]-start[i],pols[row]);
+			++last_pivot;
+		}
+		else {
+			appendRow(C,colid+start[i],start[i+1]-start[i],pols[row]);
+		}
 		// until next non discarded
-		populate C ;
+		// populate C ;
 		// is discarded
-		populate A
+		// populate A
 	}
+	return ;
 }
 
-// matrix reader and row splitter
-int read_file(GBMatrix * A_init, GBMatrix * B_init
-		, GBpolynomials * polys
+
+/* matrix reader and row splitter
+ * A_init [out] the top part with upper triangular left
+ * B_init [out] the bottom part
+ * polys [out] the polynomials used in the matrices (shared)
+ * fh [in] the file in appropriate format
+ */
+int read_file(struct GBMatrix_t * A_init, struct GBMatrix_t * B_init
+		, struct CSR_pol * polys
 		, FILE * fh
-		, int verbose = 0)
+		// , int verbose = 0
+		)
 {
 	uint32_t i = 0 ;
 
-	uint32_t m, n , mod;
-	int64_t nnz ;
-
-	// sanity
+	/* sanity */
 	assert(fh);
 
-	// READ in row col nnz mod
-	SAFE_READ_V(m,uint32_t,fh);
-	SAFE_READ_V(n,uint32_t,fh);
-	SAFE_READ_V(mod,uint32_t,fh);
+	/* format */
+	SAFE_READ_DECL_V(b,uint32_t,fh);
+	/* XXX set TYPE here and C++-ise*/
+
+	/* READ in row col nnz mod */
+	SAFE_READ_DECL_V(m,uint32_t,fh);
+	SAFE_READ_DECL_V(n,uint32_t,fh);
+	SAFE_READ_DECL_V(mod,uint32_t,fh);
 	assert(mod > 1);
-	SAFE_READ_V(nnz,uint32_t,fh);
+	SAFE_READ_DECL_V(nnz,uint32_t,fh);
 
 
-	SAFE_MALLOC(start_zo, m+1, uint32_t);
+	/* READ in ZO start */
+	SAFE_READ_DECL_P(start_zo,m+1,uint64_t,fh);
 
-
-	// READ in ZO start
-	SAFE_READ_V(start_zo,m,uint32_t,fh);
-
-	// largest row
+	/* largest row */
 	uint32_t big_row = 0 ;
 	for (i = 0 ; i < m ; ++i)
 		big_row = max(big_row,start_zo[i]);
 
-	// pol/zo correspondance
-	SAFE_READ_V(map_zo_pol,m,uint32_t,fh);
+	/* pol/zo correspondance */
+	SAFE_READ_DECL_P(map_zo_pol,m,uint32_t,fh);
 
-	SAFE_MALLOC(map_pol_zo_A,m,uint32_t);
+	SAFE_MALLOC_DECL(map_pol_zo_A,m,uint32_t);
 	uint32_t map_pol_zo_A_size = 0 ;
-	SAFE_MALLOC(map_pol_zo_B,m,uint32_t);
+
+	SAFE_MALLOC_DECL(map_pol_zo_B,m,uint32_t);
 	uint32_t map_pol_zo_B_size = 0 ;
 
 
-	// colid in ZO
-	SAFE_MALLOC(buffer,MAT_ROW_BLOCK*big_row,uint32_t);
-	SAFE_READ_V(colid_size,uint32_t,fh);
+	/* colid in ZO */
+	SAFE_READ_DECL_V(colid_size,uint64_t,fh);
+	SAFE_MALLOC_DECL(buffer,colid_size,uint32_t); /* buffer has the matrix */
+
 	uint32_t last_start = 0 ;
 	i = 0 ;
-	// FIXME
-	if (MAT_ROW_BLOCK <= m) {
-		uint32_t * pivots = (uint32_t) malloc(MAT_ROW_BLOCK*sizeof(uint32_t));
-		uint32_t * sparse = (uint32_t) malloc(MAT_ROW_BLOCK*sizeof(uint32_t));
-		uint32_t * repet  = (uint32_t) calloc(MAT_ROW_BLOCK*sizeof(uint32_t));
-		uint32_t * discard = (uint32_t *) malloc(MAT_ROW_BLOCK*sizeof(int32_t));
-		uint32_t discarded = 0 ;
-
-		// read in MAT_ROW_BLOCK rows
-		for (; i < m ; i += MAT_ROW_BLOCK ) {
-			uint32_t nnz_buffer = start[i+MAT_ROW_BLOCK+1]-start[i];
-			SAFE_READ_v(buffer,nnz_buffer,uint32_t,fh);
-			// split buffer
-			prepare_split(buffer,MAT_ROW_BLOCK,pivots,sparse,discard,&discarded,start_zo,i);
-
-
-			// for the first one, check that it is not in the previous batch
-			if (i > 0) {
-				if (A->last_pivot() == pivots[0]) {
-					if (A->sparsity(A->row) > sparse[pivots[0]]) {
-						fix_last_row(A,C);
-					}
-				}
-			}
-			// GROW A,C with seleted pivots
-			append_rows_in_buffer(A,C,buffer,READ_MAT_ROW_BLOCK,start_zo,i,discard,discarded,map_pol_zo);
-			// ADD POLYS
-
-		}
-	}
-
-
+	/* FIXME */
 	{
-		uint32_t nnz_buffer = start[i+MAT_ROW_BLOCK+1]-start[i];
-		// same
-		// split buffer
+		SAFE_MALLOC_DECL(pivots,m,uint32_t);
+
+		getSparsestRows(buffer,start_zo,m, pivots);
+		SAFE_MALLOC_DECL(A,1,GBMatrix_t);
+		SAFE_MALLOC_DECL(C,1,GBMatrix_t);
+		// GROW A,C with seleted pivots
+		splitRowsUpBottom(A,C,buffer,start_zo,m,pivots,map_zo_pol);
+		// ADD POLYS
 	}
+
 
 	free(buffer);
 
 	// size of nnz for pols:
-	SAFE_READ_P(size_pol,uint64_t,fh);
+	SAFE_READ_DECL_V(size_pol,uint64_t,fh);
 
 	// create GBpolynomials shared by A_init and B_init
-	SAFE_READ_V(start_pol,m,uint32_t,fh);
+	SAFE_READ_DECL_P(start_pol,m,uint32_t,fh);
 	// populate A and C
 
-	SAFE_READ_V(vals_pol,size_pol,uint32_t,fh);
+	SAFE_READ_DECL_P(vals_pol,size_pol,uint32_t,fh);
 	// populate A and C
 
 	return 0 ;
 }
 
-void get_permute_columns(
+uint32_t get_permute_columns(
 		GBMatrix_t * A
 		// , GBMatrix_t * C
 		, uint32_t *  perm
 		)
 {
-	SAFE_MALLOC(col_size,A->col,uint32_t);
-	SAFE_MALLOC(last_elt,A->row,uint32_t);
+	uint32_t trans = 0 ;
+	SAFE_MALLOC_DECL(col_size,A->col,uint32_t);
+	SAFE_MALLOC_DECL(last_elt,A->row,uint32_t);
 	// copy last columns of A,C to B,D
 
 	for (uint32_t k = 0 ; k < A->matrix_nb ; ++k ) {
-		CSR_zo * A_k = A->matrix_zo[k] ;
+		CSR_zo * A_k = &(A->matrix_zo[k]) ;
 
 		for (uint32_t i = 0 ; i < A_k->row ; ++i) {
 			for (uint32_t j = A_k->start_zo[i] ; j < A_k->start_zo[i+1] ; ++j) {
@@ -252,40 +264,86 @@ void get_permute_columns(
 		uint32_t k = last_elt[j] ;
 		if (perm[k] != 0 && (col_size[perm[k]] > col_size[j]));
 		perm[k] = j ;
+		++trans;
 	}
 }
 
 
 void do_permute_columns_up(
+		GBMatrix_t * A_init,
 		GBMatrix_t * A,
 		GBMatrix_t * B
-		, uint32_t * perm
+		, uint32_t * perm_i
+		, uint32_t * perm_j
 	)
 {
-	uint32_t * start_col_A ;
-	uint32_t ** start_col_B ;
-	uint32_t k = A->rowdim();
-	uint32_t i = 0 ;
-	for (uint32_t blk = 0 ; blk < A->blocks() ; ++blk) {
-		// get columns in old a and pointers to insert the new ones
-		// compute start
-		B->new_block();
-		SAFE_CALLOC(B->start_zo,A->col()+1,uint64_t);
-		for (i = 0 ; i < A->col() ; ++i) {
-			A->start_zo[A->colid_zo[i]]+=1;
+
+	for (uint32_t blk = 0 ; blk < A_init->matrix_nb ; ++blk) {
+		CSR_zo * A_k = &(A_init->matrix_zo[blk]);
+
+		CSR_zo * Ad = getLastMatrix(A);
+		/* apply permutations (the rows keep the same length : in place */
+		uint32_t here = 0 ;
+
+		for (uint32_t i = 0 ; i < A_k->row ; ++i) {
+			for (uint32_t j = A_k->start_zo[i] ; j < A_k->start_zo[i+1] ; ++j) {
+				if (A_k->colid_zo[j] == perm_i[here])
+					A_k->colid_zo[j] = perm_j[here++] ;
+			}
+		}
+		for (uint32_t i = 0 ; i < A_k->row ; ++i) {
+			uint32_t j0 = A_k->start_zo[i] ;
+			uint32_t j1 = A_k->start_zo[i+1] ;
+			insert_sort(&A_k->colid_zo[j0], j1-j0) ;
 		}
 
-		if (perm[i] == i) {
-			// add this column to new B
+		/* get begining of B */
+		SAFE_MALLOC_DECL(start_b,A_k->row+1,uint32_t);
+		for (uint32_t i = 0 ; i < A_k->row ; ++i) {
+			uint32_t j0 = A_k->start_zo[i] ;
+			uint32_t j1 = A_k->start_zo[i+1] ;
+			while(j0 < j1) /* and A_k->start_zo[j0] < k) */
+				++j0;
+			start_b[i+1] = j0 ;
 		}
-		else {
-			// put the column from new A in new B
-			// put the column from old A to new A
+		for (uint32_t i = 0 ; i < A_k->row ; ++i) {
+			uint32_t b = start_b[i+1]-A_k->start_zo[i];
+			A_k->start_zo[i+1]+= b;
+			for (uint32_t j = A_k->start_zo[i] ; j < start_b[i+1] ; ++j) {
+				copy(A_k->colid_zo+A_k->start_zo[i], A_k->colid_zo+A_k->start_zo[i], b); /* faux */
+			}
 		}
-		// shrink old A if k % ROW_NB
+
+		uint32_t k = A_init->row ; /* faux */
+
+		CSR_zo * Bt = getLastMatrix(B);
+		uint32_t size = A_k->nnz - A_k->nnz;
+		for (uint32_t i = 0 ; i < A_k->row ; ++i) {
+			for (uint32_t j = start_b[i+1] ; j < start_b[i+1] ; ++j) {
+				Bt->start_zo[A_k->colid_zo[j]-k] += 1 ;
+
+			}
+		}
+		for (uint32_t i = 0 ; i < A_k->col-k ; ++i) {
+			Bt->start_zo[i+1] += Bt->start_zo[i] ;
+		}
+
+		SAFE_CALLOC_DECL(done_col,A_k->row,uint32_t);
+		for (uint32_t nextlig = 1 ; nextlig <= A_k->row ; ++nextlig) {
+			uint32_t i = start_b[nextlig];
+			while (i < A_k->start_zo[nextlig]){
+				uint32_t cur_place = Bt->start_zo[A_k->colid_zo[i]-k];
+				cur_place  += done_col[A_k->colid_zo[i]-k] ;
+				Bt->colid_zo[ cur_place ] =  nextlig-1 ;
+				done_col[A_k->colid_zo[i]-k] += 1 ;
+				++i;
+			}
+		}
+
 	}
-
 }
+
+#if 0
 
 void do_permute_columns_lo(
 		GBMatrix_t * C,
@@ -295,29 +353,60 @@ void do_permute_columns_lo(
 {
 }
 
+#endif
+
+
+
+// transforms perm where perm[i] = j into two lists
+// such that ther permutations are (perm_i[k],perm_j[k]) for perm and perm^(-1).
+// perm_i is increasing.
+uint32_t split_permutations(
+		uint32_t * perm
+		, uint32_t perm_size
+		, uint32_t * perm_i
+		, uint32_t * perm_j)
+{
+	uint32_t here ;
+	for (uint32_t i = 0 ; i < perm_size ; ++i)
+		if (perm[i] != i) {
+			perm_i[here] = i ;
+			perm_j[here] = perm[i] ;
+			++here;
+		}
+	for (uint32_t i = 0 ; i < perm_size ; ++i)
+		if (perm[i] != i) {
+			perm_i[here] = perm[i] ;
+			perm_j[here] = i ;
+			++here;
+		}
+
+	/* the last ones are not necessarily in order */
+	insert_sort(perm_i+here/2,here/2,perm_j+here/2);
+	return here ;
+}
 
 int split_columns(
-		GBMatrix_t * A
-		, GBMatrix_t * B
+		GBMatrix_t * A_init
+		, GBMatrix_t * C_init
+		, GBMatrix_t * A
+		, GBMatrix_t * Bt
 		, GBMatrix_t * C
 		, DenseMatrix_t * D
 		)
 {
-	// search for columns to permute to make A sparser
-	SAFE_MALLOC(perm,A->row,uint32_t);
+	/* search for columns to permute to make A sparser */
+	SAFE_MALLOC_DECL(perm,A->row,uint32_t); /* what columns the first row ones should be exchanged with */
 	for (uint32_t i = 0 ; i < A->row ; ++i)
 		perm[i] = i ;
-	get_permute_columns(A,perm);
-	// get col size of C
-	uint32_t kC =0;
-	for (uint32_t i = 0 ; i < A->row ; ++i) {
-		if (perm[i] != i) {
-			k1 ++ ;
-		}
-	}
+	uint32_t trans = get_permute_columns(A,perm);
+	SAFE_MALLOC_DECL(perm_i,2*trans,uint32_t);
+	SAFE_MALLOC_DECL(perm_j,2*trans,uint32_t);
+	split_permutations(perm,A->row,perm_i,perm_j);
+
 	// copy last columns of A,C to B,D in proper format
-	do_permute_columns_up(A,C,perm);
-	do_permute_columns_lo(B,D,perm);
+	do_permute_columns_up(A_init,A,C,perm_i, perm_j);
+	// do_permute_columns_lo(B,D,perm);
 }
+
 
 #endif // __GB_io_H
