@@ -54,7 +54,7 @@ void init(CSR_zo * mat)
 	SAFE_MALLOC(mat->map_zo_pol,0,uint32_t);
 }
 
-void appendRow(CSR_zo * mat
+void appendRowUnit(CSR_zo * mat
 		, uint32_t * colid
 		, uint64_t size
 		, uint32_t pol
@@ -108,7 +108,7 @@ void appendRow(GBMatrix_t * A
 		SAFE_REALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
 		init(&(A->matrix_zo[A->matrix_nb]));
 	}
-	appendRow(&(A->matrix_zo[A->matrix_nb]),colid,size,pol);
+	appendRowUnit(&(A->matrix_zo[A->matrix_nb]),colid,size,pol);
 }
 
 #endif /* __GB_matrix_H */
