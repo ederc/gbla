@@ -420,6 +420,30 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
+
+  // echelonize D using methods of Faugère & Lachartre
+
+  // We need to do at least two rounds on D, possibly even reducing B further
+  // with the reduced D later on. For this purpose we use a multiline version of
+  // D as output of the Gaussian elimination.
+  sm_fl_ml_t *D_red = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reducing D to upper triangular matrix ...\n");
+  }
+  if (elim_fl_D_block(D, D_red, M->mod, nthreads)) {
+    printf("Error while reducing D to upper triangular matrix.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reducing D to upper triangular matrix.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
   return 0;
 }
 

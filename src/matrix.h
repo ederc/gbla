@@ -8,6 +8,12 @@
 #ifndef GB_MATRIX_H
 #define GB_MATRIX_H
 
+#include <gb_config.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <math.h>
+#include <omp.h>
 #include <types.h>
 
 /**
@@ -126,5 +132,19 @@ typedef struct sm_fl_ml_t {
                           multiline i. There are nrows/__GB_NROWS_MULTILINE
                           multilines. */
 } sm_fl_ml_t;
+
+/**
+ * \brief Copies data from block matrix in to multiline matrix out. If deleteIn
+ * is set the input block matrix in is deleted.
+ *
+ * \param block matrix in, input matrix
+ *
+ * \param multiline matrix out, output matrix
+ *
+ * \param deleteIn, if 1 the input matrix in is deleted, if 0 in is not deleted.
+ *
+ * \param number of threads to copy data in parallel nthrds
+ */
+void copyBlockMatrixToMultilineMatrix(sbm_fl_t *in, sm_fl_ml_t *out, int deleteIn, int nthrds);
 
 #endif
