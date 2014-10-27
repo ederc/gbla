@@ -475,6 +475,121 @@ static inline void red_dense_array_modular(re_l_t *dense_array, bi_t bwidth, mod
 }
 
 /**
+ * \brief Gets first nonzero entry in multiline m at line index line_idx and
+ * stores it in h resp. h_idx.
+ *
+ * \param multiline m
+ *
+ * \param line index line_idx
+ *
+ * \param storage for "head" of line h
+ *
+ * \param storage for "head index" of line h_idx
+ *
+ * \return index value corresponding to h from input matrix M
+ */
+mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) {
+  mli_t i;
+  for (i=0; i<m.sz; ++i) {
+    if (*h = m.val[2*i+line_idx] != 0) {
+      *h_idx  = i;
+      return m.idx[i];
+    }
+  }
+  return -1;
+}
+
+/**
+ * \brief Normalizes multiline vector.
+ *
+ * \param multiline m
+ *
+ * \param field characteristic modulus
+ */
+void normalize_multiline(ml_t *m, mod_t modulus) {
+  mli_t idx;
+  re_t h1 = 0, h2 = 0;
+
+  if (m.sz == 0)
+    return;
+
+  get_head_multiline(m, 0, &h1, &idx);
+  get_head_multiline(m, 0, &h2, &idx);
+
+  // invert values modulo modulus
+  inverse_val(&h1, modulus);
+  inverse_val(&h2, modulus);
+
+  // skip if both are 1 and/or 0
+  if ((h1 == 0 || h1 == 1) && (h2 == 0 || h2 == 1))
+    return;
+
+  re_l_t tmp_val;
+  // normalize h2
+  if (h1 == 0 || h1 == 1) {
+    for (idx=0; idx<m.sz; ++idx) {
+      tmp_val         = (re_l_t)m.val[2*idx+1] * h2;
+      m.val[2*idx+1]  = tmp_val % modulus;
+    }
+  } else {
+    // normalize h1
+    if (h2 == 0 || h2 == 1) {
+      for (idx=0; idx<m.sz; ++idx) {
+        tmp_val       = (re_l_t)m.val[2*idx] * h1;
+        m.val[2*idx]  = tmp_val % modulus;
+      }
+    // normalize h1 and h2
+    } else {
+      for (idx=0; idx<m.sz; ++idx) {
+        tmp_val       = (re_l_t)m.val[2*idx] * h1;
+        m.val[2*idx]  = tmp_val % modulus;
+        tmp_val         = (re_l_t)m.val[2*idx+1] * h2;
+        m.val[2*idx+1]  = tmp_val % modulus;
+      }
+    }
+  }
+}
+
+/**
+ * \brief Computes inverse value of x modulo y:
+ * We compute the inverse using the extended GCD. So we are only interested in x.
+ * Note that internally we need signed types, but we return only unsigned type
+ * re_t for x.
+ *
+ * \param x
+ *
+ * \param y
+ */
+
+void inverse_val(re_t *x, const re_t y) {
+  int32_t u1 = 1, u2 = 0;
+  int32_t v1 = 0, v3 = y;
+  int32_t u3 = x, v2 = 1;
+  while (v3 != 0) {
+    int32_t q  = u3 / v3;
+    int32_t t1 = u1 - v1 * q;
+    u1  = v1; v1  = t1;
+
+    int32_t t3 = u3 - v3 * q;
+    u3  = v3; v3  = t3;
+
+    int32_t t2 = u2 - v2 * q;
+    u2  = v2; v2  = t2;
+  }
+  if (u1<0) {
+    u1  +=  y;
+    *x  =   u1;
+    return;
+  }
+  if (u1 > y) {
+    u1  -=  y;
+    *x  =   u1;
+    return;
+  }
+}
+
+
+/**
  * \brief Reduces dense block block_B with rectangular sparse block block_A.
  *
  * \param sparse block block_A

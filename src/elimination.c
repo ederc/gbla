@@ -542,4 +542,34 @@ mbl_t *copy_dense_block_to_sparse(
 int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
   // copy D to D_red and delete D
   copyBlockMatrixToMultilineMatrix(D, D_red, 1, nthrds);
+
+  ri_t global_next_row_to_reduce  = nthrds * 2;
+  ri_t global_last_pivot          = global_next_row_to_reduc - 1;
+}
+
+ri_t echelonizeRowsSequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus) {
+  if (A->nrows == 0)
+    return 0;
+
+  ri_t npiv_real  = 0;
+  ri_t N          = A->nrows / __GB_NROWS_MULTILINE + 
+                    A->nrows % __GB_NROWS_MULTILINE;
+
+  ml_t *ml_row;
+  re_l_t *dense_array_1, dense_array_2;
+  posix_memalign((void **)&dense_array_1, 16, A->ncols * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_2, 16, A->ncols * sizeof(re_l_t));
+
+  ri_t i;
+  long head_line_1      = -1;
+  long head_line_2      = -1;
+  ci_t head_line_1_idx  = 0;
+  ci_t head_line_2_idx  = 0;
+
+  normalizeMultiline(A->ml[from]);
+
+  for (i=from; i<=min(to, N-1); ++i) {
+    memset(dense_array_1, 0, A->ncols * sizeof(re_l_t));
+    memset(dense_array_2, 0, A->ncols * sizeof(re_l_t));
+  }
 }
