@@ -46,6 +46,7 @@ uint64_t size(CSR_zo * mat)
 
 void initUnit(CSR_zo * mat)
 {
+	if (!mat) return ;
 	mat->row=0;
 	mat->col=0;
 	SAFE_MALLOC(mat->start_zo,1,uint64_t);
@@ -88,7 +89,7 @@ typedef struct GBMatrix_t {
 
 CSR_zo * getLastMatrix(GBMatrix_t * A)
 {
-	return &(A->matrix_zo[A->matrix_nb]);
+	return &(A->matrix_zo[A->matrix_nb-1]);
 }
 
 typedef struct DenseMatrix_t {
@@ -106,20 +107,28 @@ void appendRow(GBMatrix_t * A
 	A->row += 1;
 	A->nnz += size ;
 
-	if (A->matrix_zo->row == MAT_ROW_BLOCK) {
+	if (A->matrix_nb == 0) {
+		A->matrix_nb++;
+		SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
+		initUnit(&(A->matrix_zo[A->matrix_nb-1]));
+		(A->matrix_zo[A->matrix_nb-1]).col = A->col ;
+	}
+	else if ((A->matrix_zo[A->matrix_nb-1]).row == MAT_ROW_BLOCK) {
 		A->matrix_nb++;
 		SAFE_REALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
-		initUnit(&(A->matrix_zo[A->matrix_nb]));
+		initUnit(&(A->matrix_zo[A->matrix_nb-1]));
+		(A->matrix_zo[A->matrix_nb-1]).col = A->col ;
 	}
-	appendRowUnit(&(A->matrix_zo[A->matrix_nb]),colid,size,pol);
+	appendRowUnit(&(A->matrix_zo[A->matrix_nb-1]),colid,size,pol);
 }
 void init(GBMatrix_t * A)
 {
+	if (!A) return;
 	A->row = 0 ;
 	A->col = 0 ;
 	A->nnz = 0 ;
 	A->matrix_nb = 0 ;
-	SAFE_MALLOC(A->matrix_zo,1,CSR_zo);
+	SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
 	initUnit(A->matrix_zo);
 }
 
@@ -153,7 +162,7 @@ void printMat(GBMatrix_t * A)
 	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col,A->nnz);
 	fprintf(stderr,"mod %u\n",A->mod);
 	uint32_t k = 0 ;
-	for (  ; k <= A->matrix_nb ; ++k ) {
+	for (  ; k < A->matrix_nb ; ++k ) {
 		printMatUnit(&(A->matrix_zo[k]));
 	}
 }

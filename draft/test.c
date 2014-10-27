@@ -22,5 +22,28 @@ int main() {
 
 	printPoly(POL);
 
+
+	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
+	SAFE_MALLOC_DECL(Bt,1,GBMatrix_t);
+	SAFE_MALLOC_DECL(C,1,GBMatrix_t);
+	SAFE_MALLOC_DECL(D,1,DenseMatrix_t);
+
+	init(A);
+	init(Bt);
+	init(C);
+	/* init(D); */
+
+	split_columns(AA,CC,A,Bt,C,D);
+
+	printMat(A);
+
+	fprintf(stderr,"--------------\n");
+
+	printMat(Bt);
+
+	fprintf(stderr,"--------------\n");
+
+	printPoly(POL);
+
 	return 0;
 }

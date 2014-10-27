@@ -211,6 +211,8 @@ int read_file(GBMatrix_t * A_init
 	assert(mod > 1);
 	SAFE_READ_DECL_V(nnz,uint64_t,fh);
 
+	A_init->col = C_init->col = n ;
+	A_init->mod = C_init->mod = mod ;
 
 	/* READ in ZO start */
 	SAFE_READ_DECL_P(start_zo,m+1,uint64_t,fh);
@@ -244,7 +246,7 @@ int read_file(GBMatrix_t * A_init
 	SAFE_CALLOC_DECL(pivots,m,uint32_t);
 
 	uint32_t pivots_size = getSparsestRows(colid_zo,start_zo,m, pivots);
-	i =  0 ; for( ; i < m ; ++i) fprintf(stderr, "%u ", pivots[i]); fprintf(stderr,"\n"); i = 0;
+	/* i =  0 ; for( ; i < m ; ++i) fprintf(stderr, "%u ", pivots[i]); fprintf(stderr,"\n"); i = 0; */
 	splitRowsUpBottom(A_init,C_init,colid_zo,start_zo,m,pivots,pivots_size,map_zo_pol);
 	free(pivots);
 
@@ -264,7 +266,6 @@ int read_file(GBMatrix_t * A_init
 	fprintf(stderr,"--------------\n");
 	printPoly(polys);
 
-	exit(-9) ; /* do pols */
 	return 0 ;
 }
 
@@ -274,9 +275,8 @@ uint32_t get_permute_columns(
 		)
 {
 	uint32_t trans = 0 ;
-	SAFE_MALLOC_DECL(col_size,A->col,uint32_t);
-	SAFE_MALLOC_DECL(last_elt,A->row,uint32_t);
-	/* copy last columns of A,C to B,D */
+	SAFE_CALLOC_DECL(col_size,A->col,uint32_t); /* sparsity of the columns */
+	SAFE_CALLOC_DECL(last_elt,A->col-A->row,uint32_t); /* row id for the last element of each column out of the first square matrix*/
 	uint32_t k = 0 ;
 	for ( ; k < A->matrix_nb ; ++k ) {
 		CSR_zo * A_k = &(A->matrix_zo[k]) ;
@@ -285,17 +285,24 @@ uint32_t get_permute_columns(
 			uint32_t j = A_k->start_zo[i] ;
 			for ( ; j < A_k->start_zo[i+1] ; ++j) {
 				col_size[A_k->colid_zo[j]] += 1 ;
-				last_elt[A_k->colid_zo[j]] = i ;
+				if (A_k->colid_zo[j] >= A->row )
+					last_elt[A_k->colid_zo[j]-A->row] = (A->matrix_nb-1)*MAT_ROW_BLOCK+i ; /* zero based, but 0 is an index if column not empty :-) */
 			}
 		}
 	}
+	/* uint32_t i =  0 ; for( ; i < A->col ; ++i) fprintf(stderr, "%u ", col_size[i]); fprintf(stderr,"\n"); */
+	/* i =  0 ; for( ; i < A->col-A->row ; ++i) fprintf(stderr, "%u ", last_elt[i]); fprintf(stderr,"\n"); */
 	uint32_t j = A->row ;
 	for ( ; j < A->col ; ++j) {
-		uint32_t k = last_elt[j] ;
-		if ((perm[k] != 0) && (col_size[perm[k]] > col_size[j]));
-		perm[k] = j ;
-		++trans;
+		if (col_size[j] == 0) continue ; /* empty column */
+		uint32_t k = last_elt[j-A->row] ;
+		if ( col_size[k] > col_size[j] ) { /* sparser column found */
+			perm[k] = j ;
+			++trans;
+		}
 	}
+	/* fprintf(stderr,"trans : %u\n",trans); */
+	return trans ;
 }
 
 
@@ -401,12 +408,12 @@ void do_permute_columns_lo(
  * perm_i is increasing.
  */
 uint32_t split_permutations(
-		uint32_t * perm
+		const uint32_t * perm
 		, uint32_t perm_size
 		, uint32_t * perm_i
 		, uint32_t * perm_j)
 {
-	uint32_t here ;
+	uint32_t here = 0;
 	uint32_t i = 0;
 	for ( ; i < perm_size ; ++i)
 		if (perm[i] != i) {
@@ -427,7 +434,7 @@ uint32_t split_permutations(
 	return here ;
 }
 
-int split_columns(
+void split_columns(
 		GBMatrix_t * A_init
 		, GBMatrix_t * C_init
 		, GBMatrix_t * A
@@ -439,16 +446,26 @@ int split_columns(
 	/* search for columns to permute to make A sparser */
 	SAFE_MALLOC_DECL(perm,A->row,uint32_t); /* what columns the first row ones should be exchanged with */
 	uint32_t i = 0;
-	for ( ; i < A->row ; ++i)
+	for ( ; i < A_init->row ; ++i)
 		perm[i] = i ;
-	uint32_t trans = get_permute_columns(A,perm);
+	uint32_t trans = get_permute_columns(A_init,perm);
+
+	/* fprintf(stderr,"--------------\n"); */
+	/* i =  0 ; for( ; i < A_init->row ; ++i) fprintf(stderr, "%u ", perm[i]); fprintf(stderr,"\n"); i = 0; */
+	/* fprintf(stderr,"--------------\n"); */
+
+
 	SAFE_MALLOC_DECL(perm_i,2*trans,uint32_t);
 	SAFE_MALLOC_DECL(perm_j,2*trans,uint32_t);
-	split_permutations(perm,A->row,perm_i,perm_j);
+	split_permutations(perm,A_init->row,perm_i,perm_j);
+	/* i =  0 ; for( ; i < 2*trans ; ++i) fprintf(stderr, "%u ", perm_i[i]); fprintf(stderr,"\n"); i = 0; */
+	/* i =  0 ; for( ; i < 2*trans ; ++i) fprintf(stderr, "%u ", perm_j[i]); fprintf(stderr,"\n"); i = 0; */
 
 	/* copy last columns of A,C to B,D in proper format */
-	do_permute_columns_up(A_init,A,C,perm_i, perm_j);
+	do_permute_columns_up(A_init,A,Bt,perm_i, perm_j);
 	/* do_permute_columns_lo(B,D,perm); */
+
+	return ;
 }
 
 

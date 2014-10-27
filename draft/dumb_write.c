@@ -47,7 +47,7 @@ int main()
 
 	const uint64_t start_zo[] = { 0 , 3, 6 , 8 ,10 };
 	/* uint32_t colid_zo[nnz] = { 0, 1, 7, 0, 4, 6, 1, 4, 2, 5 }; */
-	const uint32_t colid_zo[] = { 0 , 2 , 7 | mask, 0 | mask, 4 | mask, 6 | mask, 1 |mask, 4 | mask, 2 | mask, 5| mask};
+	const uint32_t colid_zo[] = { 0 , 2 , 6 | mask, 0 | mask, 4 | mask, 6 | mask, 1 |mask, 4 | mask, 2 | mask, 5| mask};
 	const uint64_t colid_size = 10 ;
 	const uint32_t map_zo_pol[] = { 0, 0, 1, 1 };
 	const uint32_t pol_nb = 2 ;
