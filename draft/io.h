@@ -64,28 +64,30 @@ void copy( uint32_t * to , uint32_t * from, uint32_t size)
 
 /* buffer:
 */
-void getSparsestRows(uint32_t * colid
+uint32_t getSparsestRows(uint32_t * colid
 		, uint64_t * start
 		, uint32_t row
 		, uint32_t * pivots /* pivots[j] is the sparsest row with j as pivot */
-		// , uint32_t * sparse
-		// , uint32_t * discard /* discard[k] = 1 iff this row is not sparsest */
-		// , uint32_t * discarded
-		// , uint32_t i
 		)
 {
 	SAFE_MALLOC_DECL(sparse,row,uint32_t);
 	uint32_t j = 0;
+	uint32_t pivot_nb = 0;
+	for ( ; j < row ; ++j) {
+		sparse[j] = (uint32_t)(-1);
+	}
+	j = 0 ;
 	for ( ; j < row ; ++j) {
 		uint32_t pivot = colid[start[j]] ; /* first column in each row */
 		uint32_t creux = start[j+1]-start[j] ; /* length of the row */
-		if (sparse[j] > creux) { /* this row is sparsest */
-			sparse[j] = creux ;
-			pivots[j]  = pivot ;
+		if (sparse[pivot] > creux) { /* this row is sparsest */
+			sparse[pivot] = creux ;
+			pivots[pivot]  = j ;
+			++ pivot_nb ;
 		}
 	}
 
-	return ;
+	return pivot_nb ;
 }
 
 #if 0
@@ -130,33 +132,56 @@ void splitRowsUpBottom(
 		, GBMatrix_t * C
 		, uint32_t  * colid
 		, uint64_t * start
-		// , uint64_t nnz
 		, uint32_t row
 		, uint32_t * pivots
+		, uint32_t pivots_size
 		, uint32_t * pols
 		)
 {
-	// checkFull(A_init)  ;
-	// checkFull(B_init);
-
 	uint32_t last_pivot=0;
 	uint32_t i = 0 ;
 	for ( ; i < row ; ++i)  {
-		if (i == pivots[last_pivot]) {
-			appendRow(A,colid+start[i],start[i+1]-start[i],pols[row]);
+		if ( (last_pivot < pivots_size) && (pivots[last_pivot] == i) ) {
+			appendRow(A,colid+start[i],start[i+1]-start[i],pols[i]);
 			++last_pivot;
 		}
 		else {
-			appendRow(C,colid+start[i],start[i+1]-start[i],pols[row]);
+			appendRow(C,colid+start[i],start[i+1]-start[i],pols[i]);
 		}
-		// until next non discarded
-		// populate C ;
-		// is discarded
-		// populate A
 	}
 	return ;
 }
 
+
+void expandColid( const uint32_t * compress, uint32_t size_compressed
+		, uint32_t * expand  , uint32_t size_expand)
+{
+	uint32_t mask = (1<<31);
+	uint32_t i = 0,j=0 ;
+	uint32_t col ;
+	/* for (i = 0 ; i < size_compressed ; ++i) { */
+		/* fprintf(stderr,"%u ",compress[i]); */
+	/* } */
+		/* fprintf(stderr,"\n"); i = 0 ; */
+	for ( ; i < size_compressed ;) {
+		col = compress[i++] ;
+		/* fprintf(stderr,"in col : %u\n",col); */
+		if (col & mask) {
+			expand[j++] = col ^ mask ;
+		/* fprintf(stderr,"sing col : %u\n",col^mask); */
+		}
+		else {
+			uint32_t k = 0 ;
+			for (; k < compress[i] ;++k) {
+				expand[j++] = col + k;
+				/* fprintf(stderr,"cons col : %u\n",col+k); */
+			}
+			++i;
+		}
+	}
+	assert(j == size_expand);
+	assert(i == size_compressed);
+}
 
 /* matrix reader and row splitter
  * A_init [out] the top part with upper triangular left
@@ -164,10 +189,10 @@ void splitRowsUpBottom(
  * polys [out] the polynomials used in the matrices (shared)
  * fh [in] the file in appropriate format
  */
-int read_file(struct GBMatrix_t * A_init, struct GBMatrix_t * B_init
-		// , struct CSR_pol * polys
+int read_file(GBMatrix_t * A_init
+		, GBMatrix_t * C_init
+		, CSR_pol * polys
 		, FILE * fh
-		// , int verbose = 0
 	     )
 {
 	uint32_t i = 0 ;
@@ -184,71 +209,74 @@ int read_file(struct GBMatrix_t * A_init, struct GBMatrix_t * B_init
 	SAFE_READ_DECL_V(n,uint32_t,fh);
 	SAFE_READ_DECL_V(mod,uint32_t,fh);
 	assert(mod > 1);
-	SAFE_READ_DECL_V(nnz,uint32_t,fh);
+	SAFE_READ_DECL_V(nnz,uint64_t,fh);
 
 
 	/* READ in ZO start */
 	SAFE_READ_DECL_P(start_zo,m+1,uint64_t,fh);
 
 	/* largest row */
-	uint32_t big_row = 0 ;
+	/* uint32_t big_row = 0 ;
 	for (i = 0 ; i < m ; ++i)
-		big_row = max(big_row,start_zo[i]);
+		big_row = max(big_row,start_zo[i+1]-start_zo[i]);    */
 
 	/* pol/zo correspondance */
 	SAFE_READ_DECL_P(map_zo_pol,m,uint32_t,fh);
 
-	SAFE_MALLOC_DECL(map_pol_zo_A,m,uint32_t);
-	uint32_t map_pol_zo_A_size = 0 ;
+	/* SAFE_MALLOC_DECL(map_pol_zo_A,m,uint32_t); */
+	/* uint32_t map_pol_zo_A_size = 0 ; */
 
-	SAFE_MALLOC_DECL(map_pol_zo_B,m,uint32_t);
-	uint32_t map_pol_zo_B_size = 0 ;
+	/* SAFE_MALLOC_DECL(map_pol_zo_B,m,uint32_t); */
+	/* uint32_t map_pol_zo_B_size = 0 ; */
 
 
 	/* colid in ZO */
 	SAFE_READ_DECL_V(colid_size,uint64_t,fh);
-	SAFE_MALLOC_DECL(buffer,colid_size,uint32_t); /* buffer has the matrix */
+	/* fprintf(stderr,"colid_size %u\n",colid_size); */
+	SAFE_READ_DECL_P(buffer,colid_size,uint32_t,fh); /* buffer has the matrix */
+	SAFE_MALLOC_DECL(colid_zo,nnz,uint32_t); /* colid expands buffer */
 
-	uint32_t last_start = 0 ;
-	i = 0 ;
-	/* FIXME */
-	{
-		SAFE_MALLOC_DECL(pivots,m,uint32_t);
-
-		getSparsestRows(buffer,start_zo,m, pivots);
-		SAFE_MALLOC_DECL(A,1,GBMatrix_t);
-		SAFE_MALLOC_DECL(C,1,GBMatrix_t);
-		// GROW A,C with seleted pivots
-		splitRowsUpBottom(A,C,buffer,start_zo,m,pivots,map_zo_pol);
-		// ADD POLYS
-	}
-
-
+	expandColid(buffer,colid_size,colid_zo,nnz);
 	free(buffer);
 
-	// size of nnz for pols:
-	SAFE_READ_DECL_V(size_pol,uint64_t,fh);
+	/* uint32_t last_start = 0 ; */
+	i = 0 ;
+	SAFE_CALLOC_DECL(pivots,m,uint32_t);
 
-	// create GBpolynomials shared by A_init and B_init
-	SAFE_READ_DECL_P(start_pol,m,uint32_t,fh);
-	// populate A and C
+	uint32_t pivots_size = getSparsestRows(colid_zo,start_zo,m, pivots);
+	i =  0 ; for( ; i < m ; ++i) fprintf(stderr, "%u ", pivots[i]); fprintf(stderr,"\n"); i = 0;
+	splitRowsUpBottom(A_init,C_init,colid_zo,start_zo,m,pivots,pivots_size,map_zo_pol);
+	free(pivots);
 
-	SAFE_READ_DECL_P(vals_pol,size_pol,uint32_t,fh);
-	// populate A and C
 
+
+	/* size of nnz for pols: */
+	SAFE_READ_V(polys->nb,uint32_t,fh);
+
+	/* create GBpolynomials shared by A_init and B_init */
+	SAFE_READ_P(polys->start_pol,polys->nb+1,uint32_t,fh);
+
+	SAFE_READ_P(polys->vals_pol,polys->start_pol[polys->nb],TYPE,fh);
+
+	printMat(A_init);
+	fprintf(stderr,"--------------\n");
+	printMat(C_init);
+	fprintf(stderr,"--------------\n");
+	printPoly(polys);
+
+	exit(-9) ; /* do pols */
 	return 0 ;
 }
 
 uint32_t get_permute_columns(
 		GBMatrix_t * A
-		// , GBMatrix_t * C
 		, uint32_t *  perm
 		)
 {
 	uint32_t trans = 0 ;
 	SAFE_MALLOC_DECL(col_size,A->col,uint32_t);
 	SAFE_MALLOC_DECL(last_elt,A->row,uint32_t);
-	// copy last columns of A,C to B,D
+	/* copy last columns of A,C to B,D */
 	uint32_t k = 0 ;
 	for ( ; k < A->matrix_nb ; ++k ) {
 		CSR_zo * A_k = &(A->matrix_zo[k]) ;
@@ -264,7 +292,7 @@ uint32_t get_permute_columns(
 	uint32_t j = A->row ;
 	for ( ; j < A->col ; ++j) {
 		uint32_t k = last_elt[j] ;
-		if (perm[k] != 0 && (col_size[perm[k]] > col_size[j]));
+		if ((perm[k] != 0) && (col_size[perm[k]] > col_size[j]));
 		perm[k] = j ;
 		++trans;
 	}
@@ -368,9 +396,10 @@ void do_permute_columns_lo(
 
 
 
-// transforms perm where perm[i] = j into two lists
-// such that ther permutations are (perm_i[k],perm_j[k]) for perm and perm^(-1).
-// perm_i is increasing.
+/* transforms perm where perm[i] = j into two lists
+ * such that ther permutations are (perm_i[k],perm_j[k]) for perm and perm^(-1).
+ * perm_i is increasing.
+ */
 uint32_t split_permutations(
 		uint32_t * perm
 		, uint32_t perm_size
@@ -417,15 +446,11 @@ int split_columns(
 	SAFE_MALLOC_DECL(perm_j,2*trans,uint32_t);
 	split_permutations(perm,A->row,perm_i,perm_j);
 
-	// copy last columns of A,C to B,D in proper format
+	/* copy last columns of A,C to B,D in proper format */
 	do_permute_columns_up(A_init,A,C,perm_i, perm_j);
-	// do_permute_columns_lo(B,D,perm);
+	/* do_permute_columns_lo(B,D,perm); */
 }
 
-void printMat(GBMatrix_t * A)
-{
-	fprintf(stderr,"matrix %u x %u - %u",A->row, A->col,A->nnz);
-	fprintf(stderr,"mod %u",A->mod);
-}
 
-#endif // __GB_io_H
+#endif /* __GB_io_H */
+/* vim: set ft=c: */

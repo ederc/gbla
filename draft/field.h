@@ -12,3 +12,4 @@ Element_t * mul( Element_t * a, Element_t * b, Integer_t * p) ;
 Element_t * fma( Element_t * c, Element_t * a, Element_t * b, Integer_t * p) ;
 
 #endif // __GB_field_H
+/* vim: set ft=c: */

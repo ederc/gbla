@@ -44,7 +44,7 @@ uint64_t size(CSR_zo * mat)
 	return mat->start_zo[mat->row] ;
 }
 
-void init(CSR_zo * mat)
+void initUnit(CSR_zo * mat)
 {
 	mat->row=0;
 	mat->col=0;
@@ -61,15 +61,15 @@ void appendRowUnit(CSR_zo * mat
 		)
 {
 	uint64_t old = mat->start_zo[mat->row] ;
-	uint64_t nnz = old + size;
-	SAFE_REALLOC(mat->colid_zo,nnz,uint32_t);
+	mat->nnz = old + size;
+	SAFE_REALLOC(mat->colid_zo,mat->nnz,uint32_t);
 	uint64_t i = 0 ;
 	for ( ; i < size ; ++i) {
 		mat->colid_zo[old+i] = colid[i] ;
 	}
 	mat->row ++ ;
 	SAFE_REALLOC(mat->start_zo,mat->row+1,uint64_t);
-	mat->start_zo[mat->row] = nnz  ;
+	mat->start_zo[mat->row] = mat->nnz  ;
 	SAFE_REALLOC(mat->map_zo_pol,mat->row,uint32_t);
 	mat->map_zo_pol[mat->row-1] = pol;
 }
@@ -78,7 +78,7 @@ typedef struct GBMatrix_t {
 
 	uint32_t row ;
 	uint32_t col ;
-	uint32_t nnz ;
+	uint64_t nnz ;
 	uint32_t mod ;
 	/* uint32_t block_size ; */
 	uint32_t matrix_nb ;  /* nb of 0/1 matrices */
@@ -103,12 +103,79 @@ void appendRow(GBMatrix_t * A
 		, uint32_t pol
 		)
 {
+	A->row += 1;
+	A->nnz += size ;
+
 	if (A->matrix_zo->row == MAT_ROW_BLOCK) {
 		A->matrix_nb++;
 		SAFE_REALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
-		init(&(A->matrix_zo[A->matrix_nb]));
+		initUnit(&(A->matrix_zo[A->matrix_nb]));
 	}
 	appendRowUnit(&(A->matrix_zo[A->matrix_nb]),colid,size,pol);
 }
+void init(GBMatrix_t * A)
+{
+	A->row = 0 ;
+	A->col = 0 ;
+	A->nnz = 0 ;
+	A->matrix_nb = 0 ;
+	SAFE_MALLOC(A->matrix_zo,1,CSR_zo);
+	initUnit(A->matrix_zo);
+}
+
+void printMatUnit(CSR_zo * A)
+{
+	fprintf(stderr,"block %u x %u - %lu",A->row, A->col,A->nnz);
+	fprintf(stderr,"\nstart:\n");
+	uint32_t i = 0 ;
+	for ( ; i < A->row+1 ; ++i) {
+		fprintf(stderr,"%lu ", A->start_zo[i]);
+	}
+	fprintf(stderr,"\ndata:\n");
+	i = 0 ;
+	for ( ; i < A->row ; ++i) {
+		uint32_t j = A->start_zo[i] ;
+		for ( ; j < A->start_zo[i+1] ; ++j) {
+			fprintf(stderr,"%u ", A->colid_zo[j]);
+		}
+		fprintf(stderr,"|");
+	}
+	fprintf(stderr,"\npolys:\n");
+	i = 0 ;
+	for ( ; i < A->row ; ++i) {
+		fprintf(stderr,"%u ", A->map_zo_pol[i]);
+	}
+	fprintf(stderr,"\n");
+}
+
+void printMat(GBMatrix_t * A)
+{
+	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col,A->nnz);
+	fprintf(stderr,"mod %u\n",A->mod);
+	uint32_t k = 0 ;
+	for (  ; k <= A->matrix_nb ; ++k ) {
+		printMatUnit(&(A->matrix_zo[k]));
+	}
+}
+
+void printPoly(CSR_pol * P)
+{
+	fprintf(stderr,"polys (%u)\n",P->nb);
+	fprintf(stderr,"start\n");
+	uint32_t i = 0 ;
+	for ( ; i < P->nb+1 ; ++i) {
+		fprintf(stderr,"%u ", P->start_pol[i]);
+	}
+	fprintf(stderr,"\ndata:\n");
+	i = 0 ;
+	for ( ; i < P->nb ; ++i) {
+		uint32_t j = P->start_pol[i] ;
+		for ( ; j < P->start_pol[i+1] ; ++j) {
+			fprintf(stderr,"%u ", P->vals_pol[j]);
+		}
+		fprintf(stderr,"\n");
+	}
+}
 
 #endif /* __GB_matrix_H */
+/* vim: set ft=c: */

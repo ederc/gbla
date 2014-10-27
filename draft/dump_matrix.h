@@ -79,7 +79,7 @@ void Mjoin(dump,TYPE)(FILE * fh,int all,int strict,int magma)
 				for ( ; k < repet ; ++k) {
 					v = vals_pol_begin[k]; /* consecutive values */
 
-			Mjoin(print_line,TYPE)(i+1,first+k+1,v,magma);
+					Mjoin(print_line,TYPE)(i+1,first+k+1,v,magma);
 
 				}
 				/* assert something sur first */
@@ -93,3 +93,5 @@ void Mjoin(dump,TYPE)(FILE * fh,int all,int strict,int magma)
 
 #undef Mjoin
 #undef my_join
+
+/* vim: set ft=c: */

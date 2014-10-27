@@ -99,3 +99,4 @@ void print_mod_uint64_t(uint64_t m)
 {
 	printf("K:=GF(%lu);\n",m);
 }
+/* vim: set ft=c: */

@@ -16,7 +16,7 @@
 
 
 #define SAFE_MALLOC(ptr,size,elt) \
-	ptr = (elt *) malloc(size*sizeof(elt)); \
+	ptr = (elt *) malloc((size)*sizeof(elt)); \
 	assert(ptr)
 
 #define SAFE_CALLOC(ptr,size,elt) \
@@ -30,7 +30,7 @@
 	elt * SAFE_CALLOC(ptr,size,elt)
 
 #define SAFE_REALLOC(ptr,size,elt) \
-	ptr = (elt *) realloc(ptr,size*sizeof(elt)); \
+	ptr = (elt *) realloc(ptr,(size)*sizeof(elt)); \
 	assert(ptr)
 
 #define SAFE_READ_V(val,elt,file) \
@@ -41,12 +41,14 @@
 	SAFE_READ_V(val,elt,file)
 
 #define SAFE_READ_P(val,size,elt,file) \
-	assert(fread(val,sizeof(elt),size,file)==size)
+	SAFE_MALLOC(val,size,elt); \
+	assert(fread(val,sizeof(elt),(size),(file))==(size))
 
 #define SAFE_READ_DECL_P(val,size,elt,file) \
 	SAFE_MALLOC_DECL(val,size,elt); \
-	SAFE_READ_P(val,size,elt,file)
+	assert(fread(val,sizeof(elt),(size),(file))==(size))
 
 
 
 #endif /* __GB_types_H */
+/* vim: set ft=c: */
