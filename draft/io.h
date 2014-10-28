@@ -309,26 +309,40 @@ uint32_t get_permute_columns(
 void do_permute_columns_up(
 		GBMatrix_t * A_init,
 		GBMatrix_t * A,
-		GBMatrix_t * B
+		GBMatrix_t * Bt
 		, uint32_t * perm_i
 		, uint32_t * perm_j
+		, uint32_t perm_size
 		)
 {
+	A->row = Bt->col = A_init->row ;
+	A->mod = Bt->mod = A_init->mod;
+	A->col = A_init->row ;
+	Bt->row= A_init->col - A_init->row ;
+
 	uint32_t blk = 0;
 	for ( ; blk < A_init->matrix_nb ; ++blk) {
-		CSR_zo * A_k = &(A_init->matrix_zo[blk]);
+		CSR_zo * A_k = &(A_init->matrix_zo[blk]); /* A_k band of A_init */
 
-		CSR_zo * Ad = getLastMatrix(A);
-		/* apply permutations (the rows keep the same length : in place */
+		/* apply permutations (the rows keep the same length : in place) */
 		uint32_t here = 0 ;
 		uint32_t i = 0 ;
 		for ( ; i < A_k->row ; ++i) {
 			uint32_t j = A_k->start_zo[i] ;
-			for (; j < A_k->start_zo[i+1] ; ++j) {
+			for (; j < A_k->start_zo[i+1] && here < perm_size ; ++j) {
 				if (A_k->colid_zo[j] == perm_i[here])
 					A_k->colid_zo[j] = perm_j[here++] ;
+				else if (A_k->colid_zo[j] > perm_i[here]) {
+					while ( here < perm_size && A_k->colid_zo[j] > perm_i[here])
+						here++;
+					if (here == perm_size)
+						break ;
+					if (A_k->colid_zo[j] == perm_i[here])
+						A_k->colid_zo[j] = perm_j[here++] ;
+				}
 			}
 		}
+		/* sort rows for we have messed them up */
 		i = 0;
 		for ( ; i < A_k->row ; ++i) {
 			uint32_t j0 = A_k->start_zo[i] ;
@@ -336,57 +350,108 @@ void do_permute_columns_up(
 			insert_sort(&A_k->colid_zo[j0], j1-j0) ;
 		}
 
-		/* get begining of B */
-		SAFE_MALLOC_DECL(start_b,A_k->row+1,uint32_t);
+		fprintf(stderr,"permuted : ");
+		i =  0 ; for( ; i < A_k->nnz ; ++i) fprintf(stderr, "%u ", A_k->colid_zo[i]); fprintf(stderr,"\n"); i = 0;
+
+		/* where B starts in A_init */
+		uint32_t k = A_init->row;
+		SAFE_MALLOC_DECL(start_b,A_k->row,uint32_t);
 		i = 0;
 		for ( ; i < A_k->row ; ++i) {
 			uint32_t j0 = A_k->start_zo[i] ;
 			uint32_t j1 = A_k->start_zo[i+1] ;
-			while(j0 < j1) /* and A_k->start_zo[j0] < k) */
+			while(j0 < j1  && A_k->colid_zo[j0] < k)
 				++j0;
-			start_b[i+1] = j0 ;
+			start_b[i] = j0 ;
 		}
+		fprintf(stderr,"col start: ");
+		i =  0 ; for( ; i < A_k->row ; ++i) fprintf(stderr, "%u ", start_b[i]); fprintf(stderr,"\n"); i = 0;
+
+		/* copy A */
+
+		appendMatrix(A);
+		CSR_zo * Ad = getLastMatrix(A);
+		SAFE_MALLOC(Ad->start_zo,A_k->row+1,uint64_t);
+		Ad->row = A_k->row ;
+		Ad->col = A_init->row ;
+		SAFE_MALLOC(Ad->map_zo_pol ,A_k->row,uint32_t);
+		copy(Ad->map_zo_pol,A_k->map_zo_pol,A_k->row);
 		i = 0;
 		for ( ; i < A_k->row ; ++i) {
-			uint32_t b = start_b[i+1]-A_k->start_zo[i];
-			A_k->start_zo[i+1]+= b;
-			uint32_t j = A_k->start_zo[i] ;
-			for ( ; j < start_b[i+1] ; ++j) {
-				copy(A_k->colid_zo+A_k->start_zo[i], A_k->colid_zo+A_k->start_zo[i], b); /* faux */
-			}
+			Ad->nnz += start_b[i]-A_k->start_zo[i];
 		}
+		SAFE_MALLOC(Ad->colid_zo,Ad->nnz,uint32_t);
 
-		uint32_t k = A_init->row ; /* faux */
+		i = 0;
+		for ( ; i < A_k->row ; ++i) {
+			uint32_t b = start_b[i]-A_k->start_zo[i];
+			Ad->start_zo[i+1]= Ad->start_zo[i]+b;
+			uint32_t j = A_k->start_zo[i] ;
+			copy(Ad->colid_zo+Ad->start_zo[i], A_k->colid_zo+A_k->start_zo[i], b);
+		}
+		assert(Ad->start_zo[Ad->row] == Ad->nnz);
+		fprintf(stderr,"Ad:");
+		printMatUnit(Ad);
 
-		CSR_zo * Bt = getLastMatrix(B);
-		uint32_t size = A_k->nnz - A_k->nnz;
+		/* Transpose B */
+
+		appendMatrix(Bt);
+		CSR_zo * Bd = getLastMatrix(Bt);
+
+		Bd->col = A_k->row ;
+		Bd->row = A_init->col - A_init->row ;
+		SAFE_CALLOC(Bd->start_zo,Bd->row+1,uint64_t);
+		Bd->nnz = A_k->nnz - Ad->nnz ;
+		SAFE_MALLOC(Bd->colid_zo,Bd->nnz,uint32_t);
+		SAFE_MALLOC(Bd->map_zo_pol ,A_k->row,uint32_t);
+		copy(Bd->map_zo_pol,A_k->map_zo_pol,A_k->row); /* useless */
+
 		i = 0 ;
 		for ( ; i < A_k->row ; ++i) {
-			uint32_t j = start_b[i+1] ;
-			for (; j < start_b[i+1] ; ++j) {
-				Bt->start_zo[A_k->colid_zo[j]-k] += 1 ;
+			uint32_t j = start_b[i] ;
+			for (; j < A_k->start_zo[i+1] ; ++j) {
+				Bd->start_zo[A_k->colid_zo[j]-k+1] += 1 ;
 
 			}
 		}
+		fprintf(stderr,"B row start: ");
+		i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0;
+
+
 		i = 0 ;
-		for ( ; i < A_k->col-k ; ++i) {
-			Bt->start_zo[i+1] += Bt->start_zo[i] ;
+		for ( ; i < Bd->row+1 ; ++i) {
+			Bd->start_zo[i+1] += Bd->start_zo[i] ;
 		}
 
-		SAFE_CALLOC_DECL(done_col,A_k->row,uint32_t);
-		uint32_t nextlig = 1 ;
-		for (; nextlig <= A_k->row ; ++nextlig) {
-			uint32_t i = start_b[nextlig];
-			while (i < A_k->start_zo[nextlig]){
-				uint32_t cur_place = Bt->start_zo[A_k->colid_zo[i]-k];
+		fprintf(stderr,"B row start: ");
+		i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0;
+
+
+		SAFE_CALLOC_DECL(done_col,Bd->row,uint32_t);
+		uint32_t j = 0 ;
+		for (; j < A_k->row ; ++j) {
+			i = start_b[j];
+			while (i < A_k->start_zo[j+1]){
+				uint32_t cur_place = Bd->start_zo[A_k->colid_zo[i]-k];
 				cur_place  += done_col[A_k->colid_zo[i]-k] ;
-				Bt->colid_zo[ cur_place ] =  nextlig-1 ;
+				Bd->colid_zo[ cur_place ] =  j ;
 				done_col[A_k->colid_zo[i]-k] += 1 ;
 				++i;
 			}
 		}
 
+		fprintf(stderr,"Bd:");
+		printMatUnit(Bd);
+
+
+		A->nnz += Ad->nnz ;
+		Bt->nnz += Bd->nnz ;
 	}
+	fprintf(stderr,"A:");
+	printMat(A);
+
+	fprintf(stderr,"Bt:");
+	printMat(Bt);
 }
 
 #if 0
@@ -462,7 +527,7 @@ void split_columns(
 	/* i =  0 ; for( ; i < 2*trans ; ++i) fprintf(stderr, "%u ", perm_j[i]); fprintf(stderr,"\n"); i = 0; */
 
 	/* copy last columns of A,C to B,D in proper format */
-	do_permute_columns_up(A_init,A,Bt,perm_i, perm_j);
+	do_permute_columns_up(A_init,A,Bt,perm_i, perm_j,2*trans);
 	/* do_permute_columns_lo(B,D,perm); */
 
 	return ;

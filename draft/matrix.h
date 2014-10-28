@@ -98,6 +98,17 @@ typedef struct DenseMatrix_t {
 	TYPE *  data ;
 } DenseMatrix_t ;
 
+void appendMatrix(GBMatrix_t * A)
+{
+	A->matrix_nb++;
+	if (A->matrix_nb == 1) {
+		SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
+	}
+	SAFE_REALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
+	initUnit(&(A->matrix_zo[A->matrix_nb-1]));
+	(A->matrix_zo[A->matrix_nb-1]).col = A->col ;
+}
+
 void appendRow(GBMatrix_t * A
 		, uint32_t * colid
 		, uint64_t size
@@ -107,20 +118,13 @@ void appendRow(GBMatrix_t * A
 	A->row += 1;
 	A->nnz += size ;
 
-	if (A->matrix_nb == 0) {
-		A->matrix_nb++;
-		SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
-		initUnit(&(A->matrix_zo[A->matrix_nb-1]));
-		(A->matrix_zo[A->matrix_nb-1]).col = A->col ;
+	if ( ( A->matrix_nb == 0) || ((A->matrix_zo[A->matrix_nb-1]).row == MAT_ROW_BLOCK) ){
+		appendMatrix(A);
 	}
-	else if ((A->matrix_zo[A->matrix_nb-1]).row == MAT_ROW_BLOCK) {
-		A->matrix_nb++;
-		SAFE_REALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
-		initUnit(&(A->matrix_zo[A->matrix_nb-1]));
-		(A->matrix_zo[A->matrix_nb-1]).col = A->col ;
-	}
+
 	appendRowUnit(&(A->matrix_zo[A->matrix_nb-1]),colid,size,pol);
 }
+
 void init(GBMatrix_t * A)
 {
 	if (!A) return;

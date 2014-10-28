@@ -12,6 +12,8 @@ int main() {
 
 	read_file(AA,CC,POL,fh);
 
+	fprintf(stderr,"FIRST SPLIT\n");
+
 	printMat(AA);
 
 	fprintf(stderr,"--------------\n");
@@ -35,6 +37,7 @@ int main() {
 
 	split_columns(AA,CC,A,Bt,C,D);
 
+	fprintf(stderr,"SECOND SPLIT\n");
 	printMat(A);
 
 	fprintf(stderr,"--------------\n");
