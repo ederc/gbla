@@ -28,14 +28,13 @@ uint64_t JOAAT_hash(char *key, size_t len)
 int main( int ac, char ** av)
 {
 	assert(ac == 2);
-	FILE * titi =fopen(av[1],"wb"); /* in */
+	FILE * titi =fopen(av[1],"r"); /* in */
 	char out[80];
 	strcpy(out,av[1]);
 	strcpy(out,"_new");
-	FILE * toto =fopen(out,"r"); /* out */
+	FILE * toto =fopen(out,"wb"); /* out */
 	uint32_t un = 1 ;
 	fwrite(&un,sizeof(uint32_t),1,toto);
-
 
 	SAFE_READ_DECL_V(m,uint32_t,titi);
 	fwrite(&m,sizeof(uint32_t),1,toto);
@@ -43,8 +42,8 @@ int main( int ac, char ** av)
 	fwrite(&n,sizeof(uint32_t),1,toto);
 	SAFE_READ_DECL_V(mod,uint32_t,titi);
 	fwrite(&mod,sizeof(uint32_t),1,toto);
-	SAFE_READ_DECL_V(nnz,uint32_t,titi);
-	fwrite(&nnz,sizeof(uint32_t),1,toto);
+	SAFE_READ_DECL_V(nnz,uint64_t,titi);
+	fwrite(&nnz,sizeof(uint64_t),1,toto);
 
 	SAFE_READ_DECL_P(data,nnz,uint16_t,titi);
 	SAFE_READ_DECL_P(cols,nnz,uint32_t,titi);
@@ -59,6 +58,7 @@ int main( int ac, char ** av)
 	for ( ; i<m ; ++i) {
 		start_zo[i+1] = start_zo[i] + rows[i] ;
 	}
+	assert(start_zo[m] == nnz);
 	fwrite(start_zo,sizeof(uint64_t),m+1,toto);
 
 	SAFE_MALLOC_DECL(map_zo_pol,m,uint32_t);
@@ -127,9 +127,9 @@ int main( int ac, char ** av)
 	for ( ; i < m ; ++i) {
 		uint64_t j0 = start_zo[i] ;
 		uint64_t j1 =  start_zo[i+1] ;
-		char * data = (char*) (data+j0);
-		char   length = (j1-j0)*sizeof(uint64_t)/sizeof(char) ;
-		uint64_t key = JOAAT_hash(data,length);
+		char * seq = (char*) (data+j0);
+		uint64_t length = (j1-j0)*sizeof(uint64_t)/sizeof(char) ;
+		uint64_t key = JOAAT_hash(seq,length);
 		char key_char[64] ;
 		sprintf(key_char, "%lu", key);
 		key_char[63]='\0';
