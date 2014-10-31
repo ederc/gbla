@@ -84,7 +84,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
   unsigned int  mod;
   unsigned long long  nb;
   size_t n_inp;
-  fprintf(stderr,"current format printing");
+  fprintf(stderr,"current format printing\n");
 
   assert(n_inp=fread(&n,sizeof(unsigned int),        1,f)==1);
   assert(n_inp=fread(&m,sizeof(unsigned int),       1,f)==1);
@@ -152,63 +152,37 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 }
 #else
 
-
-
-#define max(a,b) \
-	({ __typeof__ (a) _a = (a); \
-	 __typeof__ (b) _b = (b); \
-	 _a > _b ? _a : _b; })
+#include "types.h"
 
 #define NEGMASK  (1U<<31)
-
-#define SAFE_MALLOC(ptr,size,elt) \
-	        elt * ptr = (elt *) malloc(size*sizeof(elt)); \
-	        assert(ptr)
-
-#define SAFE_CALLOC(ptr,size,elt) \
-	        elt * ptr = (elt *) calloc(size*sizeof(elt)); \
-	        assert(ptr)
-
-#define SAFE_REALLOC(ptr,size,elt) \
-	        ptr = realloc(ptr,size*sizeof(elt)); \
-	        assert(ptr)
-
-#define SAFE_READ_V(val,elt,file) \
-	elt val ; \
-	assert(fread(&(val),sizeof(elt),1,file)==1)
-
-
-#define SAFE_READ_P(val,size,elt,file) \
-	SAFE_MALLOC(val,size,elt); \
-	assert(fread(val,sizeof(elt),size,file)==size)
 
 #include "printer.h"
 
 
-#define TYPE int8_t
+#define TEMPL_TYPE int8_t
 #include "dump_matrix.h"
-#undef TYPE
-#define TYPE int16_t
+#undef TEMPL_TYPE
+#define TEMPL_TYPE int16_t
 #include "dump_matrix.h"
-#undef TYPE
-#define TYPE int32_t
+#undef TEMPL_TYPE
+#define TEMPL_TYPE int32_t
 #include "dump_matrix.h"
-#undef TYPE
-#define TYPE int64_t
+#undef TEMPL_TYPE
+#define TEMPL_TYPE int64_t
 #include "dump_matrix.h"
-#undef TYPE
-#define TYPE uint8_t
+#undef TEMPL_TYPE
+#define TEMPL_TYPE uint8_t
 #include "dump_matrix.h"
-#undef TYPE
-#define TYPE uint16_t
+#undef TEMPL_TYPE
+#define TEMPL_TYPE uint16_t
 #include "dump_matrix.h"
-#undef TYPE
-#define TYPE uint32_t
+#undef TEMPL_TYPE
+#define TEMPL_TYPE uint32_t
 #include "dump_matrix.h"
-#undef TYPE
-#define TYPE uint64_t
+#undef TEMPL_TYPE
+#define TEMPL_TYPE uint64_t
 #include "dump_matrix.h"
-#undef TYPE
+#undef TEMPL_TYPE
 
 
 
@@ -219,7 +193,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
  * * bit 1,2 | 0 : 8 bit ; 1 : 16 bit ; 2 : 32bit ; 3 : 64 bit (this is 8*2^k)
  * m n mod nnz (u64) everything is 0 based.
  * start_zo (u64) of size m+1 s.t. start_zo[i] points at the beginning of row[i] and start_zo[m] = nnz
- * map_pol_zo of size m that tells what polynomial is used in row i
+ * map_zo_pol of size m that tells what polynomial is used in row i
  * colid_zo_size (u64) size of compressed colid_zo
  * colid_zo first one of each sequence followed by repetition, of size colid_sz
  * size_pol  : number of polynomials
@@ -232,14 +206,14 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 {
 	FILE* fh=ouvrir(fic,"r");
 
-	fprintf(stderr,"proposed format printing");
+	fprintf(stderr,"proposed format printing\n");
 
-	SAFE_READ_V(b,  uint32_t,fh);
+	SAFE_READ_DECL_V(b,  uint32_t,fh);
 
-	switch(b&0)
+	switch(b&1)
 	{
 		case (0) :
-			switch (b<<1)
+			switch (b>>1)
 		{
 			case  0 :
 				dump_uint8_t(fh,all,strict,magma);
@@ -258,7 +232,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 		}
 			break ;
 		case (1) :
-			switch (b<<1)
+			switch (b>>1)
 		{
 			case  0 :
 				dump_uint8_t(fh,all,strict,magma);

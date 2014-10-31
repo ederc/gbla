@@ -3,7 +3,7 @@
 
 
 #ifndef TYPE
-#define TYPE int32_t
+#define TYPE uint16_t
 #endif
 
 #define READ_MAT_ROW_BLOCK 128      /* read matrix MAT_ROW_BLOCK by MAT_ROW_BLOCK */
