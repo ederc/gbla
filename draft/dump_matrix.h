@@ -61,21 +61,28 @@ void Mjoin(dump,TEMPL_TYPE)(FILE * fh,int all,int strict,int magma)
 			else
 				printf("%u\n%u\n",m,n);
 
+		uint32_t here = 0;
 		for(i=0;i<m;i++) {
 			/* pointer to the values of the polynomial corresponding to row i  */
 			TEMPL_TYPE * vals_pol_begin = vals_pol + start_pol[map_zo_pol[i]];
 			uint32_t v ; /* just the value */
 			uint32_t j = start_zo[i] ; /* C99 inside for :-( */
-			for (  ; j < start_zo [i+1] ; ) {
+			for (  ; j < start_zo[i+1] ; ) {
 				/* NEGMASK flag (last bit set) says that column
 				 * is next column for that line has 0 ;
 				 * otherwise, next element is the number of
 				 * consecutive columns with non zeros at this
 				 * row. */
-				uint32_t first = colid_zo[j++] ;
-				uint32_t repet = ((first & NEGMASK) == NEGMASK)?1:(colid_zo[j++]);
-				if (repet == 1)
+				uint32_t first = colid_zo[here++] ;
+				uint32_t repet = 1 ;
+				if ((first & NEGMASK) == NEGMASK) {
 					first ^= NEGMASK ; /* get the actual first column by unmasking */
+				}
+				else  {
+					repet = colid_zo[here++];
+				}
+				assert(first < n);
+				assert(repet < n);
 				uint32_t k = 0 ; /* C99 for this inside for :-( */
 				for ( ; k < repet ; ++k) {
 					v = vals_pol_begin[k]; /* consecutive values */
@@ -83,6 +90,7 @@ void Mjoin(dump,TEMPL_TYPE)(FILE * fh,int all,int strict,int magma)
 					Mjoin(print_line,TEMPL_TYPE)(i+1,first+k+1,v,magma);
 
 				}
+				j += repet ;
 				/* assert something sur first */
 				vals_pol_begin += repet ; /* jump to the next "first" */
 			}
