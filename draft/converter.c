@@ -8,7 +8,6 @@
 #include "types.h"
 
 #define OLD_TYPE uint16_t
-#define MASK (1U<<31)
 
 uint64_t JOAAT_hash(char *key, size_t len)
 {
@@ -94,7 +93,7 @@ int main( int ac, char ** av)
 		colid_zo[here] = cols[j] ;
 		/* fprintf(stderr,"first in row %u\n", cols[j]); */
 		if ( j + 1 == start_zo[i+1] ) { /* just one element */
-			colid_zo[here++] |= MASK ;
+			colid_zo[here++] |= NEGMASK ;
 			/* fprintf(stderr,"was only in row, masking : %u\n",colid_zo[here]); */
 			continue ;
 		}
@@ -109,7 +108,7 @@ int main( int ac, char ** av)
 				/* fprintf(stderr,"not consecutive %u (%u)\n", cols[j], cols[j-1]); */
 				if (cons == 0) { /* last element was unit */
 					/* fprintf(stderr,"was single : %u\n",colid_zo[here]); */
-					colid_zo[here] |= MASK;
+					colid_zo[here] |= NEGMASK;
 					/* fprintf(stderr,"was single, masking : %u\n",colid_zo[here]); */
 				}
 				else { /* last element was last of sequence */
@@ -123,7 +122,7 @@ int main( int ac, char ** av)
 			if (j + 1 == start_zo[i+1]) { /* last element in row */
 				/* fprintf(stderr,"end of row"); */
 				if (cons == 0) {
-					colid_zo[here] |= MASK;
+					colid_zo[here] |= NEGMASK;
 				}
 				else {
 					colid_zo[++here] = cons+1 ;

@@ -154,8 +154,6 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 
 #include "types.h"
 
-#define NEGMASK  (1U<<31)
-
 #include "printer.h"
 
 

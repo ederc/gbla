@@ -15,6 +15,8 @@
 #define integer_t     int32_t /* modulo representation/storage */
 
 
+#define NEGMASK (1U<<31)
+
 #define SAFE_MALLOC(ptr,size,elt) \
 	ptr = (elt *) malloc((size)*sizeof(elt)); \
 	assert(ptr)
