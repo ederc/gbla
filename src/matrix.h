@@ -145,6 +145,7 @@ typedef struct sm_fl_ml_t {
  *
  * \param number of threads to copy data in parallel nthrds
  */
-void copyBlockMatrixToMultilineMatrix(sbm_fl_t *in, sm_fl_ml_t *out, int deleteIn, int nthrds);
+void copy_block_matrix_to_multiline_matrix(sbm_fl_t *in,
+    sm_fl_ml_t *out, int deleteIn, int nthrds);
 
 #endif

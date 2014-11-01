@@ -135,6 +135,247 @@ static inline void dense_scal_mul_sub_1_row_vect_array(
 }
 
 /**
+ * \brief Computes a dense AXPY for one row using full multilines
+ *
+ * \param value 1 from A Av1_col1
+ *
+ * \param value 2 from A Av2_col1
+ *
+ * \param corresponding multiline
+ *
+ * \param line index line_idx
+ *
+ * \param dense block width bwidth
+ *
+ * \param dense value 1 holder for delayed modulus dense_val1
+ *
+ * \param dense value 2 holder for delayed modulus dense_val2
+ *
+ * \param offset for first nonzero coefficient in multiline
+ */
+static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
+              const uint32_t Av1_col1,
+              const uint32_t Av2_col1,
+              const ml_t multiline,
+              const bi_t line_idx,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2,
+              const ci_t offset) {
+
+  const re_t *p_val = multiline.val;
+  p_val +=  line_idx;
+  uint32_t i;
+  bi_t j;
+
+  register uint32_t v__;
+
+  // both cannot be zero at the same time
+  //printf("mlsize %d\n",multiline.sz);
+  if (Av1_col1 != 0 && Av2_col1 != 0) {
+    for (i=0; i<__GB_ROUND_DOWN(multiline.sz, __GB_LOOP_UNROLL_SMALL);
+        i+=__GB_LOOP_UNROLL_SMALL) {
+      for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+        v__ = p_val[2*(i+j)];
+
+        dense_val1[i+j] +=  v__ * Av1_col1;
+        dense_val2[i+j] +=  v__ * Av2_col1;
+      }
+    }
+    for (; i<multiline.sz; ++i) {
+      v__ = p_val[2*i];
+
+      dense_val1[i] +=  v__ * Av1_col1;
+      dense_val2[i] +=  v__ * Av2_col1;
+    }
+  } else { // one of them is zero
+    if (Av1_col1 == 0) {
+      for (i=offset; i<__GB_ROUND_DOWN(multiline.sz, __GB_LOOP_UNROLL_SMALL);
+          i+=__GB_LOOP_UNROLL_SMALL) {
+        for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+          v__ = p_val[2*(i+j)];
+
+          dense_val2[i+j] +=  v__ * Av2_col1;
+        }
+      }
+      for (; i<multiline.sz; ++i) {
+        v__ = p_val[2*i];
+
+        dense_val1[i] +=  v__ * Av1_col1;
+        dense_val2[i] +=  v__ * Av2_col1;
+      }
+    } else {
+      if (Av2_col1 == 0) {
+        for (i=0; i<__GB_ROUND_DOWN(multiline.sz, __GB_LOOP_UNROLL_SMALL);
+            i+=__GB_LOOP_UNROLL_SMALL) {
+          for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+            v__ = p_val[2*(i+j)];
+
+            dense_val1[i+j] +=  v__ * Av1_col1;
+          }
+        }
+        for (; i<multiline.sz; ++i) {
+          v__ = p_val[2*i];
+
+          dense_val1[i] +=  v__ * Av1_col1;
+          dense_val2[i] +=  v__ * Av2_col1;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * \brief Computes a dense AXPY for two rows for multilines
+ *
+ * \param value 1,1 from A Av1_col1
+ *
+ * \param value 2,1 from A Av2_col1
+ *
+ * \param value 1,2 from A Av1_col2
+ *
+ * \param value 2,2 from A Av2_col2
+ *
+ * \param corresponding multiline 
+ *
+ * \param dense value 1 holder for delayed modulus dense_val1
+ *
+ * \param dense value 2 holder for delayed modulus dense_val2
+ *
+ * \param offset for first nonzero coefficient in multiline
+ */
+static inline void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
+              const uint32_t Av1_col1,
+              const uint32_t Av2_col1,
+              const uint32_t Av1_col2,
+              const uint32_t Av2_col2,
+              const ml_t multiline,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2,
+              const ci_t offset) {
+
+  if (offset < 0)
+    return;
+
+  // check cases where one pair of the elements is zero
+  if (Av1_col1 == 0 && Av2_col1 == 0) {
+    dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
+        Av1_col2, Av2_col2, multiline, 1, dense_val1, dense_val2, offset);
+    return;
+  }
+  if (Av1_col2 == 0 && Av2_col2 == 0) {
+    dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
+        Av1_col1, Av2_col1, multiline, 0, dense_val1, dense_val2, offset);
+    return;
+  }
+  
+  const re_t *p_val = multiline.val;
+  uint32_t i;
+  bi_t j;
+
+  register uint32_t v1__, v2__;
+  register uint32_t idx;
+
+  for (i=offset; i<__GB_ROUND_DOWN(multiline.sz, __GB_LOOP_UNROLL_SMALL);
+      i+=__GB_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      //printf(";;%d..%d::",i,j);
+      v1__ = p_val[2*(i+j)];
+      v2__ = p_val[2*(i+j)+1];
+        //printf("v11 %d v21 %d !! ",v1__,v2__);
+
+      dense_val1[i+j] +=  v1__ * Av1_col1;
+      dense_val1[i+j] +=  v2__ * Av1_col2;
+
+      v1__  *=  Av2_col1;
+      v2__  *=  Av2_col2;
+        //printf("v12 %d v22 %d !! ",v1__,v2__);
+
+      dense_val2[i+j] +=  v1__;
+      dense_val2[i+j] +=  v2__;
+    }
+  }
+  for (; i<multiline.sz; ++i) {
+    //printf(";;%d..%d::",i,j);
+    v1__ = p_val[2*i];
+    v2__ = p_val[2*i+1];
+      //printf("v11 %d v21 %d !! ",v1__,v2__);
+
+    dense_val1[i] +=  v1__ * Av1_col1;
+    dense_val1[i] +=  v2__ * Av1_col2;
+
+    v1__  *=  Av2_col1;
+    v2__  *=  Av2_col2;
+      //printf("v12 %d v22 %d !! ",v1__,v2__);
+
+    dense_val2[i] +=  v1__;
+    dense_val2[i] +=  v2__;
+  }
+  //printf("\n");
+}
+
+/**
+ * \brief Computes a sparse AXPY for one row for full multilines
+ *
+ * \param value 1 from A Av1_col1
+ *
+ * \param value 2 from A Av2_col1
+ *
+ * \param corresponding multiline
+ *
+ * \param line index line_idx
+ *
+ * \param dense value 1 holder for delayed modulus dense_val1
+ *
+ * \param dense value 2 holder for delayed modulus dense_val2
+ */
+static inline void sparse_scal_mul_sub_1_row_vect_array_multiline(
+              const uint32_t Av1_col1,
+              const uint32_t Av2_col1,
+              const ml_t multiline,
+              const bi_t line_idx,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2) {
+
+  const uint32_t N    = multiline.sz;
+  const mli_t *p_idx  = (N != 0) ? multiline.idx : NULL;
+  const re_t *p_val   = (N != 0) ? multiline.val : NULL;
+  p_val +=  line_idx;
+  uint32_t i  = 0;
+
+  register uint32_t v__;
+  register uint32_t idx;
+
+  //printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1);
+  // both cannot be zero at the same time
+  if (Av1_col1 != 0 && Av2_col1 != 0) {
+    for (; i<N; ++i) {
+      idx = p_idx[i];
+      v__ = p_val[2*i];
+
+      dense_val1[idx] +=  v__ * Av1_col1;
+      dense_val2[idx] +=  v__ * Av2_col1;
+    }
+  } else { // one of them is zero
+    if (Av1_col1 != 0) {
+      //printf("i %d -- N %d\n",i,N);
+      for (; i<N; ++i) {
+        idx = p_idx[i];
+        v__ = p_val[2*i];
+
+        dense_val1[idx] +=  v__ * Av1_col1;
+      }
+    } else {
+      for (; i<N; ++i) {
+        idx = p_idx[i];
+        v__ = p_val[2*i];
+
+        dense_val2[idx] +=  v__ * Av2_col1;
+      }
+    }
+  }
+}
+
+/**
  * \brief Computes a sparse AXPY for one row
  *
  * \param value 1 from A Av1_col1
@@ -341,6 +582,80 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array(
 }
 
 /**
+ * \brief Computes a sparse AXPY for two rows for multilines
+ *
+ * \param value 1,1 from A Av1_col1
+ *
+ * \param value 2,1 from A Av2_col1
+ *
+ * \param value 1,2 from A Av1_col2
+ *
+ * \param value 2,2 from A Av2_col2
+ *
+ * \param corresponding multiline
+ *
+ * \param dense value 1 holder for delayed modulus dense_val1
+ *
+ * \param dense value 2 holder for delayed modulus dense_val2
+ */
+static inline void sparse_scal_mul_sub_2_rows_vect_array_multiline(
+              const uint32_t Av1_col1,
+              const uint32_t Av2_col1,
+              const uint32_t Av1_col2,
+              const uint32_t Av2_col2,
+              const ml_t multiline,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2) {
+ 
+  // check cases where one pair of the elements is zero
+  if (Av1_col1 == 0 && Av2_col1 == 0) {
+    sparse_scal_mul_sub_1_row_vect_array_multiline(
+        Av1_col2, Av2_col2, multiline, 1, dense_val1, dense_val2);
+    return;
+  }
+  if (Av1_col2 == 0 && Av2_col2 == 0) {
+    sparse_scal_mul_sub_1_row_vect_array_multiline(
+        Av1_col1, Av2_col1, multiline, 0, dense_val1, dense_val2);
+    return;
+  }
+
+  const uint32_t N    = multiline.sz;
+  const mli_t *p_idx  = (N != 0) ? multiline.idx : NULL;
+  const re_t *p_val   = (N != 0) ? multiline.val : NULL;
+  const re_t *p_val2  = p_val + 1;
+  uint32_t i;
+  bi_t j;
+
+  register uint32_t v1__, v2__;
+  register uint32_t idx;
+
+  for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      idx   = p_idx[i+j];
+      v1__  = p_val[2*(i+j)];
+      v2__  = p_val2[2*(i+j)];
+
+      dense_val1[idx] +=  Av1_col1 * v1__;
+      dense_val1[idx] +=  Av1_col2 * v2__;
+
+      dense_val2[idx] +=  Av2_col1 * v1__;
+      dense_val2[idx] +=  Av2_col2 * v2__;
+    }
+  }
+  for ( ; i<N; ++i) {
+    idx   = p_idx[i];
+    v1__  = p_val[2*i];
+    v2__  = p_val2[2*i];
+
+    dense_val1[idx] +=  Av1_col1 * v1__;
+    dense_val1[idx] +=  Av1_col2 * v2__;
+
+    dense_val2[idx] +=  Av2_col1 * v1__;
+    dense_val2[idx] +=  Av2_col2 * v2__;
+  }
+}
+
+/**
  * \brief Computes a dense AXPY for one dense row (in triangular A^-1B situation)
  *
  * \param value 1 from A Av1_col1
@@ -467,7 +782,7 @@ static inline void dense_scal_mul_sub_2_rows_array_array(
  *
  * \param modulus resp. field characteristic modulus
  */
-static inline void red_dense_array_modular(re_l_t *dense_array, bi_t bwidth, mod_t modulus) {
+static inline void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus) {
   bi_t i;
   for (i=0; i<bwidth; ++i) {
     dense_array[i]  = (re_l_t)(dense_array[i] % modulus);
@@ -490,13 +805,135 @@ static inline void red_dense_array_modular(re_l_t *dense_array, bi_t bwidth, mod
  */
 static inline mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) {
   mli_t i;
-  for (i=0; i<m.sz; ++i) {
-    if (*h = m.val[2*i+line_idx] != 0) {
+  for (i=0; i<m->sz; ++i) {
+    if (*h = m->val[2*i+line_idx] != 0) {
       *h_idx  = i;
-      return m.idx[i];
+      return m->idx[i];
     }
   }
   return -1;
+}
+
+/**
+ * \brief Gets first nonzero entry in multiline m at line index line_idx and
+ * stores it in h resp. h_idx. Use hybrid representation of multiline.
+ *
+ * \param multiline m
+ *
+ * \param line index line_idx
+ *
+ * \param storage for "head" of line h
+ *
+ * \param storage for "head index" of line h_idx
+ *
+ * \return index value corresponding to h from input matrix M
+ */
+static inline mli_t get_head_multiline_hybrid(const ml_t *m,
+    const bi_t line_idx, re_t *h, mli_t *h_idx, const ci_t coldim) {
+  mli_t i;
+  if (m->sz < 2 * coldim) {
+    return get_head_multiline(m, line_idx, h, h_idx);
+  } else {
+    for (i=0; i<coldim; ++i) {
+      if (*h = m->val[2*i+line_idx] != 0) {
+        *h_idx  = i;
+        return m->idx[i];
+      }
+    }
+  }
+  return -1;
+}
+
+/**
+ * \brief Gets first nonzero entry in dense array. Reduces to zero on the go if
+ * possible.
+ *
+ * \param dense array dense_array
+ *
+ * \param holder for nonzero head value
+ *
+ * \param column dimension coldim
+ *
+ * \param field characteristic modulus
+ *
+ * \return index value corresponding to head value index in dense array
+ */
+static inline int get_head_dense_array(re_l_t *dense_array,
+    re_t *val, const ci_t coldim, const mod_t modulus) {
+  ci_t i;
+  for (i=0; i<coldim; ++i) {
+    *val  = dense_array[i] % modulus;
+    if (*val != 0)
+      return (int)i;
+    else
+      dense_array[i]  = 0;
+  }
+  return -1;
+}
+
+/**
+ * \brief Computes inverse value of x modulo y:
+ * We compute the inverse using the extended GCD. So we are only interested in x.
+ * Note that internally we need signed types, but we return only unsigned type
+ * re_t for x.
+ *
+ * \param x
+ *
+ * \param y
+ */
+static inline void inverse_val(re_t *x, const mod_t modulus) {
+  int32_t u1 = 1, u2 = 0;
+  int32_t v1 = 0, v3 = modulus;
+  int32_t u3 = *x, v2 = 1;
+  while (v3 != 0) {
+    int32_t q  = u3 / v3;
+    int32_t t1 = u1 - v1 * q;
+    u1  = v1; v1  = t1;
+
+    int32_t t3 = u3 - v3 * q;
+    u3  = v3; v3  = t3;
+
+    int32_t t2 = u2 - v2 * q;
+    u2  = v2; v2  = t2;
+  }
+  if (u1 < 0) {
+    u1  +=  modulus;
+    *x  =   u1;
+    return;
+  }
+  if (u1 > modulus) {
+    u1  -=  modulus;
+    *x  =   u1;
+    return;
+  }
+}
+
+/**
+ * \brief Normalizes dense array and returns index of head element in array
+ *
+ * \param dense array dense_array
+ *
+ * \param column dimension coldim
+ *
+ * \param field characteristic modulus
+ *
+ * \return index value corresponding to head value index in dense array
+ */
+static inline int normalize_dense_array(re_l_t *dense_array,
+    const ci_t coldim, const mod_t modulus) {
+  re_t val;
+  ci_t i;
+  int h1  = get_head_dense_array(dense_array, &val, coldim, modulus);
+
+  if (h1 == -1)
+    return h1;
+
+  inverse_val(&val, modulus);
+  for (i=h1; i<coldim; ++i) {
+    dense_array[i]  *=  val;
+    dense_array[i]  %=  modulus;
+  }
+  return h1;
 }
 
 /**
@@ -506,11 +943,11 @@ static inline mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t 
  *
  * \param field characteristic modulus
  */
-static inline void normalize_multiline(ml_t *m, mod_t modulus) {
+static inline void normalize_multiline(ml_t *m, const mod_t modulus) {
   mli_t idx;
   re_t h1 = 0, h2 = 0;
 
-  if (m.sz == 0)
+  if (m->sz == 0)
     return;
 
   get_head_multiline(m, 0, &h1, &idx);
@@ -527,63 +964,54 @@ static inline void normalize_multiline(ml_t *m, mod_t modulus) {
   re_l_t tmp_val;
   // normalize h2
   if (h1 == 0 || h1 == 1) {
-    for (idx=0; idx<m.sz; ++idx) {
-      tmp_val         = (re_l_t)m.val[2*idx+1] * h2;
-      m.val[2*idx+1]  = tmp_val % modulus;
+    for (idx=0; idx<m->sz; ++idx) {
+      tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
+      m->val[2*idx+1] = tmp_val % modulus;
     }
   } else {
     // normalize h1
     if (h2 == 0 || h2 == 1) {
-      for (idx=0; idx<m.sz; ++idx) {
-        tmp_val       = (re_l_t)m.val[2*idx] * h1;
-        m.val[2*idx]  = tmp_val % modulus;
+      for (idx=0; idx<m->sz; ++idx) {
+        tmp_val       = (re_l_t)m->val[2*idx] * h1;
+        m->val[2*idx] = tmp_val % modulus;
       }
     // normalize h1 and h2
     } else {
-      for (idx=0; idx<m.sz; ++idx) {
-        tmp_val       = (re_l_t)m.val[2*idx] * h1;
-        m.val[2*idx]  = tmp_val % modulus;
-        tmp_val         = (re_l_t)m.val[2*idx+1] * h2;
-        m.val[2*idx+1]  = tmp_val % modulus;
+      for (idx=0; idx<m->sz; ++idx) {
+        tmp_val         = (re_l_t)m->val[2*idx] * h1;
+        m->val[2*idx]   = tmp_val % modulus;
+        tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
+        m->val[2*idx+1] = tmp_val % modulus;
       }
     }
   }
 }
 
 /**
- * \brief Computes inverse value of x modulo y:
- * We compute the inverse using the extended GCD. So we are only interested in x.
- * Note that internally we need signed types, but we return only unsigned type
- * re_t for x.
+ * \brief Copies two dense arrays to a dense multiline for further processing.
+ * \note Multiline m must have already memory allocated correspondingly.
+ * Moreover all entries of m->val must be initialized to zero beforehand.
  *
- * \param x
+ * \param dense array dense_1
  *
- * \param y
+ * \param dense array dense_2
+ *
+ * \param multiline m
+ *
+ * \param array size resp. column dimension coldim
  */
-static inline void inverse_val(re_t *x, const re_t y) {
-  int32_t u1 = 1, u2 = 0;
-  int32_t v1 = 0, v3 = y;
-  int32_t u3 = x, v2 = 1;
-  while (v3 != 0) {
-    int32_t q  = u3 / v3;
-    int32_t t1 = u1 - v1 * q;
-    u1  = v1; v1  = t1;
+static inline void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
+    const re_l_t *dense_2, ml_t *m, const ci_t coldim, const mod_t modulus) {
 
-    int32_t t3 = u3 - v3 * q;
-    u3  = v3; v3  = t3;
-
-    int32_t t2 = u2 - v2 * q;
-    u2  = v2; v2  = t2;
-  }
-  if (u1<0) {
-    u1  +=  y;
-    *x  =   u1;
-    return;
-  }
-  if (u1 > y) {
-    u1  -=  y;
-    *x  =   u1;
-    return;
+  ci_t i;
+  re_t tmp_1, tmp_2;
+  for (i=0; i<coldim; ++i) {
+    tmp_1 = dense_1[i] % modulus;
+    tmp_2 = dense_1[i] % modulus;
+    if (tmp_1 != 0 || tmp_2 != 0) {
+      m->val[2*i]   = tmp_1;
+      m->val[2*i+1] = tmp_2;
+    }
   }
 }
 
@@ -598,7 +1026,8 @@ static inline void inverse_val(re_t *x, const re_t y) {
  *
  * \param array size resp. column dimension coldim
  */
-static inline void copy_multiline_to_dense_array(const ml_t *m, re_l_t *dense_1, re_l_t *dense_2, ci_t coldim) {
+static inline void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
+    re_l_t *dense_2, const ci_t coldim) {
   if (m.sz == 0)
     return;
 
@@ -613,7 +1042,7 @@ static inline void copy_multiline_to_dense_array(const ml_t *m, re_l_t *dense_1,
     }
   } else {
     for (i=0; i<coldim; ++i) {
-      dense_1[i]  = (re_l_t)m.bsl[2*i];
+      dense_1[i]  = (re_l_t)m.val[2*i];
       dense_2[i]  = (re_l_t)m.val[2*i+1];
     }
   }
@@ -634,7 +1063,8 @@ static inline void copy_multiline_to_dense_array(const ml_t *m, re_l_t *dense_1,
  *
  * \param invert scalars? inv_scalars
  */
-void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B, ri_t bheight, mod_t modulus, int inv_scalars);
+void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B,
+    const ri_t bheight, const mod_t modulus, int inv_scalars);
 
 /**
  * \brief Reduces dense block block_B with triangular sparse block block_A.
@@ -649,7 +1079,8 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B
  *
  * \param invert scalars? inv_scalars
  */
-void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B, ri_t bheight, mod_t modulus, int inv_scalars);
+void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B,
+    const ri_t bheight, const mod_t modulus, int inv_scalars);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix A to the unit
@@ -665,7 +1096,7 @@ void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B, ri_t bheight, m
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, mod_t modulus, int nthrds);
+int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, const mod_t modulus, int nthrds);
 
 /**
  * \brief Different block tasks when reducing block submatrix A.
@@ -682,7 +1113,8 @@ int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, mod_t modulus, int nthrds);
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus);
+int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
+    const ri_t nbrows_A, const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix C to zero.
@@ -700,7 +1132,8 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, mod_t modulus, int nthrds);
+int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, const mod_t modulus,
+    const int nthrds);
 
 /**
  * \brief Different block tasks when reducing block submatrix C.
@@ -720,7 +1153,8 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, mod_t modulus, int nt
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-    ci_t block_col_idx_D, ri_t nbrows_C, ci_t nbcols_C, mod_t modulus);
+    const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+    const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix D to an
@@ -738,7 +1172,7 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds);
+int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nthrds);
 
 /**
  * \brief Elimination procedure which reduces the multiline submatrix A
@@ -754,4 +1188,21 @@ int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds);
  */
 int elim_fl_A_ml_block(sm_fl_ml_t *A, sbm_fl_t *B, int nthrds);
 
+
+/**
+ * \brief Echelonizes the multiline rows of A from row index from up to row
+ * index to sequential. This is done in order to prepare a basis for the
+ * upcoming parallel structure echelonization
+ *
+ * \param multiline submatrix A (left upper side)
+ *
+ * \param start row index from
+ *
+ * \param end row index to
+ *
+ * \param field characteristic modulus
+ *
+ * \return number of real pivots found
+ */
+ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus);
 #endif

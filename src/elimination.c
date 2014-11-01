@@ -541,13 +541,14 @@ mbl_t *copy_dense_block_to_sparse(
 
 int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
   // copy D to D_red and delete D
-  copyBlockMatrixToMultilineMatrix(D, D_red, 1, nthrds);
+  copy_block_matrix_to_multiline_matrix(D, D_red, 1, nthrds);
 
   ri_t global_next_row_to_reduce  = nthrds * 2;
-  ri_t global_last_pivot          = global_next_row_to_reduc - 1;
+  ri_t global_last_piv            = global_next_row_to_reduce - 1;
+  echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
 }
 
-ri_t echelonizeRowsSequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus) {
+ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus) {
   if (A->nrows == 0)
     return 0;
 
@@ -556,20 +557,131 @@ ri_t echelonizeRowsSequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus) 
                     A->nrows % __GB_NROWS_MULTILINE;
 
   ml_t *ml_row;
-  re_l_t *dense_array_1, dense_array_2;
+  re_l_t *dense_array_1, *dense_array_2;
   posix_memalign((void **)&dense_array_1, 16, A->ncols * sizeof(re_l_t));
   posix_memalign((void **)&dense_array_2, 16, A->ncols * sizeof(re_l_t));
 
   ri_t i;
+  ci_t j, k;
   long head_line_1      = -1;
   long head_line_2      = -1;
   ci_t head_line_1_idx  = 0;
   ci_t head_line_2_idx  = 0;
 
-  normalizeMultiline(A->ml[from]);
+  ci_t coldim = A->ncols;
 
-  for (i=from; i<=min(to, N-1); ++i) {
-    memset(dense_array_1, 0, A->ncols * sizeof(re_l_t));
-    memset(dense_array_2, 0, A->ncols * sizeof(re_l_t));
+  normalize_multiline(&A->ml[from], modulus);
+
+  ri_t min_loop = to > N-1 ? N-1 : to;
+  for (i=from; i<=min_loop; ++i) {
+    memset(dense_array_1, 0, coldim * sizeof(re_l_t));
+    memset(dense_array_2, 0, coldim * sizeof(re_l_t));
+
+    copy_multiline_to_dense_array(A->ml[i], dense_array_1, dense_array_2, coldim);
+
+    re_t h_a1 = 1, h_a2 = 1;
+
+    re_t v1_col1 = 0, v2_col1 = 0, v1_col2 = 0, v2_col2 = 0;
+    ri_t tmp  = 0;
+
+    for (j=from; j<i; ++j) {
+      ml_row  = &(A->ml[j]);
+      if (ml_row->sz == 0)
+        continue;
+
+      head_line_1 = get_head_multiline_hybrid(ml_row, 0,
+          &h_a1, &head_line_1_idx, coldim);
+      head_line_2 = get_head_multiline_hybrid(ml_row, 1,
+          &h_a2, &head_line_2_idx, coldim);
+
+      if (head_line_1 != -1) {
+        v1_col1 = dense_array_1[head_line_1] % modulus;
+        v2_col1 = dense_array_2[head_line_1] % modulus;
+
+        if (v1_col1 != 0)
+          v1_col1 = modulus - v1_col1;
+        if (v2_col1 != 0)
+          v2_col1 = modulus - v2_col1;
+      } else {
+        v1_col1 = 0;
+        v2_col1 = 0;
+      }
+
+      if (head_line_2 != -1) {
+        v1_col2 = dense_array_1[head_line_2] % modulus;
+        v2_col2 = dense_array_2[head_line_2] % modulus;
+
+        if (v1_col2 != 0)
+          v1_col2 = modulus - v1_col2;
+        if (v2_col1 != 0)
+          v2_col2 = modulus - v2_col2;
+      } else {
+        v1_col2 = 0;
+        v2_col2 = 0;
+      }
+
+      if (ml_row->sz < 2 * coldim) {
+        sparse_scal_mul_sub_2_rows_vect_array_multiline(
+            v1_col1, v2_col1,
+            v1_col2, v2_col2,
+            *ml_row,
+            dense_array_1,
+            dense_array_2);
+      } else {
+        dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
+            v1_col1, v2_col1,
+            v1_col2, v2_col2,
+            *ml_row,
+            dense_array_1,
+            dense_array_2,
+            head_line_1);
+      }
+    }
+
+    // normalize dense arrays
+    head_line_1 = normalize_dense_array(dense_array_1, coldim, modulus);
+    head_line_2 = normalize_dense_array(dense_array_2, coldim, modulus);
+
+    // reduce by same multiline
+    if (head_line_1 >= head_line_2 && head_line_1 != -1 && head_line_2 != -1) {
+      dense_array_2[head_line_1] %= modulus;
+      if (dense_array_2[head_line_1] != 0) {
+        register uint32_t h = modulus - dense_array_2[head_line_1];
+        register uint32_t v__;
+        for (k=head_line_1; k<coldim; ++k) {
+          v__               =   dense_array_1[k] & 0x000000000000ffff;
+          dense_array_2[k]  +=  h * v__;
+        }
+      }
+    }
+
+    head_line_2 = get_head_dense_array(dense_array_2, &h_a2, coldim, modulus);
+
+    // make A->ml[i] dense, i.e. free memory for idx and enlarge memory for val
+    // initialize all values in val with 0, set size of A->ml[i] to coldim
+    free (A->ml[i].idx);
+    A->ml[i].idx  = NULL;
+    A->ml[i].val  = realloc(A->ml[i].val, 2 * coldim * sizeof(re_t));
+    A->ml[i].sz   = coldim;
+    memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
+    
+    // save the line with the smallest column entry first
+    if (head_line_1 != -1 || (head_line_2 != -1 && head_line_1 > head_line_2)) {
+      copy_dense_arrays_to_zero_dense_multiline(
+          dense_array_2, dense_array_1, &A->ml[i], coldim, modulus);
+    } else {
+      copy_dense_arrays_to_zero_dense_multiline(
+          dense_array_1, dense_array_2, &A->ml[i], coldim, modulus);
+    }
+    // normalize multiline
+    normalize_multiline(&A->ml[i], modulus);
+    if (head_line_1 != -1)
+      npiv_real++;
+    if (head_line_2 != -1)
+      npiv_real++;
   }
+  free(dense_array_1);
+  free(dense_array_2);
+
+  return npiv_real;
 }
