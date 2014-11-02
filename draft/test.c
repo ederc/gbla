@@ -3,15 +3,17 @@
 int main() {
 
 
-	FILE * fh = fopen("test.gb","r") ;
+	FILE * fh = fopen("test_new.gb","r") ;
 	SAFE_MALLOC_DECL(AA,1,GBMatrix_t);
 	SAFE_MALLOC_DECL(CC,1,GBMatrix_t);
 	init(AA);
 	init(CC);
 	SAFE_MALLOC_DECL(POL,1,CSR_pol);
 
+	fprintf(stderr,"READ FILE \n");
 	read_file(AA,CC,POL,fh);
 
+	fprintf(stderr,">>>>**************\n");
 	fprintf(stderr,"FIRST SPLIT\n");
 
 	printMat(AA);
@@ -23,6 +25,7 @@ int main() {
 	fprintf(stderr,"--------------\n");
 
 	printPoly(POL);
+	fprintf(stderr,"<<<<<**************\n");
 
 
 	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
@@ -35,8 +38,10 @@ int main() {
 	init(C);
 	/* init(D); */
 
-	split_columns(AA,CC,A,Bt,C,D);
+	fprintf(stderr,"SPLIT COLUMNS\n");
+	split_columns(AA,CC,POL,A,Bt,C,D);
 
+	fprintf(stderr,">>>>>**************\n");
 	fprintf(stderr,"SECOND SPLIT\n");
 	printMat(A);
 
@@ -47,6 +52,7 @@ int main() {
 	fprintf(stderr,"--------------\n");
 
 	printPoly(POL);
+	fprintf(stderr,"<<<<**************\n");
 
 	return 0;
 }

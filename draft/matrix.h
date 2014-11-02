@@ -31,6 +31,7 @@ typedef struct CSR_zo {
 	uint64_t * start_zo ;
 	uint32_t * colid_zo ;
 	uint32_t * map_zo_pol ;
+	TYPE     * data ;
 
 } CSR_zo;
 
@@ -51,8 +52,12 @@ void initUnit(CSR_zo * mat)
 	mat->col=0;
 	SAFE_MALLOC(mat->start_zo,1,uint64_t);
 	mat->start_zo[0]=0;
-	SAFE_MALLOC(mat->colid_zo,0,uint32_t);
-	SAFE_MALLOC(mat->map_zo_pol,0,uint32_t);
+	/* SAFE_MALLOC(mat->colid_zo,0,uint32_t); */
+	/* SAFE_MALLOC(mat->map_zo_pol,0,uint32_t); */
+	/* SAFE_MALLOC(mat->data,0,TYPE); */
+	mat->colid_zo = NULL ;
+	mat->map_zo_pol = NULL ;
+	mat->data = NULL ;
 }
 
 void appendRowUnit(CSR_zo * mat
@@ -139,12 +144,12 @@ void init(GBMatrix_t * A)
 void printMatUnit(CSR_zo * A)
 {
 	fprintf(stderr,"block %u x %u - %lu",A->row, A->col,A->nnz);
-	fprintf(stderr,"\nstart:\n");
+	fprintf(stderr,"\nstart:\n<");
 	uint32_t i = 0 ;
 	for ( ; i < A->row+1 ; ++i) {
 		fprintf(stderr,"%lu ", A->start_zo[i]);
 	}
-	fprintf(stderr,"\ndata:\n");
+	fprintf(stderr,">\ncolumns\n<");
 	i = 0 ;
 	for ( ; i < A->row ; ++i) {
 		uint32_t j = A->start_zo[i] ;
@@ -153,12 +158,24 @@ void printMatUnit(CSR_zo * A)
 		}
 		fprintf(stderr,"|");
 	}
-	fprintf(stderr,"\npolys:\n");
+	fprintf(stderr,">\npolys:\n<");
 	i = 0 ;
 	for ( ; i < A->row ; ++i) {
 		fprintf(stderr,"%u ", A->map_zo_pol[i]);
 	}
-	fprintf(stderr,"\n");
+
+	if (A->data != NULL) {
+		fprintf(stderr,">\nDATA:\n<");
+		i = 0;
+		for ( ; i < A->row ; ++i) {
+			uint32_t j = A->start_zo[i] ;
+			for ( ; j < A->start_zo[i+1] ; ++j) {
+				fprintf(stderr,"%u ", A->data[j]);
+			}
+			fprintf(stderr,"|");
+		}
+	}
+	fprintf(stderr,">\n");
 }
 
 void printMat(GBMatrix_t * A)
