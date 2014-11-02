@@ -831,13 +831,13 @@ static inline mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t 
 static inline mli_t get_head_multiline_hybrid(const ml_t *m,
     const bi_t line_idx, re_t *h, mli_t *h_idx, const ci_t coldim) {
   mli_t i;
-  if (m->sz < 2 * coldim) {
+  if (m->sz < coldim) {
     return get_head_multiline(m, line_idx, h, h_idx);
   } else {
     for (i=0; i<coldim; ++i) {
       if (*h = m->val[2*i+line_idx] != 0) {
         *h_idx  = i;
-        return m->idx[i];
+        return i;
       }
     }
   }
@@ -943,15 +943,15 @@ static inline int normalize_dense_array(re_l_t *dense_array,
  *
  * \param field characteristic modulus
  */
-static inline void normalize_multiline(ml_t *m, const mod_t modulus) {
+static inline void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
   mli_t idx;
   re_t h1 = 0, h2 = 0;
 
   if (m->sz == 0)
     return;
 
-  get_head_multiline(m, 0, &h1, &idx);
-  get_head_multiline(m, 0, &h2, &idx);
+  get_head_multiline_hybrid(m, 0, &h1, &idx, coldim);
+  get_head_multiline_hybrid(m, 0, &h2, &idx, coldim);
 
   // invert values modulo modulus
   inverse_val(&h1, modulus);

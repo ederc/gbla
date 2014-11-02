@@ -546,6 +546,7 @@ int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
   ri_t global_next_row_to_reduce  = nthrds * 2;
   ri_t global_last_piv            = global_next_row_to_reduce - 1;
   echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
+  return 0;
 }
 
 ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus) {
@@ -570,7 +571,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus
 
   ci_t coldim = A->ncols;
 
-  normalize_multiline(&A->ml[from], modulus);
+  normalize_multiline(&A->ml[from], coldim, modulus);
 
   ri_t min_loop = to > N-1 ? N-1 : to;
   for (i=from; i<=min_loop; ++i) {
@@ -620,7 +621,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus
         v2_col2 = 0;
       }
 
-      if (ml_row->sz < 2 * coldim) {
+      if (ml_row->sz < coldim) {
         sparse_scal_mul_sub_2_rows_vect_array_multiline(
             v1_col1, v2_col1,
             v1_col2, v2_col2,
@@ -674,7 +675,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus
           dense_array_1, dense_array_2, &A->ml[i], coldim, modulus);
     }
     // normalize multiline
-    normalize_multiline(&A->ml[i], modulus);
+    normalize_multiline(&A->ml[i], coldim, modulus);
     if (head_line_1 != -1)
       npiv_real++;
     if (head_line_2 != -1)
