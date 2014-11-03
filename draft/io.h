@@ -479,12 +479,15 @@ void do_permute_columns_up(
 
 
 		SAFE_CALLOC_DECL(done_col,Bd->row,uint32_t);
+		SAFE_MALLOC(Bd->data, Bd->nnz, TYPE);
+
 		uint32_t j = 0 ;
 		for (; j < A_k->row ; ++j) {
 			i = start_b[j];
 			while (i < A_k->start_zo[j+1]){
 				uint32_t cur_place = Bd->start_zo[A_k->colid_zo[i]-k];
 				cur_place  += done_col[A_k->colid_zo[i]-k] ;
+				Bd->data [ cur_place ] = A_k->data[i] ;
 				Bd->colid_zo[ cur_place ] =  j ;
 				done_col[A_k->colid_zo[i]-k] += 1 ;
 				++i;
