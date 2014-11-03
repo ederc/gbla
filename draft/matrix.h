@@ -85,7 +85,7 @@ typedef struct GBMatrix_t {
 	uint32_t row ;
 	uint32_t col ;
 	uint64_t nnz ;
-	uint32_t mod ;
+	TYPE mod ;
 	/* uint32_t block_size ; */
 	uint32_t matrix_nb ;  /* nb of 0/1 matrices */
 	CSR_zo  * matrix_zo ; /* 0/1 matrices reprensenting positions */
@@ -100,6 +100,7 @@ CSR_zo * getLastMatrix(GBMatrix_t * A)
 typedef struct DenseMatrix_t {
 	uint32_t row ;
 	uint32_t col ;
+	TYPE mod ;
 	TYPE *  data ;
 } DenseMatrix_t ;
 
@@ -185,6 +186,20 @@ void printMat(GBMatrix_t * A)
 	uint32_t k = 0 ;
 	for (  ; k < A->matrix_nb ; ++k ) {
 		printMatUnit(&(A->matrix_zo[k]));
+	}
+}
+
+void printMatDense(DenseMatrix_t * A)
+{
+	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col, (uint64_t)A->row*(uint64_t)A->col);
+	fprintf(stderr,"mod %u\n",A->mod);
+	uint32_t i = 0 ;
+	for (  ; i < A->row ; ++i ) {
+		uint32_t j = 0 ;
+		for (  ; j < A->col ; ++j ) {
+			fprintf(stderr,"%u ",A->data[A->col*i+j]);
+		}
+		fprintf(stderr,"\n");
 	}
 }
 

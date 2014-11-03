@@ -466,7 +466,7 @@ void do_permute_columns_up(
 			}
 		}
 		fprintf(stderr,"B row start: ");
-		i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0;
+		/* i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0; */
 
 
 		i = 0 ;
@@ -475,7 +475,7 @@ void do_permute_columns_up(
 		}
 
 		fprintf(stderr,"B row start: ");
-		i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0;
+		/* i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0; */
 
 
 		SAFE_CALLOC_DECL(done_col,Bd->row,uint32_t);
@@ -510,7 +510,7 @@ void do_permute_columns_up(
 }
 
 
-#if 0
+#if 1
 void do_permute_columns_lo(
 		GBMatrix_t * C_init,
 		GBMatrix_t * C,
@@ -518,24 +518,31 @@ void do_permute_columns_lo(
 		, uint32_t * perm_i
 		, uint32_t * perm_j
 		, uint32_t perm_size
+		, CSR_pol * polys
 		)
 {
-	uint32_t k = A_init->row;
+	uint32_t k = C_init->row;
 	C->row = D->row = k ;
-	C->mod = D->mod = A_init->mod;
-	C->col = D->col = A_init->col - k ;
+	C->mod = D->mod = C_init->mod;
+	C->col = k ;
+	D->col = C_init->col - k ;
 
 	SAFE_CALLOC(D->data,D->row*D->col,TYPE);
 
 	uint32_t blk = 0;
-	for ( ; blk < A_init->matrix_nb ; ++blk) {
+	for ( ; blk < C_init->matrix_nb ; ++blk) {
 		uint32_t i = 0 ;
-		SAFE_MALLOC_DECL(start_b,A_k->row,uint32_t);
+
 		CSR_zo * C_k = &(C_init->matrix_zo[blk]); /* A_k band of A_init */
+		SAFE_MALLOC_DECL(start_b,C_k->row,uint32_t);
 
 		/* C */
-		permuteCSR(C_k,C,start_b,k,perm_i,perm_j,perm_size);
+		permuteCSR(C_k,C,start_b,k,perm_i,perm_j,perm_size,polys);
+		uint64_t other_nnz = getLastMatrix(C)->nnz ;
 
+		C->nnz += other_nnz  ;
+
+#if 0
 		/*  D */
 		TYPE * data = D->data + (blk * MAT_ROW_BLOCK * D->col) ;
 
@@ -553,6 +560,7 @@ void do_permute_columns_lo(
 				elt ++ ;
 			}
 		}
+#endif
 	}
 
 	fprintf(stderr,"C:");
@@ -630,7 +638,7 @@ void split_columns(
 
 	/* copy last columns of A,C to B,D in proper format */
 	do_permute_columns_up(A_init,A,Bt,perm_i, perm_j,2*trans,polys);
-	/* do_permute_columns_lo(B,D,perm); */
+	do_permute_columns_lo(C_init,C,D,perm_i,perm_j,2*trans,polys);
 
 	return ;
 }
