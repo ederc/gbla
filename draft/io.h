@@ -108,43 +108,6 @@ uint32_t getSparsestRows(uint32_t * colid
 	return pivot_nb ;
 }
 
-#if 0
-void insert_row(CSR_zo * A, uint32_t * colid, uint32_t nnz, uint32_t pol)
-{
-	A->row += 1 ;
-	A->map_zo_pol = (uint32_t*) realloc(A->map_zo_pol,A->row*sizeof(uint32_t));
-	A->map_zo_pol[A->row-1] = pol ;
-	uint32_t last = A->nnz();
-	A->start_zo = (uint32_t *) realloc(A->start_zo,(A->row+1)*sizeof(uint32_t));
-	A->start_zo[A->row] = last+nnz ;
-	A->colid_zo = (uint32_t *) realloc(A->colid_zo, A->nnz() *sizeof(uint32_t));
-	for (uint32_t i = 0 ; i < nnz ; ++i) {
-		A->colid_zo[last+i] = colid[i] ;
-	}
-	return ;
-}
-
-void fix_last_row(
-		GBMatrix_t * A
-		GBMatrix_t * C
-		)
-{
-	CSR_zo * A_mat = A->matrix_zo[A->matrix_nb-1] ;
-	CSR_zo * B_mat = C->matrix_zo[C->matrix_nb-1] ;
-	if (B_mat->row == MAT_ROW_BLOCK) {
-		B_mat->matrix_nb += 1 ;
-		B_mat->matrix_zo = (CSR_zo  *) realloc(B_mat->matrix_zo, B_mat->matrix_nb * sizeof(CSR_zo));
-		B_mat.init();
-	}
-	uint32_t last_row_size = A_mat->nnz() ;
-
-	insert_row(B_mat,A_mat->getRow(A_mat->row),last_row_size, A_mat->map_zo_pol[A_mat->row]);
-
-	A_mat->row -= 1 ;
-}
-
-#endif
-
 void splitRowsUpBottom(
 		GBMatrix_t * A
 		, GBMatrix_t * C
@@ -512,6 +475,7 @@ void do_permute_columns_up(
 
 #if 1
 void do_permute_columns_lo(
+		uint32_t k,
 		GBMatrix_t * C_init,
 		GBMatrix_t * C,
 		DenseMatrix_t * D
@@ -521,8 +485,7 @@ void do_permute_columns_lo(
 		, CSR_pol * polys
 		)
 {
-	uint32_t k = C_init->row;
-	C->row = D->row = k ;
+	C->row = D->row = C_init->row ;
 	C->mod = D->mod = C_init->mod;
 	C->col = k ;
 	D->col = C_init->col - k ;
@@ -542,25 +505,18 @@ void do_permute_columns_lo(
 
 		C->nnz += other_nnz  ;
 
-#if 0
 		/*  D */
-		TYPE * data = D->data + (blk * MAT_ROW_BLOCK * D->col) ;
-
 		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
+		TYPE * data = D->data + (row_offset * D->col) ;
 
 		i = 0 ;
-		// XXX offset polys by start_b
-		// XXX permute polys before
-		for ( ; i < A_k->row ; ++i) {
+		for ( ; i < C_k->row ; ++i) {
 			uint32_t j = start_b[i] ;
-			TYPE * elt = pol_data[pol_start[row_offset]];
-			for (; j < A_k->start_zo[i+1] ; ++j) {
-				uint32_t jj =  A_k->colid_zo[j]-k;
-				data[row_offset*D->col+jj] = *elt ;
-				elt ++ ;
+			for (; j < C_k->start_zo[i+1] ; ++j) {
+				uint32_t jj =  C_k->colid_zo[j]-k;
+				data[D->col*i+jj] = C_k->data[j];
 			}
 		}
-#endif
 	}
 
 	fprintf(stderr,"C:");
@@ -638,7 +594,7 @@ void split_columns(
 
 	/* copy last columns of A,C to B,D in proper format */
 	do_permute_columns_up(A_init,A,Bt,perm_i, perm_j,2*trans,polys);
-	do_permute_columns_lo(C_init,C,D,perm_i,perm_j,2*trans,polys);
+	do_permute_columns_lo(A_init->row,C_init,C,D,perm_i,perm_j,2*trans,polys);
 
 	return ;
 }
