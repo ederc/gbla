@@ -37,6 +37,16 @@
  * ---------------
  * 2 3 0 | 0 0 0 4
  *
+ * 
+ * A^-1 . Bt =
+ * 0 3/2 0   2 
+ * 0 9/8 0   0
+ * 0 0   8/9 0
+ *
+ * 0 5 0 2 
+ * 0 2 0 0
+ * 0 0 4 0
+ *
  */
 
 #include "selecter.h"
@@ -53,7 +63,7 @@ int main()
 
 
 #ifdef _PROPOSED_FORMAT
-	const TYPE mod = 7 ;
+	const TYPE mod = 11 ;
 	FILE * toto =fopen("test_new.gb","wb");
 	assert(toto);
 

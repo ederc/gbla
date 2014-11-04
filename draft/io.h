@@ -176,7 +176,7 @@ int read_file(GBMatrix_t * A_init
 		, FILE * fh
 	     )
 {
-	uint32_t i = 0 ;
+	/* uint32_t i = 0 ; */
 
 	/* sanity */
 	assert(fh);
@@ -223,7 +223,7 @@ int read_file(GBMatrix_t * A_init
 	free(buffer);
 
 	/* uint32_t last_start = 0 ; */
-	i = 0 ;
+	/* i = 0 ; */
 	SAFE_CALLOC_DECL(pivots,m,uint32_t);
 
 	uint32_t pivots_size = getSparsestRows(colid_zo,start_zo,m, pivots);
@@ -365,7 +365,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		fprintf(stderr,"b : %u\n",b);
 		Ad->start_zo[i+1]= Ad->start_zo[i]+b;
 		fprintf(stderr,"start %u+1=%lu\n",i,Ad->start_zo[i+1]);
-		uint32_t j = A_k->start_zo[i] ;
+		/* uint32_t j = A_k->start_zo[i] ; */
 		copy(Ad->colid_zo+Ad->start_zo[i], A_k->colid_zo+A_k->start_zo[i], b);
 		copy(Ad->data+Ad->start_zo[i], A_k->data+A_k->start_zo[i], b);
 	}
@@ -376,26 +376,107 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 	printMatUnit(Ad);
 }
 
+#if 0
+
+void permuteCSRT(void) {
+	appendMatrix(Bt);
+	CSR_zo * Bd = getLastMatrix(Bt);
+
+	Bd->col = A_k->row ;
+	Bd->row = A_init->col - A_init->row ;
+	SAFE_CALLOC(Bd->start_zo,Bd->row+1,uint64_t);
+	uint64_t other_nnz = getLastMatrix(A)->nnz ;
+	Bd->nnz = A_k->nnz - other_nnz ;
+	SAFE_MALLOC(Bd->colid_zo,Bd->nnz,uint32_t);
+	SAFE_MALLOC(Bd->map_zo_pol ,A_k->row,uint32_t);
+	copy(Bd->map_zo_pol,A_k->map_zo_pol,A_k->row); /* useless */
+
+	i = 0 ;
+	for ( ; i < A_k->row ; ++i) {
+		uint32_t j = start_b[i] ;
+		for (; j < A_k->start_zo[i+1] ; ++j) {
+			Bd->start_zo[A_k->colid_zo[j]-k+1] += 1 ;
+
+		}
+	}
+	fprintf(stderr,"B row start: ");
+	/* i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0; */
+
+
+	i = 0 ;
+	for ( ; i < Bd->row+1 ; ++i) {
+		Bd->start_zo[i+1] += Bd->start_zo[i] ;
+	}
+
+	fprintf(stderr,"B row start: ");
+	/* i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0; */
+
+
+	SAFE_CALLOC_DECL(done_col,Bd->row,uint32_t);
+	SAFE_MALLOC(Bd->data, Bd->nnz, TYPE);
+
+	uint32_t j = 0 ;
+	for (; j < A_k->row ; ++j) {
+		i = start_b[j];
+		while (i < A_k->start_zo[j+1]){
+			uint32_t cur_place = Bd->start_zo[A_k->colid_zo[i]-k];
+			cur_place  += done_col[A_k->colid_zo[i]-k] ;
+			Bd->data [ cur_place ] = A_k->data[i] ;
+			Bd->colid_zo[ cur_place ] =  j ;
+			done_col[A_k->colid_zo[i]-k] += 1 ;
+			++i;
+		}
+	}
+
+	fprintf(stderr,"Bd:");
+	printMatUnit(Bd);
+}
+#endif
+
+void permuteDNS(CSR_zo * C_k, GBMatrix_t * C, uint32_t * start_b, TYPE * data)
+{
+
+	/* uint64_t other_nnz = getLastMatrix(C)->nnz ; */
+
+	/* C->nnz += other_nnz  ; */
+
+	uint32_t k =  C->col;
+
+	uint32_t i = 0 ;
+	uint32_t ldd = C_k->col - k ;
+	for ( ; i < C_k->row ; ++i) {
+		uint32_t j = start_b[i] ;
+		for (; j < C_k->start_zo[i+1] ; ++j) {
+			uint32_t jj =  C_k->colid_zo[j]-k;
+			data[ldd*i+jj] = C_k->data[j];
+		}
+	}
+}
+
 void do_permute_columns_up(
+		uint32_t k,
 		GBMatrix_t * A_init,
 		GBMatrix_t * A,
-		GBMatrix_t * Bt
+		DenseMatrix_t * B
+		/* GBMatrix_t * Bt */
 		, uint32_t * perm_i
 		, uint32_t * perm_j
 		, uint32_t perm_size
 		, CSR_pol * polys
 		)
 {
-	uint32_t k = A_init->row;
+	/* uint32_t k = A_init->row; */
 
-	A->row = Bt->col = k ;
-	A->mod = Bt->mod = A_init->mod;
+	A->row = B->row = k ;
+	A->mod = B->mod = A_init->mod;
 	A->col = k ;
-	Bt->row= A_init->col - k ;
+	B->col = A_init->col - k ;
+
+	SAFE_CALLOC(B->data,B->row*B->col,TYPE);
 
 	uint32_t blk = 0;
 	for ( ; blk < A_init->matrix_nb ; ++blk) {
-		uint32_t i = 0 ;
+		/* uint32_t i = 0 ; */
 
 		CSR_zo * A_k = &(A_init->matrix_zo[blk]); /* A_k band of A_init */
 
@@ -408,72 +489,24 @@ void do_permute_columns_up(
 
 		/* Transpose B */
 
-		appendMatrix(Bt);
-		CSR_zo * Bd = getLastMatrix(Bt);
+		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
+		TYPE * data = B->data + (row_offset * B->col) ;
 
-		Bd->col = A_k->row ;
-		Bd->row = A_init->col - A_init->row ;
-		SAFE_CALLOC(Bd->start_zo,Bd->row+1,uint64_t);
-		uint64_t other_nnz = getLastMatrix(A)->nnz ;
-		Bd->nnz = A_k->nnz - other_nnz ;
-		SAFE_MALLOC(Bd->colid_zo,Bd->nnz,uint32_t);
-		SAFE_MALLOC(Bd->map_zo_pol ,A_k->row,uint32_t);
-		copy(Bd->map_zo_pol,A_k->map_zo_pol,A_k->row); /* useless */
+		permuteDNS(A_k,A,start_b,data);
 
-		i = 0 ;
-		for ( ; i < A_k->row ; ++i) {
-			uint32_t j = start_b[i] ;
-			for (; j < A_k->start_zo[i+1] ; ++j) {
-				Bd->start_zo[A_k->colid_zo[j]-k+1] += 1 ;
-
-			}
-		}
-		fprintf(stderr,"B row start: ");
-		/* i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0; */
-
-
-		i = 0 ;
-		for ( ; i < Bd->row+1 ; ++i) {
-			Bd->start_zo[i+1] += Bd->start_zo[i] ;
-		}
-
-		fprintf(stderr,"B row start: ");
-		/* i =  0 ; for( ; i < Bd->row+1 ; ++i) fprintf(stderr, "%u ", Bd->start_zo[i]); fprintf(stderr,"\n"); i = 0; */
-
-
-		SAFE_CALLOC_DECL(done_col,Bd->row,uint32_t);
-		SAFE_MALLOC(Bd->data, Bd->nnz, TYPE);
-
-		uint32_t j = 0 ;
-		for (; j < A_k->row ; ++j) {
-			i = start_b[j];
-			while (i < A_k->start_zo[j+1]){
-				uint32_t cur_place = Bd->start_zo[A_k->colid_zo[i]-k];
-				cur_place  += done_col[A_k->colid_zo[i]-k] ;
-				Bd->data [ cur_place ] = A_k->data[i] ;
-				Bd->colid_zo[ cur_place ] =  j ;
-				done_col[A_k->colid_zo[i]-k] += 1 ;
-				++i;
-			}
-		}
-
-		fprintf(stderr,"Bd:");
-		printMatUnit(Bd);
-
-
-		A->nnz += other_nnz ;
-		Bt->nnz += Bd->nnz ;
+		A->nnz += A_k->nnz ;
+		/* Bt->nnz += Bd->nnz ; */
 	}
 
 	fprintf(stderr,"A:");
 	printMat(A);
 
 	fprintf(stderr,"Bt:");
-	printMat(Bt);
+	printMatDense(B);
+	/* printMat(Bt); */
 }
 
 
-#if 1
 void do_permute_columns_lo(
 		uint32_t k,
 		GBMatrix_t * C_init,
@@ -494,29 +527,19 @@ void do_permute_columns_lo(
 
 	uint32_t blk = 0;
 	for ( ; blk < C_init->matrix_nb ; ++blk) {
-		uint32_t i = 0 ;
+		/* uint32_t i = 0 ; */
 
 		CSR_zo * C_k = &(C_init->matrix_zo[blk]); /* A_k band of A_init */
 		SAFE_MALLOC_DECL(start_b,C_k->row,uint32_t);
 
 		/* C */
 		permuteCSR(C_k,C,start_b,k,perm_i,perm_j,perm_size,polys);
-		uint64_t other_nnz = getLastMatrix(C)->nnz ;
-
-		C->nnz += other_nnz  ;
 
 		/*  D */
 		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
 		TYPE * data = D->data + (row_offset * D->col) ;
 
-		i = 0 ;
-		for ( ; i < C_k->row ; ++i) {
-			uint32_t j = start_b[i] ;
-			for (; j < C_k->start_zo[i+1] ; ++j) {
-				uint32_t jj =  C_k->colid_zo[j]-k;
-				data[D->col*i+jj] = C_k->data[j];
-			}
-		}
+		permuteDNS(C_k,C,start_b,data);
 	}
 
 	fprintf(stderr,"C:");
@@ -527,15 +550,11 @@ void do_permute_columns_lo(
 
 
 }
-#endif
 
 
 
-
-
-/* transforms perm where perm[i] = j into two lists
- * such that ther permutations are (perm_i[k],perm_j[k]) for perm and perm^(-1).
- * perm_i is increasing.
+/* transforms perm where perm[i] = j into two lists such that ther permutations
+ * are (perm_i[k],perm_j[k]) for perm and perm^(-1).  perm_i is increasing.
  */
 uint32_t split_permutations(
 		const uint32_t * perm
@@ -569,7 +588,8 @@ void split_columns(
 		, GBMatrix_t * C_init
 		, CSR_pol * polys
 		, GBMatrix_t * A
-		, GBMatrix_t * Bt
+		, DenseMatrix_t * B
+		/* , GBMatrix_t * Bt */
 		, GBMatrix_t * C
 		, DenseMatrix_t * D
 		)
@@ -593,12 +613,102 @@ void split_columns(
 	/* i =  0 ; for( ; i < 2*trans ; ++i) fprintf(stderr, "%u ", perm_j[i]); fprintf(stderr,"\n"); i = 0; */
 
 	/* copy last columns of A,C to B,D in proper format */
-	do_permute_columns_up(A_init,A,Bt,perm_i, perm_j,2*trans,polys);
+
+	do_permute_columns_up(A_init->row,A_init,A,B,perm_i,perm_j,2*trans,polys);
 	do_permute_columns_lo(A_init->row,C_init,C,D,perm_i,perm_j,2*trans,polys);
 
 	return ;
 }
 
+TYPE invert(TYPE a, TYPE p)
+{
+	TYPE new = 1, old = 0, q = p,r,h ;
+	TYPE pos = 0 ;
+	while(a > 0) {
+		r = q%a ;
+		q = q/a ;
+		h = q*new+old ;
+		old = new ;
+		new = h;
+		q = a ;
+		a = r ;
+		pos = !pos ;
+	}
+	return pos ? old : (p-old);
+}
+
+
+void reduce( GBMatrix_t * A
+		, DenseMatrix_t * B
+		/* , GBMatrix_t * Bt */
+		, GBMatrix_t * C
+		, DenseMatrix_t * D )
+{
+	/*
+	 * // y = U x
+	 * for i from n-1 to 0 do
+	 *   x[i] = y[i] ;
+	 *   for j from i+1 to n-1 do
+	 *     x[i,k] -= U[i,j] * x [j,k] ;
+	 *   x[i,k] /=  U[i,i] ;
+	 *
+	 *
+	 */
+	/* uint32_t blk = 0 ; */
+	/* for ( ; blk < A->matrix_nb ; ++blk) { */
+	/* } */
+	CSR_zo * Ad = getLastMatrix(A);
+	uint32_t n = A->row ;
+	uint32_t m = B->col ;
+	int32_t i = n -1;
+	uint32_t ldb = B->col ;
+	TYPE p = A->mod ;
+	/* B = A^(-1) B */
+	for ( ; i >= 0 ; --i) {
+		uint32_t jz = Ad->start_zo[i]  ;
+		TYPE d = Ad->data[jz++] ;
+		fprintf(stderr,"diag elt %u\n",d);
+		uint32_t k  ;
+		for ( ; jz < Ad->start_zo[i+1] ; ++jz) {
+			k = 0 ;
+			for ( ; k < m ; ++k) {
+				B->data[i*ldb+k] -= Ad->data[jz] * B->data[Ad->colid_zo[jz]*ldb+k] ;
+				B->data[i*ldb+k] = B->data[i*ldb+k] % p ;
+			}
+		}
+		TYPE di = invert(d,p);
+		fprintf(stderr,"diag inv elt %u\n",di);
+		k = 0;
+		for ( ; k < m ; ++k) {
+			B->data[i*ldb+k] *= di ;
+			B->data[i*ldb+k] %= p ;
+		}
+	}
+
+	CSR_zo * Cd = getLastMatrix(C);
+	i = 0 ;
+	uint32_t ldd = D->col ;
+	/* D = D - C . B */
+	for ( ; i < (int32_t)C->row ;  ++i) {
+		/* fprintf(stderr,"row %u\n",i); */
+		uint32_t jz = Cd->start_zo[i] ;
+		for ( ; jz < Cd->start_zo[i+1] ; ++jz ) {
+			uint32_t k = Cd->colid_zo[jz];
+			/* fprintf(stderr,"mid %u\n",k); */
+			uint32_t j = 0 ;
+			for ( ; j < B->col ; ++j) {
+				/* fprintf(stderr,"had %u\n",D->data[i*ldd+j]); */
+				/* fprintf(stderr,"col %u\n",j); */
+				/* fprintf(stderr,"op %u * %u\n",Cd->data[jz],B->data[k*ldb+j]); */
+				TYPE tmp = ( Cd->data[jz] * B->data[k*ldb+j] ) % p ;
+				D->data[i*ldd+j] -= tmp ;
+				if (((int16_t)D->data[i*ldd+j])<0) D->data[i*ldd+j] += p ;
+				/* fprintf(stderr,"= %u\n",D->data[i*ldd+j]); */
+			}
+		}
+	}
+
+}
 
 #endif /* __GB_io_H */
 /* vim: set ft=c: */
