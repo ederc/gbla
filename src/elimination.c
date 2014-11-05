@@ -569,6 +569,8 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus
   ci_t head_line_1_idx  = 0;
   ci_t head_line_2_idx  = 0;
 
+  re_t intermediate_val;
+  uint32_t tmp_val;
   ci_t coldim = A->ncols;
 
   normalize_multiline(&A->ml[from], coldim, modulus);
@@ -577,7 +579,6 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus
   for (i=from; i<=min_loop; ++i) {
     memset(dense_array_1, 0, coldim * sizeof(re_l_t));
     memset(dense_array_2, 0, coldim * sizeof(re_l_t));
-
     copy_multiline_to_dense_array(A->ml[i], dense_array_1, dense_array_2, coldim);
 
     re_t h_a1 = 1, h_a2 = 1;
@@ -611,6 +612,12 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus
       if (head_line_2 != -1) {
         v1_col2 = dense_array_1[head_line_2] % modulus;
         v2_col2 = dense_array_2[head_line_2] % modulus;
+
+        intermediate_val  = ml_row->val[2*head_line_2_idx];
+        tmp_val = v1_col2 + (uint32_t)v1_col1 * intermediate_val;
+        v1_col2 = tmp_val % modulus;
+        tmp_val = v2_col2 + (uint32_t)v2_col1 * intermediate_val;
+        v2_col2 = tmp_val % modulus;
 
         if (v1_col2 != 0)
           v1_col2 = modulus - v1_col2;
@@ -667,12 +674,12 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus
     memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
     
     // save the line with the smallest column entry first
-    if (head_line_1 != -1 || (head_line_2 != -1 && head_line_1 > head_line_2)) {
-      copy_dense_arrays_to_zero_dense_multiline(
-          dense_array_2, dense_array_1, &A->ml[i], coldim, modulus);
-    } else {
+    if ((head_line_1 != -1) || ((head_line_2 != -1) && (head_line_1 > head_line_2))) {
       copy_dense_arrays_to_zero_dense_multiline(
           dense_array_1, dense_array_2, &A->ml[i], coldim, modulus);
+    } else {
+      copy_dense_arrays_to_zero_dense_multiline(
+          dense_array_2, dense_array_1, &A->ml[i], coldim, modulus);
     }
     // normalize multiline
     normalize_multiline(&A->ml[i], coldim, modulus);

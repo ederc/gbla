@@ -806,7 +806,8 @@ static inline void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidt
 static inline mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) {
   mli_t i;
   for (i=0; i<m->sz; ++i) {
-    if (*h = m->val[2*i+line_idx] != 0) {
+    if (m->val[2*i+line_idx] != 0) {
+      *h      = m->val[2*i+line_idx];
       *h_idx  = i;
       return m->idx[i];
     }
@@ -835,7 +836,8 @@ static inline mli_t get_head_multiline_hybrid(const ml_t *m,
     return get_head_multiline(m, line_idx, h, h_idx);
   } else {
     for (i=0; i<coldim; ++i) {
-      if (*h = m->val[2*i+line_idx] != 0) {
+      if (m->val[2*i+line_idx] != 0) {
+        *h      = m->val[2*i+line_idx];
         *h_idx  = i;
         return i;
       }
@@ -883,8 +885,8 @@ static inline int get_head_dense_array(re_l_t *dense_array,
  */
 static inline void inverse_val(re_t *x, const mod_t modulus) {
   int32_t u1 = 1, u2 = 0;
-  int32_t v1 = 0, v3 = modulus;
-  int32_t u3 = *x, v2 = 1;
+  int32_t v1 = 0, v3 = (int32_t)modulus;
+  int32_t u3 = (int32_t)*x, v2 = 1;
   while (v3 != 0) {
     int32_t q  = u3 / v3;
     int32_t t1 = u1 - v1 * q;
@@ -906,6 +908,8 @@ static inline void inverse_val(re_t *x, const mod_t modulus) {
     *x  =   u1;
     return;
   }
+  *x  = u1;
+  return;
 }
 
 /**
@@ -951,7 +955,7 @@ static inline void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t m
     return;
 
   get_head_multiline_hybrid(m, 0, &h1, &idx, coldim);
-  get_head_multiline_hybrid(m, 0, &h2, &idx, coldim);
+  get_head_multiline_hybrid(m, 1, &h2, &idx, coldim);
 
   // invert values modulo modulus
   inverse_val(&h1, modulus);
@@ -1007,7 +1011,7 @@ static inline void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense
   re_t tmp_1, tmp_2;
   for (i=0; i<coldim; ++i) {
     tmp_1 = dense_1[i] % modulus;
-    tmp_2 = dense_1[i] % modulus;
+    tmp_2 = dense_2[i] % modulus;
     if (tmp_1 != 0 || tmp_2 != 0) {
       m->val[2*i]   = tmp_1;
       m->val[2*i+1] = tmp_2;
@@ -1034,11 +1038,12 @@ static inline void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
   register mli_t idx;
   ci_t i;
 
-  if (m.sz < 2*coldim) {
+  if (m.sz < coldim) {
     for (i=0; i<m.sz; ++i) {
       idx           = m.idx[i];
       dense_1[idx]  = (re_l_t)m.val[2*i];
       dense_2[idx]  = (re_l_t)m.val[2*i+1];
+      
     }
   } else {
     for (i=0; i<coldim; ++i) {
