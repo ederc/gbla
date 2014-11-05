@@ -253,22 +253,22 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       compute_density_block_submatrix(B);
       compute_density_block_submatrix(C);
       compute_density_block_submatrix(D);
-      printf("A [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("A [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           A->nrows, A->ncols, A->nnz, A->density);
-      printf("B [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("B [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           B->nrows, B->ncols, B->nnz, B->density);
-      printf("C [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("C [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           C->nrows, C->ncols, C->nnz, C->density);
-      printf("D [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("D [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           D->nrows, D->ncols, D->nnz, D->density);
     } else {
-      printf("A [%d x %d]\n",
+      printf("A [%9d x %9d]\n",
           A->nrows, A->ncols);
-      printf("B [%d x %d]\n",
+      printf("B [%9d x %9d]\n",
           B->nrows, B->ncols);
-      printf("C [%d x %d]\n",
+      printf("C [%9d x %9d]\n",
           C->nrows, C->ncols);
-      printf("D [%d x %d]\n",
+      printf("D [%9d x %9d]\n",
           D->nrows, D->ncols);
     }
     printf("---------------------------------------------------------------------\n");
@@ -432,7 +432,8 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing D to upper triangular matrix ...\n");
   }
-  if (elim_fl_D_block(D, D_red, M->mod, nthreads)) {
+  ri_t rank_D = elim_fl_D_block(D, D_red, M->mod, nthreads);
+  if (rank_D == -1) {
     printf("Error while reducing D to upper triangular matrix.\n");
     return 1;
   }
@@ -441,6 +442,8 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
     print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("Rank of D:\t%u\n",rank_D);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
@@ -478,22 +481,22 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
       compute_density_block_submatrix(B);
       compute_density_block_submatrix(C);
       compute_density_block_submatrix(D);
-      printf("A [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("A [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           A->nrows, A->ncols, A->nnz, A->density);
-      printf("B [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("B [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           B->nrows, B->ncols, B->nnz, B->density);
-      printf("C [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("C [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           C->nrows, C->ncols, C->nnz, C->density);
-      printf("D [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("D [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           D->nrows, D->ncols, D->nnz, D->density);
     } else {
-      printf("A [%d x %d]\n",
+      printf("A [%9d x %9d]\n",
           A->nrows, A->ncols);
-      printf("B [%d x %d]\n",
+      printf("B [%9d x %9d]\n",
           B->nrows, B->ncols);
-      printf("C [%d x %d]\n",
+      printf("C [%9d x %9d]\n",
           C->nrows, C->ncols);
-      printf("D [%d x %d]\n",
+      printf("D [%9d x %9d]\n",
           D->nrows, D->ncols);
     }
     printf("---------------------------------------------------------------------\n");
@@ -613,22 +616,22 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
       compute_density_block_submatrix(B);
       compute_density_ml_submatrix(C);
       compute_density_block_submatrix(D);
-      printf("A [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("A [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           A->nrows, A->ncols, A->nnz, A->density);
-      printf("B [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("B [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           B->nrows, B->ncols, B->nnz, B->density);
-      printf("C [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("C [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           C->nrows, C->ncols, C->nnz, C->density);
-      printf("D [%d x %d]\t - %10ld nze --> %7.3f %% density\n",
+      printf("D [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
           D->nrows, D->ncols, D->nnz, D->density);
     } else {
-      printf("A [%d x %d]\n",
+      printf("A [%9d x %9d]\n",
           A->nrows, A->ncols);
-      printf("B [%d x %d]\n",
+      printf("B [%9d x %9d]\n",
           B->nrows, B->ncols);
-      printf("C [%d x %d]\n",
+      printf("C [%9d x %9d]\n",
           C->nrows, C->ncols);
-      printf("D [%d x %d]\n",
+      printf("D [%9d x %9d]\n",
           D->nrows, D->ncols);
     }
     printf("---------------------------------------------------------------------\n");
