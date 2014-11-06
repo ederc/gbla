@@ -690,20 +690,14 @@ void reduce( GBMatrix_t * A
 	uint32_t ldd = D->col ;
 	/* D = D - C . B */
 	for ( ; i < (int32_t)C->row ;  ++i) {
-		/* fprintf(stderr,"row %u\n",i); */
 		uint32_t jz = Cd->start_zo[i] ;
 		for ( ; jz < Cd->start_zo[i+1] ; ++jz ) {
 			uint32_t k = Cd->colid_zo[jz];
-			/* fprintf(stderr,"mid %u\n",k); */
 			uint32_t j = 0 ;
 			for ( ; j < B->col ; ++j) {
-				/* fprintf(stderr,"had %u\n",D->data[i*ldd+j]); */
-				/* fprintf(stderr,"col %u\n",j); */
-				/* fprintf(stderr,"op %u * %u\n",Cd->data[jz],B->data[k*ldb+j]); */
 				TYPE tmp = ( Cd->data[jz] * B->data[k*ldb+j] ) % p ;
 				D->data[i*ldd+j] -= tmp ;
 				if (((int16_t)D->data[i*ldd+j])<0) D->data[i*ldd+j] += p ;
-				/* fprintf(stderr,"= %u\n",D->data[i*ldd+j]); */
 			}
 		}
 	}

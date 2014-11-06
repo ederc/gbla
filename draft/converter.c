@@ -30,6 +30,10 @@ uint64_t JOAAT_hash(char *key, size_t len)
 #define my_join(pre, nam) pre ## _ ## nam
 
 
+#define REVERT
+#ifdef REVERT
+#warning "reverting rows"
+#endif
 
 /* ./convert toto.gb */
 int main( int ac, char ** av)
@@ -62,11 +66,12 @@ int main( int ac, char ** av)
 	SAFE_MALLOC_DECL(start_zo,m+1,uint64_t);
 	start_zo[0] =  0 ;
 	uint32_t i = 0 ;
-	for ( ; i<m ; ++i) {
+	for ( ; i<m ; ++i) 
+	{
 		start_zo[i+1] = start_zo[i] + rows[i] ;
 	}
+
 	assert(start_zo[m] == nnz);
-	fwrite(start_zo,sizeof(uint64_t),m+1,toto);
 	/* i = 0 ; for ( ; i < m+1 ; ++i) fprintf(stderr,"%lu ",start_zo[i]) ; fprintf(stderr,"\n"); */
 
 	SAFE_MALLOC_DECL(map_zo_pol,m,uint32_t);
@@ -82,8 +87,14 @@ int main( int ac, char ** av)
 	uint64_t cons = 0 ;
 	uint64_t here = 0 ;
 
+#ifndef REVERT
 	i = 0 ;
-	for ( ; i < m ; ++i) {
+	for ( ; i < m ; ++i) 
+#else
+	i = m ;
+	for ( ; i-- ; ) 
+#endif
+	{
 		uint64_t j = start_zo[i] ;
 		if ( j == start_zo[i+1] ) {  /* zero element */
 			exit(-15);
@@ -151,7 +162,7 @@ int main( int ac, char ** av)
 	i = 0 ;
 	for ( ; i < m ; ++i) {
 		uint64_t j0 = start_zo[i] ;
-		uint64_t j1 =  start_zo[i+1] ;
+		uint64_t j1 = start_zo[i+1] ;
 		char * seq = (char*) (data+j0);
 		uint64_t length = (j1-j0)*sizeof(OLD_TYPE)/sizeof(char) ;
 
@@ -170,24 +181,27 @@ int main( int ac, char ** av)
 		if (result == NULL) {
 			/* fprintf(stderr,"new\n"); */
 			hsearch(item,ENTER);
+#ifndef REVERT
 			map_zo_pol[i] = pol_nb;
 			hash_row_pol[pol_nb] = i ;
+#else
+			map_zo_pol[m-i-1] = pol_nb;
+			hash_row_pol[pol_nb] = i ;
+#endif
 			pol_nb++;
 		}
 		else {
 			/* fprintf(stderr,"old %u\n", ((row*)result->data)->i); */
+#ifndef REVERT
 			map_zo_pol[i] = ((row*)result->data)->i;
+#else
+			map_zo_pol[m-i-1] = ((row*)result->data)->i;
+#endif
 		}
 	}
 	hdestroy();
-
-       	fwrite(map_zo_pol,sizeof(uint32_t),m,toto);
-	/* i = 0 ; for ( ; i < m ; ++i) fprintf(stderr,"%u ",map_zo_pol[i]) ; fprintf(stderr,"\n"); */
-
-	fwrite(&here,sizeof(uint64_t),1,toto);
-	fwrite(colid_zo,sizeof(uint32_t),here,toto);
-
-	fwrite(&pol_nb,sizeof(uint32_t),1,toto);
+	/* uint64_t ii = 0 ; for ( ; ii <  m; ++ii) fprintf(stderr,"%u ",map_zo_pol[ii]) ; fprintf(stderr,"\n"); */
+	/* ii = 0 ; for ( ; ii <  pol_nb; ++ii) fprintf(stderr,"%u ",hash_row_pol[ii]) ; fprintf(stderr,"\n"); */
 
 	SAFE_MALLOC_DECL(pol_start,pol_nb+1,uint32_t);
 	/* pol_start  */
@@ -198,8 +212,6 @@ int main( int ac, char ** av)
 		uint64_t j1 = start_zo[hash_row_pol[i]+1] ;
 		pol_start[i+1] = pol_start[i]+(j1-j0);
 	}
-	/* i = 0 ; for ( ; i < pol_nb+1 ; ++i) fprintf(stderr,"%u ",pol_start[i]) ; fprintf(stderr,"\n"); */
-	fwrite(pol_start,sizeof(uint32_t),pol_nb+1,toto);
 
 	uint32_t pol_nnz = pol_start[pol_nb];
 	SAFE_MALLOC_DECL(pol_data,pol_nnz,TYPE);
@@ -215,6 +227,26 @@ int main( int ac, char ** av)
 			pol_data[pol_start[i]+k]=data[j0+k];
 	}
 	/* i = 0 ; for ( ; i < pol_nnz ; ++i) fprintf(stderr,"%u ",pol_data[i]) ; fprintf(stderr,"\n"); */
+
+#ifdef REVERT
+	i = 0 ;
+	for ( ; i < m ; ++i) {
+		start_zo[i+1] = start_zo[i] + rows[m-i-1] ;
+	}
+#endif
+
+	fwrite(start_zo,sizeof(uint64_t),m+1,toto);
+       	fwrite(map_zo_pol,sizeof(uint32_t),m,toto);
+	/* i = 0 ; for ( ; i < m ; ++i) fprintf(stderr,"%u ",map_zo_pol[i]) ; fprintf(stderr,"\n"); */
+
+	fwrite(&here,sizeof(uint64_t),1,toto);
+	fwrite(colid_zo,sizeof(uint32_t),here,toto);
+
+	fwrite(&pol_nb,sizeof(uint32_t),1,toto);
+
+
+	/* i = 0 ; for ( ; i < pol_nb+1 ; ++i) fprintf(stderr,"%u ",pol_start[i]) ; fprintf(stderr,"\n"); */
+	fwrite(pol_start,sizeof(uint32_t),pol_nb+1,toto);
 
 
 	fwrite(pol_data,sizeof(TYPE),pol_nnz,toto);
