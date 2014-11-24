@@ -137,15 +137,17 @@ typedef struct sm_fl_ml_t {
  * \brief Copies data from block matrix in to multiline matrix out. If deleteIn
  * is set the input block matrix in is deleted.
  *
- * \param block matrix in, input matrix
+ * \param pointer to block matrix in, input matrix
  *
  * \param multiline matrix out, output matrix
  *
  * \param deleteIn, if 1 the input matrix in is deleted, if 0 in is not deleted.
  *
  * \param number of threads to copy data in parallel nthrds
+ *
+ * \return multiline matrix generated out of block input matrix
  */
-void copy_block_matrix_to_multiline_matrix(sbm_fl_t *in,
-    sm_fl_ml_t *out, int deleteIn, int nthrds);
+sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
+     sm_fl_ml_t *out, int deleteIn, int nthrds);
 
 #endif

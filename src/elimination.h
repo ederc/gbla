@@ -12,6 +12,57 @@
 #include <matrix.h>
 
 /**
+ * \brief Structure of a waiting list element
+ */
+typedef struct wle_t {
+  ri_t idx; /*!<  row index */
+  ri_t lp;  /*!<  row index of last pivot that idx was reduced with */
+} wle_t;
+
+/**
+ * \brief Structure defining the waiting list or queue for parallel dense
+ * echelonization of the D part.
+ *
+ * \note We use a mutiline concept for the row index lists.
+ */
+typedef struct wl_t {
+  wle_t *list;  /*!<  row indices of rows in waiting list */
+  ri_t sidx;    /*!<  smallest row index in rows */
+  ri_t slp;     /*!<  last pivot row index by which sidx is
+                      reduced by already */
+  ri_t sz;      /*!<  size of waiting list */
+} wl_t;
+
+/**
+ * \brief Comparison function for qsort for waiting list
+ *
+ * \param waiting list element a
+ *
+ * \param waiting list element b
+ *
+ * \return *b.idx - *a.idx
+ */
+static inline int cmp_wle(const wle_t *a, const wle_t *b) {
+  return b->idx - a->idx;
+}
+
+/**
+ * \brief Adds a new row to end of waiting list
+ *
+ * \param waiting list wl
+ *
+ * \param row index to be added row_idx
+ *
+ * \param row index of last pivot row_idx was reduced by last_piv_reduced_by
+ */
+static inline void push_row_to_waiting_list(wl_t *wl, const ri_t row_idx,
+    const ri_t last_piv_reduced_by) {
+  wl->list[wl->sz].idx  = row_idx;
+  wl->list[wl->sz].lp   = last_piv_reduced_by;
+  wl->sz++;
+}
+
+/**
  * \brief Copies entry from sparse block sparse_block to dense block dense_block
  * for elimination purposes.
  *
@@ -63,8 +114,8 @@ static inline void copy_sparse_to_dense_block(
  *
  * \param modulus resp. field characteristic modulus
  */
-mbl_t *copy_dense_block_to_sparse(
-    re_l_t **dense_block, mbl_t *sparse_block, int bheight, int bwidth,
+void copy_dense_block_to_sparse(
+    re_l_t **dense_block, mbl_t **sparse_block, int bheight, int bwidth,
     mod_t modulus);
 
 /**
@@ -164,6 +215,7 @@ static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
   const re_t *p_val = multiline.val;
   p_val +=  line_idx;
+  const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
   uint32_t i;
   bi_t j;
 
@@ -172,8 +224,7 @@ static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
   // both cannot be zero at the same time
   //printf("mlsize %d\n",multiline.sz);
   if (Av1_col1 != 0 && Av2_col1 != 0) {
-    for (i=0; i<__GB_ROUND_DOWN(multiline.sz, __GB_LOOP_UNROLL_SMALL);
-        i+=__GB_LOOP_UNROLL_SMALL) {
+    for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
       for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
         v__ = p_val[2*(i+j)];
 
@@ -189,8 +240,7 @@ static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
     }
   } else { // one of them is zero
     if (Av1_col1 == 0) {
-      for (i=offset; i<__GB_ROUND_DOWN(multiline.sz, __GB_LOOP_UNROLL_SMALL);
-          i+=__GB_LOOP_UNROLL_SMALL) {
+      for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
         for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
           v__ = p_val[2*(i+j)];
 
@@ -205,8 +255,7 @@ static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
       }
     } else {
       if (Av2_col1 == 0) {
-        for (i=0; i<__GB_ROUND_DOWN(multiline.sz, __GB_LOOP_UNROLL_SMALL);
-            i+=__GB_LOOP_UNROLL_SMALL) {
+        for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
           for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
             v__ = p_val[2*(i+j)];
 
@@ -269,48 +318,36 @@ static inline void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
   }
   
   const re_t *p_val = multiline.val;
+  const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
   uint32_t i;
   bi_t j;
 
   register uint32_t v1__, v2__;
   register uint32_t idx;
 
-  for (i=offset; i<__GB_ROUND_DOWN(multiline.sz, __GB_LOOP_UNROLL_SMALL);
-      i+=__GB_LOOP_UNROLL_SMALL) {
+  for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
     for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
-      //printf(";;%d..%d::",i,j);
       v1__ = p_val[2*(i+j)];
       v2__ = p_val[2*(i+j)+1];
-        //printf("v11 %d v21 %d !! ",v1__,v2__);
 
       dense_val1[i+j] +=  v1__ * Av1_col1;
       dense_val1[i+j] +=  v2__ * Av1_col2;
 
-      v1__  *=  Av2_col1;
-      v2__  *=  Av2_col2;
-        //printf("v12 %d v22 %d !! ",v1__,v2__);
 
-      dense_val2[i+j] +=  v1__;
-      dense_val2[i+j] +=  v2__;
+      dense_val2[i+j] +=  v1__ * Av2_col1;
+      dense_val2[i+j] +=  v2__ * Av2_col2;
     }
   }
   for (; i<multiline.sz; ++i) {
-    //printf(";;%d..%d::",i,j);
     v1__ = p_val[2*i];
     v2__ = p_val[2*i+1];
-      //printf("v11 %d v21 %d !! ",v1__,v2__);
 
     dense_val1[i] +=  v1__ * Av1_col1;
     dense_val1[i] +=  v2__ * Av1_col2;
 
-    v1__  *=  Av2_col1;
-    v2__  *=  Av2_col2;
-      //printf("v12 %d v22 %d !! ",v1__,v2__);
-
-    dense_val2[i] +=  v1__;
-    dense_val2[i] +=  v2__;
+    dense_val2[i] +=  v1__ * Av2_col1;
+    dense_val2[i] +=  v2__ * Av2_col2;
   }
-  //printf("\n");
 }
 
 /**
@@ -805,6 +842,8 @@ static inline void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidt
  */
 static inline mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) {
   mli_t i;
+  if (m->sz == 0)
+    return -1;
   for (i=0; i<m->sz; ++i) {
     if (m->val[2*i+line_idx] != 0) {
       *h      = m->val[2*i+line_idx];
@@ -812,7 +851,6 @@ static inline mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t 
       return m->idx[i];
     }
   }
-  return -1;
 }
 
 /**
@@ -832,6 +870,8 @@ static inline mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t 
 static inline mli_t get_head_multiline_hybrid(const ml_t *m,
     const bi_t line_idx, re_t *h, mli_t *h_idx, const ci_t coldim) {
   mli_t i;
+  if (m->sz == 0)
+    return -1;
   if (m->sz < coldim) {
     return get_head_multiline(m, line_idx, h, h_idx);
   } else {
@@ -843,7 +883,6 @@ static inline mli_t get_head_multiline_hybrid(const ml_t *m,
       }
     }
   }
-  return -1;
 }
 
 /**
@@ -1000,22 +1039,77 @@ static inline void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t m
  *
  * \param dense array dense_2
  *
+ * \param minimal first position of non-zero entries in dense_1 and dense_2
+ * start_pos
+ *
  * \param multiline m
  *
  * \param array size resp. column dimension coldim
  */
 static inline void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
+    const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
+    const mod_t modulus) {
+
+  printf("in copy mlv %p\n",m->val);
+  ci_t i;
+  re_l_t tmp_1, tmp_2;
+  for (i=start_pos; i<coldim; ++i) {
+    tmp_1 = dense_1[i] % modulus;
+    tmp_2 = dense_2[i] % modulus;
+    //printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2);
+    if (tmp_1 != 0 || tmp_2 != 0) {
+      //printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+      m->val[2*i]   = (re_t)tmp_1;
+      //printf("A1 %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+      m->val[2*i+1] = (re_t)tmp_2;
+    }
+    //printf("A %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+  }
+}
+
+/**
+ * \brief Copies one dense array to a dense multiline for further processing.
+ * \note Multiline m must have already memory allocated correspondingly.
+ * Moreover all entries of m->val must be initialized to zero beforehand.
+ *
+ * \param dense array dense_1
+ *
+ * \param position of first non-zero entry in array dense_1 start_pos
+ *
+ * \param multiline m
+ *
+ * \param array size resp. column dimension coldim
+ */
+static inline void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_1,
+    const int start_pos, ml_t *m, const ci_t coldim, const mod_t modulus) {
+
+  printf("in copy mlv %p\n",m->val);
+  ci_t i;
+  re_l_t tmp_1;
+  for (i=start_pos; i<coldim; ++i) {
+    tmp_1 = dense_1[i] % modulus;
+    printf("t1 %lu\n",tmp_1);
+    if (tmp_1 != 0) {
+      printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+      m->val[2*i]   = (re_t)tmp_1;
+      printf("A1 %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+    }
+    printf("A %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+  }
+}
+static inline void copy_dense_arrays_to_dense_multiline(const re_l_t *dense_1,
     const re_l_t *dense_2, ml_t *m, const ci_t coldim, const mod_t modulus) {
 
   ci_t i;
-  re_t tmp_1, tmp_2;
+  re_l_t tmp_1, tmp_2;
   for (i=0; i<coldim; ++i) {
     tmp_1 = dense_1[i] % modulus;
     tmp_2 = dense_2[i] % modulus;
-    if (tmp_1 != 0 || tmp_2 != 0) {
-      m->val[2*i]   = tmp_1;
-      m->val[2*i+1] = tmp_2;
-    }
+    printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2);
+      printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+      m->val[2*i]   = (re_t)tmp_1;
+      m->val[2*i+1] = (re_t)tmp_2;
+    printf("A %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
   }
 }
 
@@ -1039,6 +1133,7 @@ static inline void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
   ci_t i;
 
   if (m.sz < coldim) {
+    printf("m.sz %d\n",m.sz);
     for (i=0; i<m.sz; ++i) {
       idx           = m.idx[i];
       dense_1[idx]  = (re_l_t)m.val[2*i];
@@ -1051,6 +1146,28 @@ static inline void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
       dense_2[i]  = (re_l_t)m.val[2*i+1];
     }
   }
+}
+
+/**
+ * \brief Returns smallest row index in waiting list for echelonization.
+ *
+ * \param waiting list waiting
+ *
+ * \return 1 if waiting list is not empty, 0 else
+ */
+static inline int get_smallest_waiting_row(wl_t *waiting) {
+  if (waiting->sz == 0)
+    return 0;
+
+  // sort the waiting list
+  qsort(waiting->list, waiting->sz, sizeof(wle_t), cmp_wle);
+  // store last (smallest index) element separately and
+  // remove it from the list
+  waiting->sidx = waiting->list[waiting->sz-1].idx;
+  waiting->slp  = waiting->list[waiting->sz-1].lp;
+  waiting->sz--;
+
+  return 1;
 }
 
 /**
@@ -1101,7 +1218,7 @@ void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B,
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_A_block(sbm_fl_t *A, sbm_fl_t *B, const mod_t modulus, int nthrds);
+int elim_fl_A_block(sbm_fl_t **A, sbm_fl_t *B, const mod_t modulus, int nthrds);
 
 /**
  * \brief Different block tasks when reducing block submatrix A.
@@ -1137,7 +1254,7 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D, const mod_t modulus,
+int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const mod_t modulus,
     const int nthrds);
 
 /**
@@ -1175,9 +1292,9 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
  *
  * \param number of threads nthrds
  *
- * \return 0 if success, 1 if failure
+ * \return rank of D_red
  */
-int elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nthrds);
+ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nthrds);
 
 /**
  * \brief Elimination procedure which reduces the multiline submatrix A
@@ -1209,5 +1326,69 @@ int elim_fl_A_ml_block(sm_fl_ml_t *A, sbm_fl_t *B, int nthrds);
  *
  * \return number of real pivots found
  */
-ri_t echelonize_rows_sequential(sm_fl_ml_t *A, ri_t from, ri_t to, mod_t modulus);
+ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
+    const mod_t modulus);
+
+/**
+ * \brief Echelonizes the multiline rows of A from row index from up to row
+ * index to sequential. This is done in order to prepare a basis for the
+ * upcoming parallel structure echelonization
+ *
+ * \param multiline submatrix A (left upper side)
+ *
+ * \param global value of next row to be reduced (shared among the threads!)
+ *
+ * \param global last pivot known (shared among the threads!)
+ *
+ * \param list of rows waiting to be reduced waiting
+ *
+ * \param field characteristic modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int echelonize_rows_task(sm_fl_ml_t *A, const ri_t ml_ncols,
+    ri_t global_next_row_to_reduce, ri_t global_last_piv,
+    wl_t *waiting, const mod_t modulus);
+
+/**
+ * \brief Echelonizes one multiline row (represented by dense_array_1 and
+ * dense_array_2) by the already known pivot rows A->ml[first_piv] up to
+ * A->ml[last_piv].
+ *
+ * \param multiline submatrix A (left upper side)
+ *
+ * \param dense array for first part of multiline row dense_array_1
+ *
+ * \param dense array for second part of multiline row dense_array_2
+ *
+ * \param first known pivot first_piv
+ *
+ * \param last known pivot last_piv
+ *
+ * \param field characteristic modulus
+ */
+void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
+    re_l_t *dense_array_2, const ri_t first_piv, const ri_t last_piv,
+    const mod_t modulus);
+
+/**
+ * \brief Restores the two dense arrays in a multiline row in D after
+ * echelonizing the corresponding multiline row
+ *
+ * \param multiline row in D ml
+ *
+ * \param dense array for first part of multiline row dense_array_1
+ *
+ * \param dense array for second part of multiline row dense_array_2
+ *
+ * \param columns dimension coldim
+ *
+ * \param field characteristic modulus
+ *
+ * \param reduce or just store in multiline row? reduce
+ * if 1 then reduction is done, else we only store the multiline row
+ */
+void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
+    re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
+    const int reduce);
 #endif

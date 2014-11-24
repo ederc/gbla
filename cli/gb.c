@@ -389,10 +389,11 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing A ...\n");
   }
-  if (elim_fl_A_block(A, B, M->mod, nthreads)) {
+  if (elim_fl_A_block(&A, B, M->mod, nthreads)) {
     printf("Error while reducing A.\n");
     return 1;
   }
+  printf("A after elimination %p\n",A);
   if (verbose > 1) {
     printf("<<<<\tDONE  reducing A.\n");
     printf("TIME\t%.3f sec\n",
@@ -408,10 +409,11 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing C to zero ...\n");
   }
-  if (elim_fl_C_block(B, C, D, M->mod, nthreads)) {
+  if (elim_fl_C_block(B, &C, D, M->mod, nthreads)) {
     printf("Error while reducing C.\n");
     return 1;
   }
+  printf("C after elimination %p\n",C);
   if (verbose > 1) {
     printf("<<<<\tDONE  reducing C to zero.\n");
     printf("TIME\t%.3f sec\n",
