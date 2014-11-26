@@ -8,6 +8,13 @@
 
 #include "matrix.h"
 
+/**
+ * the matrix we have as input is "almost upper triangular", ie below every first
+ * element in a row, there may be non zero elements on the next rows below.
+ * There is no empty line.
+ *
+ */
+
 #define max(a,b) \
 	({ __typeof__ (a) _a = (a); \
 	 __typeof__ (b) _b = (b); \
@@ -654,50 +661,55 @@ void reduce( GBMatrix_t * A
 	 *
 	 *
 	 */
-	/* uint32_t blk = 0 ; */
-	/* for ( ; blk < A->matrix_nb ; ++blk) { */
-	/* } */
-	CSR_zo * Ad = getLastMatrix(A);
-	uint32_t n = A->row ;
-	uint32_t m = B->col ;
-	int32_t i = n -1;
-	uint32_t ldb = B->col ;
-	TYPE p = A->mod ;
-	/* B = A^(-1) B */
-	for ( ; i >= 0 ; --i) {
-		uint32_t jz = Ad->start_zo[i]  ;
-		TYPE d = Ad->data[jz++] ;
-		fprintf(stderr,"diag elt %u\n",d);
-		uint32_t k  ;
-		for ( ; jz < Ad->start_zo[i+1] ; ++jz) {
-			k = 0 ;
-			for ( ; k < m ; ++k) {
-				B->data[i*ldb+k] -= Ad->data[jz] * B->data[Ad->colid_zo[jz]*ldb+k] ;
-				B->data[i*ldb+k] = B->data[i*ldb+k] % p ;
+	int32_t blk = A->matrix_nb-1 ;
+	for ( ; blk >=0  ; --blk) {
+		CSR_zo * Ad = A->matrix_zo[blk];
+		uint32_t n = Ad->row ;
+		uint32_t m = Bd->col ;
+		int32_t i = n -1;
+		uint32_t ldb = B->col ;
+		TYPE p = A->mod ;
+		/* B = A^(-1) B */
+		uint32_t i_offset = blk * MAT_ROW_BLOCK;
+		for ( ; i >= 0 ; --i) {
+			uint32_t jz = Ad->start_zo[i]  ;
+			TYPE d = Ad->data[jz++] ;
+			fprintf(stderr,"diag elt %u\n",d);
+			uint32_t k  ;
+			for ( ; jz < Ad->start_zo[i+1] ; ++jz) {
+				k = 0 ;
+				for ( ; k < m ; ++k) {
+					B->data[(i_offset+i)*ldb+k] -= Ad->data[jz] * B->data[Ad->colid_zo[jz]*ldb+k] ;
+					B->data[(i_offset+i)*ldb+k] = B->data[(i_offset+i)*ldb+k] % p ;
+				}
 			}
-		}
-		TYPE di = invert(d,p);
-		fprintf(stderr,"diag inv elt %u\n",di);
-		k = 0;
-		for ( ; k < m ; ++k) {
-			B->data[i*ldb+k] *= di ;
-			B->data[i*ldb+k] %= p ;
+			TYPE di = invert(d,p);
+			fprintf(stderr,"diag inv elt %u\n",di);
+			k = 0;
+			for ( ; k < m ; ++k) {
+				B->data[(i_offset+i)*ldb+k] *= di ;
+				B->data[(i_offset+i)*ldb+k] %= p ;
+			}
 		}
 	}
 
-	CSR_zo * Cd = getLastMatrix(C);
-	i = 0 ;
-	uint32_t ldd = D->col ;
-	/* D = D - C . B */
-	for ( ; i < (int32_t)C->row ;  ++i) {
-		uint32_t jz = Cd->start_zo[i] ;
-		for ( ; jz < Cd->start_zo[i+1] ; ++jz ) {
-			uint32_t k = Cd->colid_zo[jz];
-			uint32_t j = 0 ;
-			for ( ; j < B->col ; ++j) {
-				TYPE tmp = ( Cd->data[jz] * B->data[k*ldb+j] ) % p ;
-				D->data[i*ldd+j] -= tmp ;
-				if (((int16_t)D->data[i*ldd+j])<0) D->data[i*ldd+j] += p ;
+	blk = C->matrix_nb-1 ;
+	for ( ; blk >=0  ; --blk) {
+		CSR_zo * Cd = C->matrix_zo[blk];
+		uint32_t i_offset = blk * MAT_ROW_BLOCK;
+		i = 0 ;
+		uint32_t ldd = D->col ;
+		/* D = D - C . B */
+		for ( ; i < (int32_t)Cd->row ;  ++i) {
+			uint32_t jz = Cd->start_zo[i] ;
+			for ( ; jz < Cd->start_zo[i+1] ; ++jz ) {
+				uint32_t k = Cd->colid_zo[jz];
+				uint32_t j = 0 ;
+				for ( ; j < B->col ; ++j) {
+					TYPE tmp = ( Cd->data[jz] * B->data[k*ldb+j] ) % p ;
+					D->data[(i_offset+i)*ldd+j] -= tmp ;
+					if (((TYPE)D->data[(i_offset+i)*ldd+j])<0) D->data[i*ldd+j] += p ;
+				}
 			}
 		}
 	}
