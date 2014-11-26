@@ -586,92 +586,92 @@ if (rows_empty == bheight/2) {
 
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
 
-ri_t i;
-ci_t rc;
+  ri_t i;
+  ci_t rc;
 
-// row indices for subdividing echelonization parts in D_red
-ri_t global_next_row_to_reduce  = nthrds * 2;
-ri_t global_last_piv            = global_next_row_to_reduce - 1;
+  // row indices for subdividing echelonization parts in D_red
+  ri_t global_next_row_to_reduce  = nthrds * 2;
+  ri_t global_last_piv            = global_next_row_to_reduce - 1;
 
-// meta data for the computation of the rank of D_red at the end
-ri_t rank             = 0;
-int head_line_1       = -1;
-int head_line_2       = -1;
-ci_t head_line_1_idx  = 0;
-ci_t head_line_2_idx  = 0;
-const ci_t coldim     = D->ncols;
-re_t h_a1;
+  // meta data for the computation of the rank of D_red at the end
+  ri_t rank             = 0;
+  int head_line_1       = -1;
+  int head_line_2       = -1;
+  ci_t head_line_1_idx  = 0;
+  ci_t head_line_2_idx  = 0;
+  const ci_t coldim     = D->ncols;
+  re_t h_a1;
 
-wl_t waiting;
-waiting.list  = (wle_t *)malloc(coldim * sizeof(wle_t));
-waiting.sidx  = 0;
-waiting.slp   = 0;
-waiting.sz    = 0;
+  wl_t waiting;
+  waiting.list  = (wle_t *)malloc(coldim * sizeof(wle_t));
+  waiting.sidx  = 0;
+  waiting.slp   = 0;
+  waiting.sz    = 0;
 
-// copy D to D_red and delete D
-printf("D %p\n",D);
-D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
-printf("D %p\n",D);
-printf("BEFORE\n");
-const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
-int ii,jj,kk,ll;
-for (ii=0; ii<rlD; ++ii) {
-  printf("%d .. \n",ii);
-  //printf("size %d\n", D_red->ml[ii].sz);
-  if (D_red->ml[ii].sz>0) {
-    for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-      /*
-      if (D_red->ml[ii].idx != NULL)
-        printf("%d -- ", D_red->ml[ii].idx[ll]);
-      else
-        printf("%d -- ", ll);
-        */
-      /*
-      if (ii==270) {
-        printf("%u -- %u == 0?\n",
-            D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
-      }
-      */
+  // copy D to D_red and delete D
+  printf("D %p\n",D);
+  D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
+  printf("D %p\n",D);
+  printf("BEFORE\n");
+  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
+  int ii,jj,kk,ll;
+  for (ii=0; ii<rlD; ++ii) {
+    printf("%d .. \n",ii);
+    //printf("size %d\n", D_red->ml[ii].sz);
+    if (D_red->ml[ii].sz>0) {
+      for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
+        /*
+           if (D_red->ml[ii].idx != NULL)
+           printf("%d -- ", D_red->ml[ii].idx[ll]);
+           else
+           printf("%d -- ", ll);
+           */
+        /*
+           if (ii==270) {
+           printf("%u -- %u == 0?\n",
+           D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
+           }
+           */
         printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
+      }
+      printf("\n");
+    } else {
+      //printf("ml %d is zero! %p\n", ii, D_red->ml[ii]);
     }
-    printf("\n");
-  } else {
-    //printf("ml %d is zero! %p\n", ii, D_red->ml[ii]);
   }
-}
-echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
+  echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
 #if DDEBUG_DD
-printf("AFTER\n");
-for (int ii=0; ii<rlD; ++ii) {
-  printf("%d .. \n",ii);
-  printf("size %d\n", D_red->ml[ii].sz);
-  if (D_red->ml[ii].sz>0) {
-    for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-      /*
-      if (D_red->ml[ii].idx != NULL)
-        printf("%d -- ", D_red->ml[ii].idx[ll]);
-      else
-        printf("%d -- ", ll);
-        */
+  printf("AFTER\n");
+  for (int ii=0; ii<rlD; ++ii) {
+    printf("%d .. \n",ii);
+    printf("size %d\n", D_red->ml[ii].sz);
+    if (D_red->ml[ii].sz>0) {
+      for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
+        /*
+           if (D_red->ml[ii].idx != NULL)
+           printf("%d -- ", D_red->ml[ii].idx[ll]);
+           else
+           printf("%d -- ", ll);
+           */
         printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
       }
     } else {
     }
     printf("\n");
-}
+  }
 #endif
 
-const ri_t ml_nrows_D_red = (D_red->nrows % __GB_NROWS_MULTILINE == 0) ?
-  D_red->nrows / __GB_NROWS_MULTILINE :
-  D_red->nrows / __GB_NROWS_MULTILINE + 1;
+  const ri_t ml_nrows_D_red = (D_red->nrows % __GB_NROWS_MULTILINE == 0) ?
+    D_red->nrows / __GB_NROWS_MULTILINE :
+    D_red->nrows / __GB_NROWS_MULTILINE + 1;
 
-// if there are rows left do elimination in parallel
-printf("MLNDRED %d / %d\n",ml_nrows_D_red, global_next_row_to_reduce);
-if (ml_nrows_D_red >= global_next_row_to_reduce) {
-  // TODO: parallel elimination with OpenMP
-  #pragma omp parallel shared(waiting, global_next_row_to_reduce, global_last_piv) num_threads(nthrds)
-  {
-    #pragma omp for
+  // if there are rows left do elimination in parallel
+  printf("MLNDRED %d / %d\n",ml_nrows_D_red, global_next_row_to_reduce);
+  if (ml_nrows_D_red >= global_next_row_to_reduce) {
+    // TODO: parallel elimination with OpenMP
+#pragma omp parallel shared(waiting, global_next_row_to_reduce, global_last_piv) num_threads(nthrds)
+    {
+#pragma omp for
       for (i=0; i<nthrds; ++i) {
         rc  = echelonize_rows_task(D_red, ml_nrows_D_red,
             global_next_row_to_reduce, global_last_piv,
@@ -704,11 +704,11 @@ if (ml_nrows_D_red >= global_next_row_to_reduce) {
     if (D_red->ml[ii].sz>0) {
       for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
         /*
-        if (D_red->ml[ii].idx != NULL)
-          printf("%d -- ", D_red->ml[ii].idx[ll]);
-        else
-          printf("%d -- ", ll);
-          */
+           if (D_red->ml[ii].idx != NULL)
+           printf("%d -- ", D_red->ml[ii].idx[ll]);
+           else
+           printf("%d -- ", ll);
+           */
         printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
       }
       printf("\n");
