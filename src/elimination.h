@@ -42,8 +42,8 @@ typedef struct wl_t {
  *
  * \return *b.idx - *a.idx
  */
-static inline int cmp_wle(const wle_t *a, const wle_t *b) {
-  return b->idx - a->idx;
+static inline int cmp_wle(const void *a, const void *b) {
+  return ((wle_t *)(b))->idx - ((wle_t *)(a))->idx;
 }
 
 /**
