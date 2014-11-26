@@ -7,7 +7,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
 
   sbm_fl_t *in  = *input;
 
-  ri_t i;
+  ri_t i, ii;
   ci_t j;
   bi_t k;
   bi_t l;
@@ -37,7 +37,6 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
     out->ml[i].idx  = NULL;
     out->ml[i].sz   = out->ncols;
     //out->ml[i].val  = realloc(out->ml[i].val,2 * out->ncols * sizeof(re_t));
-    memset(out->ml[i].val, 0, 2 * out->ncols * sizeof(re_t));
 #endif
   }
 
@@ -57,12 +56,13 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
   const bi_t ml_bheight = in->bheight / __GB_NROWS_MULTILINE;
   #pragma omp parallel shared(buffer) num_threads(nthrds)
   {
-    #pragma omp for private(i,j,k,l,block_idx) nowait
+    #pragma omp for private(i,ii,j,k,l,block_idx,v1,v2) nowait
     for (i=0; i<rl; ++i) { // loop over multilines
+      memset(out->ml[i].val, 0, 2 * out->ncols * sizeof(re_t));
       for (j=0; j<clin; ++j) {
         block_idx = j * in->bwidth;
-        ri_t ii = i / ml_bheight;
-        ci_t k  = i % ml_bheight;
+        ii        = i / ml_bheight;
+        k         = i % ml_bheight;
         if (in->blocks[ii][j] == NULL) {
           continue;
         }
@@ -108,7 +108,6 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
       for (i=0; i<rlin; ++i) {
         for (j=0; j<clin; ++j) {
           for (k=0; k<ml_bheight; ++k) {
-            printf("i %d - j %d - k %d\n",i,j,k);
             free(in->blocks[i][j][k].idx);
             in->blocks[i][j][k].idx = NULL;
 
@@ -124,12 +123,14 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
     }
     free(in->blocks);
     in->blocks  = NULL;
-    printf("addr in %p\n",in);
     free(in);
     in  = NULL;
-    printf("addr in %p\n",in);
   }
 /*
+ *  NOTE:
+ *  old and deprecated code: keep for possible tests with sparse-hybrid-dense
+ *  representations for D in multiline structures later on
+ *
   #pragma omp parallel shared(buffer) num_threads(nthrds)
   {
     mli_t crb = 0;

@@ -617,7 +617,7 @@ const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE
 int ii,jj,kk,ll;
 for (ii=0; ii<rlD; ++ii) {
   printf("%d .. \n",ii);
-  printf("size %d\n", D_red->ml[ii].sz);
+  //printf("size %d\n", D_red->ml[ii].sz);
   if (D_red->ml[ii].sz>0) {
     for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
       /*
