@@ -1348,7 +1348,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
  */
 int echelonize_rows_task(sm_fl_ml_t *A, const ri_t ml_ncols,
     ri_t global_next_row_to_reduce, ri_t global_last_piv,
-    wl_t *waiting, const mod_t modulus);
+    wl_t *waiting, const mod_t modulus, omp_lock_t *echelonize_lock);
 
 /**
  * \brief Echelonizes one multiline row (represented by dense_array_1 and

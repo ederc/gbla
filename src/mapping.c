@@ -519,7 +519,6 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
         }
         if (cvb == D->bheight || i == 0) {
           ctr++;
-          printf("ctr %d\n",ctr);
           write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx, 1);
 
           if (destruct_input_matrix) {
@@ -1287,8 +1286,6 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   // column loops 
   const ci_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const ci_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
-
-  printf("clA %d -- clB %d\n",clA,clB);
 
   // Usually blocks in B tend to be denser than blocks in A, thus we allocate
   // already at the beginning more memory for those lines.
