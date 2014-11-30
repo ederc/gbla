@@ -138,7 +138,7 @@ void init(GBMatrix_t * A)
 	A->col = 0 ;
 	A->nnz = 0 ;
 	A->matrix_nb = 0 ;
-	SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
+	/* SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo); */
 	initUnit(A->matrix_zo);
 }
 

@@ -1,9 +1,14 @@
 #include "io.h"
 
-int main() {
+int main(int ac, char **av) {
+
+	if (ac != 2) {
+		fprintf(stderr,"usage %s nom_fichier\n",av[0]);
+		return -1;
+	}
 
 
-	FILE * fh = fopen("test_new.gb","r") ;
+	FILE * fh = fopen(av[1],"r") ;
 	SAFE_MALLOC_DECL(AA,1,GBMatrix_t);
 	SAFE_MALLOC_DECL(CC,1,GBMatrix_t);
 	init(AA);

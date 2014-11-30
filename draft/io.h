@@ -148,15 +148,15 @@ void expandColid( const uint32_t * compress, uint32_t size_compressed
 	uint32_t i = 0,j=0 ;
 	uint32_t col ;
 	/* for (i = 0 ; i < size_compressed ; ++i) { */
-		/* fprintf(stderr,"%u ",compress[i]); */
+	/* fprintf(stderr,"%u ",compress[i]); */
 	/* } */
-		/* fprintf(stderr,"\n"); i = 0 ; */
+	/* fprintf(stderr,"\n"); i = 0 ; */
 	for ( ; i < size_compressed ;) {
 		col = compress[i++] ;
 		/* fprintf(stderr,"in col : %u\n",col); */
 		if (col & mask) {
 			expand[j++] = col ^ mask ;
-		/* fprintf(stderr,"sing col : %u\n",col^mask); */
+			/* fprintf(stderr,"sing col : %u\n",col^mask); */
 		}
 		else {
 			uint32_t k = 0 ;
@@ -207,8 +207,8 @@ int read_file(GBMatrix_t * A_init
 
 	/* largest row */
 	/* uint32_t big_row = 0 ;
-	for (i = 0 ; i < m ; ++i)
-		big_row = max(big_row,start_zo[i+1]-start_zo[i]);    */
+	   for (i = 0 ; i < m ; ++i)
+	   big_row = max(big_row,start_zo[i+1]-start_zo[i]);    */
 
 	/* pol/zo correspondance */
 	SAFE_READ_DECL_P(map_zo_pol,m,uint32_t,fh);
@@ -298,7 +298,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		, uint32_t * perm_j
 		, uint32_t perm_size
 		, CSR_pol * polys
-		)
+	       )
 {
 	/* apply permutations (the rows keep the same length : in place) */
 	uint32_t i = 0 ;
@@ -662,12 +662,12 @@ void reduce( GBMatrix_t * A
 	 *
 	 */
 	int32_t blk = A->matrix_nb-1 ;
+	uint32_t ldb = B->col ;
 	for ( ; blk >=0  ; --blk) {
-		CSR_zo * Ad = A->matrix_zo[blk];
+		CSR_zo * Ad = & (A->matrix_zo[blk]);
 		uint32_t n = Ad->row ;
-		uint32_t m = Bd->col ;
+		uint32_t m = B->col ;
 		int32_t i = n -1;
-		uint32_t ldb = B->col ;
 		TYPE p = A->mod ;
 		/* B = A^(-1) B */
 		uint32_t i_offset = blk * MAT_ROW_BLOCK;
@@ -693,11 +693,12 @@ void reduce( GBMatrix_t * A
 		}
 	}
 
+	TYPE p = A->mod;
 	blk = C->matrix_nb-1 ;
 	for ( ; blk >=0  ; --blk) {
-		CSR_zo * Cd = C->matrix_zo[blk];
+		CSR_zo * Cd = &(C->matrix_zo[blk]);
 		uint32_t i_offset = blk * MAT_ROW_BLOCK;
-		i = 0 ;
+		uint32_t i = 0 ;
 		uint32_t ldd = D->col ;
 		/* D = D - C . B */
 		for ( ; i < (int32_t)Cd->row ;  ++i) {

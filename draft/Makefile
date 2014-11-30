@@ -1,17 +1,46 @@
 DBG=-O0 -g
 WAR=-Wall -Wextra -ansi
-OPT=-O3
-TGT=dump_matrix
+OPT=-march=native -O3
 NEW=-D_PROPOSED_FORMAT
 
-dump-dbg: $(TGT).c $(TGT).h printer.h
-	gcc $(DBG) $(WAR) $(TGT).c -o $(TGT)_dbg
 
-dump-opt: $(TGT).c $(TGT).h printer.h
-	gcc $(OPT) $(WAR) $(TGT).c -o $(TGT)_opt
+TGT=dump_matrix
+CVT=converter
+RUN=runit
+opt=_opt
+dbg=_dbg
 
-new-dump-dbg: $(TGT).c $(TGT).h printer.h
-	gcc $(DBG) $(NEW) $(WAR) $(TGT).c -o $(TGT)_dbg_new
+$(TGT)$(dbg): $(TGT).c $(TGT).h printer.h
+	gcc $(DBG) $(WAR) $(TGT).c -o $(TGT)$(dbg)
 
-new-dump-opt: $(TGT).c $(TGT).h printer.h
-	gcc $(OPT) $(NEW) $(WAR) $(TGT).c -o $(TGT)_opt_new
+$(TGT)$(opt): $(TGT).c $(TGT).h printer.h
+	gcc $(OPT) $(WAR) $(TGT).c -o $(TGT)$(opt)
+
+$(TGT)_new$(dbg): $(TGT).c $(TGT).h printer.h
+	gcc $(DBG) $(NEW) $(WAR) $(TGT).c -o $(TGT)_new$(dbg)
+
+$(TGT)_new$(opt): $(TGT).c $(TGT).h printer.h
+	gcc $(OPT) $(NEW) $(WAR) $(TGT).c -o $(TGT)_new$(opt)
+
+$(CVT)_revert$(dbg): $(CVT).c
+	gcc $(DBG) $(WAR) -DREVERT $(CVT).c -o $(CVT)_revert$(dbg)
+
+$(CVT)$(dbg): $(CVT).c
+	gcc $(DBG) $(WAR) -UREVERT $(CVT).c -o $(CVT)$(dbg)
+
+$(CVT)_revert$(opt): $(CVT).c
+	gcc $(OPT) $(WAR) -DREVERT $(CVT).c -o $(CVT)_revert$(opt)
+
+$(CVT)$(opt): $(CVT).c
+	gcc $(OPT) $(WAR) -UREVERT $(CVT).c -o $(CVT)$(opt)
+
+$(RUN)_dgb: $(RUN).c
+	gcc $(DBG) $(VAR) $(RUN).c -o $(RUN)$(dbg)
+
+$(RUN)$(opt): $(RUN).c
+	gcc $(OPT) $(VAR) $(RUN).c -o $(RUN)$(opt)
+
+clean:
+	-rm *.o
+	-rm `find . -type f -executable`
+

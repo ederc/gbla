@@ -30,7 +30,7 @@ uint64_t JOAAT_hash(char *key, size_t len)
 #define my_join(pre, nam) pre ## _ ## nam
 
 
-#define REVERT
+/* #define REVERT */
 #ifdef REVERT
 #warning "reverting rows"
 #endif
@@ -78,13 +78,13 @@ int main( int ac, char ** av)
 
 	SAFE_MALLOC_DECL(hash_row_pol,m,uint64_t);
 
-	uint64_t comp = 0 ;
+	/* uint64_t comp = 0 ; */
 
 	SAFE_MALLOC_DECL(colid_zo,nnz,uint32_t);
 
 
 	/* compress colid */
-	uint64_t cons = 0 ;
+	/* uint64_t cons = 0 ; */
 	uint64_t here = 0 ;
 
 #ifndef REVERT
@@ -254,6 +254,8 @@ int main( int ac, char ** av)
 
 
 	fclose(toto);
+
+	return 0;
 }
 
 #undef Mjoin
