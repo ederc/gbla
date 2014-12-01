@@ -55,11 +55,12 @@ static inline int cmp_wle(const void *a, const void *b) {
  *
  * \param row index of last pivot row_idx was reduced by last_piv_reduced_by
  */
-static inline void push_row_to_waiting_list(wl_t *wl, const ri_t row_idx,
+static inline void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
     const ri_t last_piv_reduced_by) {
-  wl->list[wl->sz].idx  = row_idx;
-  wl->list[wl->sz].lp   = last_piv_reduced_by;
-  wl->sz++;
+  waiting_global->list[waiting_global->sz].idx  = row_idx;
+  waiting_global->list[waiting_global->sz].lp   = last_piv_reduced_by;
+  printf("rowidx %u -- lprb %u\n", row_idx, last_piv_reduced_by);
+  waiting_global->sz++;
 }
 
 /**
@@ -1155,17 +1156,27 @@ static inline void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
  *
  * \return 1 if waiting list is not empty, 0 else
  */
-static inline int get_smallest_waiting_row(wl_t *waiting) {
-  if (waiting->sz == 0)
+static inline int get_smallest_waiting_row(wl_t *waiting_global,
+    ri_t *wl_idx, ri_t *wl_lp) {
+  if (waiting_global->sz == 0)
     return 0;
 
+  printf("BEFORE SORT\n");
+    for (int ii=0; ii<waiting_global->sz; ++ii) {
+      printf("%d . %d\n",waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+    }
   // sort the waiting list
-  qsort(waiting->list, waiting->sz, sizeof(wle_t), cmp_wle);
+  qsort(waiting_global->list, waiting_global->sz, sizeof(wle_t), cmp_wle);
+  printf("AFTER SORT\n");
+    for (int ii=0; ii<waiting_global->sz; ++ii) {
+      printf("%d . %d\n",waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+    }
   // store last (smallest index) element separately and
   // remove it from the list
-  waiting->sidx = waiting->list[waiting->sz-1].idx;
-  waiting->slp  = waiting->list[waiting->sz-1].lp;
-  waiting->sz--;
+  *wl_idx = waiting_global->list[waiting_global->sz-1].idx;
+  *wl_lp  = waiting_global->list[waiting_global->sz-1].lp;
+  printf("wsidx %d -- wslp %d\n",*wl_idx, *wl_lp);
+  waiting_global->sz--;
 
   return 1;
 }
@@ -1340,7 +1351,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
  *
  * \param global last pivot known (shared among the threads!)
  *
- * \param list of rows waiting to be reduced waiting
+ * \param global waiting list shared by all thread waiting_global
  *
  * \param field characteristic modulus
  *
@@ -1348,7 +1359,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
  */
 int echelonize_rows_task(sm_fl_ml_t *A, const ri_t ml_ncols,
     ri_t global_next_row_to_reduce, ri_t global_last_piv,
-    wl_t *waiting, const mod_t modulus, omp_lock_t *echelonize_lock);
+    wl_t *waiting_global, const mod_t modulus, omp_lock_t *echelonize_lock);
 
 /**
  * \brief Echelonizes one multiline row (represented by dense_array_1 and

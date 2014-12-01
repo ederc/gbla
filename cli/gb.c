@@ -20,7 +20,7 @@ void print_help() {
   printf("                NOTE: The block dimension must be a multiple of __GB_LOOP_UNROLL_BIG\n");
   printf("                      which is by default 64. You can reset __GB_LOOP_UNROLL_BIG in \n");
   printf("                      src/gb_config.h.in (you need to rebuild the library afterwards).\n");
-  printf("    -c          Result checked resp. validated with structured Gaussian\n");
+  printf("    -c          Compute a complete reduced row echelon form.\n");
   printf("                Elimination. By default there is no validation.\n");
   printf("    -h          Print help.\n");
   printf("    -f          Free memory on the go.\n");
@@ -51,7 +51,7 @@ void print_help() {
 int main(int argc, char *argv[]) {  
   const char *fn        = NULL;
   int free_mem          = 1;
-  int validate_results  = 0;
+  int reduce_completely = 0;
   int verbose           = 0;
   int method            = 0;
   int nrows_multiline   = 1;
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
           block_dimension = 256;
         break;
       case 'c': 
-        validate_results  = 1;
+        reduce_completely = 1;
         break;
       case 'f':
         free_mem = atoi(optarg);
@@ -198,7 +198,8 @@ int main(int argc, char *argv[]) {
   switch (splicing) {
     // all submatrices are of block type
     case 0:
-      if (fl_block(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose)) {
+      if (fl_block(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose,
+            reduce_completely)) {
         printf("Error while trying to eliminate matrix from file '%s' in all block type mode.\n",fn);
       }
       break;
@@ -211,7 +212,8 @@ int main(int argc, char *argv[]) {
       break;
     // submatrices A and C of multiline type, submatrices B and D are of block type
     case 2:
-      if (fl_ml_A_C(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose)) {
+      if (fl_ml_A_C(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose, 
+            reduce_completely)) {
         printf("Error while trying to eliminate matrix from file '%s' in A and C multiline,\n",fn);
         printf("B and D block type mode.\n");
       }
@@ -222,7 +224,8 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem, int verbose) {
+int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
+    int verbose, int reduce_completely) {
   struct timeval t_load_start;
   // all submatrices of block type
   if (verbose > 1) {
@@ -231,11 +234,12 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
   }
   // construct splicing of matrix M into A, B, C and D
-  sbm_fl_t *A   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  sbm_fl_t *B   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  sbm_fl_t *C   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  sbm_fl_t *D   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
+  sbm_fl_t *A     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *B     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *C     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *D     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
+  map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
   splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
 
@@ -449,6 +453,14 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
+ 
+  if (reduce_completely == 0) {
+    process_matrix(D_red, map_D, block_dimension);
+    combine_maps(map, map_D, M->ncols, D->ncols, 1);
+    reconstruct_matrix(M, A, B, D_red, map, M->ncols, 1, 1, 1, 0);
+  } else { // compute reduced row echelon form of input matrix
+    // TODO
+  }
   return 0;
 }
 
@@ -587,7 +599,8 @@ int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int
   return 0;
 }
 
-int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem, int verbose) {
+int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
+    int verbose, int completely_reduced) {
   struct timeval t_load_start;
   // submatrices A and C of multiline type, B and D of block type
   if (verbose > 1) {

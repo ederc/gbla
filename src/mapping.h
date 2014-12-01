@@ -14,6 +14,7 @@
 #include <string.h>
 #include <assert.h>
 #include <matrix.h>
+#include <elimination.h>
 #include <math.h>
 #include <omp.h>
 
@@ -56,6 +57,39 @@ typedef struct map_fl_t {
  * \brief Initializes a map for the input matrix M with all entries set
  * to __GB_MINUS_ONE_8.
  *
+ * \param size of rows row_size
+ *
+ * \param size of columns col_size
+ * 
+ * \param map to be initialized
+ *
+ */
+static inline void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_fl_t *map) {
+  // initialize map arrays and 
+  // set initial values to __GB_MINUS_ONE_8
+  map->pc = (ci_t *)malloc(col_size * sizeof(ci_t));
+  memset(map->pc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+
+  map->npc  = (ci_t *)malloc(col_size * sizeof(ci_t));
+  memset(map->npc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+  
+  map->pc_rev = (ci_t *)malloc(col_size * sizeof(ci_t));
+  memset(map->pc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+  
+  map->npc_rev  = (ci_t *)malloc(col_size * sizeof(ci_t));
+  memset(map->npc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+  
+  map->pri  = (ri_t *)malloc(col_size * sizeof(ri_t));
+  memset(map->pri, __GB_MINUS_ONE_8, col_size * sizeof(ri_t));
+  
+  map->npri = (ri_t *)malloc(row_size * sizeof(ri_t));
+  memset(map->npri, __GB_MINUS_ONE_8, row_size * sizeof(ri_t));
+}
+
+/**
+ * \brief Initializes a map for the input matrix M with all entries set
+ * to __GB_MINUS_ONE_8.
+ *
  * \param original matrix M
  *
  * \param map to be initialized
@@ -84,6 +118,64 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
 }
 
 /**
+ * \brief Process multiline matrix and applies mapping for it
+ *
+ * \param multiline matrix A
+ *
+ * \param map to be defined map
+ *
+ * \param block height of the corresponding block matrices bheight
+ */
+void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight);
+
+/**
+ * \brief Combines the mappings from the outer input matrix A and the
+ * echelonized multiline matrix D
+ *
+ * \param mapping of the input matrix M outer_map
+ *
+ * \param mapping of the echelonized multiline matrix D inner_map
+ *
+ * \param column dimension of input matrix M outer_coldim
+ *
+ * \param column dimension of multiline matrix D inner_coldim
+ *
+ * \param parameter that defines if only the new pivots are remap, i.e. no
+ * columns are considered. This is done when the echelon form is wanted and not
+ * the RREF
+ */
+void combine_maps(map_fl_t *outer_map, map_fl_t *inner_map,
+    const ci_t outer_coldim, const ci_t inner_coldim,
+    int only_rows);
+
+/**
+ * \brief Reconstructs matrix M after elimination process
+ *
+ * \param input and output matrix M
+ *
+ * \param block sub matrix A
+ *
+ * \param block sub matrix B
+ *
+ * \param multiline submatrix D
+ *
+ * \param outer mapping map
+ *
+ * \param column dimension of M coldim
+ *
+ * \param parameter to set/unset freeing of sub matrices free_matrices
+ *
+ * \param paramter indicating if M was already freed M_freed
+ *
+ * \param paramter indicating if A was already freed A_freed
+ *
+ * \param paramter indicating if D was already freed D_freed
+ */
+void reconstruct_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
+    map_fl_t *map, const ci_t coldim, int free_matrices,
+    int M_freed, int A_freed, int D_freed);
+
+/**
  * \brief Reallocates memory for the rows of the multiline during the splicing of
  * the input matrix. The buffer size buffer_A is doubled during this process
  *
@@ -92,7 +184,6 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
  * \param multiline index mli
  *
  * \param buffer size buffer_A
- *
  */
 static inline void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
     const bi_t init_buffer_A, mli_t *buffer_A) {

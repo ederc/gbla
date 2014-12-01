@@ -9,6 +9,7 @@
 #define GB_GB_H
 
 #include "io.h"
+#include <mapping.h>
 #include <elimination.h>
 #include <math.h>
 
@@ -37,8 +38,11 @@
  *  \param number of threads to be used nthreads
  *
  *  \param level of verbosity
+ *
+ *  \param compute a complete reduced row echelon form? reduce_completely
  */
-int fl_block(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem, int verbose);
+int fl_block(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem,
+    int verbose, int reduce_completely);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -97,7 +101,10 @@ int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int 
  *  \param number of threads to be used nthreads
  *
  *  \param level of verbosity
+ *
+ *  \param compute a complete reduced row echelon form? reduce_completely
  */
-int fl_ml_A_C(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem, int verbose);
+int fl_ml_A_C(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem,
+    int verbose, int reduce_completely);
 
 #endif
