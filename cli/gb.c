@@ -240,8 +240,9 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   sbm_fl_t *D     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
   map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
-  splice_fl_matrix(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
-      free_mem, verbose);
+  splice_fl_matrix(M, A, B, C, D, map,
+      M->nrows, M->ncols, block_dimension,
+      nrows_multiline, nthreads, free_mem, verbose);
 
   if (verbose > 1) {
     printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
@@ -455,11 +456,185 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   }
  
   if (reduce_completely == 0) {
+    if (verbose > 1) {
+      gettimeofday(&t_load_start, NULL);
+      printf("---------------------------------------------------------------------\n");
+      printf(">>>>\tSTART reconstructing output matrix ...\n");
+    }
     process_matrix(D_red, map_D, block_dimension);
-    combine_maps(map, map_D, M->ncols, D->ncols, 1);
-    reconstruct_matrix(M, A, B, D_red, map, M->ncols, 1, 1, 1, 0);
+    combine_maps(map, map_D, M->ncols, D_red->ncols, 1);
+    reconstruct_matrix(M, A, B, D_red, map, M->ncols, 1, 1, 1, 0, nthreads);
+    if (verbose > 1) {
+      printf("<<<<\tDONE  reconstructing output matrix.\n");
+      printf("TIME\t%.3f sec\n",
+          walltime(t_load_start) / (1000000));
+      print_mem_usage();
+      printf("---------------------------------------------------------------------\n");
+      printf("\n");
+    }
+    printf("OUTPUT MATRIX %d / %d\n", M->nrows, map->npiv);
+    for (int ii=0; ii<M->nrows; ++ii) {
+      if (M->rows[ii] != NULL) {
+          printf("%d ", M->pos[ii][0]);
+        
+        printf("\n");
+      } else {
+        printf("row %d is NULL!\n",ii);
+      }
+    }
+
   } else { // compute reduced row echelon form of input matrix
-    // TODO
+    if (verbose > 1) {
+      printf("---------------------------------------------------------------------\n");
+      printf(">>>>\tSTART of RREF computation...\n");
+      printf("---------------------------------------------------------------------\n");
+    }
+    sm_t *B_old     = (sm_t *)malloc(sizeof(sm_t));
+    sbm_fl_t *B1    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+    sbm_fl_t *B2    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+    sbm_fl_t *D1    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+    sbm_fl_t *D2    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+    map_fl_t *map2  = (map_fl_t *)malloc(sizeof(map_fl_t));
+
+    process_matrix(D_red, map2, block_dimension);
+  /*  
+  // column loops 
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  // row loops 
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
+
+  int ii,jj,kk,ll;
+  
+  printf("B BEFORE CONVERSION\n");
+  for (ii=0; ii<rlB; ++ii) {
+    for (jj=0; jj<clB; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        if (B->blocks[ii][jj] != NULL) {
+          for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
+            if (B->blocks[ii][jj][kk].dense == 0)
+              printf("%d -- ", B->blocks[ii][jj][kk].idx[ll]);
+            else
+              printf("%d -- ", ll);
+            printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  */
+    // copy block matrix B back to a sparse matrix in order to use
+    // splice_fl_matrix() procedure again
+    copy_block_matrix_to_sparse_matrix(&B, &B_old, 1, nthreads);
+    /*
+    printf("B OLD\n");
+    for (int nn=0; nn<B_old->nrows; ++nn) {
+      printf("row %d\n",nn);
+      for (int mm=0; mm<B_old->rwidth[nn]; ++mm) {
+        printf("%u ",B_old->rows[nn][mm]);
+      }
+      printf("\n");
+      for (int mm=0; mm<B_old->rwidth[nn]; ++mm) {
+        printf("%u ",B_old->pos[nn][mm]);
+      }
+      printf("\n");
+    }
+    */
+    splice_fl_matrix(B_old, D1, D2, B1, B2, map2,
+        B_old->nrows+map->npiv, B_old->ncols,
+        block_dimension, nrows_multiline, nthreads,
+        free_mem, verbose);
+    // reducing submatrix B1 using methods of Faugère & Lachartre
+    if (verbose > 1) {
+      gettimeofday(&t_load_start, NULL);
+      printf("---------------------------------------------------------------------\n");
+      printf(">>>>\tSTART reducing B1 ...\n");
+    }
+    if (elim_fl_A_block(&B1, B2, M->mod, nthreads)) {
+      printf("Error while reducing B1.\n");
+      return 1;
+    }
+    printf("B1 after elimination %p\n",A);
+    if (verbose > 1) {
+      printf("<<<<\tDONE  reducing B1.\n");
+      printf("TIME\t%.3f sec\n",
+          walltime(t_load_start) / (1000000));
+      print_mem_usage();
+      printf("---------------------------------------------------------------------\n");
+      printf("\n");
+    }
+
+    // reducing submatrix C to zero using methods of Faugère & Lachartre
+    if (verbose > 1) {
+      gettimeofday(&t_load_start, NULL);
+      printf("---------------------------------------------------------------------\n");
+      printf(">>>>\tSTART reducing D1 to zero ...\n");
+    }
+    if (elim_fl_C_block(B2, &D1, D2, M->mod, nthreads)) {
+      printf("Error while reducing D1.\n");
+      return 1;
+    }
+    printf("D1 after elimination %p\n",D1);
+    if (verbose > 1) {
+      printf("<<<<\tDONE  reducing D1 to zero.\n");
+      printf("TIME\t%.3f sec\n",
+          walltime(t_load_start) / (1000000));
+      print_mem_usage();
+      printf("---------------------------------------------------------------------\n");
+      printf("\n");
+    }
+
+    // echelonize D using methods of Faugère & Lachartre
+
+    // We need to do at least two rounds on D, possibly even reducing B further
+    // with the reduced D later on. For this purpose we use a multiline version of
+    // D as output of the Gaussian elimination.
+    sm_fl_ml_t *D2_red = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
+    if (verbose > 1) {
+      gettimeofday(&t_load_start, NULL);
+      printf("---------------------------------------------------------------------\n");
+      printf(">>>>\tSTART reducing D2 to upper triangular matrix ...\n");
+    }
+    ri_t rank_D2 = elim_fl_D_block(D2, D2_red, M->mod, nthreads);
+    if (rank_D2 == -1) {
+      printf("Error while reducing D2 to upper triangular matrix.\n");
+      return 1;
+    }
+    if (verbose > 1) {
+      printf("<<<<\tDONE  reducing D2 to upper triangular matrix.\n");
+      printf("TIME\t%.3f sec\n",
+          walltime(t_load_start) / (1000000));
+      print_mem_usage();
+      printf("---------------------------------------------------------------------\n");
+      printf("Rank of D2:\t%u\n",rank_D2);
+      printf("---------------------------------------------------------------------\n");
+      printf("\n");
+    }
+
+    // reconstruct matrix
+    if (verbose > 1) {
+      gettimeofday(&t_load_start, NULL);
+      printf("---------------------------------------------------------------------\n");
+      printf(">>>>\tSTART reconstructing output matrix ...\n");
+    }
+    combine_maps(map, map2, M->ncols, D_red->ncols, 0);
+    reconstruct_matrix(M, A, B2, D2_red, map, M->ncols, 1, 1, 1, 0, nthreads);
+    if (verbose > 1) {
+      printf("<<<<\tDONE  reconstructing output matrix.\n");
+      printf("TIME\t%.3f sec\n",
+          walltime(t_load_start) / (1000000));
+      print_mem_usage();
+      printf("---------------------------------------------------------------------\n");
+      printf("\n");
+    }
+
   }
   return 0;
 }

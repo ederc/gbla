@@ -170,10 +170,12 @@ void combine_maps(map_fl_t *outer_map, map_fl_t *inner_map,
  * \param paramter indicating if A was already freed A_freed
  *
  * \param paramter indicating if D was already freed D_freed
+ *
+ * \param number of threads
  */
 void reconstruct_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
-    int M_freed, int A_freed, int D_freed);
+    int M_freed, int A_freed, int D_freed, int nthrds);
 
 /**
  * \brief Reallocates memory for the rows of the multiline during the splicing of
@@ -542,7 +544,8 @@ void construct_fl_map(sm_t *M, map_fl_t *map);
  *  \param level of verbosity
  */
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-                      map_fl_t *map, int block_dim, int rows_multiline,
+                      map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
+                      int block_dim, int rows_multiline,
                       int nthreads, int destruct_input_matrix, int verbose);
 
 /**
