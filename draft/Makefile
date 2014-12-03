@@ -34,11 +34,17 @@ $(CVT)_revert$(opt): $(CVT).c
 $(CVT)$(opt): $(CVT).c
 	gcc $(OPT) $(WAR) -UREVERT $(CVT).c -o $(CVT)$(opt)
 
+RED=fflas_reduce
+FFLAS=/home/bboyer/usr/
+LIBS: $(RED).cpp
+	g++ `sh $(FFLAS)/bin/fflas-ffpack-config --cflags` `sh $(FFLAS)/bin/fflas-ffpack-config --libs` -c $(RED).cpp
+
 $(RUN)_dgb: $(RUN).c
 	gcc $(DBG) $(WAR) $(RUN).c -o $(RUN)$(dbg)
 
 $(RUN)$(opt): $(RUN).c
 	gcc $(OPT) $(AR) $(RUN).c -o $(RUN)$(opt)
+
 
 clean:
 	-rm *.o

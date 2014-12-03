@@ -660,6 +660,7 @@ TYPE invert(TYPE a, TYPE p)
 	return pos ? old : (p-old);
 }
 
+extern int RowReduce_int32( uint16_t p, int32_t * A, uint32_t m, uint32_t n, uint32_t lda) ;
 
 void reduce( GBMatrix_t * A
 		, DenseMatrix_t * B
@@ -692,7 +693,7 @@ void reduce( GBMatrix_t * A
 			uint64_t jz = Ad->start_zo[i]  ;
 			TYPE d = Ad->data[jz++] ;
 			uint64_t k  ;
-			// TODO invert jz/k ?
+			/* TODO invert jz/k ? */
 			for ( ; jz < Ad->start_zo[i+1] ; ++jz) {
 				k = 0 ;
 				for ( ; k < N ; ++k) {
@@ -716,7 +717,7 @@ void reduce( GBMatrix_t * A
 	for ( ; blk >=0  ; --blk) {
 		CSR_zo * Cd = &(C->matrix_zo[blk]);
 		uint32_t i_offset = blk * MAT_ROW_BLOCK;
-		uint32_t i = 0 ;
+		int32_t i = 0 ;
 		uint32_t ldd = D->col ;
 		/* D = D - C . B */
 		for ( ; i < (int32_t)Cd->row ;  ++i) {
@@ -726,8 +727,8 @@ void reduce( GBMatrix_t * A
 				uint32_t j = 0 ;
 				for ( ; j < B->col ; ++j) {
 					TYPE tmp = ( Cd->data[jz] * B->data[k*ldb+j] ) % p ;
-					D->data[(i_offset+i)*ldd+j] -= tmp ;
-					if (((TYPE)D->data[(i_offset+i)*ldd+j])<0) D->data[i*ldd+j] += p ;
+					D->data[(i_offset+i)*ldd+j] += p-tmp ;
+					D->data[(i_offset+i)*ldd+j] %= p ;
 				}
 			}
 		}
