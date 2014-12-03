@@ -50,6 +50,8 @@ void initUnit(CSR_zo * mat)
 	if (!mat) return ;
 	mat->row=0;
 	mat->col=0;
+	mat->nnz=0;
+	/* mat->mod=0; */
 	SAFE_MALLOC(mat->start_zo,1,uint64_t);
 	mat->start_zo[0]=0;
 	/* SAFE_MALLOC(mat->colid_zo,0,uint32_t); */
@@ -107,10 +109,14 @@ typedef struct DenseMatrix_t {
 void appendMatrix(GBMatrix_t * A)
 {
 	A->matrix_nb++;
-	if (A->matrix_nb == 1) {
+	if (A->matrix_zo == NULL) {
+		assert(A->matrix_nb == 1);
 		SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
 	}
-	SAFE_REALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
+	else {
+		assert(A->matrix_nb > 1);
+		SAFE_REALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
+	}
 	initUnit(&(A->matrix_zo[A->matrix_nb-1]));
 	(A->matrix_zo[A->matrix_nb-1]).col = A->col ;
 }
@@ -139,7 +145,8 @@ void init(GBMatrix_t * A)
 	A->nnz = 0 ;
 	A->matrix_nb = 0 ;
 	/* SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo); */
-	initUnit(A->matrix_zo);
+	/* initUnit(A->matrix_zo); */
+	A->matrix_zo = NULL ;
 }
 
 void printMatUnit(CSR_zo * A)

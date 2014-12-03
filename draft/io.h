@@ -105,6 +105,8 @@ uint32_t getSparsestRows(uint32_t * colid
 	for ( ; j < row ; ++j) {
 		uint32_t pivot = colid[start[j]] ; /* first column in each row */
 		uint32_t creux = start[j+1]-start[j] ; /* length of the row */
+		assert(j >= pivot);
+		assert(pivot < row);
 		if (sparse[pivot] > creux) { /* this row is sparsest */
 			sparse[pivot] = creux ;
 			pivots[pivot]  = j ;
@@ -248,11 +250,11 @@ int read_file(GBMatrix_t * A_init
 
 	SAFE_READ_P(polys->vals_pol,polys->start_pol[polys->nb],TYPE,fh);
 
-	printMat(A_init);
-	fprintf(stderr,"--------------\n");
-	printMat(C_init);
-	fprintf(stderr,"--------------\n");
-	printPoly(polys);
+	/* printMat(A_init); */
+	/* fprintf(stderr,"--------------\n"); */
+	/* printMat(C_init); */
+	/* fprintf(stderr,"--------------\n"); */
+	/* printPoly(polys); */
 
 	return 0 ;
 }
@@ -294,14 +296,15 @@ uint32_t get_permute_columns(
 }
 
 void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
-		, uint32_t * perm_i
-		, uint32_t * perm_j
-		, uint32_t perm_size
+		/* , uint32_t * perm_i */
+		/* , uint32_t * perm_j */
+		/* , uint32_t perm_size */
 		, CSR_pol * polys
 	       )
 {
 	/* apply permutations (the rows keep the same length : in place) */
 	uint32_t i = 0 ;
+#if 0
 	for ( ; i < A_k->row ; ++i) {
 		uint32_t here = 0 ;
 		uint32_t j = A_k->start_zo[i] ;
@@ -318,6 +321,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 			}
 		}
 	}
+#endif
 	assert(A_k->start_zo[A_k->row] == A_k->nnz);
 	SAFE_MALLOC(A_k->data,A_k->nnz,TYPE);
 	/* sort rows for we have messed them up */
@@ -330,12 +334,12 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		copy(A_k->data+j0,polys->vals_pol+start_idx,j1-j0);
 		/* uint32_t jj = 0 ; for ( ; jj < j1-j0 ; ++jj) fprintf(stderr,"%u ",A_k->data[j0+jj]) ; fprintf(stderr,"\n"); */
 		/* insert_sort(&A_k->colid_zo[j0], j1-j0) ; */
-		insert_sort_duo_data(A_k->colid_zo+j0, j1-j0, A_k->data+j0) ;
+		/* insert_sort_duo_data(A_k->colid_zo+j0, j1-j0, A_k->data+j0) ; */
 		/* jj = 0 ; for ( ; jj < j1-j0 ; ++jj) fprintf(stderr,"%u ",A_k->data[j0+jj]) ; fprintf(stderr,"\n"); */
 	}
 
-	fprintf(stderr,"permuted : ");
-	i =  0 ; for( ; i < A_k->nnz ; ++i) fprintf(stderr, "%u ", A_k->colid_zo[i]); fprintf(stderr,"\n"); i = 0;
+	/* fprintf(stderr,"permuted : "); */
+	/* i =  0 ; for( ; i < A_k->nnz ; ++i) fprintf(stderr, "%u ", A_k->colid_zo[i]); fprintf(stderr,"\n"); i = 0; */
 
 	/* where B starts in A_init */
 	i = 0;
@@ -346,14 +350,15 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 			++j0;
 		start_b[i] = j0 ;
 	}
-	fprintf(stderr,"col start: ");
-	i =  0 ; for( ; i < A_k->row ; ++i) fprintf(stderr, "%u ", start_b[i]); fprintf(stderr,"\n"); i = 0;
+	/* fprintf(stderr,"col start: "); */
+	/* i =  0 ; for( ; i < A_k->row ; ++i) fprintf(stderr, "%u ", start_b[i]); fprintf(stderr,"\n"); i = 0; */
 
 	/* copy A */
 
 	appendMatrix(A);
 	CSR_zo * Ad = getLastMatrix(A);
-	SAFE_MALLOC(Ad->start_zo,A_k->row+1,uint64_t);
+	SAFE_REALLOC(Ad->start_zo,A_k->row+1,uint64_t);
+	Ad->start_zo[0] = 0 ;
 	Ad->row = A_k->row ;
 	Ad->col = k ;
 	SAFE_MALLOC(Ad->map_zo_pol ,A_k->row,uint32_t);
@@ -369,18 +374,17 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 	i = 0;
 	for ( ; i < A_k->row ; ++i) {
 		uint32_t b = start_b[i]-A_k->start_zo[i];
-		fprintf(stderr,"b : %u\n",b);
+		/* fprintf(stderr,"b : %u\n",b); */
 		Ad->start_zo[i+1]= Ad->start_zo[i]+b;
 		fprintf(stderr,"start %u+1=%lu\n",i,Ad->start_zo[i+1]);
-		/* uint32_t j = A_k->start_zo[i] ; */
 		copy(Ad->colid_zo+Ad->start_zo[i], A_k->colid_zo+A_k->start_zo[i], b);
 		copy(Ad->data+Ad->start_zo[i], A_k->data+A_k->start_zo[i], b);
 	}
 	assert(Ad->start_zo[Ad->row] == Ad->nnz);
 
 
-	fprintf(stderr,"Ad:");
-	printMatUnit(Ad);
+	/* fprintf(stderr,"Ad:"); */
+	/* printMatUnit(Ad); */
 }
 
 #if 0
@@ -466,9 +470,9 @@ void do_permute_columns_up(
 		GBMatrix_t * A,
 		DenseMatrix_t * B
 		/* GBMatrix_t * Bt */
-		, uint32_t * perm_i
-		, uint32_t * perm_j
-		, uint32_t perm_size
+		/* , uint32_t * perm_i */
+		/* , uint32_t * perm_j */
+		/* , uint32_t perm_size */
 		, CSR_pol * polys
 		)
 {
@@ -491,10 +495,12 @@ void do_permute_columns_up(
 
 		/*  permute columns and create A  */
 
-		permuteCSR(A_k,A,start_b,k,perm_i,perm_j,perm_size,polys);
+		permuteCSR(A_k,A,start_b,k
+				/* ,perm_i,perm_j,perm_size */
+				,polys);
 
 
-		/* Transpose B */
+		/* get B */
 
 		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
 		TYPE * data = B->data + (row_offset * B->col) ;
@@ -519,9 +525,9 @@ void do_permute_columns_lo(
 		GBMatrix_t * C_init,
 		GBMatrix_t * C,
 		DenseMatrix_t * D
-		, uint32_t * perm_i
-		, uint32_t * perm_j
-		, uint32_t perm_size
+		/* , uint32_t * perm_i */
+		/* , uint32_t * perm_j */
+		/* , uint32_t perm_size */
 		, CSR_pol * polys
 		)
 {
@@ -540,7 +546,9 @@ void do_permute_columns_lo(
 		SAFE_MALLOC_DECL(start_b,C_k->row,uint32_t);
 
 		/* C */
-		permuteCSR(C_k,C,start_b,k,perm_i,perm_j,perm_size,polys);
+		permuteCSR(C_k,C,start_b,k
+				/* ,perm_i,perm_j,perm_size */
+				,polys);
 
 		/*  D */
 		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
@@ -559,7 +567,7 @@ void do_permute_columns_lo(
 }
 
 
-
+#if 0
 /* transforms perm where perm[i] = j into two lists such that ther permutations
  * are (perm_i[k],perm_j[k]) for perm and perm^(-1).  perm_i is increasing.
  */
@@ -589,6 +597,7 @@ uint32_t split_permutations(
 	insert_sort_duo(perm_i+here/2,here/2,perm_j+here/2);
 	return here ;
 }
+#endif
 
 void split_columns(
 		GBMatrix_t * A_init
@@ -602,33 +611,40 @@ void split_columns(
 		)
 {
 	/* search for columns to permute to make A sparser */
-	SAFE_MALLOC_DECL(perm,A->row,uint32_t); /* what columns the first row ones should be exchanged with */
-	uint32_t i = 0;
-	for ( ; i < A_init->row ; ++i)
-		perm[i] = i ;
-	uint32_t trans = get_permute_columns(A_init,perm);
+	/* SAFE_MALLOC_DECL(perm,A->row,uint32_t); |+ what columns the first row ones should be exchanged with +| */
+	/* uint32_t i = 0; */
+	/* for ( ; i < A_init->row ; ++i) */
+		/* perm[i] = i ; */
+	/* uint32_t trans = get_permute_columns(A_init,perm); */
 
 	/* fprintf(stderr,"--------------\n"); */
 	/* i =  0 ; for( ; i < A_init->row ; ++i) fprintf(stderr, "%u ", perm[i]); fprintf(stderr,"\n"); i = 0; */
 	/* fprintf(stderr,"--------------\n"); */
 
 
-	SAFE_MALLOC_DECL(perm_i,2*trans,uint32_t);
-	SAFE_MALLOC_DECL(perm_j,2*trans,uint32_t);
-	split_permutations(perm,A_init->row,perm_i,perm_j);
+	/* SAFE_MALLOC_DECL(perm_i,2*trans,uint32_t); */
+	/* SAFE_MALLOC_DECL(perm_j,2*trans,uint32_t); */
+	/* split_permutations(perm,A_init->row,perm_i,perm_j); */
 	/* i =  0 ; for( ; i < 2*trans ; ++i) fprintf(stderr, "%u ", perm_i[i]); fprintf(stderr,"\n"); i = 0; */
 	/* i =  0 ; for( ; i < 2*trans ; ++i) fprintf(stderr, "%u ", perm_j[i]); fprintf(stderr,"\n"); i = 0; */
 
 	/* copy last columns of A,C to B,D in proper format */
 
-	do_permute_columns_up(A_init->row,A_init,A,B,perm_i,perm_j,2*trans,polys);
-	do_permute_columns_lo(A_init->row,C_init,C,D,perm_i,perm_j,2*trans,polys);
+	do_permute_columns_up(A_init->row,A_init,A,B
+			/* ,perm_i,perm_j,2*trans */
+			,polys);
+	do_permute_columns_lo(A_init->row,C_init,C,D
+			/* ,perm_i,perm_j ,2*trans*/
+			,polys);
 
 	return ;
 }
 
 TYPE invert(TYPE a, TYPE p)
 {
+	assert(a>0);
+	if (a == 1 )
+		return a;
 	TYPE new = 1, old = 0, q = p,r,h ;
 	TYPE pos = 0 ;
 	while(a > 0) {
@@ -663,37 +679,39 @@ void reduce( GBMatrix_t * A
 	 */
 	int32_t blk = A->matrix_nb-1 ;
 	uint32_t ldb = B->col ;
+	uint32_t N = B->col ;
+	TYPE p = A->mod ;
 	for ( ; blk >=0  ; --blk) {
 		CSR_zo * Ad = & (A->matrix_zo[blk]);
-		uint32_t n = Ad->row ;
-		uint32_t m = B->col ;
-		int32_t i = n -1;
-		TYPE p = A->mod ;
+		uint32_t M = Ad->row ;
+		int32_t i = M -1;
 		/* B = A^(-1) B */
-		uint32_t i_offset = blk * MAT_ROW_BLOCK;
+		uint64_t i_offset = blk * MAT_ROW_BLOCK;
 		for ( ; i >= 0 ; --i) {
-			uint32_t jz = Ad->start_zo[i]  ;
+			fprintf(stderr,"row %u \n",i);
+			uint64_t jz = Ad->start_zo[i]  ;
 			TYPE d = Ad->data[jz++] ;
-			fprintf(stderr,"diag elt %u\n",d);
-			uint32_t k  ;
+			uint64_t k  ;
+			// TODO invert jz/k ?
 			for ( ; jz < Ad->start_zo[i+1] ; ++jz) {
 				k = 0 ;
-				for ( ; k < m ; ++k) {
-					B->data[(i_offset+i)*ldb+k] -= Ad->data[jz] * B->data[Ad->colid_zo[jz]*ldb+k] ;
-					B->data[(i_offset+i)*ldb+k] = B->data[(i_offset+i)*ldb+k] % p ;
+				for ( ; k < N ; ++k) {
+					TYPE tmp = Ad->data[jz] * B->data[Ad->colid_zo[jz]*ldb+k] ;
+					tmp %= p ;
+					B->data[(i_offset+i)*ldb+k] += (p-tmp) ;
+					B->data[(i_offset+i)*ldb+k] %=  p ;
 				}
 			}
 			TYPE di = invert(d,p);
-			fprintf(stderr,"diag inv elt %u\n",di);
+			fprintf(stderr,"diag inv elt %u -> %u\n",d,di);
 			k = 0;
-			for ( ; k < m ; ++k) {
+			for ( ; k < N ; ++k) {
 				B->data[(i_offset+i)*ldb+k] *= di ;
 				B->data[(i_offset+i)*ldb+k] %= p ;
 			}
 		}
 	}
 
-	TYPE p = A->mod;
 	blk = C->matrix_nb-1 ;
 	for ( ; blk >=0  ; --blk) {
 		CSR_zo * Cd = &(C->matrix_zo[blk]);

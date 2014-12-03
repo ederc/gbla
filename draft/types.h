@@ -22,7 +22,7 @@
 	assert(ptr)
 
 #define SAFE_CALLOC(ptr,size,elt) \
-	ptr = (elt *) calloc(size,sizeof(elt)); \
+	ptr = (elt *) calloc((size),sizeof(elt)); \
 	assert(ptr)
 
 #define SAFE_MALLOC_DECL(ptr,size,elt) \
@@ -32,7 +32,7 @@
 	elt * SAFE_CALLOC(ptr,size,elt)
 
 #define SAFE_REALLOC(ptr,size,elt) \
-	ptr = (elt *) realloc(ptr,(size)*sizeof(elt)); \
+	ptr = (elt *) realloc((ptr),(size)*sizeof(elt)); \
 	assert(ptr)
 
 #define SAFE_READ_V(val,elt,file) \
