@@ -57,10 +57,25 @@ static inline int cmp_wle(const void *a, const void *b) {
  */
 static inline void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
     const ri_t last_piv_reduced_by) {
+  int tid = omp_get_thread_num();
+#if DEBUG_ECHELONIZE
+  printf("BEFORE PUSH\n");
+    for (int ii=0; ii<waiting_global->sz; ++ii) {
+      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+    }
+#endif
   waiting_global->list[waiting_global->sz].idx  = row_idx;
   waiting_global->list[waiting_global->sz].lp   = last_piv_reduced_by;
+#if DEBUG_ECHELONIZE
   printf("rowidx %u -- lprb %u\n", row_idx, last_piv_reduced_by);
+#endif
   waiting_global->sz++;
+#if DEBUG_ECHELONIZE
+  printf("AFTER PUSH\n");
+    for (int ii=0; ii<waiting_global->sz; ++ii) {
+      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+    }
+#endif
 }
 
 /**
@@ -1051,7 +1066,9 @@ static inline void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense
     const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
     const mod_t modulus) {
 
+#if DEBUG_ECHELONIZE
   printf("in copy mlv %p\n",m->val);
+#endif
   ci_t i;
   re_l_t tmp_1, tmp_2;
   for (i=start_pos; i<coldim; ++i) {
@@ -1084,18 +1101,16 @@ static inline void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense
 static inline void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_1,
     const int start_pos, ml_t *m, const ci_t coldim, const mod_t modulus) {
 
+#if DEBUG_ECHELONIZE
   printf("in copy mlv %p\n",m->val);
+#endif
   ci_t i;
   re_l_t tmp_1;
   for (i=start_pos; i<coldim; ++i) {
     tmp_1 = dense_1[i] % modulus;
-    printf("t1 %lu\n",tmp_1);
     if (tmp_1 != 0) {
-      printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
       m->val[2*i]   = (re_t)tmp_1;
-      printf("A1 %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
     }
-    printf("A %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
   }
 }
 static inline void copy_dense_arrays_to_dense_multiline(const re_l_t *dense_1,
@@ -1106,11 +1121,8 @@ static inline void copy_dense_arrays_to_dense_multiline(const re_l_t *dense_1,
   for (i=0; i<coldim; ++i) {
     tmp_1 = dense_1[i] % modulus;
     tmp_2 = dense_2[i] % modulus;
-    printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2);
-      printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
       m->val[2*i]   = (re_t)tmp_1;
       m->val[2*i+1] = (re_t)tmp_2;
-    printf("A %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
   }
 }
 
@@ -1134,7 +1146,6 @@ static inline void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
   ci_t i;
 
   if (m.sz < coldim) {
-    printf("m.sz %d\n",m.sz);
     for (i=0; i<m.sz; ++i) {
       idx           = m.idx[i];
       dense_1[idx]  = (re_l_t)m.val[2*i];
@@ -1161,21 +1172,33 @@ static inline int get_smallest_waiting_row(wl_t *waiting_global,
   if (waiting_global->sz == 0)
     return 0;
 
+#if DEBUG_ECHELONIZE
+  int tid = omp_get_thread_num();
   printf("BEFORE SORT\n");
     for (int ii=0; ii<waiting_global->sz; ++ii) {
-      printf("%d . %d\n",waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
     }
+#endif
   // sort the waiting list
   qsort(waiting_global->list, waiting_global->sz, sizeof(wle_t), cmp_wle);
+#if DEBUG_ECHELONIZE
   printf("AFTER SORT\n");
     for (int ii=0; ii<waiting_global->sz; ++ii) {
-      printf("%d . %d\n",waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+      if (ii<waiting_global->sz - 1) {
+        if (waiting_global->list[ii].idx == waiting_global->list[ii+1].idx) {
+          printf("SAME IN WAITING!\n");
+        }
+      }
+      printf("ST(%d) %d/%d %d . %d\n",tid,ii,waiting_global->sz,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
     }
+#endif
   // store last (smallest index) element separately and
   // remove it from the list
   *wl_idx = waiting_global->list[waiting_global->sz-1].idx;
   *wl_lp  = waiting_global->list[waiting_global->sz-1].lp;
+#if DEBUG_ECHELONIZE
   printf("wsidx %d -- wslp %d\n",*wl_idx, *wl_lp);
+#endif
   waiting_global->sz--;
 
   return 1;
@@ -1347,19 +1370,16 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
  *
  * \param multiline submatrix A (left upper side)
  *
- * \param global value of next row to be reduced (shared among the threads!)
- *
- * \param global last pivot known (shared among the threads!)
- *
- * \param global waiting list shared by all thread waiting_global
- *
  * \param field characteristic modulus
  *
  * \return 0 if success, 1 if failure
  */
 int echelonize_rows_task(sm_fl_ml_t *A, const ri_t ml_ncols,
-    ri_t global_next_row_to_reduce, ri_t global_last_piv,
-    wl_t *waiting_global, const mod_t modulus, omp_lock_t *echelonize_lock);
+    //ri_t global_next_row_to_reduce, ri_t global_last_piv,
+    //wl_t *waiting_global,
+    const mod_t modulus
+    //, omp_lock_t echelonize_lock
+    );
 
 /**
  * \brief Echelonizes one multiline row (represented by dense_array_1 and

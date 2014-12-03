@@ -472,6 +472,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
+    /*
     printf("OUTPUT MATRIX %d / %d\n", M->nrows, map->npiv);
     for (int ii=0; ii<M->nrows; ++ii) {
       if (M->rows[ii] != NULL) {
@@ -482,6 +483,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
         printf("row %d is NULL!\n",ii);
       }
     }
+    */
 
   } else { // compute reduced row echelon form of input matrix
     if (verbose > 1) {
