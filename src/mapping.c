@@ -32,8 +32,6 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
     }
   }
   map->npiv = npiv;
-  printf("map->pri[369] = %u == -1 ? %d %d\n", map->pri[369], map->pri[369] == __GB_MINUS_ONE_32, map->pri[369] == __GB_MINUS_ONE_8);
-  printf("map->npiv     = %u\n", map->npiv);
 
   ci_t pc_idx = 0, npc_idx = 0, j;
 

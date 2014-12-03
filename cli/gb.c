@@ -398,7 +398,6 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("Error while reducing A.\n");
     return 1;
   }
-  printf("A after elimination %p\n",A);
   if (verbose > 1) {
     printf("<<<<\tDONE  reducing A.\n");
     printf("TIME\t%.3f sec\n",
