@@ -31,8 +31,7 @@ void print_help() {
   printf("    -p          Writes intermediate matrices in pbm format.\n");
   printf("    -s          Splicing options:\n");
   printf("                0: standard Faugère-Lachartre block method,\n");
-  printf("                1: A is multiline, all other submatrices are blocks,\n");
-  printf("                2: A and C are multiline, B and D are blocks.\n");
+  printf("                1: A and C are multiline, B and D are blocks.\n");
   printf("                Default: 0.\n");
   printf("    -t THRDS    Number of threads used.\n");
   printf("                Default: 1.\n");
@@ -101,8 +100,8 @@ int main(int argc, char *argv[]) {
         splicing = atoi(optarg);
         if (splicing<0)
           splicing  = 0;
-        if (splicing>2)
-          splicing  = 2;
+        if (splicing>1)
+          splicing  = 0;
         break;
       case 'v': 
         verbose = atoi(optarg);
@@ -203,21 +202,16 @@ int main(int argc, char *argv[]) {
         printf("Error while trying to eliminate matrix from file '%s' in all block type mode.\n",fn);
       }
       break;
-    // submatrix A of multiline type, other submatrices are of block type
-    case 1:
-      if (fl_ml_A(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose)) {
-        printf("Error while trying to eliminate matrix from file '%s' in A multiline,\n",fn);
-        printf("all others block type mode.\n");
-      }
-      break;
     // submatrices A and C of multiline type, submatrices B and D are of block type
-    case 2:
+    case 1:
       if (fl_ml_A_C(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose, 
             reduce_completely)) {
         printf("Error while trying to eliminate matrix from file '%s' in A and C multiline,\n",fn);
         printf("B and D block type mode.\n");
       }
       break;
+    default:
+      abort ();
   }
 
   free(M);

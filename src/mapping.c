@@ -936,7 +936,7 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
       for (k=0; k<(B->bheight / __GB_NROWS_MULTILINE); ++k) {
         B->blocks[i][j][k].val  = NULL;
         B->blocks[i][j][k].idx  = NULL;
-        B->blocks[i][j][k].sz   = 0;
+        B->blocks[i][j][k].sz   = B->blocks[i][j][k].dense  = 0;
       }
     }
   }
@@ -1919,7 +1919,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     uint32_t idx  = 0;
     // TODO: Implement hybrid stuff
     for (i=0; i<clB; ++i) {
-      for (j=0; j<rounded_cvb/2; ++j) {
+      for (j=0; j<rounded_cvb/__GB_NROWS_MULTILINE; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
             < __GB_HYBRID_THRESHOLD) {
           B->blocks[rbi][i][j].idx =  realloc(
@@ -2325,34 +2325,36 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     // TODO: Implement hybrid stuff
     for (i=0; i<clB; ++i) {
       for (j=0; j<B->bheight/__GB_NROWS_MULTILINE; ++j) {
-        if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
-            < __GB_HYBRID_THRESHOLD) {
-          B->blocks[rbi][i][j].idx =  realloc(
-              B->blocks[rbi][i][j].idx,
-              B->blocks[rbi][i][j].sz * sizeof(bi_t));
-          B->blocks[rbi][i][j].val =  realloc(
-              B->blocks[rbi][i][j].val,
-              2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
-          continue;
-        }
-        re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
-        idx  = 0;
-        for (k=0; k<B->bwidth; ++k) {
-          if (idx < B->blocks[rbi][i][j].sz && B->blocks[rbi][i][j].idx[idx] == k) {
-            tmp_val_ptr[2*k]    = B->blocks[rbi][i][j].val[2*idx];
-            tmp_val_ptr[2*k+1]  = B->blocks[rbi][i][j].val[2*idx+1];
-            idx++;
-          } else {
-            tmp_val_ptr[2*k]    = 0;
-            tmp_val_ptr[2*k+1]  = 0;
+        if (B->blocks[rbi][i] != NULL) {
+          if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
+              < __GB_HYBRID_THRESHOLD) {
+            B->blocks[rbi][i][j].idx =  realloc(
+                B->blocks[rbi][i][j].idx,
+                B->blocks[rbi][i][j].sz * sizeof(bi_t));
+            B->blocks[rbi][i][j].val =  realloc(
+                B->blocks[rbi][i][j].val,
+                2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
+            continue;
           }
+          re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
+          idx  = 0;
+          for (k=0; k<B->bwidth; ++k) {
+            if (idx < B->blocks[rbi][i][j].sz && B->blocks[rbi][i][j].idx[idx] == k) {
+              tmp_val_ptr[2*k]    = B->blocks[rbi][i][j].val[2*idx];
+              tmp_val_ptr[2*k+1]  = B->blocks[rbi][i][j].val[2*idx+1];
+              idx++;
+            } else {
+              tmp_val_ptr[2*k]    = 0;
+              tmp_val_ptr[2*k+1]  = 0;
+            }
+          }
+          free(B->blocks[rbi][i][j].idx);
+          B->blocks[rbi][i][j].idx    = NULL;
+          free(B->blocks[rbi][i][j].val);
+          B->blocks[rbi][i][j].val    = tmp_val_ptr;
+          B->blocks[rbi][i][j].sz     = B->bwidth;
+          B->blocks[rbi][i][j].dense  = 1;
         }
-        free(B->blocks[rbi][i][j].idx);
-        B->blocks[rbi][i][j].idx    = NULL;
-        free(B->blocks[rbi][i][j].val);
-        B->blocks[rbi][i][j].val    = tmp_val_ptr;
-        B->blocks[rbi][i][j].sz     = B->bwidth;
-        B->blocks[rbi][i][j].dense  = 1;
       }
     }
   }
