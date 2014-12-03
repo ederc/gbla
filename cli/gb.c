@@ -398,7 +398,6 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("Error while reducing A.\n");
     return 1;
   }
-  printf("A after elimination %p\n",A);
   if (verbose > 1) {
     printf("<<<<\tDONE  reducing A.\n");
     printf("TIME\t%.3f sec\n",
@@ -470,8 +469,12 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
           walltime(t_load_start) / (1000000));
       print_mem_usage();
       printf("---------------------------------------------------------------------\n");
+      printf("---------------------------------------------------------------------\n");
+      printf("Rank of M:\t%u\n",rank_D+map->npiv);
+      printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
+    /*
     printf("OUTPUT MATRIX %d / %d\n", M->nrows, map->npiv);
     for (int ii=0; ii<M->nrows; ++ii) {
       if (M->rows[ii] != NULL) {
@@ -482,6 +485,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
         printf("row %d is NULL!\n",ii);
       }
     }
+    */
 
   } else { // compute reduced row echelon form of input matrix
     if (verbose > 1) {

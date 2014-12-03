@@ -4,9 +4,14 @@
 #define DDEBUG_C 0
 #define DDEBUG_D 0
 #define DDEBUG_DD 0
-#define DDEBUG_DONE 1
+#define DDEBUG_DONE 0
 #define DDEBUG_D_ONE 0
-#define ECHELONIZE_LOCK 1
+
+// global variables for echelonization of D
+omp_lock_t echelonize_lock;
+ri_t global_next_row_to_reduce;
+ri_t global_last_piv;
+wl_t waiting_global;
 
 int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   sbm_fl_t *A = *A_in;
@@ -591,21 +596,24 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
   ci_t rc;
 
   // row indices for subdividing echelonization parts in D_red
-  ri_t global_next_row_to_reduce  = nthrds * 2;
-  ri_t global_last_piv            = global_next_row_to_reduce - 1;
+  global_next_row_to_reduce  = nthrds * 2;
+  global_last_piv            = global_next_row_to_reduce - 1;
 
   // meta data for the computation of the rank of D_red at the end
-  ri_t rank             = 0;
   int head_line_1       = -1;
   int head_line_2       = -1;
   ci_t head_line_1_idx  = 0;
   ci_t head_line_2_idx  = 0;
   const ci_t coldim     = D->ncols;
+  ri_t wl_dim; // waiting list dimension
   re_t h_a1;
 
+  wl_dim  = (D->nrows/__GB_NROWS_MULTILINE);
+  if (D->nrows%__GB_NROWS_MULTILINE)
+    wl_dim++;
+
   // global waiting list
-  wl_t waiting_global;
-  waiting_global.list = (wle_t *)malloc(coldim * sizeof(wle_t));
+  waiting_global.list = (wle_t *)malloc(wl_dim * sizeof(wle_t));
   waiting_global.sidx = 0;
   waiting_global.slp  = 0;
   waiting_global.sz   = 0;
@@ -666,28 +674,33 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
     D_red->nrows / __GB_NROWS_MULTILINE + 1;
 
   // define lock 
-  omp_lock_t echelonize_lock;
+  //omp_lock_t echelonize_lock;
   omp_init_lock(&echelonize_lock);
 
   // if there are rows left do elimination in parallel
-  printf("MLNDRED %d / %d\n",ml_nrows_D_red, global_next_row_to_reduce);
   if (ml_nrows_D_red >= global_next_row_to_reduce) {
     // TODO: parallel elimination with OpenMP
-#pragma omp parallel shared(D_red, waiting_global, global_next_row_to_reduce, global_last_piv, echelonize_lock) num_threads(nthrds)
+#pragma omp parallel shared(D_red, waiting_global, global_next_row_to_reduce, global_last_piv) num_threads(nthrds)
     {
 #pragma omp for nowait
       for (i=0; i<nthrds; ++i) {
         rc  = echelonize_rows_task(D_red, ml_nrows_D_red,
-            global_next_row_to_reduce, global_last_piv,
-            &waiting_global, modulus, &echelonize_lock);
+            //global_next_row_to_reduce, global_last_piv,
+            //&waiting_global,
+            modulus
+            //, echelonize_lock
+            );
       }
     }
   }
- omp_destroy_lock(&echelonize_lock);
+  omp_destroy_lock(&echelonize_lock);
+
+  ri_t rank = 0;
 
   for (i=0; i<ml_nrows_D_red; ++i) {
     if (D_red->ml[i].sz == 0)
       continue;
+
 
     head_line_1 = get_head_multiline_hybrid(&(D_red->ml[i]), 0,
         &h_a1, &head_line_1_idx, coldim);
@@ -737,7 +750,6 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
   ml_t *ml_row;
   re_l_t *dense_array_1, *dense_array_2;
-  printf("COLUMN DIM %u\n",coldim);
   posix_memalign((void **)&dense_array_1, 16, coldim * sizeof(re_l_t));
   posix_memalign((void **)&dense_array_2, 16, coldim * sizeof(re_l_t));
 
@@ -753,7 +765,6 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
   normalize_multiline(&A->ml[from], coldim, modulus);
 
-  printf("A->ml.sz %d %p\n",A->ml[from].sz,A->ml[from].val);
   ri_t min_loop = to > N-1 ? N-1 : to;
   for (i=from; i<=min_loop; ++i) {
     memset(dense_array_1, 0, coldim * sizeof(re_l_t));
@@ -948,9 +959,11 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 }
 
 int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
-    ri_t global_next_row_to_reduce, ri_t global_last_piv,
-    wl_t *waiting_global, const mod_t modulus,
-    omp_lock_t *echelonize_lock) {
+    //ri_t global_next_row_to_reduce, ri_t global_last_piv,
+    //wl_t *waiting_global,
+    const mod_t modulus
+    //, omp_lock_t echelonize_lock
+    ) {
 
   const ci_t coldim = A->ncols;
   ri_t curr_row_to_reduce;
@@ -965,90 +978,73 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
   ri_t wl_idx  = 0;
   ri_t wl_lp   = 0;
 
-
-  printf("COLUMN DIM %d\n",coldim);
   re_l_t *dense_array_1, *dense_array_2;
   posix_memalign((void **)&dense_array_1, 16, coldim * sizeof(re_l_t));
   posix_memalign((void **)&dense_array_2, 16, coldim * sizeof(re_l_t));
-  printf("addresses after allocation %p -- %p\n",dense_array_1,dense_array_2);
   int tid = omp_get_thread_num();
 
   // do the computations
   while (1) {
-    printf("WAITING GLOBAL\n");
-    for (int ii=0; ii<waiting_global->sz; ++ii) {
-      printf("%d . %d\n",waiting_global->list[ii].idx,waiting_global->list[ii].lp);
-    }
     local_last_piv = global_last_piv;
+#if DEBUG_ECHELONIZE
+    printf("seeting llp\n");
     printf("llp %d\n",local_last_piv);
     printf("grr %d\n",global_next_row_to_reduce);
-    if (global_last_piv >= N) {
-#if ECHELONIZE_LOCK
-      if (omp_test_lock(echelonize_lock))
-        omp_unset_lock(echelonize_lock);
 #endif
+    if (global_last_piv >= N) {
+      omp_unset_lock(&echelonize_lock);
       break;
     }
-#if ECHELONIZE_LOCK
-    if (omp_test_lock(echelonize_lock)) {
-    //if (omp_test_lock(echelonize_lock)) {
-      printf("THD %d has lock\n",tid);
+    omp_set_lock(&echelonize_lock);
+    if ((ready_for_waiting_list == 0) && (global_next_row_to_reduce < N)) {
+      curr_row_to_reduce = global_next_row_to_reduce;
+#if DEBUG_ECHELONIZE
+          printf("%d -- inc grr\n",tid);
 #endif
-      if ((ready_for_waiting_list == 0) && (global_next_row_to_reduce < N)) {
-        curr_row_to_reduce = global_next_row_to_reduce;
-        ++global_next_row_to_reduce;
-        from_row = 0;
-      } else {
-        ready_for_waiting_list = 1;
-      }
-      if (ready_for_waiting_list == 1) {
-        if (get_smallest_waiting_row(waiting_global, &wl_idx, &wl_lp) == 0) { // no waiting rows
-          if (global_next_row_to_reduce >= N) { // no more rows to reduce
-#if ECHELONIZE_LOCK
-            printf("THD %d frees lock 1\n",tid);
-            omp_unset_lock(echelonize_lock);
-#endif
+      global_next_row_to_reduce++;
+      from_row = 0;
+    } else {
+      ready_for_waiting_list = 1;
+    }
+    if (ready_for_waiting_list == 1) {
+      if (get_smallest_waiting_row(&waiting_global, &wl_idx, &wl_lp) == 0) { // no waiting rows
+        if (global_next_row_to_reduce >= N) { // no more rows to reduce
+          omp_unset_lock(&echelonize_lock);
+          break;
+        } else {
+          if (local_last_piv >= N) { // we are also done
+            omp_unset_lock(&echelonize_lock);
             break;
           } else {
-            if (local_last_piv >= N) { // we are also done
-#if ECHELONIZE_LOCK
-              printf("THD %d frees lock 2\n",tid);
-              omp_unset_lock(echelonize_lock);
-#endif
-              break;
-            } else {
-              ready_for_waiting_list  = 0;
-#if ECHELONIZE_LOCK
-              printf("THD %d frees lock 3\n",tid);
-              omp_unset_lock(echelonize_lock);
-#endif
-              continue;
-            }
+            ready_for_waiting_list  = 0;
+            omp_unset_lock(&echelonize_lock);
+            continue;
           }
         }
-        printf("2wsidx %d -- wslp %d\n",wl_idx, wl_lp);
-        from_row            = wl_lp + 1;
-        curr_row_to_reduce  = wl_idx;
       }
-#if ECHELONIZE_LOCK
-      printf("THD %d frees lock 4\n",tid);
-      omp_unset_lock(echelonize_lock);
-    }
+      from_row            = wl_lp + 1;
+      curr_row_to_reduce  = wl_idx;
+#if DEBUG_ECHELONIZE
+      printf("(%d) from row %d -- crr %d -- gllp %d\n", tid,from_row, curr_row_to_reduce, global_last_piv);
 #endif
+    }
+
+    omp_unset_lock(&echelonize_lock);
     // set zero
     memset(dense_array_1, 0, coldim * sizeof(re_l_t));
     memset(dense_array_2, 0, coldim * sizeof(re_l_t));
 
-    // copy multiline to dense representation
-    //printf("crtr %d 1st element %u (%p)\n",curr_row_to_reduce, A->ml[curr_row_to_reduce].val[0], A->ml[curr_row_to_reduce].val);
     copy_multiline_to_dense_array(A->ml[curr_row_to_reduce],
         dense_array_1, dense_array_2, coldim);
-    //printf("crtr %d 1st element %u mlval(%p)\n",curr_row_to_reduce, A->ml[curr_row_to_reduce].val[0], A->ml[curr_row_to_reduce].val);
-    //printf("crtr %d 1st element %u (%p)\n",curr_row_to_reduce, dense_array_1[0], dense_array_1);
     // echelonize one row
-    printf("thread %d reduces rows %d -- %d\n",tid, from_row, local_last_piv);
+#if DEBUG_ECHELONIZE
+    printf("thread %d reduces %d with rows %d -- %d\n",tid, curr_row_to_reduce, from_row, local_last_piv);
+#endif
     echelonize_one_row(A, dense_array_1, dense_array_2, from_row,
         local_last_piv, modulus); // TODO
+#if DEBUG_ECHELONIZE
+    printf("thread %d done with rows %d -- %d\n",tid, from_row, local_last_piv);
+#endif
 #if DDEBUG_D
     for (int kk = 0; kk< coldim/2; ++kk) {
       printf("13-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
@@ -1090,40 +1086,26 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
       */
 
     if (curr_row_fully_reduced == 1) {
-#if ECHELONIZE_LOCK
-      if (omp_test_lock(echelonize_lock)) {
-        //if (omp_test_lock(echelonize_lock)) {
-        printf("THD %d has lock\n",tid);
+      omp_set_lock(&echelonize_lock);
+      ++global_last_piv;
+#if DEBUG_ECHELONIZE
+      printf("%d -- inc glp: %d\n", tid, global_last_piv);
 #endif
-        ++global_last_piv;
-#if ECHELONIZE_LOCK
-        printf("THD %d frees lock\n",tid);
-        omp_unset_lock(echelonize_lock);
-      }
+      omp_unset_lock(&echelonize_lock);
+    } else {
+      omp_set_lock(&echelonize_lock);
+#if DEBUG_ECHELONIZE
+      printf("%d -- pushes %d / %d\n",tid, curr_row_to_reduce, local_last_piv);
 #endif
-      } else {
-#if ECHELONIZE_LOCK
-        //omp_set_lock(echelonize_lock);
-        if (omp_test_lock(echelonize_lock)) {
-#endif
-          push_row_to_waiting_list(waiting_global, curr_row_to_reduce, local_last_piv);
-#if ECHELONIZE_LOCK
-          printf("THD %d frees lock\n",tid);
-          omp_unset_lock(echelonize_lock);
-        }
-#endif
-      }
+      push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, local_last_piv);
+      omp_unset_lock(&echelonize_lock);
+    }
   }
   // free memory
-  printf("addresses before freeing %p -- %p\n",dense_array_1,dense_array_2);
   free(dense_array_1);
-  printf("1\n");
   dense_array_1 = NULL;
-  printf("2\n");
   free(dense_array_2);
-  printf("3\n");
   dense_array_2 = NULL;
-  printf("4\n");
 
   return 0;
 }
@@ -1150,10 +1132,14 @@ void echelonize_one_row(sm_fl_ml_t *A,
   re_t v1_col1 = 0, v2_col1 = 0, v1_col2 = 0, v2_col2 = 0;
   ri_t tmp  = 0;
 
+#if DEBUG_ECHELONIZE
   printf("fp %d -- lp %d\n",first_piv, last_piv);
+#endif
   for (j=first_piv; j<last_piv+1; ++j) {
     ml_row  = &(A->ml[j]);
+#if DEBUG_ECHELONIZE
     printf("j %d\n",j);
+#endif
     if (ml_row->sz == 0)
       continue;
 #if DDEBUG_D
@@ -1172,7 +1158,9 @@ void echelonize_one_row(sm_fl_ml_t *A,
     head_line_2 = get_head_multiline_hybrid(ml_row, 1,
         &h_a2, &head_line_2_idx, coldim);
 
+#if DEBUG_ECHELONIZE
     printf("hl1 %d || h2 %d\n",head_line_1,head_line_2);
+#endif
 
     if (head_line_1 != -1) {
 #if DDEBUG_D_ONE
@@ -1262,7 +1250,6 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
     const int reduce) {
 
-printf("COLDIMSBAR %d\n",coldim);
 
   if (reduce == 1) {
     int head_line_1 = -1;
@@ -1310,15 +1297,14 @@ printf("COLDIMSBAR %d\n",coldim);
 #endif
     head_line_2 = get_head_dense_array(dense_array_2, &h_a2, coldim, modulus);
 
+#if DEBUG_ECHELONIZE
     printf("headl1 %d | headl2 %d\n",head_line_1,head_line_2);
     printf("mlidx %p -- mlval %p : sz %d\n",ml->idx,ml->val, ml->sz);
+#endif
     // possibly we have a zero row
     if (head_line_1 == -1 && head_line_2 == -1) {
-      printf("mlv %p\n",ml->val);
       free(ml->val);
-      printf("mlv %p\n",ml->val);
       ml->val  = NULL;
-      printf("mlv %p\n",ml->val);
       ml->sz   = 0;
     } else {
       memset(ml->val, 0, 2 * coldim * sizeof(re_t));
@@ -1328,7 +1314,6 @@ printf("COLDIMSBAR %d\n",coldim);
             dense_array_2, head_line_2, ml, coldim, modulus);
       } else {
         if (head_line_2 == -1) {
-          printf("hl2 == -1\n");
           copy_dense_array_to_zero_dense_multiline(
               dense_array_1, head_line_1, ml, coldim, modulus);
         } else { // both are not empty
@@ -1341,27 +1326,6 @@ printf("COLDIMSBAR %d\n",coldim);
           }
         }
       }
-      /*
-      // save the line with the smallest column entry first
-      if ((head_line_1 == -1) || ((head_line_2 != -1) && (head_line_1 > head_line_2))) {
-    //copy_dense_arrays_to_dense_multiline(
-    //    dense_array_2, dense_array_1, ml, coldim, modulus);
-        copy_dense_arrays_to_zero_dense_multiline(
-            dense_array_2, dense_array_1, ml, coldim, modulus);
-      } else {
-    //copy_dense_arrays_to_dense_multiline(
-    //    dense_array_1, dense_array_2, ml, coldim, modulus);
-        copy_dense_arrays_to_zero_dense_multiline(
-            dense_array_1, dense_array_2, ml, coldim, modulus);
-      }
-      */
-      /*
-      printf("MULTILINE in SAVE BEFORE NORMALIZE\n");
-      for (int kk=0; kk<ml->sz; ++kk) {
-        printf("%d : %u -- %u ",kk,ml->val[2*kk],ml->val[2*kk+1]);
-      }
-      printf("\n");
-      */
       // normalize multiline
       normalize_multiline(ml, coldim, modulus);
     }
@@ -1377,12 +1341,4 @@ printf("COLDIMSBAR %d\n",coldim);
     copy_dense_arrays_to_zero_dense_multiline(
         dense_array_1, dense_array_2, 0, ml, coldim, modulus);
   }
-    printf("2-mlidx %p -- mlval %p\n",ml->idx,ml->val);
-    /*
-      printf("MULTILINE in SAVE\n");
-      for (int kk=0; kk<ml->sz; ++kk) {
-        printf("%d : %u -- %u ",kk,ml->val[2*kk],ml->val[2*kk+1]);
-      }
-      printf("\n");
-      */
 }

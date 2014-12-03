@@ -32,8 +32,6 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
     }
   }
   map->npiv = npiv;
-  printf("map->pri[369] = %u == -1 ? %d %d\n", map->pri[369], map->pri[369] == __GB_MINUS_ONE_32, map->pri[369] == __GB_MINUS_ONE_8);
-  printf("map->npiv     = %u\n", map->npiv);
 
   ci_t pc_idx = 0, npc_idx = 0, j;
 
@@ -121,8 +119,9 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
 void combine_maps(map_fl_t *outer_map, map_fl_t *inner_map,
      const ci_t outer_coldim, const ci_t inner_coldim, int only_rows) {
   
+#if DEBUG_RECONSTRUCT
   printf("inner coldim %d\n",inner_coldim);
-  printf("outer_map->pri[369] = %u\n", outer_map->pri[369]);
+#endif
   uint32_t i, idx_B, idx_B2, rev_idx_A;
 
   // remap pivot rows indices (lines of matrix A)
@@ -135,12 +134,16 @@ void combine_maps(map_fl_t *outer_map, map_fl_t *inner_map,
 
   if (only_rows == 1) {
     for (i=0; i<inner_coldim; ++i) {
+#if DEBUG_RECONSTRUCT
       printf("i %d, %d\n",i,inner_map->pri[i]);
+#endif
       if (inner_map->pri[i] == __GB_MINUS_ONE_32) 
         continue;
       idx_B     = i;
       rev_idx_A = outer_map->npc_rev[idx_B];
+#if DEBUG_RECONSTRUCT
       printf("outer_map->pri[%d] = %d\n",rev_idx_A,outer_map->npiv + inner_map->pri[i]);
+#endif
       outer_map->pri[rev_idx_A] = outer_map->npiv + inner_map->pri[i];
     }
     return;
