@@ -469,6 +469,9 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
           walltime(t_load_start) / (1000000));
       print_mem_usage();
       printf("---------------------------------------------------------------------\n");
+      printf("---------------------------------------------------------------------\n");
+      printf("Rank of M:\t%u\n",rank_D+map->npiv);
+      printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
     /*
