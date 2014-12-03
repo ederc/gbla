@@ -35,10 +35,10 @@ $(CVT)$(opt): $(CVT).c
 	gcc $(OPT) $(WAR) -UREVERT $(CVT).c -o $(CVT)$(opt)
 
 $(RUN)_dgb: $(RUN).c
-	gcc $(DBG) $(VAR) $(RUN).c -o $(RUN)$(dbg)
+	gcc $(DBG) $(WAR) $(RUN).c -o $(RUN)$(dbg)
 
 $(RUN)$(opt): $(RUN).c
-	gcc $(OPT) $(VAR) $(RUN).c -o $(RUN)$(opt)
+	gcc $(OPT) $(AR) $(RUN).c -o $(RUN)$(opt)
 
 clean:
 	-rm *.o
