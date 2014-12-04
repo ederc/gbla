@@ -648,8 +648,10 @@ void split_columns(
 	return ;
 }
 
+uint32_t RowReduce_int32_t ( int32_t p, int32_t * A, uint32_t m, uint32_t n, uint32_t lda) ;
+uint32_t RowReduce_double  ( double p, double * A, uint32_t m, uint32_t n, uint32_t lda) ;
 
-extern int RowReduce_int32( uint16_t p, int32_t * A, uint32_t m, uint32_t n, uint32_t lda) ;
+
 
 void reduce( GBMatrix_t * A
 		, DenseMatrix_t * B
@@ -732,6 +734,9 @@ void reduce( GBMatrix_t * A
 		}
 	}
 
+	uint32_t r = Mjoin(RowReduce,elem_t)(D->mod,D->data,D->row,D->col,D->col);
+
+	fprintf(stderr,"result : %u\n",r+A->row);
 }
 
 #undef Mjoin

@@ -1,4 +1,8 @@
+#include <stdint.h>
+
+
 #include "io.h"
+
 
 int main(int ac, char **av) {
 
@@ -57,13 +61,13 @@ int main(int ac, char **av) {
 	printMatDense(B);
 
 	fprintf(stderr,"--------------\n");
-	
+
 	printMat(C);
-	
+
 	fprintf(stderr,"--------------\n");
-	
+
 	printMatDense(D);
-	
+
 	fprintf(stderr,"--------------\n");
 
 	printPoly(POL);

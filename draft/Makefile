@@ -52,11 +52,18 @@ $(CVT)$(opt): $(CVT).c
 ### run the algo
 RED=fflas_reduce
 FFLAS=/home/bboyer/usr/
-LIBS: $(RED).cpp
-	g++ `sh $(FFLAS)/bin/fflas-ffpack-config --cflags` `sh $(FFLAS)/bin/fflas-ffpack-config --libs` -c $(RED).cpp
+FFLAS_CFLAGS=`sh $(FFLAS)/bin/fflas-ffpack-config --cflags`
+FFLAS_LIBS=`sh $(FFLAS)/bin/fflas-ffpack-config --libs`
+LIBS$(dbg): $(RED).cpp
+	g++ $(DBG) $(FFLAS_CFLAGS)  -c $(RED).cpp 
+OBJ$(dbg):
+	gcc $(DBG) -c $(RUN).c
 
-$(RUN)_dgb: $(RUN).c
-	gcc $(DBG) $(WAR) $(RUN).c -o $(RUN)$(dbg) $(LIB)
+
+$(RUN)$(dbg): $(RUN).c
+	make LIBS_dbg ;
+	make OBJ_dbg  ;
+	gcc $(DBG) $(WAR) $(FFLAS_LIBS) $(RED).o $(RUN).c -o $(RUN)$(dbg) -lm -lstdc++
 
 $(RUN)$(opt): $(RUN).c
 	gcc $(OPT) $(AR) $(RUN).c -o $(RUN)$(opt) $(LIB)
