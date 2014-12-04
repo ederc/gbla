@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "matrix.h"
+#include "field_ops.h"
 
 /**
  * the matrix we have as input is "almost upper triangular", ie below every first
@@ -31,6 +32,11 @@
 	t = a ; \
 a = b ; \
 b = t
+
+#define Mjoin(pre,nam) my_join(pre , nam)
+#define my_join(pre, nam) pre ## _ ## nam
+
+
 
 #if 0
 void insert_sort(uint32_t * liste, uint32_t  size)
@@ -60,14 +66,14 @@ void insert_sort_duo(uint32_t * liste, uint32_t  size, uint32_t * copain)
 	}
 }
 
-void insert_sort_duo_data(uint32_t * liste, uint32_t  size, TYPE * copain)
+void insert_sort_duo_data(uint32_t * liste, uint32_t  size, elem_t * copain)
 {
 	uint32_t d , c = 1 , t ;
 	for ( ; c < size ; ++c) {
 		d = c;
 		while ( d > 0 && liste[d] < liste[d-1]) {
-			fprintf(stderr,"permuting %u and %u, that is %u and %u, and side %u and %u\n",
-					d,d-1,liste[d],liste[d-1],copain[d],copain[d-1]);
+			/* fprintf(stderr,"permuting %u and %u, that is %u and %u, and side %u and %u\n",
+					d,d-1,liste[d],liste[d-1],copain[d],copain[d-1]);                 */
 			SWAP(liste[d],liste[d-1]);
 			SWAP(copain[d],copain[d-1]);
 			d--;
@@ -192,12 +198,12 @@ int read_file(GBMatrix_t * A_init
 
 	/* format */
 	SAFE_READ_DECL_V(b,uint32_t,fh);
-	/* XXX set TYPE here and C++-ise*/
+	/* XXX set elem_s here and C++-ise*/
 
 	/* READ in row col nnz mod */
 	SAFE_READ_DECL_V(m,uint32_t,fh);
 	SAFE_READ_DECL_V(n,uint32_t,fh);
-	SAFE_READ_DECL_V(mod,TYPE,fh);
+	SAFE_READ_DECL_V(mod,elem_s,fh);
 	assert(mod > 1);
 	SAFE_READ_DECL_V(nnz,uint64_t,fh);
 
@@ -248,7 +254,9 @@ int read_file(GBMatrix_t * A_init
 	/* create GBpolynomials shared by A_init and B_init */
 	SAFE_READ_P(polys->start_pol,polys->nb+1,uint32_t,fh);
 
-	SAFE_READ_P(polys->vals_pol,polys->start_pol[polys->nb],TYPE,fh);
+	/* XXX what if elem_s == elem_t ??? */
+	SAFE_READ_DECL_P(polys_vals_pol,polys->start_pol[polys->nb],elem_s,fh);
+	SAFE_MEMCPY_CVT(polys->vals_pol,elem_t,polys_vals_pol,polys->start_pol[polys->nb]);
 
 	/* printMat(A_init); */
 	/* fprintf(stderr,"--------------\n"); */
@@ -323,7 +331,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 	}
 #endif
 	assert(A_k->start_zo[A_k->row] == A_k->nnz);
-	SAFE_MALLOC(A_k->data,A_k->nnz,TYPE);
+	SAFE_MALLOC(A_k->data,A_k->nnz,elem_t);
 	/* sort rows for we have messed them up */
 	i = 0;
 	for ( ; i < A_k->row ; ++i) {
@@ -369,7 +377,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		Ad->nnz += start_b[i]-A_k->start_zo[i];
 	}
 	SAFE_MALLOC(Ad->colid_zo,Ad->nnz,uint32_t);
-	SAFE_MALLOC(Ad->data,Ad->nnz,TYPE);
+	SAFE_MALLOC(Ad->data,Ad->nnz,elem_t);
 
 	i = 0;
 	for ( ; i < A_k->row ; ++i) {
@@ -424,7 +432,7 @@ void permuteCSRT(void) {
 
 
 	SAFE_CALLOC_DECL(done_col,Bd->row,uint32_t);
-	SAFE_MALLOC(Bd->data, Bd->nnz, TYPE);
+	SAFE_MALLOC(Bd->data, Bd->nnz, elem_t);
 
 	uint32_t j = 0 ;
 	for (; j < A_k->row ; ++j) {
@@ -444,7 +452,7 @@ void permuteCSRT(void) {
 }
 #endif
 
-void permuteDNS(CSR_zo * C_k, GBMatrix_t * C, uint32_t * start_b, TYPE * data)
+void permuteDNS(CSR_zo * C_k, GBMatrix_t * C, uint32_t * start_b, elem_t * data)
 {
 
 	/* uint64_t other_nnz = getLastMatrix(C)->nnz ; */
@@ -483,7 +491,7 @@ void do_permute_columns_up(
 	A->col = k ;
 	B->col = A_init->col - k ;
 
-	SAFE_CALLOC(B->data,B->row*B->col,TYPE);
+	SAFE_CALLOC(B->data,B->row*B->col,elem_t);
 
 	uint32_t blk = 0;
 	for ( ; blk < A_init->matrix_nb ; ++blk) {
@@ -503,7 +511,7 @@ void do_permute_columns_up(
 		/* get B */
 
 		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
-		TYPE * data = B->data + (row_offset * B->col) ;
+		elem_t * data = B->data + (row_offset * B->col) ;
 
 		permuteDNS(A_k,A,start_b,data);
 
@@ -536,7 +544,7 @@ void do_permute_columns_lo(
 	C->col = k ;
 	D->col = C_init->col - k ;
 
-	SAFE_CALLOC(D->data,D->row*D->col,TYPE);
+	SAFE_CALLOC(D->data,D->row*D->col,elem_t);
 
 	uint32_t blk = 0;
 	for ( ; blk < C_init->matrix_nb ; ++blk) {
@@ -552,7 +560,7 @@ void do_permute_columns_lo(
 
 		/*  D */
 		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
-		TYPE * data = D->data + (row_offset * D->col) ;
+		elem_t * data = D->data + (row_offset * D->col) ;
 
 		permuteDNS(C_k,C,start_b,data);
 	}
@@ -640,25 +648,6 @@ void split_columns(
 	return ;
 }
 
-TYPE invert(TYPE a, TYPE p)
-{
-	assert(a>0);
-	if (a == 1 )
-		return a;
-	TYPE new = 1, old = 0, q = p,r,h ;
-	TYPE pos = 0 ;
-	while(a > 0) {
-		r = q%a ;
-		q = q/a ;
-		h = q*new+old ;
-		old = new ;
-		new = h;
-		q = a ;
-		a = r ;
-		pos = !pos ;
-	}
-	return pos ? old : (p-old);
-}
 
 extern int RowReduce_int32( uint16_t p, int32_t * A, uint32_t m, uint32_t n, uint32_t lda) ;
 
@@ -681,7 +670,7 @@ void reduce( GBMatrix_t * A
 	int32_t blk = A->matrix_nb-1 ;
 	uint32_t ldb = B->col ;
 	uint32_t N = B->col ;
-	TYPE p = A->mod ;
+	elem_t p = A->mod ;
 	for ( ; blk >=0  ; --blk) {
 		CSR_zo * Ad = & (A->matrix_zo[blk]);
 		uint32_t M = Ad->row ;
@@ -690,25 +679,32 @@ void reduce( GBMatrix_t * A
 		uint64_t i_offset = blk * MAT_ROW_BLOCK;
 		for ( ; i >= 0 ; --i) {
 			fprintf(stderr,"row %u \n",i);
-			uint64_t jz = Ad->start_zo[i]  ;
-			TYPE d = Ad->data[jz++] ;
+			uint64_t jz   ;
 			uint64_t k  ;
 			/* TODO invert jz/k ? */
-			for ( ; jz < Ad->start_zo[i+1] ; ++jz) {
-				k = 0 ;
-				for ( ; k < N ; ++k) {
-					TYPE tmp = Ad->data[jz] * B->data[Ad->colid_zo[jz]*ldb+k] ;
-					tmp %= p ;
-					B->data[(i_offset+i)*ldb+k] += (p-tmp) ;
-					B->data[(i_offset+i)*ldb+k] %=  p ;
+			assert( (elem_t)-1<1); /* unsigned will fail */
+			for ( jz = Ad->start_zo[i]+1 ; jz < Ad->start_zo[i+1] ; ++jz) {
+				uint64_t j = Ad->colid_zo[jz];
+				for ( k = 0 ; k < N ; ++k) {
+					B->data[(i_offset+i)*ldb+k] -=  Ad->data[jz] * B->data[j*ldb+k] ;;
+					/* Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ; */
 				}
 			}
-			TYPE di = invert(d,p);
-			fprintf(stderr,"diag inv elt %u -> %u\n",d,di);
+			for ( k = 0 ; k < N ; ++k) {
+				Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ;
+			}
+			elem_t d = Ad->data[Ad->start_zo[i]] ;
+			elem_t di = Mjoin(invert,double)(d,p);
+			fprintf(stderr,"diag inv elt ");
+			Mjoin(print,elem_t)(d);
+			fprintf(stderr," -> ");
+			Mjoin(print,elem_t)(di);
+			fprintf(stderr,"\n");
 			k = 0;
 			for ( ; k < N ; ++k) {
 				B->data[(i_offset+i)*ldb+k] *= di ;
-				B->data[(i_offset+i)*ldb+k] %= p ;
+				/* B->data[(i_offset+i)*ldb+k] %= p ; */
+				Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ;
 			}
 		}
 	}
@@ -717,24 +713,29 @@ void reduce( GBMatrix_t * A
 	for ( ; blk >=0  ; --blk) {
 		CSR_zo * Cd = &(C->matrix_zo[blk]);
 		uint32_t i_offset = blk * MAT_ROW_BLOCK;
-		int32_t i = 0 ;
+		int32_t i  ;
 		uint32_t ldd = D->col ;
 		/* D = D - C . B */
-		for ( ; i < (int32_t)Cd->row ;  ++i) {
-			uint32_t jz = Cd->start_zo[i] ;
-			for ( ; jz < Cd->start_zo[i+1] ; ++jz ) {
-				uint32_t k = Cd->colid_zo[jz];
-				uint32_t j = 0 ;
-				for ( ; j < B->col ; ++j) {
-					TYPE tmp = ( Cd->data[jz] * B->data[k*ldb+j] ) % p ;
-					D->data[(i_offset+i)*ldd+j] += p-tmp ;
-					D->data[(i_offset+i)*ldd+j] %= p ;
+		assert( (elem_t)-1<1); /* unsigned will fail */
+		uint64_t jz,k  ;
+		for ( i = 0 ; i < (int32_t)Cd->row ;  ++i) {
+			uint32_t j = 0 ;
+			for ( jz = Cd->start_zo[i]; jz < Cd->start_zo[i+1] ; ++jz ) {
+				k = Cd->colid_zo[jz];
+				for ( j = 0 ; j < B->col ; ++j) {
+					D->data[(i_offset+i)*ldd+j] -= ( Cd->data[jz] * B->data[k*ldb+j] ) ;
 				}
+			}
+			for ( j = 0 ; j < B->col ; ++j) {
+				Mjoin(fmodin,elem_t)(D->data+(i_offset+i)*ldd+j, p) ;
 			}
 		}
 	}
 
 }
+
+#undef Mjoin
+#undef my_join
 
 #endif /* __GB_io_H */
 /* vim: set ft=c: */

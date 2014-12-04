@@ -72,12 +72,12 @@ int main()
 
 
 #ifdef _PROPOSED_FORMAT
-	const TYPE mod = 11 ;
+	const elem_s mod = 11 ;
 	FILE * toto =fopen("test_new.gb","wb");
 	assert(toto);
 
 
-	uint32_t un = Mjoin(select,TYPE)();
+	uint32_t un = Mjoin(select,elem_s)();
 
 
 
@@ -89,12 +89,12 @@ int main()
 	const uint32_t pol_nb = 2 ;
 	const uint32_t pol_start [] = { 0 , 3 , 5 } ;
 	const uint32_t pol_nnz = pol_start[pol_nb] ;
-	const TYPE pol_data [] = { 2, 3, 4, 9, 8 };
+	const elem_s pol_data [] = { 2, 3, 4, 9, 8 };
 
 	fwrite(&un,sizeof(uint32_t),1,toto);
 	fwrite(&row,sizeof(uint32_t),1,toto);
 	fwrite(&col,sizeof(uint32_t),1,toto);
-	fwrite(&mod,sizeof(TYPE),1,toto);
+	fwrite(&mod,sizeof(elem_s),1,toto);
 	fwrite(&nnz,sizeof(uint64_t),1,toto);
 	fwrite(start_zo,sizeof(uint64_t),row+1,toto);
 	fwrite(map_zo_pol,sizeof(uint32_t),row,toto);
@@ -102,7 +102,7 @@ int main()
 	fwrite(colid_zo,sizeof(uint32_t),colid_size,toto);
 	fwrite(&pol_nb,sizeof(uint32_t),1,toto);
 	fwrite(pol_start,sizeof(uint32_t),pol_nb+1,toto);
-	fwrite(pol_data,sizeof(TYPE),pol_nnz,toto);
+	fwrite(pol_data,sizeof(elem_s),pol_nnz,toto);
 #else
 	const uint32_t mod = 7 ;
 	FILE * toto =fopen("test_old.gb","wb");
@@ -111,8 +111,8 @@ int main()
 	fwrite(&col,sizeof(uint32_t),1,toto);
 	fwrite(&mod,sizeof(uint32_t),1,toto);
 	fwrite(&nnz,sizeof(uint64_t),1,toto);
-	const TYPE data[] = {  2 , 3 , 4, 2, 3, 4, 9 ,8 ,9 ,8 };
-	fwrite(data,sizeof(TYPE),nnz,toto);
+	const elem_s data[] = {  2 , 3 , 4, 2, 3, 4, 9 ,8 ,9 ,8 };
+	fwrite(data,sizeof(elem_s),nnz,toto);
 	const uint32_t cols[] = { 0, 1, 6, 0, 4, 6, 1, 4, 2, 5 } ;
 	fwrite(cols,sizeof(uint32_t),nnz,toto);
 	const uint32_t rows[] = { 3 , 3, 2 , 2 };

@@ -2,14 +2,28 @@ DBG=-O0 -g
 WAR=-Wall -Wextra -ansi
 OPT=-march=native -O3
 NEW=-D_PROPOSED_FORMAT
+LIB=-lm
 
-
+TST=dumb_write
 TGT=dump_matrix
 CVT=converter
 RUN=runit
 opt=_opt
 dbg=_dbg
 
+### dumb write (test matrix)
+$(TST)_new$(dbg): $(TST).c
+	gcc $(DBG) $(NEW) $(WAR) $(TST).c -o $(TST)_new$(dbg)
+$(TST)_old$(dbg): $(TST).c
+	gcc $(DBG) $(WAR) $(TST).c -o $(TST)_old$(dbg)
+
+$(TST)_new$(opt): $(TST).c
+	gcc $(OPT) $(NEW) $(WAR) $(TST).c -o $(TST)_new$(opt)
+
+$(TST)_old$(opt): $(TST).c
+	gcc $(OPT) $(WAR) $(TST).c -o $(TST)_old$(opt)
+
+### dump matrix (to sms...)
 $(TGT)$(dbg): $(TGT).c $(TGT).h printer.h
 	gcc $(DBG) $(WAR) $(TGT).c -o $(TGT)$(dbg)
 
@@ -22,6 +36,7 @@ $(TGT)_new$(dbg): $(TGT).c $(TGT).h printer.h
 $(TGT)_new$(opt): $(TGT).c $(TGT).h printer.h
 	gcc $(OPT) $(NEW) $(WAR) $(TGT).c -o $(TGT)_new$(opt)
 
+### convert (old binary to new binary)
 $(CVT)_revert$(dbg): $(CVT).c
 	gcc $(DBG) $(WAR) -DREVERT $(CVT).c -o $(CVT)_revert$(dbg)
 
@@ -34,16 +49,17 @@ $(CVT)_revert$(opt): $(CVT).c
 $(CVT)$(opt): $(CVT).c
 	gcc $(OPT) $(WAR) -UREVERT $(CVT).c -o $(CVT)$(opt)
 
+### run the algo
 RED=fflas_reduce
 FFLAS=/home/bboyer/usr/
 LIBS: $(RED).cpp
 	g++ `sh $(FFLAS)/bin/fflas-ffpack-config --cflags` `sh $(FFLAS)/bin/fflas-ffpack-config --libs` -c $(RED).cpp
 
 $(RUN)_dgb: $(RUN).c
-	gcc $(DBG) $(WAR) $(RUN).c -o $(RUN)$(dbg)
+	gcc $(DBG) $(WAR) $(RUN).c -o $(RUN)$(dbg) $(LIB)
 
 $(RUN)$(opt): $(RUN).c
-	gcc $(OPT) $(AR) $(RUN).c -o $(RUN)$(opt)
+	gcc $(OPT) $(AR) $(RUN).c -o $(RUN)$(opt) $(LIB)
 
 
 clean:

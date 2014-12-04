@@ -1,3 +1,22 @@
+#ifndef __GB_printer_h
+#define __GB_printer_h
+
+void print_line_float(uint32_t i, uint32_t j, float v, int magma)
+{
+	/* fprintf(stderr,"<%u>",szi); */
+	if (magma)
+		printf("A[%u,%u]:=%f;\n",i,j,v);
+	else
+		printf("%u %u %f\n",i,j,v);
+}
+void print_line_double(uint32_t i, uint32_t j, double v, int magma)
+{
+	/* fprintf(stderr,"<%u>",szi); */
+	if (magma)
+		printf("A[%u,%u]:=%f;\n",i,j,v);
+	else
+		printf("%u %u %f\n",i,j,v);
+}
 
 void print_line_int8_t(uint32_t i, uint32_t j, int8_t v, int magma)
 {
@@ -99,4 +118,44 @@ void print_mod_uint64_t(uint64_t m)
 {
 	printf("K:=GF(%lu);\n",m);
 }
+
+void print_double(double m)
+{
+	fprintf(stderr,"%f",m);
+}
+void print_float(float m)
+{
+	fprintf(stderr,"%f",m);
+}
+void print_int16_t(int16_t m)
+{
+	fprintf(stderr,"%d",m);
+}
+void print_uint16_t(uint16_t m)
+{
+	fprintf(stderr,"%u",m);
+}
+void print_int32_t(int32_t m)
+{
+	fprintf(stderr,"%d",m);
+}
+void print_uint32_t(uint32_t m)
+{
+	fprintf(stderr,"%u",m);
+}
+void print_int64_t(int64_t m)
+{
+	fprintf(stderr,"%ld",m);
+}
+void print_uint64_t(uint64_t m)
+{
+	fprintf(stderr,"%lu",m);
+}
+
+
+
+
+#endif /* __GB_printer_h */
+
 /* vim: set ft=c: */
+

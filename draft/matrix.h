@@ -2,6 +2,11 @@
 #define __GB_matrix_H
 
 #include "types.h"
+#include "printer.h"
+
+#define Mjoin(pre,nam) my_join(pre , nam)
+#define my_join(pre, nam) pre ## _ ## nam
+
 
 /*
    struct matrixFile_t {
@@ -9,19 +14,19 @@
    uint32_t row ;
    uint32_t col ;
    uint64_t nnz ;
-   TYPE     mod ;
+   elem_t mod ;
    uint32_t * start_zo ;
    uint32_t * map_zo_pol ;
    uint32_t * colid_zo ;
    uint32_t * start_pol;
-   TYPE     * vals_pol;
+   elem_t   * vals_pol;
    } ;
    */
 
 typedef struct CSR_pol {
 	uint32_t nb ;
 	uint32_t * start_pol ;
-	TYPE     * vals_pol ;
+	elem_t  * vals_pol ;
 } CSR_pol;
 
 typedef struct CSR_zo {
@@ -31,7 +36,7 @@ typedef struct CSR_zo {
 	uint64_t * start_zo ;
 	uint32_t * colid_zo ;
 	uint32_t * map_zo_pol ;
-	TYPE     * data ;
+	elem_t   * data ;
 
 } CSR_zo;
 
@@ -56,7 +61,7 @@ void initUnit(CSR_zo * mat)
 	mat->start_zo[0]=0;
 	/* SAFE_MALLOC(mat->colid_zo,0,uint32_t); */
 	/* SAFE_MALLOC(mat->map_zo_pol,0,uint32_t); */
-	/* SAFE_MALLOC(mat->data,0,TYPE); */
+	/* SAFE_MALLOC(mat->data,0,elem_t); */
 	mat->colid_zo = NULL ;
 	mat->map_zo_pol = NULL ;
 	mat->data = NULL ;
@@ -87,7 +92,7 @@ typedef struct GBMatrix_t {
 	uint32_t row ;
 	uint32_t col ;
 	uint64_t nnz ;
-	TYPE mod ;
+	elem_t   mod ;
 	/* uint32_t block_size ; */
 	uint32_t matrix_nb ;  /* nb of 0/1 matrices */
 	CSR_zo  * matrix_zo ; /* 0/1 matrices reprensenting positions */
@@ -102,8 +107,8 @@ CSR_zo * getLastMatrix(GBMatrix_t * A)
 typedef struct DenseMatrix_t {
 	uint32_t row ;
 	uint32_t col ;
-	TYPE mod ;
-	TYPE *  data ;
+	elem_t   mod ;
+	elem_t *  data ;
 } DenseMatrix_t ;
 
 void appendMatrix(GBMatrix_t * A)
@@ -178,7 +183,8 @@ void printMatUnit(CSR_zo * A)
 		for ( ; i < A->row ; ++i) {
 			uint32_t j = A->start_zo[i] ;
 			for ( ; j < A->start_zo[i+1] ; ++j) {
-				fprintf(stderr,"%u ", A->data[j]);
+				Mjoin(print,elem_t)(A->data[j]);
+				fprintf(stderr," ");
 			}
 			fprintf(stderr,"|");
 		}
@@ -189,7 +195,9 @@ void printMatUnit(CSR_zo * A)
 void printMat(GBMatrix_t * A)
 {
 	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col,A->nnz);
-	fprintf(stderr,"mod %u\n",A->mod);
+	fprintf(stderr,"mod ");
+	Mjoin(print,elem_t)(A->mod);
+	fprintf(stderr,"\n");
 	uint32_t k = 0 ;
 	for (  ; k < A->matrix_nb ; ++k ) {
 		printMatUnit(&(A->matrix_zo[k]));
@@ -199,12 +207,16 @@ void printMat(GBMatrix_t * A)
 void printMatDense(DenseMatrix_t * A)
 {
 	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col, (uint64_t)A->row*(uint64_t)A->col);
-	fprintf(stderr,"mod %u\n",A->mod);
+	fprintf(stderr,"mod ");
+	Mjoin(print,elem_t)(A->mod);
+	fprintf(stderr,"\n");
+
 	uint32_t i = 0 ;
 	for (  ; i < A->row ; ++i ) {
 		uint32_t j = 0 ;
 		for (  ; j < A->col ; ++j ) {
-			fprintf(stderr,"%u ",A->data[A->col*i+j]);
+			Mjoin(print,elem_t)(A->data[A->col*i+j]);
+			fprintf(stderr," ");
 		}
 		fprintf(stderr,"\n");
 	}
@@ -223,11 +235,15 @@ void printPoly(CSR_pol * P)
 	for ( ; i < P->nb ; ++i) {
 		uint32_t j = P->start_pol[i] ;
 		for ( ; j < P->start_pol[i+1] ; ++j) {
-			fprintf(stderr,"%u ", P->vals_pol[j]);
+			Mjoin(print,elem_t)(P->vals_pol[j]);
+			fprintf(stderr," ");
 		}
 		fprintf(stderr,"\n");
 	}
 }
+
+#undef Mjoin
+#undef my_join
 
 #endif /* __GB_matrix_H */
 /* vim: set ft=c: */

@@ -3,7 +3,8 @@
 
 
 #ifndef TYPE
-#define TYPE uint16_t
+#define elem_s uint16_t /* field element storage */
+#define elem_t double   /* field element type    */
 #endif
 
 /* #define READ_MAT_ROW_BLOCK 128      |+ read matrix MAT_ROW_BLOCK by MAT_ROW_BLOCK +| */
@@ -49,6 +50,20 @@
 #define SAFE_READ_DECL_P(val,size,elt,file) \
 	SAFE_MALLOC_DECL(val,size,elt); \
 	assert(fread(val,sizeof(elt),(size),(file))==(size))
+
+
+#define MEMCPY_CVT(ptr_a,elm_a,ptr_b,nb) \
+{  \
+	uint32_t iiii = 0 ; \
+	for ( ; iiii < (nb) ; ++iiii) { \
+		ptr_a[iiii] = (elm_a) ptr_b[iiii]; \
+	} \
+}
+
+#define SAFE_MEMCPY_CVT(ptr_a,elm_a,ptr_b,nb) \
+	SAFE_MALLOC(ptr_a,(nb),elm_a); \
+        MEMCPY_CVT(ptr_a,elm_a,ptr_b,(nb))
+
 
 
 

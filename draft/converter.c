@@ -43,8 +43,11 @@ int main( int ac, char ** av)
 	char out[1024]; /* not too large the path... */
 	strcpy(out,av[1]);
 	strcat(out,"_new");
+#ifdef REVERT
+	strcat(out,"_rev");
+#endif
 	FILE * toto =fopen(out,"wb"); /* out */
-	uint32_t un = Mjoin(select,TYPE)();
+	uint32_t un = Mjoin(select,elem_s)();
 	fwrite(&un,sizeof(uint32_t),1,toto);
 
 	SAFE_READ_DECL_V(m,uint32_t,titi);
@@ -52,7 +55,7 @@ int main( int ac, char ** av)
 	SAFE_READ_DECL_V(n,uint32_t,titi);
 	fwrite(&n,sizeof(uint32_t),1,toto);
 	SAFE_READ_DECL_V(mod,uint32_t,titi);
-	fwrite(&mod,sizeof(TYPE),1,toto);
+	fwrite(&mod,sizeof(elem_s),1,toto);
 	SAFE_READ_DECL_V(nnz,uint64_t,titi);
 	fwrite(&nnz,sizeof(uint64_t),1,toto);
 
@@ -66,7 +69,7 @@ int main( int ac, char ** av)
 	SAFE_MALLOC_DECL(start_zo,m+1,uint64_t);
 	start_zo[0] =  0 ;
 	uint32_t i = 0 ;
-	for ( ; i<m ; ++i) 
+	for ( ; i<m ; ++i)
 	{
 		start_zo[i+1] = start_zo[i] + rows[i] ;
 	}
@@ -89,10 +92,10 @@ int main( int ac, char ** av)
 
 #ifndef REVERT
 	i = 0 ;
-	for ( ; i < m ; ++i) 
+	for ( ; i < m ; ++i)
 #else
 	i = m ;
-	for ( ; i-- ; ) 
+	for ( ; i-- ; )
 #endif
 	{
 		uint64_t j = start_zo[i] ;
@@ -214,7 +217,7 @@ int main( int ac, char ** av)
 	}
 
 	uint32_t pol_nnz = pol_start[pol_nb];
-	SAFE_MALLOC_DECL(pol_data,pol_nnz,TYPE);
+	SAFE_MALLOC_DECL(pol_data,pol_nnz,elem_s);
 
 	/* pol_data */
 	i =  0 ;
@@ -249,7 +252,7 @@ int main( int ac, char ** av)
 	fwrite(pol_start,sizeof(uint32_t),pol_nb+1,toto);
 
 
-	fwrite(pol_data,sizeof(TYPE),pol_nnz,toto);
+	fwrite(pol_data,sizeof(elem_s),pol_nnz,toto);
 
 
 
