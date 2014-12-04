@@ -468,7 +468,6 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
-    /*
     printf("OUTPUT MATRIX %d / %d\n", M->nrows, map->npiv);
     for (int ii=0; ii<M->nrows; ++ii) {
       if (M->rows[ii] != NULL) {
@@ -479,7 +478,6 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
         printf("row %d is NULL!\n",ii);
       }
     }
-    */
 
   } else { // compute reduced row echelon form of input matrix
     if (verbose > 1) {
@@ -637,141 +635,6 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   return 0;
 }
 
-int fl_ml_A(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem, int verbose) {
-  struct timeval t_load_start;
-  // submatrix A of multiline type, rest of block type
-  if (verbose > 1) {
-    gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
-  }
-  // construct splicing of matrix M into A, B, C and D
-  sm_fl_ml_t *A = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
-  sbm_fl_t *B   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  sbm_fl_t *C   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  sbm_fl_t *D   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
-  splice_fl_matrix_ml_A(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
-      free_mem, verbose);
-
-  if (verbose > 1) {
-    printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
-    printf("TIME\t%.3f sec\n",
-        walltime(t_load_start) / (1000000));
-    print_mem_usage();
-    printf("---------------------------------------------------------------------\n");
-    printf("\n");
-    printf("Number of pivots found: %d\n", map->npiv);
-    printf("---------------------------------------------------------------------\n");
-    if (verbose > 2) {
-      compute_density_ml_submatrix(A);
-      compute_density_block_submatrix(B);
-      compute_density_block_submatrix(C);
-      compute_density_block_submatrix(D);
-      printf("A [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
-          A->nrows, A->ncols, A->nnz, A->density);
-      printf("B [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
-          B->nrows, B->ncols, B->nnz, B->density);
-      printf("C [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
-          C->nrows, C->ncols, C->nnz, C->density);
-      printf("D [%9d x %9d] - %10ld nze --> %7.3f %% density\n",
-          D->nrows, D->ncols, D->nnz, D->density);
-    } else {
-      printf("A [%9d x %9d]\n",
-          A->nrows, A->ncols);
-      printf("B [%9d x %9d]\n",
-          B->nrows, B->ncols);
-      printf("C [%9d x %9d]\n",
-          C->nrows, C->ncols);
-      printf("D [%9d x %9d]\n",
-          D->nrows, D->ncols);
-    }
-    printf("---------------------------------------------------------------------\n");
-  }
-
-#if __GB_CLI_DEBUG
-  // column loops 
-  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
-  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
-  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops 
-  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
-  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
-  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
-  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
-
-  int ii,jj,kk,ll;
-  for (ii=0; ii<rlA; ++ii) {
-    printf("%d .. \n",ii);
-    if (A->ml[ii].sz>0) {
-      for (ll=0; ll<A->ml[ii].sz; ++ll) {
-        printf("%d %d ", A->ml[ii].val[2*ll], A->ml[ii].val[2*ll+1]);
-      }
-      printf("\n");
-    }
-  }
-  for (ii=0; ii<rlB; ++ii) {
-    for (jj=0; jj<clB; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (B->blocks[ii][jj] != NULL) {
-          for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
-            printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
-  for (ii=0; ii<rlC; ++ii) {
-    for (jj=0; jj<clC; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (C->blocks[ii][jj] != NULL) {
-          for (ll=0; ll<C->blocks[ii][jj][kk].sz; ++ll) {
-            printf("%d %d ", C->blocks[ii][jj][kk].val[2*ll], C->blocks[ii][jj][kk].val[2*ll+1]);
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
-  for (ii=0; ii<rlD; ++ii) {
-    for (jj=0; jj<clD; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (D->blocks[ii][jj] != NULL) {
-          for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
-            printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
-#endif
-
-  // reducing submatrix A using methods of Faugère & Lachartre
-  if (verbose > 1) {
-    gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART reducing A ...\n");
-  }
-  if (elim_fl_A_ml_block(A, B, nthreads)) {
-    printf("Error while reducing A.\n");
-    return 1;
-  }
-  if (verbose > 1) {
-    printf("<<<<\tDONE  reducing A.\n");
-    printf("TIME\t%.3f sec\n",
-        walltime(t_load_start) / (1000000));
-    print_mem_usage();
-    printf("---------------------------------------------------------------------\n");
-    printf("\n");
-  }
-  return 0;
-}
-
 int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
     int verbose, int completely_reduced) {
   struct timeval t_load_start;
@@ -892,14 +755,14 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART reducing A ...\n");
+    printf(">>>>\tSTART eliminating C ...\n");
   }
-  if (elim_fl_A_ml_block(A, B, nthreads)) {
-    printf("Error while reducing A.\n");
+  if (elim_fl_C_ml_block(C, A, B, nthreads)) {
+    printf("Error while eliminating C.\n");
     return 1;
   }
   if (verbose > 1) {
-    printf("<<<<\tDONE  reducing A.\n");
+    printf("<<<<\tDONE  eliminating C.\n");
     printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
     print_mem_usage();

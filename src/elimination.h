@@ -1331,8 +1331,10 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nthrds);
 
 /**
- * \brief Elimination procedure which reduces the multiline submatrix A
- * and the block submatrices B, C and D.
+ * \brief Elimination procedure which reduces the multiline matrix C to zero
+ * carrying out corresponding computations by A and B
+ *
+ * \param multiline submatrix C (left lower side)
  *
  * \param multiline submatrix A (left upper side)
  *
@@ -1342,7 +1344,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nt
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_A_ml_block(sm_fl_ml_t *A, sbm_fl_t *B, int nthrds);
+int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, sbm_fl_t *B, int nthrds);
 
 
 /**
