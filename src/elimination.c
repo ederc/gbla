@@ -6,6 +6,7 @@
 #define DDEBUG_DD 0
 #define DDEBUG_DONE 0
 #define DDEBUG_D_ONE 0
+#define DENSE_MULTILINE_C_AFTER_ELIM  0
 
 // global variables for echelonization of D
 omp_lock_t echelonize_lock;
@@ -1073,7 +1074,7 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
     printf("BEFORE A.val %p\n",A->ml[curr_row_to_reduce].val);
     */
     save_back_and_reduce(&(A->ml[curr_row_to_reduce]), dense_array_1,
-        dense_array_2, coldim, modulus, curr_row_fully_reduced);
+        dense_array_2, coldim, modulus, curr_row_fully_reduced, curr_row_to_reduce);
     /*
     printf("AFTER A.val %p\n",A->ml[curr_row_to_reduce].val);
     printf("1 %p -- 2 %p\n",dense_array_1,dense_array_2);
@@ -1248,7 +1249,7 @@ void echelonize_one_row(sm_fl_ml_t *A,
 
 void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
-    const int reduce) {
+    const int reduce, const ri_t curr_row_to_reduce) {
 
 
   if (reduce == 1) {
@@ -1296,6 +1297,7 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     }
 #endif
     head_line_2 = get_head_dense_array(dense_array_2, &h_a2, coldim, modulus);
+    printf("hl1 %d, hl2 %d, crr %d\n", head_line_1, head_line_2, curr_row_to_reduce);
 
 #if DEBUG_ECHELONIZE
     printf("headl1 %d | headl2 %d\n",head_line_1,head_line_2);
@@ -1341,4 +1343,148 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     copy_dense_arrays_to_zero_dense_multiline(
         dense_array_1, dense_array_2, 0, ml, coldim, modulus);
   }
+}
+
+
+/******************************************************************************
+ * MULTILINE VARIANT OF ELIMINATION PROCESS
+ *****************************************************************************/
+
+int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
+  ci_t i;
+  ri_t j, k, rc;
+
+  const ri_t rlC  = (ri_t) ceil((float) C->nrows / __GB_NROWS_MULTILINE);
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<rlC; ++i) {
+#pragma omp task
+      {
+        rc  = elim_fl_C_ml_task(C, A, i, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+
+  return 0;
+}
+
+int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus) {
+
+  ci_t i;
+  const ci_t coldim = C->ncols;
+
+  ci_t start_idx;
+  // Note that all our multilines are stored in a sparse fashion at the moment.
+  // For compatibility and later changes we keep this check in the code.
+  if (C->ml[row_idx].dense == 0)
+    start_idx = C->ml[row_idx].idx[0];
+  else
+    start_idx = 0;
+
+  uint32_t Cv1_col1, Cv2_col1;
+  uint32_t Cv1_col2, Cv2_col2;
+  uint32_t Cp1, Cp2;
+  uint32_t tmp  = 0;
+  ri_t row_in_A_mod, row_in_A;
+
+  re_l_t *dense_array_C_1, *dense_array_C_2;
+  posix_memalign((void **)&dense_array_C_1, 16, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_C_2, 16, coldim * sizeof(re_l_t));
+
+  memset(dense_array_C_1, 0, coldim * sizeof(re_l_t));
+  memset(dense_array_C_2, 0, coldim * sizeof(re_l_t));
+
+  copy_multiline_to_dense_array(C->ml[row_idx], dense_array_C_1,
+      dense_array_C_2, coldim);
+
+  for (i=start_idx; i<coldim; ++i) {
+    Cp1 = i;
+    Cv1_col1  = dense_array_C_1[i] % modulus;
+    Cv2_col1  = dense_array_C_2[i] % modulus;
+
+    if (Cv1_col1 == 0 && Cv2_col1 == 0)
+      continue;
+
+    if (Cv1_col1 != 0)
+      Cv1_col1  = (uint32_t)modulus - Cv1_col1;
+    if (Cv2_col1 != 0)
+      Cv2_col1  = (uint32_t)modulus - Cv2_col1;
+
+    row_in_A      = (A->nrows - 1 - Cp1) / __GB_NROWS_MULTILINE;
+    row_in_A_mod  = (A->nrows - 1 - Cp1) % __GB_NROWS_MULTILINE;
+    printf("i %d - Cp1 %d - riA %d - riAm %d\n",i,Cp1,row_in_A,row_in_A_mod);
+
+    if (row_in_A_mod == 1) {
+      Cp2 = i+1;
+      Cv1_col2  = dense_array_C_1[i+1] % modulus;
+      Cv2_col2  = dense_array_C_2[i+1] % modulus;
+
+      printf("%p\n",A->ml[row_in_A]);
+      printf("%p of %d\n",A->ml[row_in_A].val, A->ml[row_in_A].sz);
+      printf("%p | %p | %p\n",A->ml[row_in_A], A->ml[row_in_A].val, A->ml[row_in_A].val[2*1+1]);
+      register re_t v__ = A->ml[row_in_A].val[2*1+1];
+      printf("v__ %d\n",v__);
+
+      tmp = Cv1_col2 + (uint32_t)Cv1_col1 * v__;
+      Cv1_col2 = tmp % modulus;
+      tmp = Cv2_col2 + (uint32_t)Cv2_col1 * v__;
+      Cv2_col2 = tmp % modulus;
+
+      if (Cv1_col2 != 0)
+        Cv1_col2  = (uint32_t)modulus - Cv1_col2;
+      if (Cv2_col2 != 0)
+        Cv2_col2  = (uint32_t)modulus - Cv2_col2;
+
+      sparse_scal_mul_sub_2_rows_vect_array_multiline(
+          Cv1_col2, Cv2_col2,
+          Cv1_col1, Cv2_col1,
+          A->ml[row_in_A],
+          dense_array_C_1,
+          dense_array_C_2);
+
+      dense_array_C_1[Cp1]  = Cv1_col1;
+      dense_array_C_1[Cp2]  = Cv1_col2;
+
+      dense_array_C_2[Cp1]  = Cv2_col1;
+      dense_array_C_2[Cp2]  = Cv2_col2;
+
+      // since we have done two-in-one
+      ++i;
+    } else {
+      sparse_scal_mul_sub_1_row_vect_array_multiline(
+          Cv1_col1, Cv2_col1,
+          A->ml[row_in_A],
+          row_in_A_mod,
+          dense_array_C_1,
+          dense_array_C_2);
+
+      dense_array_C_1[Cp1]  = Cv1_col1;
+      dense_array_C_2[Cp1]  = Cv2_col1;
+    }
+  }
+
+  ml_t *ml = &C->ml[row_idx];
+#if DENSE_MULTILINE_C_AFTER_ELIM
+  // make multiline in C dense
+  free(ml->idx);
+  ml->idx   = NULL;
+  ml->dense = 1;
+  ml->sz    = coldim;
+  ml->val   = realloc(ml->val, 2 * coldim * sizeof(re_t));
+  memset(ml->val, 0, 2 * coldim * sizeof(re_t));
+
+  copy_dense_arrays_to_zero_dense_multiline(
+      dense_array_C_1, dense_array_C_2, 0, ml, coldim, modulus);
+#else
+  copy_dense_arrays_to_multiline(
+      dense_array_C_1, dense_array_C_2, 0, ml, coldim, modulus);
+#endif
+
+  free(dense_array_C_1);
+  free(dense_array_C_2);
+
+  return 0;
 }

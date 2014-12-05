@@ -688,7 +688,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
   }
 
-#if __GB_CLI_DEBUG
   // column loops 
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
@@ -699,6 +698,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
 
   int ii,jj,kk,ll;
+#if __GB_CLI_DEBUG
   for (ii=0; ii<rlA; ++ii) {
     printf("%d .. \n",ii);
     printf("size %d\n", A->ml[ii].sz * 2);
@@ -757,7 +757,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART eliminating C ...\n");
   }
-  if (elim_fl_C_ml_block(C, A, B, nthreads)) {
+  if (elim_fl_C_ml(C, A, M->mod, nthreads)) {
     printf("Error while eliminating C.\n");
     return 1;
   }

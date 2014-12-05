@@ -1086,6 +1086,58 @@ static inline void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense
 }
 
 /**
+ * \brief Copies two dense arrays to a multiline for further processing.
+ *
+ * \param dense array dense_1
+ *
+ * \param dense array dense_2
+ *
+ * \param minimal first position of non-zero entries in dense_1 and dense_2
+ * start_pos
+ *
+ * \param multiline m
+ *
+ * \param array size resp. column dimension coldim
+ */
+static inline void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
+    const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
+    const mod_t modulus) {
+
+#if DEBUG_ECHELONIZE
+  printf("in copy mlv %p\n",m->val);
+#endif
+
+  ci_t buffer = m->sz;
+  m->dense    = 0;
+  m->sz       = 0;
+  ci_t i;
+  re_l_t tmp_1, tmp_2;
+  for (i=start_pos; i<coldim; ++i) {
+    tmp_1 = dense_1[i] % modulus;
+    tmp_2 = dense_2[i] % modulus;
+    //printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2);
+    if (tmp_1 != 0 || tmp_2 != 0) {
+      if (m->sz >= buffer) { // realloc memory for multiline ml
+        m->idx  =   realloc(m->idx, 3*buffer*sizeof(mli_t));
+        m->val  =   realloc(m->val, 6*buffer*sizeof(re_t));
+        buffer  *=  3;
+      }
+      //printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+      m->idx[m->sz]     = i;
+      m->val[2*m->sz]   = (re_t)tmp_1;
+      //printf("A1 %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+      m->val[2*m->sz+1] = (re_t)tmp_2;
+      m->sz++;
+    }
+    //printf("A %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
+  }
+
+  // fix sizes: we do not touch this anymore, so keep it as small as possible
+  m->idx  = realloc(m->idx, m->sz * sizeof(mli_t));
+  m->val  = realloc(m->val, 2 * m->sz * sizeof(mli_t));
+}
+
+/**
  * \brief Copies one dense array to a dense multiline for further processing.
  * \note Multiline m must have already memory allocated correspondingly.
  * Moreover all entries of m->val must be initialized to zero beforehand.
@@ -1338,14 +1390,27 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nt
  *
  * \param multiline submatrix A (left upper side)
  *
- * \param block submatrix B (right upper side)
+ * \param characteristic of underlying field modulus
  *
  * \param number of threads nthrds
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, sbm_fl_t *B, int nthrds);
+int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds);
 
+/**
+ * \brief Executing corresponding multiples from A in multilines of C in order
+ * to prepare C for the reduction of D by multiples of B
+ *
+ * \param multiline submatrix C (left lower side)
+ *
+ * \param multiline submatrix A (left upper side)
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus);
 
 /**
  * \brief Echelonizes the multiline rows of A from row index from up to row
@@ -1401,7 +1466,8 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t ml_ncols,
  * \param field characteristic modulus
  */
 void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
-    re_l_t *dense_array_2, const ri_t first_piv, const ri_t last_piv,
+    re_l_t *dense_array_2,
+    const ri_t first_piv, const ri_t last_piv,
     const mod_t modulus);
 
 /**
@@ -1420,8 +1486,11 @@ void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
  *
  * \param reduce or just store in multiline row? reduce
  * if 1 then reduction is done, else we only store the multiline row
+ *
+ * \param current multiline row in D the two dense arrays represent,
+ * i.e. ml = A->ml[curr_row_to_reduce] curr_row_to_reduce
  */
 void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
-    const int reduce);
+    const int reduce, const ri_t curr_row_to_reduce);
 #endif
