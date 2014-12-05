@@ -51,12 +51,20 @@
 	SAFE_MALLOC_DECL(val,size,elt); \
 	assert(fread(val,sizeof(elt),(size),(file))==(size))
 
+#define MEMCPY(to,from,size) \
+{ \
+	uint32_t iii = 0 ; \
+	for ( ; iii < (size) ; ++iii) {  \
+		(to)[iii] = (from)[iii] ; \
+	} \
+}
+
 
 #define MEMCPY_CVT(ptr_a,elm_a,ptr_b,nb) \
 {  \
 	uint32_t iiii = 0 ; \
 	for ( ; iiii < (nb) ; ++iiii) { \
-		ptr_a[iiii] = (elm_a) ptr_b[iiii]; \
+		(ptr_a)[iiii] = (elm_a) (ptr_b)[iiii]; \
 	} \
 }
 

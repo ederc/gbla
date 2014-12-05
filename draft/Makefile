@@ -37,17 +37,31 @@ $(TGT)_new$(opt): $(TGT).c $(TGT).h printer.h
 	gcc $(OPT) $(NEW) $(WAR) $(TGT).c -o $(TGT)_new$(opt)
 
 ### convert (old binary to new binary)
-$(CVT)_revert$(dbg): $(CVT).c
-	gcc $(DBG) $(WAR) -DREVERT $(CVT).c -o $(CVT)_revert$(dbg)
+$(CVT)_rev$(dbg): $(CVT).c
+	gcc $(DBG) $(WAR) -DREVERT -USORT $(CVT).c -o $(CVT)_rev$(dbg)
 
 $(CVT)$(dbg): $(CVT).c
-	gcc $(DBG) $(WAR) -UREVERT $(CVT).c -o $(CVT)$(dbg)
+	gcc $(DBG) $(WAR) -UREVERT -USORT $(CVT).c -o $(CVT)$(dbg)
 
-$(CVT)_revert$(opt): $(CVT).c
-	gcc $(OPT) $(WAR) -DREVERT $(CVT).c -o $(CVT)_revert$(opt)
+$(CVT)_rev$(opt): $(CVT).c
+	gcc $(OPT) $(WAR) -DREVERT -USORT $(CVT).c -o $(CVT)_rev$(opt)
 
 $(CVT)$(opt): $(CVT).c
-	gcc $(OPT) $(WAR) -UREVERT $(CVT).c -o $(CVT)$(opt)
+	gcc $(OPT) $(WAR) -UREVERT -USORT $(CVT).c -o $(CVT)$(opt)
+
+### convert (old binary to new binary)
+$(CVT)_rev_sor$(dbg): $(CVT).c
+	gcc $(DBG) $(WAR) -DREVERT -DSORT $(CVT).c -o $(CVT)_rev_sor$(dbg)
+
+$(CVT)_sor$(dbg): $(CVT).c
+	gcc $(DBG) $(WAR) -UREVERT -DSORT $(CVT).c -o $(CVT)_sor$(dbg)
+
+$(CVT)_rev_sor$(opt): $(CVT).c
+	gcc $(OPT) $(WAR) -DREVERT -DSORT $(CVT).c -o $(CVT)_rev_sor$(opt)
+
+$(CVT)_sor$(opt): $(CVT).c
+	gcc $(OPT) $(WAR) -UREVERT -DSORT $(CVT).c -o $(CVT)_sor$(opt)
+
 
 ### run the algo
 RED=fflas_reduce

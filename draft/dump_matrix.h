@@ -1,5 +1,3 @@
-#define Mjoin(pre,nam) my_join(pre , nam)
-#define my_join(pre, nam) pre ## _ ## nam
 
 void Mjoin(dump,TEMPL_TYPE)(FILE * fh,int all,int strict,int magma)
 {
@@ -99,8 +97,5 @@ void Mjoin(dump,TEMPL_TYPE)(FILE * fh,int all,int strict,int magma)
 	}
 
 }
-
-#undef Mjoin
-#undef my_join
 
 /* vim: set ft=c: */

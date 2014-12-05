@@ -2,10 +2,8 @@
 #define __GB_matrix_H
 
 #include "types.h"
+#include "tools.h"
 #include "printer.h"
-
-#define Mjoin(pre,nam) my_join(pre , nam)
-#define my_join(pre, nam) pre ## _ ## nam
 
 
 /*
@@ -241,9 +239,6 @@ void printPoly(CSR_pol * P)
 		fprintf(stderr,"\n");
 	}
 }
-
-#undef Mjoin
-#undef my_join
 
 #endif /* __GB_matrix_H */
 /* vim: set ft=c: */

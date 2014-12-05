@@ -58,10 +58,9 @@
  *
  */
 
-#include "selecter.h"
+#include "tools.h"
 
-#define Mjoin(pre,nam) my_join(pre , nam)
-#define my_join(pre, nam) pre ## _ ## nam
+#include "selecter.h"
 
 
 int main()
@@ -123,7 +122,5 @@ int main()
 	fclose(toto);
 	return 0;
 }
-#undef Mjoin
-#undef my_join
 
 

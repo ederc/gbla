@@ -16,82 +16,11 @@
  *
  */
 
-#define max(a,b) \
-	({ __typeof__ (a) _a = (a); \
-	 __typeof__ (b) _b = (b); \
-	 _a > _b ? _a : _b; })
-
-#define ERROR_READING \
-	if (verbose > 0) { \
-		printf("Error while reading file '%s'\n",fn); \
-		fclose(fh); \
-		return -1 ; \
-	}
-
-#define SWAP(a,b)  \
-	t = a ; \
-a = b ; \
-b = t
-
-#define Mjoin(pre,nam) my_join(pre , nam)
-#define my_join(pre, nam) pre ## _ ## nam
 
 
 
-#if 0
-void insert_sort(uint32_t * liste, uint32_t  size)
-{
-	uint32_t d , c = 1 , t ;
-	for ( ; c < size ; ++c) {
-		d = c;
-		while ( d > 0 && liste[d] < liste[d-1]) {
-			SWAP(liste[d],liste[d-1]);
-			d--;
-		}
-	}
-}
-#endif
 
 
-void insert_sort_duo(uint32_t * liste, uint32_t  size, uint32_t * copain)
-{
-	uint32_t d , c = 1 , t ;
-	for ( ; c < size ; ++c) {
-		d = c;
-		while ( d > 0 && (liste)[d] < (liste)[d-1]) {
-			SWAP((liste)[d],(liste)[d-1]);
-			SWAP((copain)[d],(copain)[d-1]);
-			d--;
-		}
-	}
-}
-
-void insert_sort_duo_data(uint32_t * liste, uint32_t  size, elem_t * copain)
-{
-	uint32_t d , c = 1 , t ;
-	for ( ; c < size ; ++c) {
-		d = c;
-		while ( d > 0 && liste[d] < liste[d-1]) {
-			/* fprintf(stderr,"permuting %u and %u, that is %u and %u, and side %u and %u\n",
-					d,d-1,liste[d],liste[d-1],copain[d],copain[d-1]);                 */
-			SWAP(liste[d],liste[d-1]);
-			SWAP(copain[d],copain[d-1]);
-			d--;
-		}
-	}
-}
-
-#undef SWAP
-
-
-/* genericity */
-#define copy(to,from,size) \
-{ \
-	uint32_t iii = 0 ; \
-	for ( ; iii < size ; ++iii) {  \
-		(to)[iii] = (from)[iii] ; \
-	} \
-}
 
 /* buffer:
 */
@@ -339,7 +268,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		uint32_t j1 = A_k->start_zo[i+1] ;
 		uint32_t start_idx = polys->start_pol[ A_k->map_zo_pol[i] ] ;
 		/* fprintf(stderr,"row %u, poly %u, start %u\n",i,A_k->map_zo_pol[i],start_idx); */
-		copy(A_k->data+j0,polys->vals_pol+start_idx,j1-j0);
+		MEMCPY(A_k->data+j0,polys->vals_pol+start_idx,j1-j0);
 		/* uint32_t jj = 0 ; for ( ; jj < j1-j0 ; ++jj) fprintf(stderr,"%u ",A_k->data[j0+jj]) ; fprintf(stderr,"\n"); */
 		/* insert_sort(&A_k->colid_zo[j0], j1-j0) ; */
 		/* insert_sort_duo_data(A_k->colid_zo+j0, j1-j0, A_k->data+j0) ; */
@@ -370,7 +299,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 	Ad->row = A_k->row ;
 	Ad->col = k ;
 	SAFE_MALLOC(Ad->map_zo_pol ,A_k->row,uint32_t);
-	copy(Ad->map_zo_pol,A_k->map_zo_pol,A_k->row);
+	MEMCPY(Ad->map_zo_pol,A_k->map_zo_pol,A_k->row);
 
 	i = 0;
 	for ( ; i < A_k->row ; ++i) {
@@ -385,8 +314,8 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		/* fprintf(stderr,"b : %u\n",b); */
 		Ad->start_zo[i+1]= Ad->start_zo[i]+b;
 		/* fprintf(stderr,"start %u+1=%lu\n",i,Ad->start_zo[i+1]); */
-		copy(Ad->colid_zo+Ad->start_zo[i], A_k->colid_zo+A_k->start_zo[i], b);
-		copy(Ad->data+Ad->start_zo[i], A_k->data+A_k->start_zo[i], b);
+		MEMCPY(Ad->colid_zo+Ad->start_zo[i], A_k->colid_zo+A_k->start_zo[i], b);
+		MEMCPY(Ad->data+Ad->start_zo[i], A_k->data+A_k->start_zo[i], b);
 	}
 	assert(Ad->start_zo[Ad->row] == Ad->nnz);
 
@@ -408,7 +337,7 @@ void permuteCSRT(void) {
 	Bd->nnz = A_k->nnz - other_nnz ;
 	SAFE_MALLOC(Bd->colid_zo,Bd->nnz,uint32_t);
 	SAFE_MALLOC(Bd->map_zo_pol ,A_k->row,uint32_t);
-	copy(Bd->map_zo_pol,A_k->map_zo_pol,A_k->row); /* useless */
+	MEMCPY(Bd->map_zo_pol,A_k->map_zo_pol,A_k->row); /* useless */
 
 	i = 0 ;
 	for ( ; i < A_k->row ; ++i) {
@@ -738,9 +667,6 @@ void reduce( GBMatrix_t * A
 
 	fprintf(stderr,"result : %u\n",r+A->row);
 }
-
-#undef Mjoin
-#undef my_join
 
 #endif /* __GB_io_H */
 /* vim: set ft=c: */

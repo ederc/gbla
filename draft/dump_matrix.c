@@ -156,6 +156,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 
 #include "printer.h"
 
+#include "tools.h"
 
 #define TEMPL_TYPE int8_t
 #include "dump_matrix.h"
