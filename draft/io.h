@@ -338,7 +338,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		uint32_t j0 = A_k->start_zo[i] ;
 		uint32_t j1 = A_k->start_zo[i+1] ;
 		uint32_t start_idx = polys->start_pol[ A_k->map_zo_pol[i] ] ;
-		fprintf(stderr,"row %u, poly %u, start %u\n",i,A_k->map_zo_pol[i],start_idx);
+		/* fprintf(stderr,"row %u, poly %u, start %u\n",i,A_k->map_zo_pol[i],start_idx); */
 		copy(A_k->data+j0,polys->vals_pol+start_idx,j1-j0);
 		/* uint32_t jj = 0 ; for ( ; jj < j1-j0 ; ++jj) fprintf(stderr,"%u ",A_k->data[j0+jj]) ; fprintf(stderr,"\n"); */
 		/* insert_sort(&A_k->colid_zo[j0], j1-j0) ; */
@@ -384,7 +384,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		uint32_t b = start_b[i]-A_k->start_zo[i];
 		/* fprintf(stderr,"b : %u\n",b); */
 		Ad->start_zo[i+1]= Ad->start_zo[i]+b;
-		fprintf(stderr,"start %u+1=%lu\n",i,Ad->start_zo[i+1]);
+		/* fprintf(stderr,"start %u+1=%lu\n",i,Ad->start_zo[i+1]); */
 		copy(Ad->colid_zo+Ad->start_zo[i], A_k->colid_zo+A_k->start_zo[i], b);
 		copy(Ad->data+Ad->start_zo[i], A_k->data+A_k->start_zo[i], b);
 	}
@@ -519,11 +519,11 @@ void do_permute_columns_up(
 		/* Bt->nnz += Bd->nnz ; */
 	}
 
-	fprintf(stderr,"A:");
-	printMat(A);
+	/* fprintf(stderr,"A:"); */
+	/* printMat(A); */
 
-	fprintf(stderr,"Bt:");
-	printMatDense(B);
+	/* fprintf(stderr,"Bt:"); */
+	/* printMatDense(B); */
 	/* printMat(Bt); */
 }
 
@@ -565,11 +565,11 @@ void do_permute_columns_lo(
 		permuteDNS(C_k,C,start_b,data);
 	}
 
-	fprintf(stderr,"C:");
-	printMat(C);
+	/* fprintf(stderr,"C:"); */
+	/* printMat(C); */
 
-	fprintf(stderr,"D:");
-	printMatDense(D);
+	/* fprintf(stderr,"D:"); */
+	/* printMatDense(D); */
 
 
 }
@@ -680,7 +680,7 @@ void reduce( GBMatrix_t * A
 		/* B = A^(-1) B */
 		uint64_t i_offset = blk * MAT_ROW_BLOCK;
 		for ( ; i >= 0 ; --i) {
-			fprintf(stderr,"row %u \n",i);
+			/* fprintf(stderr,"row %u \n",i); */
 			uint64_t jz   ;
 			uint64_t k  ;
 			/* TODO invert jz/k ? */
@@ -697,11 +697,11 @@ void reduce( GBMatrix_t * A
 			}
 			elem_t d = Ad->data[Ad->start_zo[i]] ;
 			elem_t di = Mjoin(invert,double)(d,p);
-			fprintf(stderr,"diag inv elt ");
-			Mjoin(print,elem_t)(d);
-			fprintf(stderr," -> ");
-			Mjoin(print,elem_t)(di);
-			fprintf(stderr,"\n");
+			/* fprintf(stderr,"diag inv elt "); */
+			/* Mjoin(print,elem_t)(d); */
+			/* fprintf(stderr," -> "); */
+			/* Mjoin(print,elem_t)(di); */
+			/* fprintf(stderr,"\n"); */
 			k = 0;
 			for ( ; k < N ; ++k) {
 				B->data[(i_offset+i)*ldb+k] *= di ;

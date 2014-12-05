@@ -19,22 +19,22 @@ int main(int ac, char **av) {
 	init(CC);
 	SAFE_MALLOC_DECL(POL,1,CSR_pol);
 
-	fprintf(stderr,"READ FILE \n");
+	/* fprintf(stderr,"READ FILE \n"); */
 	read_file(AA,CC,POL,fh);
 
-	fprintf(stderr,">>>>**************\n");
-	fprintf(stderr,"FIRST SPLIT\n");
+	/* fprintf(stderr,">>>>**************\n"); */
+	/* fprintf(stderr,"FIRST SPLIT\n"); */
 
-	printMat(AA);
+	/* printMat(AA); */
 
-	fprintf(stderr,"--------------\n");
+	/* fprintf(stderr,"--------------\n"); */
 
-	printMat(CC);
+	/* printMat(CC); */
 
-	fprintf(stderr,"--------------\n");
+	/* fprintf(stderr,"--------------\n"); */
 
-	printPoly(POL);
-	fprintf(stderr,"<<<<<**************\n");
+	/* printPoly(POL); */
+	/* fprintf(stderr,"<<<<<**************\n"); */
 
 
 	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
@@ -48,37 +48,37 @@ int main(int ac, char **av) {
 	init(C);
 	/* init(D); */
 
-	fprintf(stderr,"SPLIT COLUMNS\n");
+	/* fprintf(stderr,"SPLIT COLUMNS\n"); */
 	split_columns(AA,CC,POL,A,B,C,D);
 
-	fprintf(stderr,">>>>>**************\n");
-	fprintf(stderr,"SECOND SPLIT\n");
-	printMat(A);
+	/* fprintf(stderr,">>>>>**************\n"); */
+	/* fprintf(stderr,"SECOND SPLIT\n"); */
+	/* printMat(A); */
 
-	fprintf(stderr,"--------------\n");
+	/* fprintf(stderr,"--------------\n"); */
 
 	/* printMat(Bt); */
-	printMatDense(B);
+	/* printMatDense(B); */
 
-	fprintf(stderr,"--------------\n");
+	/* fprintf(stderr,"--------------\n"); */
 
-	printMat(C);
+	/* printMat(C); */
 
-	fprintf(stderr,"--------------\n");
+	/* fprintf(stderr,"--------------\n"); */
 
-	printMatDense(D);
+	/* printMatDense(D); */
 
-	fprintf(stderr,"--------------\n");
+	/* fprintf(stderr,"--------------\n"); */
 
-	printPoly(POL);
-	fprintf(stderr,"<<<<**************\n");
+	/* printPoly(POL); */
+	/* fprintf(stderr,"<<<<**************\n"); */
 
-	fprintf(stderr,"SOLVING\n");
+	/* fprintf(stderr,"SOLVING\n"); */
 	reduce(A,B,C,D);
-	fprintf(stderr,">>>>>**************\n");
-	printMatDense(B);
-	fprintf(stderr,"--------------\n");
-	printMatDense(D);
-	fprintf(stderr,"<<<<**************\n");
+	/* fprintf(stderr,">>>>>**************\n"); */
+	/* printMatDense(B); */
+	/* fprintf(stderr,"--------------\n"); */
+	/* printMatDense(D); */
+	/* fprintf(stderr,"<<<<**************\n"); */
 	return 0;
 }
