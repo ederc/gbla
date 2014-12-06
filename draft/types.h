@@ -18,6 +18,13 @@
 
 #define NEGMASK (1U<<31)
 
+
+#ifndef NDEBUG
+#define checkassert(a,b) assert(a==b);
+#else
+#define checkassert(a,b) a
+#endif
+
 #define SAFE_MALLOC(ptr,size,elt) \
 	ptr = (elt *) malloc((size)*sizeof(elt)); \
 	assert(ptr)
@@ -37,7 +44,7 @@
 	assert(ptr)
 
 #define SAFE_READ_V(val,elt,file) \
-	assert(fread(&(val),sizeof(elt),1,file)==1)
+	checkassert(fread(&(val),sizeof(elt),1,file),1)
 
 #define SAFE_READ_DECL_V(val,elt,file) \
 	elt val ; \
@@ -45,11 +52,11 @@
 
 #define SAFE_READ_P(val,size,elt,file) \
 	SAFE_MALLOC(val,size,elt); \
-	assert(fread(val,sizeof(elt),(size),(file))==(size))
+	checkassert(fread(val,sizeof(elt),(size),(file)),(size))
 
 #define SAFE_READ_DECL_P(val,size,elt,file) \
 	SAFE_MALLOC_DECL(val,size,elt); \
-	assert(fread(val,sizeof(elt),(size),(file))==(size))
+	checkassert(fread(val,sizeof(elt),(size),(file)),(size))
 
 #define MEMCPY(to,from,size) \
 { \

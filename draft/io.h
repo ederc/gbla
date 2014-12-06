@@ -81,7 +81,8 @@ void splitRowsUpBottom(
 
 
 void expandColid( const uint32_t * compress, uint32_t size_compressed
-		, uint32_t * expand  , uint32_t size_expand)
+		, uint32_t * expand
+		, uint32_t size_expand)
 {
 	uint32_t mask = (1<<31);
 	uint32_t i = 0,j=0 ;
@@ -138,6 +139,8 @@ int read_file(GBMatrix_t * A_init
 	assert(mod > 1);
 	SAFE_READ_DECL_V(nnz,uint64_t,fh);
 
+	fprintf(stderr," Mat is %u x %u (sparsity : %f)\n",m,n,(double)(nnz)/(double)(m*n));
+
 	A_init->col = C_init->col = n ;
 	A_init->mod = C_init->mod = mod ;
 
@@ -177,6 +180,8 @@ int read_file(GBMatrix_t * A_init
 	splitRowsUpBottom(A_init,C_init,colid_zo,start_zo,m,pivots,pivots_size,map_zo_pol);
 	free(pivots);
 
+	A_init->row = pivots_size ;
+	C_init->row = m - pivots_size ;
 
 
 	/* size of nnz for pols: */
@@ -296,6 +301,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 
 	appendMatrix(A);
 	CSR_zo * Ad = getLastMatrix(A);
+	/* XXX BUG : MAT_ROW_BLOCK */
 	SAFE_REALLOC(Ad->start_zo,A_k->row+1,uint64_t);
 	Ad->start_zo[0] = 0 ;
 	Ad->row = A_k->row ;
@@ -576,6 +582,11 @@ void split_columns(
 			/* ,perm_i,perm_j ,2*trans*/
 			,polys);
 
+	fprintf(stderr," A is %u x %u (sparsity : %f)\n",A->row,A->col,(double)(A->nnz)/(double)(A->row*A->col));
+	fprintf(stderr," B is %u x %u (sparsity : %f)\n",B->row,B->col,(double)(A_init->nnz-A->nnz)/(double)(B->row*B->col));
+	fprintf(stderr," C is %u x %u (sparsity : %f)\n",C->row,C->col,(double)(C->nnz)/(double)(C->row*C->col));
+	fprintf(stderr," D is %u x %u (sparsity : %f)\n",D->row,D->col,(double)(C_init->nnz-C->nnz)/(double)(D->row*D->col));
+
 	return ;
 }
 
@@ -616,6 +627,7 @@ void reduce( GBMatrix_t * A
 			uint64_t k  ;
 			/* TODO invert jz/k ? */
 			assert( (elem_t)-1<1); /* unsigned will fail */
+#if 1
 			for ( jz = Ad->start_zo[i]+1 ; jz < Ad->start_zo[i+1] ; ++jz) {
 				uint64_t j = Ad->colid_zo[jz];
 				for ( k = 0 ; k < N ; ++k) {
@@ -623,9 +635,22 @@ void reduce( GBMatrix_t * A
 					/* Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ; */
 				}
 			}
+#else
+			for ( k = 0 ; k < N ; ++k) {
+				for ( jz = Ad->start_zo[i]+1 ; jz < Ad->start_zo[i+1] ; ++jz) {
+					uint64_t j = Ad->colid_zo[jz];
+					B->data[(i_offset+i)*ldb+k] -=  Ad->data[jz] * B->data[j*ldb+k] ;;
+					/* Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ; */
+				}
+			}
+
+#endif
 			for ( k = 0 ; k < N ; ++k) {
 				Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ;
 			}
+#if 1
+			assert(Ad->data[Ad->start_zo[i]] == 1);
+#else
 			elem_t d = Ad->data[Ad->start_zo[i]] ;
 			elem_t di = Mjoin(invert,double)(d,p);
 			/* fprintf(stderr,"diag inv elt "); */
@@ -639,6 +664,7 @@ void reduce( GBMatrix_t * A
 				/* B->data[(i_offset+i)*ldb+k] %= p ; */
 				Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ;
 			}
+#endif
 		}
 	}
 
@@ -653,17 +679,32 @@ void reduce( GBMatrix_t * A
 		uint64_t jz,k  ;
 		for ( i = 0 ; i < (int32_t)Cd->row ;  ++i) {
 			uint32_t j = 0 ;
+#if 1
 			for ( jz = Cd->start_zo[i]; jz < Cd->start_zo[i+1] ; ++jz ) {
 				k = Cd->colid_zo[jz];
+				/* cblas_daxpy */
 				for ( j = 0 ; j < B->col ; ++j) {
 					D->data[(i_offset+i)*ldd+j] -= ( Cd->data[jz] * B->data[k*ldb+j] ) ;
 				}
 			}
+#else
+			for ( j = 0 ; j < B->col ; ++j) {
+				for ( jz = Cd->start_zo[i]; jz < Cd->start_zo[i+1] ; ++jz ) {
+				k = Cd->colid_zo[jz];
+					D->data[(i_offset+i)*ldd+j] -= ( Cd->data[jz] * B->data[k*ldb+j] ) ;
+				}
+			}
+#endif
 			for ( j = 0 ; j < B->col ; ++j) {
 				Mjoin(fmodin,elem_t)(D->data+(i_offset+i)*ldd+j, p) ;
 			}
 		}
 	}
+}
+
+void echelonD( GBMatrix_t * A
+	     , DenseMatrix_t * D)
+{
 
 	uint32_t r = Mjoin(RowReduce,elem_t)(D->mod,D->data,D->row,D->col,D->col);
 
@@ -671,4 +712,5 @@ void reduce( GBMatrix_t * A
 }
 
 #endif /* __GB_io_H */
+
 /* vim: set ft=c: */

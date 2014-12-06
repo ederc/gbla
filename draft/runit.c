@@ -28,7 +28,7 @@ int main(int ac, char **av) {
 	gettimeofday(&end,NULL);
 
 	fprintf(stderr," LOAD time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
-				           +(double)(end.tv_usec) - start.tv_usec)/1e6);
+				           +(double)(end.tv_usec - start.tv_usec)/1e6));
 
 	/* fprintf(stderr,">>>>**************\n"); */
 	/* fprintf(stderr,"FIRST SPLIT\n"); */
@@ -85,7 +85,7 @@ int main(int ac, char **av) {
 	gettimeofday(&end,NULL);
 
 	fprintf(stderr," SPLIT 4 time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
-				           +(double)(end.tv_usec) - start.tv_usec)/1e6);
+				           +(double)(end.tv_usec - start.tv_usec)/1e6));
 
 	gettimeofday(&start,NULL);
 	/* fprintf(stderr,"SOLVING\n"); */
@@ -98,8 +98,23 @@ int main(int ac, char **av) {
 
 	gettimeofday(&end,NULL);
 
-	fprintf(stderr," REDUCE  time : %.3f\n", (double)((end.tv_sec - start.tv_sec)
-				           +(double)(end.tv_usec) - start.tv_usec)/1e6);
+	fprintf(stderr," REDUCE  time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
+				           +(double)(end.tv_usec - start.tv_usec)/1e6));
+
+	gettimeofday(&start,NULL);
+	/* fprintf(stderr,"SOLVING\n"); */
+	echelonD(A,D);
+	/* fprintf(stderr,">>>>>**************\n"); */
+	/* printMatDense(B); */
+	/* fprintf(stderr,"--------------\n"); */
+	/* printMatDense(D); */
+	/* fprintf(stderr,"<<<<**************\n"); */
+
+	gettimeofday(&end,NULL);
+
+	fprintf(stderr," ECHELON time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
+				           +(double)(end.tv_usec - start.tv_usec)/1e6));
+
 
 	return 0;
 }

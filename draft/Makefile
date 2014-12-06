@@ -1,6 +1,6 @@
 DBG=-O0 -g
 WAR=-Wall -Wextra -ansi
-OPT=-march=native -O3
+OPT=-march=native -O3 -DNDEBUG -UDEBUG
 NEW=-D_PROPOSED_FORMAT
 LIB=-lm
 
