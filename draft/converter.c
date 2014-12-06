@@ -14,12 +14,11 @@
 #include "selecter.h"
 
 
-/* #define REVERT */
 #ifdef REVERT
 #warning "reverting rows"
 #endif /* REVERT */
 #ifdef SORT
-#warning "reverting rows"
+#warning "sorting rows"
 #endif /* SORT */
 
 
@@ -32,9 +31,15 @@ int main( int ac, char ** av)
 	char out[1024]; /* not too large the path... */
 	strcpy(out,av[1]);
 	strcat(out,"_new");
+
 #ifdef REVERT
 	strcat(out,"_rev");
 #endif
+
+#ifdef SORT
+	strcat(out,"_srt");
+#endif
+
 	FILE * toto =fopen(out,"wb"); /* out */
 	uint32_t un = Mjoin(select,elem_s)();
 	fwrite(&un,sizeof(uint32_t),1,toto);

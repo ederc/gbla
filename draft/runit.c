@@ -2,6 +2,7 @@
 
 
 #include "io.h"
+#include <sys/time.h>
 
 
 int main(int ac, char **av) {
@@ -11,6 +12,8 @@ int main(int ac, char **av) {
 		return -1;
 	}
 
+	struct timeval start,end ;
+	gettimeofday(&start,NULL);
 
 	FILE * fh = fopen(av[1],"r") ;
 	SAFE_MALLOC_DECL(AA,1,GBMatrix_t);
@@ -21,6 +24,11 @@ int main(int ac, char **av) {
 
 	/* fprintf(stderr,"READ FILE \n"); */
 	read_file(AA,CC,POL,fh);
+
+	gettimeofday(&end,NULL);
+
+	fprintf(stderr," LOAD time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
+				           +(double)(end.tv_usec) - start.tv_usec)/1e6);
 
 	/* fprintf(stderr,">>>>**************\n"); */
 	/* fprintf(stderr,"FIRST SPLIT\n"); */
@@ -36,6 +44,7 @@ int main(int ac, char **av) {
 	/* printPoly(POL); */
 	/* fprintf(stderr,"<<<<<**************\n"); */
 
+	gettimeofday(&start,NULL);
 
 	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
 	/* SAFE_MALLOC_DECL(Bt,1,GBMatrix_t); */
@@ -73,6 +82,12 @@ int main(int ac, char **av) {
 	/* printPoly(POL); */
 	/* fprintf(stderr,"<<<<**************\n"); */
 
+	gettimeofday(&end,NULL);
+
+	fprintf(stderr," SPLIT 4 time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
+				           +(double)(end.tv_usec) - start.tv_usec)/1e6);
+
+	gettimeofday(&start,NULL);
 	/* fprintf(stderr,"SOLVING\n"); */
 	reduce(A,B,C,D);
 	/* fprintf(stderr,">>>>>**************\n"); */
@@ -80,5 +95,11 @@ int main(int ac, char **av) {
 	/* fprintf(stderr,"--------------\n"); */
 	/* printMatDense(D); */
 	/* fprintf(stderr,"<<<<**************\n"); */
+
+	gettimeofday(&end,NULL);
+
+	fprintf(stderr," REDUCE  time : %.3f\n", (double)((end.tv_sec - start.tv_sec)
+				           +(double)(end.tv_usec) - start.tv_usec)/1e6);
+
 	return 0;
 }

@@ -40,8 +40,10 @@ uint32_t getSparsestRows(uint32_t * colid
 	for ( ; j < row ; ++j) {
 		uint32_t pivot = colid[start[j]] ; /* first column in each row */
 		uint32_t creux = start[j+1]-start[j] ; /* length of the row */
-		assert(j >= pivot);
-		assert(pivot < row);
+		/* assert(j >= pivot); */
+		if (j >= pivot)
+			break ;
+		assert(pivot_nb < row);
 		if (sparse[pivot] > creux) { /* this row is sparsest */
 			sparse[pivot] = creux ;
 			pivots[pivot]  = j ;
