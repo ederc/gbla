@@ -41,7 +41,7 @@ uint32_t getSparsestRows(uint32_t * colid
 		uint32_t pivot = colid[start[j]] ; /* first column in each row */
 		uint32_t creux = start[j+1]-start[j] ; /* length of the row */
 		/* assert(j >= pivot); */
-		if (j >= pivot)
+		if (j < pivot)
 			break ;
 		assert(pivot_nb < row);
 		if (sparse[pivot] > creux) { /* this row is sparsest */
@@ -51,6 +51,7 @@ uint32_t getSparsestRows(uint32_t * colid
 		}
 	}
 
+	fprintf(stderr,"k dim will be : %u\n",pivot_nb);
 	return pivot_nb ;
 }
 
@@ -582,6 +583,8 @@ void split_columns(
 			/* ,perm_i,perm_j ,2*trans*/
 			,polys);
 
+	checkMat(A);
+	checkMat(C);
 	fprintf(stderr," A is %u x %u (sparsity : %f)\n",A->row,A->col,(double)(A->nnz)/(double)(A->row*A->col));
 	fprintf(stderr," B is %u x %u (sparsity : %f)\n",B->row,B->col,(double)(A_init->nnz-A->nnz)/(double)(B->row*B->col));
 	fprintf(stderr," C is %u x %u (sparsity : %f)\n",C->row,C->col,(double)(C->nnz)/(double)(C->row*C->col));

@@ -69,9 +69,10 @@ FFLAS=/home/bboyer/usr/
 FFLAS_CFLAGS=`sh $(FFLAS)/bin/fflas-ffpack-config --cflags`
 FFLAS_LIBS=`sh $(FFLAS)/bin/fflas-ffpack-config --libs`
 LIBS$(dbg): $(RED).cpp
-	g++ $(DBG) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(opt).o
+	g++ $(DBG) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(dbg).o
 OBJ$(dbg):
-	gcc $(DBG) -c $(RUN).c -o $(RUN)$(opt).o
+	gcc $(DBG) -c $(RUN).c -o $(RUN)$(dbg).o
+
 
 LIBS$(opt): $(RED).cpp
 	g++ $(OPT) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(opt).o
@@ -81,12 +82,12 @@ OBJ$(opt):
 
 
 $(RUN)$(dbg): $(RUN).c
-	#  make LIBS$(dbg) ;
+	make LIBS$(dbg) ;
 	make OBJ$(dbg)  ;
 	gcc $(DBG) $(WAR) $(FFLAS_LIBS) $(RED)$(dbg).o $(RUN).c -o $(RUN)$(dbg) -lm -lstdc++
 
 $(RUN)$(opt): $(RUN).c
-	#  make LIBS$(opt) ;
+	make LIBS$(opt) ;
 	make OBJ$(opt)  ;
 	gcc $(OPT) $(WAR) $(FFLAS_LIBS) $(RED)$(opt).o $(RUN).c -o $(RUN)$(opt) -lm -lstdc++
 
