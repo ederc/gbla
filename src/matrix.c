@@ -169,13 +169,15 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
   out->ml = (ml_t *)malloc(rl * sizeof(ml_t));
   for (i=0; i<rl; ++i) {
 #if NOT_DENSE_COPYING
-    out->ml[i].val  = NULL;
-    out->ml[i].idx  = NULL;
-    out->ml[i].sz   = 0;
+    out->ml[i].val    = NULL;
+    out->ml[i].idx    = NULL;
+    out->ml[i].sz     = 0;
+    out->ml[i].dense  = 0;
 #else
-    out->ml[i].val  = (re_t *)malloc(2 * out->ncols * sizeof(re_t));
-    out->ml[i].idx  = NULL;
-    out->ml[i].sz   = out->ncols;
+    out->ml[i].val    = (re_t *)malloc(2 * out->ncols * sizeof(re_t));
+    out->ml[i].idx    = NULL;
+    out->ml[i].sz     = out->ncols;
+    out->ml[i].dense  = 1;
     //out->ml[i].val  = realloc(out->ml[i].val,2 * out->ncols * sizeof(re_t));
 #endif
   }
@@ -417,4 +419,174 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
   free(buffer);
   *input  = in;
   return out;
+}
+
+sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
+    ri_t bheight, ci_t bwidth, int free_memory, int nthrds) {
+
+  sm_fl_ml_t *A = *A_in;
+  sbm_fl_t *B = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+
+  ci_t i;
+  ri_t j;
+  ri_t k;
+
+  const ri_t rlB            = (ri_t) ceil((float) A->nrows / bheight);
+  const ci_t clB            = (ci_t) ceil((float) A->ncols / bwidth);
+  const ri_t ml_rlB         = (A->nrows % __GB_NROWS_MULTILINE == 0) ?
+    A->nrows / __GB_NROWS_MULTILINE :
+    A->nrows / __GB_NROWS_MULTILINE + 1;
+  const bi_t ml_bheight     = bheight / __GB_NROWS_MULTILINE;
+
+  // initialize meta data for block submatrices
+  B->nrows    = A->nrows; // row dimension
+  B->ncols    = A->ncols; // col dimension
+  B->bheight  = bheight;  // block height
+  B->bwidth   = bwidth;   // block width
+  B->ba       = dtlr;     // block alignment
+  B->fe       = 1;        // fill empty blocks?
+  B->hr       = 1;        // allow hybrid rows?
+  B->nnz      = 0;        // number nonzero elements
+  // initialize B
+  B->blocks = (mbl_t ***)malloc(rlB * sizeof(mbl_t **));
+  for (i=0; i<rlB; ++i) {
+    B->blocks[i]  = (mbl_t **)malloc(clB * sizeof(mbl_t *));
+    for (j=0; j<clB; ++j) {
+      B->blocks[i][j] = (mbl_t *)malloc(
+          ml_bheight * sizeof(mbl_t));
+      for (k=0; k<ml_bheight; ++k) {
+        B->blocks[i][j][k].val  = (re_t *)malloc(2*bwidth*sizeof(re_t));
+        B->blocks[i][j][k].idx  = (bi_t *)malloc(bwidth*sizeof(bi_t));
+        B->blocks[i][j][k].sz   = B->blocks[i][j][k].dense  = 0;
+      }
+    }
+  }
+  const bi_t init_buffer_B  = (bi_t)(B->bwidth/2);
+#pragma omp parallel private(j,k) num_threads(nthrds)
+  {
+    ri_t rbi;           // row block index
+    mli_t idx;          // multiline index of values
+    bi_t eil;           // element index in line
+    bi_t bir;           // block index in row
+    bi_t lib;           // line index in block
+    bi_t buffer_B[clB]; // buffer status for blocks in B
+    memset(buffer_B, 0, clB * sizeof(bi_t));
+
+#pragma omp for schedule(dynamic) nowait ordered
+    for (i=0; i<ml_rlB; ++i) {
+      if (A->ml[i].sz == 0)
+        continue;
+
+      rbi = i / ml_bheight;
+      lib = i % ml_bheight;
+
+      for (j=A->ml[i].sz; j>0; --j) {
+        idx = A->ml[i].idx[j-1];
+        bir = (A->ncols - 1 - idx) / bwidth;
+        eil = (A->ncols - 1 - idx) % bwidth;
+        // realloc memory if needed
+        /*
+        if (B->blocks[rbi][bir][lib].sz == buffer_B[bir]) {
+          printf("init_buffer_B %d || buffer_B[%d] %d\n",init_buffer_B,bir,buffer_B[bir]);
+          realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
+        }
+        */
+        // set values
+        B->blocks[rbi][bir][lib].idx[B->blocks[rbi][bir][lib].sz]   = eil;
+        B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz]   =
+          A->ml[i].val[2*(j-1)];
+        B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz+1] =
+          A->ml[i].val[2*(j-1)+1];
+        B->blocks[rbi][bir][lib].sz++;
+      }
+      if (free_memory == 1) {
+        free(A->ml[i].idx);
+        A->ml[i].idx  = NULL;
+        free(A->ml[i].val);
+        A->ml[i].val  = NULL;
+      }
+    }
+  }
+  // hybrid multirows for the righthand side block matrices?
+  if (B->hr) {
+#pragma omp parallel num_threads(nthrds)
+    {
+      ri_t idx;
+      bi_t l;
+#pragma omp for private(i,j,k,l) schedule(dynamic) nowait ordered
+      // TODO: Implement hybrid stuff
+      for (i=0; i<rlB; ++i) {
+        for (j=0; j<clB; ++j) {
+          for (k=0; k<ml_bheight; ++k) {
+            if ((float)B->blocks[i][j][k].sz / (float)B->bwidth
+                < __GB_HYBRID_THRESHOLD) {
+              B->blocks[i][j][k].idx =  realloc(
+                  B->blocks[i][j][k].idx,
+                  B->blocks[i][j][k].sz * sizeof(bi_t));
+              B->blocks[i][j][k].val =  realloc(
+                  B->blocks[i][j][k].val,
+                  2 * B->blocks[i][j][k].sz * sizeof(bi_t));
+              continue;
+            }
+            re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
+            idx  = 0;
+            for (l=0; l<B->bwidth; ++l) {
+              if (idx < B->blocks[i][j][k].sz && B->blocks[i][j][k].idx[idx] == l) {
+                tmp_val_ptr[2*l]    = B->blocks[i][j][k].val[2*idx];
+                tmp_val_ptr[2*l+1]  = B->blocks[i][j][k].val[2*idx+1];
+                idx++;
+              } else {
+                tmp_val_ptr[2*l]    = 0;
+                tmp_val_ptr[2*l+1]  = 0;
+              }
+            }
+            free(B->blocks[i][j][k].idx);
+            B->blocks[i][j][k].idx    = NULL;
+            free(B->blocks[i][j][k].val);
+            B->blocks[i][j][k].val    = tmp_val_ptr;
+            B->blocks[i][j][k].sz     = B->bwidth;
+            B->blocks[i][j][k].dense  = 1;
+          }
+        }
+      }
+    }
+  } else { // cut down memory usage
+    // Realloc memory usage:
+    // Note that A is reallocated during the swapping of the data, so we
+    // reallocate only B here.
+#pragma omp parallel num_threads(nthrds)
+    {
+#pragma omp for schedule(dynamic) nowait ordered
+      for (i=0; i<rlB; ++i) {
+        int ctr;
+        for (j=0; j<clB; ++j) {
+          ctr = 0;
+          for (k=0; k<ml_bheight; ++k) {
+            if (B->blocks[i][j][k].sz > 0) {
+              ctr = 1;
+              B->blocks[i][j][k].idx = realloc(
+                  B->blocks[i][j][k].idx,
+                  B->blocks[i][j][k].sz * sizeof(bi_t));
+              B->blocks[i][j][k].val = realloc(
+                  B->blocks[i][j][k].val,
+                  2 * B->blocks[i][j][k].sz  * sizeof(re_t));
+            }
+          }
+          // if full block is empty, remove it!
+          if (ctr == 0) {
+            free(B->blocks[i][j]);
+            B->blocks[i][j] = NULL;
+          }
+        }
+      }
+    }
+  }
+  if (free_memory == 1) {
+    free(A->ml);
+    A->ml = NULL;
+    free(A);
+    A = NULL;
+  }
+  A_in  = &A;
+  return B;
 }

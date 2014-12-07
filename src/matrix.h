@@ -168,4 +168,21 @@ void copy_block_matrix_to_sparse_matrix(sbm_fl_t **input,
 sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
      sm_fl_ml_t *out, int deleteIn, int nthrds);
 
+/**
+ * \brief Copies multiline format matrix A_in to block format matrix B
+ *
+ * \param pointer to pointer to multiline matrix A_in
+ *
+ * \param block height bheight
+ *
+ * \param block width bwidth
+ *
+ * \param freeing memory? if 1 then memory is freed, otherwise not, free_memory
+ *
+ * \param number of threads for parallel computations nthrds
+ *
+ * \return matrix A in block format
+ */
+sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
+    ri_t bheight, ci_t bwidth, int free_memory, int nthrds);
 #endif

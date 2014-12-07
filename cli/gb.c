@@ -407,11 +407,10 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing C to zero ...\n");
   }
-  if (elim_fl_C_block(B, &C, D, M->mod, nthreads)) {
+  if (elim_fl_C_block(B, &C, D, 1, M->mod, nthreads)) {
     printf("Error while reducing C.\n");
     return 1;
   }
-  printf("C after elimination %p\n",C);
   if (verbose > 1) {
     printf("<<<<\tDONE  reducing C to zero.\n");
     printf("TIME\t%.3f sec\n",
@@ -468,17 +467,6 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
-    printf("OUTPUT MATRIX %d / %d\n", M->nrows, map->npiv);
-    for (int ii=0; ii<M->nrows; ++ii) {
-      if (M->rows[ii] != NULL) {
-          printf("%d ", M->pos[ii][0]);
-        
-        printf("\n");
-      } else {
-        printf("row %d is NULL!\n",ii);
-      }
-    }
-
   } else { // compute reduced row echelon form of input matrix
     if (verbose > 1) {
       printf("---------------------------------------------------------------------\n");
@@ -573,11 +561,10 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("---------------------------------------------------------------------\n");
       printf(">>>>\tSTART reducing D1 to zero ...\n");
     }
-    if (elim_fl_C_block(B2, &D1, D2, M->mod, nthreads)) {
+    if (elim_fl_C_block(B2, &D1, D2, 1, M->mod, nthreads)) {
       printf("Error while reducing D1.\n");
       return 1;
     }
-    printf("D1 after elimination %p\n",D1);
     if (verbose > 1) {
       printf("<<<<\tDONE  reducing D1 to zero.\n");
       printf("TIME\t%.3f sec\n",
@@ -687,6 +674,35 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     }
     printf("---------------------------------------------------------------------\n");
   }
+  /*
+  int ii,jj,kk,ll;
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  // row loops 
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
+  printf("D after splicing\n");
+  for (ii=0; ii<rlD; ++ii) {
+    for (jj=0; jj<clD; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        if (D->blocks[ii][jj] != NULL) {
+          if (D->blocks[ii][jj][kk].dense == 1) {
+            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+          } else {
+            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  */
+#if __GB_CLI_DEBUG
 
   // column loops 
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
@@ -698,7 +714,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
 
   int ii,jj,kk,ll;
-#if __GB_CLI_DEBUG
   for (ii=0; ii<rlA; ++ii) {
     printf("%d .. \n",ii);
     printf("size %d\n", A->ml[ii].sz * 2);
@@ -755,17 +770,154 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART eliminating C ...\n");
+    printf(">>>>\tSTART storing data from A in C ...\n");
   }
   if (elim_fl_C_ml(C, A, M->mod, nthreads)) {
-    printf("Error while eliminating C.\n");
+    printf("Error storing data from A in C.\n");
     return 1;
   }
   if (verbose > 1) {
-    printf("<<<<\tDONE  eliminating C.\n");
+    printf("<<<<\tDONE  storing data from A in C.\n");
     printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
     print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+  // copying multiline matrix C to a block matrix C_block
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART copying multiline C to block representation ...\n");
+  }
+  sbm_fl_t *C_block = copy_multiline_to_block_matrix_rl(&C, block_dimension, block_dimension, 1, nthreads); 
+  if (verbose > 1) {
+    printf("<<<<\tDONE  copying multiline C to block representation.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+  // column loops 
+  const uint32_t clC  = (uint32_t) ceil((float)C_block->ncols / C_block->bwidth);
+  // row loops 
+  const uint32_t rlC  = (uint32_t) ceil((float)C_block->nrows / C_block->bheight);
+
+  /*
+  printf("C after conversion\n");
+  for (ii=0; ii<rlC; ++ii) {
+    for (jj=0; jj<clC; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        if (C_block->blocks[ii][jj] != NULL) {
+          printf("size %d\n",2*C_block->blocks[ii][jj][kk].sz);
+          if (C_block->blocks[ii][jj][kk].dense == 1) {
+            for (ll=0; ll<C_block->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", C_block->blocks[ii][jj][kk].val[2*ll], C_block->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+          } else {
+            for (ll=0; ll<C_block->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", C_block->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", C_block->blocks[ii][jj][kk].val[2*ll], C_block->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  printf("D before eliminating C\n");
+  for (ii=0; ii<rlD; ++ii) {
+    for (jj=0; jj<clD; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        if (D->blocks[ii][jj] != NULL) {
+          if (D->blocks[ii][jj][kk].dense == 1) {
+            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+          } else {
+            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  */
+  // reducing submatrix C to zero using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reducing C to zero ...\n");
+  }
+  if (elim_fl_C_block(B, &C_block, D, 0, M->mod, nthreads)) {
+    printf("Error while reducing C.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reducing C to zero.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+
+  /*
+  printf("D after eliminating C\n");
+  for (ii=0; ii<rlD; ++ii) {
+    for (jj=0; jj<clD; ++jj) {
+      for (kk=0; kk<block_dimension/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        if (D->blocks[ii][jj] != NULL) {
+          if (D->blocks[ii][jj][kk].dense == 1) {
+            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+          } else {
+            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  */
+
+  // echelonize D using methods of Faugère & Lachartre
+
+  // We need to do at least two rounds on D, possibly even reducing B further
+  // with the reduced D later on. For this purpose we use a multiline version of
+  // D as output of the Gaussian elimination.
+  sm_fl_ml_t *D_red = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reducing D to upper triangular matrix ...\n");
+  }
+  ri_t rank_D = elim_fl_D_block(D, D_red, M->mod, nthreads);
+  if (rank_D == -1) {
+    printf("Error while reducing D to upper triangular matrix.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reducing D to upper triangular matrix.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("Rank of D:\t%u\n",rank_D);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }

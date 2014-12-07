@@ -905,7 +905,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     rlA++;
 
   A->ml = (ml_t *)malloc(rlA * sizeof(ml_t));
-  printf("rlA %d\n",rlA);
   for (i=0; i<rlA; ++i) {
     A->ml[i].val    = NULL;
     A->ml[i].idx    = NULL;
@@ -1258,14 +1257,13 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     printf("npiv %d -- bheight %d\n",map->npiv,B->bheight);
     printf("div %d\n", map->npiv/B->bheight);
 #endif
-    printf("npiv %d | %d -- npiv/bheight %d\n",npiv, A->nrows, npiv/B->bheight);
 #pragma omp for schedule(dynamic) nowait
     for (block_idx = 0; block_idx <= npiv/B->bheight; ++block_idx) {
-//#if __GB_DEBUG
+#if __GB_DEBUG
       printf("bi %d\n", block_idx);
       printf("piv_idx[block] %d\n",piv_start_idx[block_idx]);
       printf("piv_idx[block+1] %d\n",piv_start_idx[block_idx+1]);
-//#endif
+#endif
       // construct block submatrices A & B
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
@@ -1796,7 +1794,6 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
 
     // compute corresponding multiline index for A
     mli = (rbi * B->bheight / __GB_NROWS_MULTILINE) + lib;
-    printf("mli %d\n",mli);
 
     buffer_A = 0;
     memset(buffer_B, 0, clB * sizeof(bi_t));
@@ -1991,7 +1988,6 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
       A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
     }
-    printf("A->ml[%d].sz = %d\n",mli,A->ml[mli].sz);
   }
 
 #if __GB_DEBUG
@@ -2042,29 +2038,30 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       i1++;
     }
     // Realloc memory usage:
+    int ctr;
     for (k=0; k<clB; ++k) {
-      B->blocks[rbi][k][lib].idx = realloc(
-          B->blocks[rbi][k][lib].idx,
-          B->blocks[rbi][k][lib].sz * sizeof(bi_t));
-      B->blocks[rbi][k][lib].val = realloc(
-          B->blocks[rbi][k][lib].val,
-          2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
+      ctr = 0;
+      for (l=0; l<rounded_cvb/2; ++l) {
+        if (B->blocks[rbi][k][l].sz>0) {
+          ctr = 1;
+          B->blocks[rbi][k][l].idx = realloc(
+              B->blocks[rbi][k][l].idx,
+              B->blocks[rbi][k][l].sz * sizeof(bi_t));
+          B->blocks[rbi][k][l].val = realloc(
+              B->blocks[rbi][k][l].val,
+              2 * B->blocks[rbi][k][l].sz  * sizeof(re_t));
+        }
+      }
+      // if full block is empty, remove it!
+      if (ctr == 0) {
+        free(B->blocks[rbi][k]);
+        B->blocks[rbi][k] = NULL;
+      }
     }
     if (A->ml[mli].sz >0) {
       A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
       A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
     }
-    printf("A->ml[%d].sz = %d\n",mli,A->ml[mli].sz);
-  }
-  for (k=0; k<clB; ++k) {
-    for (l=0; l<rounded_cvb/2; ++l) {
-      if (B->blocks[rbi][k][l].sz>0) {
-        break;
-      }
-    }
-    // if full block is empty, remove it!
-      free(B->blocks[rbi][k]);
-      B->blocks[rbi][k] = NULL;
   }
 
   // hybrid multirows for the righthand side block matrices?

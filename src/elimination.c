@@ -72,7 +72,8 @@ A = NULL;
 return 0;
 }
 
-int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D, mod_t modulus, int nthrds) {
+int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
+    const int inv_scalars, const mod_t modulus, const int nthrds) {
 
 sbm_fl_t *C = *C_in;
 
@@ -88,7 +89,7 @@ const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
     for (i=0; i<clD; ++i) {
       #pragma omp task
       {
-        rc  = elim_fl_C_blocks_task(B, C, D, i, rlC, clC, modulus);
+        rc  = elim_fl_C_blocks_task(B, C, D, i, rlC, clC, inv_scalars, modulus);
       }
     }
   #pragma omp taskwait
@@ -132,10 +133,6 @@ C = NULL;
 return 0;
 }
 
-int elim_fl_A_ml_block(sm_fl_ml_t *A, sbm_fl_t *B, int nthrds) {
-return 0;
-}
-
 int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {
 bi_t i;
 ri_t j, k;
@@ -165,7 +162,7 @@ for (j=0; j<nbrows_A; ++j) {
     printf("j %d -- k %d -- lci %d\n", j, k, block_col_idx_B);
 #endif
     red_with_rectangular_block(A->blocks[j][k], B->blocks[k][block_col_idx_B],
-        dense_block, B->bheight, modulus, 1);
+        dense_block, B->bheight, 1, modulus);
     /*
         printf("RECTANGULAR DONE\n");
         for (int kk=0; kk<B->bheight; ++kk) {
@@ -182,7 +179,7 @@ for (j=0; j<nbrows_A; ++j) {
   printf("j %d -- lbi %d\n", j, last_block_idx);
 #endif
   red_with_triangular_block(A->blocks[j][last_block_idx], dense_block,
-      B->bheight, modulus, 1);
+      B->bheight, 1, modulus);
   /*printf("TRIANGULAR DONE\n");
     for (int kk=0; kk<B->bheight; ++kk) {
     for (int ll=0; ll<B->bheight; ++ll) {
@@ -222,7 +219,8 @@ return 0;
 }
 
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-  ci_t block_col_idx_D, ri_t nbrows_C, ci_t nbcols_C, mod_t modulus) {
+  const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C, 
+  const int inv_scalars, const mod_t modulus) {
 bi_t i;
 ri_t j, k;
 re_l_t *dense_block[D->bheight] __attribute__((aligned(0x1000)));
@@ -253,7 +251,7 @@ for (j=0; j<nbrows_C; ++j) {
 #endif
     if (C->blocks[j][k] != NULL) {
       red_with_rectangular_block(C->blocks[j][k], B->blocks[k][block_col_idx_D],
-          dense_block, B->bheight, modulus, 1);
+          dense_block, B->bheight, inv_scalars, modulus);
     }
     /*
     printf("RECTANGULAR DONE\n");
@@ -294,7 +292,8 @@ for (i=0; i<D->bheight; ++i) {
 return 0;
 }
 
-void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_block, ri_t bheight, mod_t modulus, int inv_scalars) {
+void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_block,
+    const ri_t bheight, const int inv_scalars, const mod_t modulus) {
 bi_t i, j, k;
 
 bi_t last_idx;
@@ -321,7 +320,7 @@ for (i=0; i<bheight/2; ++i) {
     Av1_col1  = block_A[i].val[2*j];
     Av2_col1  = block_A[i].val[2*j+1];
 
-    if (inv_scalars) {
+    if (inv_scalars == 1) {
       if (Av1_col1 != 0)
         Av1_col1  = (uint32_t)modulus - Av1_col1;
       if (Av2_col1 != 0)
@@ -334,7 +333,7 @@ for (i=0; i<bheight/2; ++i) {
         Av1_col2  = block_A[i].val[2*(j+1)];
         Av2_col2  = block_A[i].val[2*(j+1)+1];
 
-        if (inv_scalars) {
+        if (inv_scalars == 1) {
           if (Av1_col2 != 0)
             Av1_col2  = (uint32_t)modulus - Av1_col2;
           if (Av2_col2 != 0)
@@ -371,7 +370,7 @@ for (i=0; i<bheight/2; ++i) {
     Ap1       = block_A[i].idx[j];
 
     if(Av1_col1 != 0) {
-      if (inv_scalars)
+      if (inv_scalars == 1)
         if (Av1_col1 != 0)
           Av1_col1  = (uint32_t)modulus - Av1_col1;
 
@@ -389,7 +388,8 @@ for (i=0; i<bheight/2; ++i) {
 }
 }
 
-void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_block, ri_t bheight, mod_t modulus, int inv_scalars) {
+void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_block,
+    const ri_t bheight, const int inv_scalars, const mod_t modulus) {
 bi_t i, j;
 if (block_A == NULL || block_B == NULL)
   return;
@@ -412,7 +412,7 @@ for (i=0; i<bheight/2; ++i) {
     register uint32_t Av1_col1  = block_A[i].val[2*j];
     register uint32_t Av2_col1  = block_A[i].val[2*j+1];
 
-    if (inv_scalars) {
+    if (inv_scalars == 1) {
       if (Av1_col1 != 0)
         Av1_col1  = (uint32_t)modulus - Av1_col1;
       if (Av2_col1 != 0)
@@ -424,7 +424,7 @@ for (i=0; i<bheight/2; ++i) {
         register uint32_t Av1_col2  = block_A[i].val[2*(j+1)];
         register uint32_t Av2_col2  = block_A[i].val[2*(j+1)+1];
 
-        if (inv_scalars) {
+        if (inv_scalars == 1) {
           if (Av1_col2 != 0)
             Av1_col2  = (uint32_t)modulus - Av1_col2;
           if (Av2_col2 != 0)
@@ -621,7 +621,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
 
   // copy D to D_red and delete D
   D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
-  /*
+#if DDEBUG_DD
   printf("BEFORE\n");
   const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
   int ii,jj,kk,ll;
@@ -630,24 +630,18 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
     //printf("size %d\n", D_red->ml[ii].sz);
     if (D_red->ml[ii].sz>0) {
       for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-           if (D_red->ml[ii].idx != NULL)
-           printf("%d -- ", D_red->ml[ii].idx[ll]);
-           else
-           printf("%d -- ", ll);
-           */
-        /*
-           if (ii==270) {
-           printf("%u -- %u == 0?\n",
-           D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
-           }
+        if (D_red->ml[ii].idx != NULL)
+          printf("%d -- ", D_red->ml[ii].idx[ll]);
+        else
+          printf("%d -- ", ll);
         printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
       }
       printf("\n");
     } else {
-      //printf("ml %d is zero! %p\n", ii, D_red->ml[ii]);
+      printf("ml %d is zero! %p\n", ii, D_red->ml[ii]);
     }
   }
-  */
+#endif
   echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
 #if DDEBUG_DD
   printf("AFTER\n");
@@ -885,12 +879,12 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
     // make A->ml[i] dense, i.e. free memory for idx and enlarge memory for val
     // initialize all values in val with 0, set size of A->ml[i] to coldim
-    /*
-    free (A->ml[i].idx);
-    A->ml[i].idx  = NULL;
-    A->ml[i].val  = realloc(A->ml[i].val, 2 * coldim * sizeof(re_t));
-    A->ml[i].sz   = coldim;
-    */
+    if (A->ml[i].dense == 0) {
+      free (A->ml[i].idx);
+      A->ml[i].idx  = NULL;
+      A->ml[i].val  = realloc(A->ml[i].val, 2 * coldim * sizeof(re_t));
+      A->ml[i].sz   = coldim;
+    }
     memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
 
 #if DDEBUG_Dd
@@ -1297,7 +1291,6 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     }
 #endif
     head_line_2 = get_head_dense_array(dense_array_2, &h_a2, coldim, modulus);
-    printf("hl1 %d, hl2 %d, crr %d\n", head_line_1, head_line_2, curr_row_to_reduce);
 
 #if DEBUG_ECHELONIZE
     printf("headl1 %d | headl2 %d\n",head_line_1,head_line_2);
@@ -1415,18 +1408,13 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
     row_in_A      = (A->nrows - 1 - Cp1) / __GB_NROWS_MULTILINE;
     row_in_A_mod  = (A->nrows - 1 - Cp1) % __GB_NROWS_MULTILINE;
-    printf("i %d - Cp1 %d - riA %d - riAm %d\n",i,Cp1,row_in_A,row_in_A_mod);
 
     if (row_in_A_mod == 1) {
       Cp2 = i+1;
       Cv1_col2  = dense_array_C_1[i+1] % modulus;
       Cv2_col2  = dense_array_C_2[i+1] % modulus;
 
-      printf("%p\n",A->ml[row_in_A]);
-      printf("%p of %d\n",A->ml[row_in_A].val, A->ml[row_in_A].sz);
-      printf("%p | %p | %p\n",A->ml[row_in_A], A->ml[row_in_A].val, A->ml[row_in_A].val[2*1+1]);
       register re_t v__ = A->ml[row_in_A].val[2*1+1];
-      printf("v__ %d\n",v__);
 
       tmp = Cv1_col2 + (uint32_t)Cv1_col1 * v__;
       Cv1_col2 = tmp % modulus;

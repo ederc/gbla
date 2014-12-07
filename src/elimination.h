@@ -867,6 +867,7 @@ static inline mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t 
       return m->idx[i];
     }
   }
+  return -1;
 }
 
 /**
@@ -899,6 +900,7 @@ static inline mli_t get_head_multiline_hybrid(const ml_t *m,
       }
     }
   }
+  return -1;
 }
 
 /**
@@ -1267,12 +1269,12 @@ static inline int get_smallest_waiting_row(wl_t *waiting_global,
  *
  * \param block height bheight
  *
- * \param characteristic of underlying field modulus
- *
  * \param invert scalars? inv_scalars
+ *
+ * \param characteristic of underlying field modulus
  */
 void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B,
-    const ri_t bheight, const mod_t modulus, int inv_scalars);
+    const ri_t bheight, const int inv_scalars, const mod_t modulus);
 
 /**
  * \brief Reduces dense block block_B with triangular sparse block block_A.
@@ -1288,7 +1290,7 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B
  * \param invert scalars? inv_scalars
  */
 void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B,
-    const ri_t bheight, const mod_t modulus, int inv_scalars);
+    const ri_t bheight, int inv_scalars, const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix A to the unit
@@ -1334,14 +1336,16 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
  *
  * \param block submatrix D (right lower side)
  *
+ * \param inverse scalars? inv_scalars
+ *
  * \param characteristic of underlying field modulus
  *
  * \param number of threads nthrds
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const mod_t modulus,
-    const int nthrds);
+int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const int inv_scalars,
+    const mod_t modulus, const int nthrds);
 
 /**
  * \brief Different block tasks when reducing block submatrix C.
@@ -1356,13 +1360,15 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const mod_t modulus,
  *
  * \param number of block rows in C nblock_rows_C
  *
+ * \param inverse scalars? inv_scalars
+ *
  * \param characteristic of underlying field modulus
  *
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
     const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-    const mod_t modulus);
+    const int inv_scalars, const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix D to an
