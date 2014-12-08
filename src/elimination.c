@@ -902,7 +902,6 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
           dense_array_2, head_line_2, &A->ml[i], coldim, modulus);
     } else {
       if (head_line_2 == -1) {
-        printf("hl2 == -1\n");
         copy_dense_array_to_zero_dense_multiline(
             dense_array_1, head_line_1, &A->ml[i], coldim, modulus);
       } else { // both are not empty

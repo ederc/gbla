@@ -134,7 +134,8 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight);
  *
  * \param mapping of the input matrix M outer_map
  *
- * \param mapping of the echelonized multiline matrix D inner_map
+ * \param pointer to mapping of the echelonized multiline matrix D. Will be
+ * freed at the end. inner_map_in
  *
  * \param column dimension of input matrix M outer_coldim
  *
@@ -144,7 +145,7 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight);
  * columns are considered. This is done when the echelon form is wanted and not
  * the RREF
  */
-void combine_maps(map_fl_t *outer_map, map_fl_t *inner_map,
+void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
     const ci_t outer_coldim, const ci_t inner_coldim,
     int only_rows);
 

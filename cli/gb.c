@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
 
   // timing structs
   struct timeval t_load_start;
+  struct timeval t_complete;
 
   opterr  = 0;
 
@@ -145,6 +146,11 @@ int main(int argc, char *argv[]) {
     printf("---------------------------------------------------------------------\n");
   }
 
+  // track time for the complete reduction process
+  if (verbose > 1)
+    gettimeofday(&t_complete, NULL);
+
+
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
@@ -214,7 +220,21 @@ int main(int argc, char *argv[]) {
       abort ();
   }
 
+  free(M->rows);
+  free(M->pos);
+  free(M->rwidth);
   free(M);
+  M = NULL;
+
+  if (verbose > 1) {
+    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf(">>>>\tREDUCTION COMPLETED\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_complete) / (1000000));
+    print_mem_usage();
+    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf("\n");
+  }
   return 0;
 }
 
@@ -454,7 +474,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf(">>>>\tSTART reconstructing output matrix ...\n");
     }
     process_matrix(D_red, map_D, block_dimension);
-    combine_maps(map, map_D, M->ncols, D_red->ncols, 1);
+    combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
     reconstruct_matrix(M, A, B, D_red, map, M->ncols, 1, 1, 1, 0, nthreads);
     if (verbose > 1) {
       printf("<<<<\tDONE  reconstructing output matrix.\n");
@@ -607,7 +627,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("---------------------------------------------------------------------\n");
       printf(">>>>\tSTART reconstructing output matrix ...\n");
     }
-    combine_maps(map, map2, M->ncols, D_red->ncols, 0);
+    combine_maps(map, &map2, M->ncols, D_red->ncols, 0);
     reconstruct_matrix(M, A, B2, D2_red, map, M->ncols, 1, 1, 1, 0, nthreads);
     if (verbose > 1) {
       printf("<<<<\tDONE  reconstructing output matrix.\n");
@@ -617,7 +637,6 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
-
   }
   return 0;
 }
