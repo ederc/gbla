@@ -21,116 +21,96 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
   const ri_t rlA  = (ri_t) ceil((float) A->nrows / A->bheight);
   const ci_t clA  = (ci_t) ceil((float) A->ncols / A->bwidth);
-  #pragma omp parallel num_threads(nthrds)
+#pragma omp parallel num_threads(nthrds)
   {
-    #pragma omp for
-      // each task takes one block column of B
-      for (i=0; i<clB; ++i) {
-        #pragma omp task
-        {
-          rc  = elim_fl_A_blocks_task(A, B, i, rlA, modulus);
-        }
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<clB; ++i) {
+#pragma omp task
+      {
+        rc  = elim_fl_A_blocks_task(A, B, i, rlA, modulus);
       }
-    #pragma omp taskwait
+    }
+#pragma omp taskwait
   }
   // free A
-  #pragma omp parallel num_threads(nthrds)
+#pragma omp parallel num_threads(nthrds)
   {
-    #pragma omp for private(i,j,k)
+#pragma omp for private(i,j,k)
     for (j=0; j<rlA; ++j) {
-    for (i=0; i<clA; ++i) {
-      if (A->blocks[j][i] != NULL) {
-        for (k=0; k<A->bheight/__GB_NROWS_MULTILINE; ++k) {
-          if (A->blocks[j][i][k].dense == 0) {
-            if (A->blocks[j][i][k].idx != NULL) {
-              free(A->blocks[j][i][k].idx);
-              A->blocks[j][i][k].idx  = NULL;
-            }
-          }
-          if (A->blocks[j][i][k].val != NULL) {
+      for (i=0; i<clA; ++i) {
+        if (A->blocks[j][i] != NULL) {
+          for (k=0; k<A->bheight/__GB_NROWS_MULTILINE; ++k) {
+            free(A->blocks[j][i][k].idx);
+            A->blocks[j][i][k].idx  = NULL;
             free(A->blocks[j][i][k].val);
             A->blocks[j][i][k].val  = NULL;
           }
-        }
-        if (A->blocks[j][i] != NULL) {
           free(A->blocks[j][i]);
           A->blocks[j][i] = NULL;
         }
       }
-    }
-    if (A->blocks[j] != NULL) {
       free(A->blocks[j]);
       A->blocks[j]  = NULL;
     }
   }
-}
-free(A->blocks);
-A->blocks = NULL;
-free(A);
-A = NULL;
-*A_in  = A;
-return 0;
+  free(A->blocks);
+  A->blocks = NULL;
+  free(A);
+  A = NULL;
+  *A_in  = A;
+  return 0;
 }
 
 int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
     const int inv_scalars, const mod_t modulus, const int nthrds) {
 
-sbm_fl_t *C = *C_in;
+  sbm_fl_t *C = *C_in;
 
-ci_t i, rc;
-ri_t j, k;
-const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
-const ri_t rlC  = (ri_t) ceil((float) C->nrows / C->bheight);
-const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
+  ci_t i, rc;
+  ri_t j, k;
+  const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
+  const ri_t rlC  = (ri_t) ceil((float) C->nrows / C->bheight);
+  const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
 #pragma omp parallel num_threads(nthrds)
-{
-  #pragma omp for
+  {
+#pragma omp for
     // each task takes one block column of B
     for (i=0; i<clD; ++i) {
-      #pragma omp task
+#pragma omp task
       {
         rc  = elim_fl_C_blocks_task(B, C, D, i, rlC, clC, inv_scalars, modulus);
       }
     }
-  #pragma omp taskwait
-}
-// free C
+#pragma omp taskwait
+  }
+  // free C
 #pragma omp parallel num_threads(nthrds)
-{
-  #pragma omp for private(i,j,k)
-  for (j=0; j<rlC; ++j) {
-    for (i=0; i<clC; ++i) {
-      if (C->blocks[j][i] != NULL) {
-        for (k=0; k<C->bheight/__GB_NROWS_MULTILINE; ++k) {
-          if (C->blocks[j][i][k].dense == 0) {
-            if (C->blocks[j][i][k].idx != NULL) {
-              free(C->blocks[j][i][k].idx);
-              C->blocks[j][i][k].idx  = NULL;
-            }
-          }
-          if (C->blocks[j][i][k].val != NULL) {
+  {
+#pragma omp for private(i,j,k)
+    for (j=0; j<rlC; ++j) {
+      for (i=0; i<clC; ++i) {
+        if (C->blocks[j][i] != NULL) {
+          for (k=0; k<C->bheight/__GB_NROWS_MULTILINE; ++k) {
+            free(C->blocks[j][i][k].idx);
+            C->blocks[j][i][k].idx  = NULL;
             free(C->blocks[j][i][k].val);
             C->blocks[j][i][k].val  = NULL;
           }
-        }
-        if (C->blocks[j][i] != NULL) {
           free(C->blocks[j][i]);
           C->blocks[j][i] = NULL;
         }
       }
-    }
-    if (C->blocks[j] != NULL) {
       free(C->blocks[j]);
       C->blocks[j]  = NULL;
     }
   }
-}
-free(C->blocks);
-C->blocks = NULL;
-free(C);
-C = NULL;
-*C_in = C;
-return 0;
+  free(C->blocks);
+  C->blocks = NULL;
+  free(C);
+  C = NULL;
+  *C_in = C;
+  return 0;
 }
 
 int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {

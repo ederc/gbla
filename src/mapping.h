@@ -174,7 +174,36 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
  *
  * \param number of threads
  */
-void reconstruct_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
+void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
+    map_fl_t *map, const ci_t coldim, int free_matrices,
+    int M_freed, int A_freed, int D_freed, int nthrds);
+
+/**
+ * \brief Reconstructs matrix M after elimination process
+ *
+ * \param input and output matrix M
+ *
+ * \param multiline sub matrix A
+ *
+ * \param block sub matrix B
+ *
+ * \param multiline submatrix D
+ *
+ * \param outer mapping map
+ *
+ * \param column dimension of M coldim
+ *
+ * \param parameter to set/unset freeing of sub matrices free_matrices
+ *
+ * \param paramter indicating if M was already freed M_freed
+ *
+ * \param paramter indicating if A was already freed A_freed
+ *
+ * \param paramter indicating if D was already freed D_freed
+ *
+ * \param number of threads
+ */
+void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
     int M_freed, int A_freed, int D_freed, int nthrds);
 

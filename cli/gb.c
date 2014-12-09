@@ -462,11 +462,11 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
         walltime(t_load_start) / (1000000));
     print_mem_usage();
     printf("---------------------------------------------------------------------\n");
-    printf("Rank of D:\t%u\n",rank_D);
+    printf("Rank of D:\t%u\n", rank_D);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
- 
+  ri_t rank_M = map->npiv + rank_D;
   if (reduce_completely == 0) {
     if (verbose > 1) {
       gettimeofday(&t_load_start, NULL);
@@ -475,7 +475,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     }
     process_matrix(D_red, map_D, block_dimension);
     combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
-    reconstruct_matrix(M, A, B, D_red, map, M->ncols, 1, 1, 1, 0, nthreads);
+    reconstruct_matrix_block(M, A, B, D_red, map, M->ncols, 1, 1, 1, 0, nthreads);
     if (verbose > 1) {
       printf("<<<<\tDONE  reconstructing output matrix.\n");
       printf("TIME\t%.3f sec\n",
@@ -483,7 +483,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       print_mem_usage();
       printf("---------------------------------------------------------------------\n");
       printf("---------------------------------------------------------------------\n");
-      printf("Rank of M:\t%u\n",rank_D+map->npiv);
+      printf("Rank of M:\t%u\n", rank_M);
       printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
@@ -628,7 +628,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf(">>>>\tSTART reconstructing output matrix ...\n");
     }
     combine_maps(map, &map2, M->ncols, D_red->ncols, 0);
-    reconstruct_matrix(M, A, B2, D2_red, map, M->ncols, 1, 1, 1, 0, nthreads);
+    reconstruct_matrix_block(M, A, B2, D2_red, map, M->ncols, 1, 1, 1, 0, nthreads);
     if (verbose > 1) {
       printf("<<<<\tDONE  reconstructing output matrix.\n");
       printf("TIME\t%.3f sec\n",
@@ -642,7 +642,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
 }
 
 int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
-    int verbose, int completely_reduced) {
+    int verbose, int reduce_completely) {
   struct timeval t_load_start;
   // submatrices A and C of multiline type, B and D of block type
   if (verbose > 1) {
@@ -651,11 +651,13 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
   }
   // construct splicing of matrix M into A, B, C and D
-  sm_fl_ml_t *A = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
-  sbm_fl_t *B   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  sm_fl_ml_t *C = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
-  sbm_fl_t *D   = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  map_fl_t *map = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
+  sm_fl_ml_t *A   = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
+  sbm_fl_t *B     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sm_fl_ml_t *C   = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
+  sbm_fl_t *D     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
+  map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
+
   splice_fl_matrix_ml_A_C(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
 
@@ -936,9 +938,39 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
         walltime(t_load_start) / (1000000));
     print_mem_usage();
     printf("---------------------------------------------------------------------\n");
-    printf("Rank of D:\t%u\n",rank_D);
+    printf("Rank of D:\t%u\n", rank_D);
     printf("---------------------------------------------------------------------\n");
     printf("\n");
+  }
+
+  ri_t rank_M = map->npiv + rank_D;
+
+  if (reduce_completely == 0) {
+    if (verbose > 1) {
+      gettimeofday(&t_load_start, NULL);
+      printf("---------------------------------------------------------------------\n");
+      printf(">>>>\tSTART reconstructing output matrix ...\n");
+    }
+    process_matrix(D_red, map_D, block_dimension);
+    combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
+    reconstruct_matrix_ml(M, A, B, D_red, map, M->ncols, 1, 1, 0, 0, nthreads);
+    if (verbose > 1) {
+      printf("<<<<\tDONE  reconstructing output matrix.\n");
+      printf("TIME\t%.3f sec\n",
+          walltime(t_load_start) / (1000000));
+      print_mem_usage();
+      printf("---------------------------------------------------------------------\n");
+      printf("---------------------------------------------------------------------\n");
+      printf("Rank of M:\t%u\n", rank_M);
+      printf("---------------------------------------------------------------------\n");
+      printf("\n");
+    }
+  } else { // compute reduced row echelon form of input matrix
+    if (verbose > 1) {
+      printf("---------------------------------------------------------------------\n");
+      printf(">>>>\tSTART of RREF computation...\n");
+      printf("---------------------------------------------------------------------\n");
+    }
   }
   return 0;
 }
