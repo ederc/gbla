@@ -825,53 +825,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   // row loops 
   const uint32_t rlC  = (uint32_t) ceil((float)C_block->nrows / C_block->bheight);
 
-  /*
-  printf("C after conversion\n");
-  for (ii=0; ii<rlC; ++ii) {
-    for (jj=0; jj<clC; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (C_block->blocks[ii][jj] != NULL) {
-          printf("size %d\n",2*C_block->blocks[ii][jj][kk].sz);
-          if (C_block->blocks[ii][jj][kk].dense == 1) {
-            for (ll=0; ll<C_block->blocks[ii][jj][kk].sz; ++ll) {
-              printf("%d -- ", ll);
-              printf("%d %d ", C_block->blocks[ii][jj][kk].val[2*ll], C_block->blocks[ii][jj][kk].val[2*ll+1]);
-            }
-          } else {
-            for (ll=0; ll<C_block->blocks[ii][jj][kk].sz; ++ll) {
-              printf("%d -- ", C_block->blocks[ii][jj][kk].idx[ll]);
-              printf("%d %d ", C_block->blocks[ii][jj][kk].val[2*ll], C_block->blocks[ii][jj][kk].val[2*ll+1]);
-            }
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
-  printf("D before eliminating C\n");
-  for (ii=0; ii<rlD; ++ii) {
-    for (jj=0; jj<clD; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (D->blocks[ii][jj] != NULL) {
-          if (D->blocks[ii][jj][kk].dense == 1) {
-            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
-              printf("%d -- ", ll);
-              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
-            }
-          } else {
-            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
-              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
-              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
-            }
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
-  */
   // reducing submatrix C to zero using methods of Faugère & Lachartre
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);

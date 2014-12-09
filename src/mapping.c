@@ -437,7 +437,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     ci_t tmp_width;
     uint32_t local_piv;
     uint16_t line;
-#pragma omp for private(tmp_width, row_M_width, local_piv, line,j,k) schedule(dynamic)
+#pragma omp for private(j,k) schedule(dynamic)
     for (i=0; i<coldim; ++i) {
       if (map->pri[i] == __GB_MINUS_ONE_32)
         continue;
@@ -492,7 +492,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
       } else { // we are in A resp. B
         // we need size of A->ml and otherwise at most D->ncols = B->ncols elements
         // ==> no reallocations!
-        row_A = &(A->ml[A->nrows - 1 - (map->pri[i])/__GB_NROWS_MULTILINE]);
+        row_A = &(A->ml[(A->nrows - 1 - (map->pri[i]))/__GB_NROWS_MULTILINE]);
         M->rows[local_piv]  = realloc(M->rows[local_piv], (row_A->sz+B->ncols) * sizeof(re_t));
         M->pos[local_piv]   = realloc(M->pos[local_piv], (row_A->sz+B->ncols) * sizeof(ci_t));
         // clear data first
