@@ -475,7 +475,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     }
     process_matrix(D_red, map_D, block_dimension);
     combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
-    reconstruct_matrix_block(M, A, B, D_red, map, M->ncols, 1, 1, 1, 0, nthreads);
+    reconstruct_matrix_block(M, A, B, D_red, map, M->nrows, 1, 1, 1, 0, nthreads);
     if (verbose > 1) {
       printf("<<<<\tDONE  reconstructing output matrix.\n");
       printf("TIME\t%.3f sec\n",
@@ -628,7 +628,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf(">>>>\tSTART reconstructing output matrix ...\n");
     }
     combine_maps(map, &map2, M->ncols, D_red->ncols, 0);
-    reconstruct_matrix_block(M, A, B2, D2_red, map, M->ncols, 1, 1, 1, 0, nthreads);
+    reconstruct_matrix_block(M, A, B2, D2_red, map, M->nrows, 1, 1, 1, 0, nthreads);
     if (verbose > 1) {
       printf("<<<<\tDONE  reconstructing output matrix.\n");
       printf("TIME\t%.3f sec\n",
@@ -953,7 +953,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     }
     process_matrix(D_red, map_D, block_dimension);
     combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
-    reconstruct_matrix_ml(M, A, B, D_red, map, M->ncols, 1, 1, 0, 0, nthreads);
+    reconstruct_matrix_ml(M, A, B, D_red, map, M->nrows, 1, 1, 0, 0, nthreads);
     if (verbose > 1) {
       printf("<<<<\tDONE  reconstructing output matrix.\n");
       printf("TIME\t%.3f sec\n",

@@ -199,7 +199,6 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   uint8_t *vec_free_AB, *vec_free_D;
   // 1 pivot from A and otherwise at most D->ncols = B->ncols elements
   // ==> no reallocations!
-  ci_t buffer = 1 + D->ncols;
   //ci_t buffer = (ci_t) ceil((float)M->ncols / 10);
 
   if (free_matrices == 1) {
@@ -234,31 +233,28 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     ci_t tmp_width;
     uint32_t local_piv;
     uint16_t line;
-#pragma omp for private(tmp_width, row_M_width, local_piv, line,j,k) schedule(dynamic)
+#pragma omp for private(j,k) schedule(dynamic)
     for (i=0; i<coldim; ++i) {
-      if (map->pri[i] >= __GB_MINUS_ONE_32)
+      if (map->pri[i] == __GB_MINUS_ONE_32)
         continue;
 
       local_piv = new_piv_to_row[i];
 
-      // if M was freed on the go, allocate memory again
-      if (M_freed == 1) {
-        // clear data first
-        //printf("realloc %d memory blocks\n",buffer);
-        M->rows[local_piv]  = realloc(M->rows[local_piv], buffer * sizeof(re_t));
-        M->pos[local_piv]   = realloc(M->pos[local_piv], buffer * sizeof(ci_t));
-      }
       M->nnz  = 0;
-      // clear data first
-      row_M       = &(M->rows[local_piv]);
-      pos_M       = &(M->pos[local_piv]);
-      tmp_width   = buffer;
-      row_M_width = 0;
       // clear old data
       //memset(*row_M, 0, tmp_width * sizeof(re_t));
       //memset(*pos_M, 0, tmp_width * sizeof(ci_t));
 
       if (map->pri[i] >= map->npiv) { // we are in D
+        // clear data first
+        //printf("realloc %d memory blocks\n",buffer);
+        M->rows[local_piv]  = realloc(M->rows[local_piv], D->ncols * sizeof(re_t));
+        M->pos[local_piv]   = realloc(M->pos[local_piv], D->ncols * sizeof(ci_t));
+        // clear data first
+        row_M       = &(M->rows[local_piv]);
+        pos_M       = &(M->pos[local_piv]);
+        tmp_width   = D->ncols;
+        row_M_width = 0;
         row_D = &(D->ml[(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE]);
         line  = (map->pri[i]-map->npiv)%__GB_NROWS_MULTILINE;
 
@@ -285,6 +281,15 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
           }
         }
       } else { // we are in A resp. B
+        // clear data first
+        //printf("realloc %d memory blocks\n",buffer);
+        M->rows[local_piv]  = realloc(M->rows[local_piv], (1+D->ncols) * sizeof(re_t));
+        M->pos[local_piv]   = realloc(M->pos[local_piv], (1+D->ncols) * sizeof(ci_t));
+        // clear data first
+        row_M       = &(M->rows[local_piv]);
+        pos_M       = &(M->pos[local_piv]);
+        tmp_width   = 1 + D->ncols;
+        row_M_width = 0;
         ci_t block_row_idx, row_idx_block, block_start_idx, idx;
         re_t val;
         block_row_idx = (B->nrows - 1 - map->pri[i]) / B->bheight;
@@ -434,7 +439,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     uint16_t line;
 #pragma omp for private(tmp_width, row_M_width, local_piv, line,j,k) schedule(dynamic)
     for (i=0; i<coldim; ++i) {
-      if (map->pri[i] >= __GB_MINUS_ONE_32)
+      if (map->pri[i] == __GB_MINUS_ONE_32)
         continue;
 
       local_piv = new_piv_to_row[i];
