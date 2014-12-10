@@ -8,12 +8,23 @@
 #define DDEBUG_D_ONE 0
 #define DENSE_MULTILINE_C_AFTER_ELIM  0
 
-// global variables for echelonization of D
-omp_lock_t echelonize_lock;
-ri_t global_next_row_to_reduce;
-ri_t global_last_piv;
-wl_t waiting_global;
+#define TASKS 1
 
+// global variables for echelonization of D
+static omp_lock_t echelonize_lock;
+static ri_t global_next_row_to_reduce;
+static ri_t global_last_piv;
+static wl_t waiting_global;
+
+// global variables for reduction of C
+static omp_lock_t reduce_C_lock;
+static ri_t reduce_C_next_col_to_reduce;
+
+// global variables for reduction of C
+static omp_lock_t reduce_A_lock;
+static ri_t reduce_A_next_col_to_reduce;
+
+#if TASKS
 int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   sbm_fl_t *A = *A_in;
   ci_t i, rc;
@@ -62,6 +73,186 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   return 0;
 }
 
+int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {
+bi_t i;
+ri_t j, k;
+re_l_t *dense_block[B->bheight] __attribute__((aligned(0x1000)));
+//re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
+uint64_t size = B->bwidth * sizeof(re_l_t);
+for (i=0; i<B->bheight; ++i) {
+  posix_memalign((void **)&dense_block[i], 16, size);
+}
+for (j=0; j<nbrows_A; ++j) {
+  const ri_t first_block_idx  = 0;
+
+  // set dense block entries to zero
+  for (k=0; k<B->bheight; ++k)
+    memset(dense_block[k], 0, size);
+
+  // copy sparse block data to dense representation
+  if (B->blocks[j][block_col_idx_B] != NULL)
+    copy_sparse_to_dense_block(B->blocks[j][block_col_idx_B], dense_block,
+        B->bheight, B->bwidth);
+
+  for (k=0; k<j; ++k) {
+    red_with_rectangular_block(A->blocks[j][k], B->blocks[k][block_col_idx_B],
+        dense_block, B->bheight, 1, modulus);
+    /*
+        printf("RECTANGULAR DONE\n");
+        for (int kk=0; kk<B->bheight; ++kk) {
+        for (int ll=0; ll<B->bheight; ++ll) {
+        printf("(%d,%d) %ld ",kk,ll,dense_block[kk][ll]);
+        }
+        printf("\n");
+        }
+        */
+  }
+
+  red_with_triangular_block(A->blocks[j][j], dense_block,
+      B->bheight, 1, modulus);
+  /*printf("TRIANGULAR DONE\n");
+    for (int kk=0; kk<B->bheight; ++kk) {
+    for (int ll=0; ll<B->bheight; ++ll) {
+    printf("%ld ",dense_block[kk][ll]);
+    }
+    printf("\n");
+    }
+    */
+
+
+  //printf("OUT BEFORE %p\n",B->blocks[j][block_col_idx_B]);
+  copy_dense_block_to_sparse(
+      dense_block, &B->blocks[j][block_col_idx_B],
+      B->bheight, B->bwidth, modulus);
+  //printf("OUT AFTERWARDS %p\n",B->blocks[j][block_col_idx_B]);
+#if DDDEBUG
+  printf("after copying\n");
+  if (B->blocks[j][block_col_idx_B] != NULL) {
+    for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+      if (B->blocks[j][block_col_idx_B][kk].sz>0) {
+        printf("%d\n",kk);
+        for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
+          printf("%d %d ",B->blocks[j][block_col_idx_B][kk].val[2*ll], B->blocks[j][block_col_idx_B][kk].val[2*ll+1]);
+        }
+        printf("\n");
+      }
+    }
+  }
+#endif
+}
+for (i=0; i<B->bheight; ++i) {
+  free(dense_block[i]);
+  dense_block[i]  = NULL;
+}
+
+return 0;
+}
+#else
+int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
+  sbm_fl_t *A = *A_in;
+  ci_t i, rc;
+  ri_t j, k;
+  const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
+  const ri_t rlA  = (ri_t) ceil((float) A->nrows / A->bheight);
+  const ci_t clA  = (ci_t) ceil((float) A->ncols / A->bwidth);
+
+  reduce_A_next_col_to_reduce = 0;
+  omp_init_lock(&reduce_A_lock);
+
+#pragma omp parallel shared(reduce_A_next_col_to_reduce) num_threads(nthrds)
+    {
+#pragma omp for nowait
+      for (i=0; i<nthrds; ++i) {
+        rc  = elim_fl_A_blocks_task(A, B, i, rlA, modulus);
+      }
+    }
+  omp_destroy_lock(&reduce_A_lock);
+  // free A
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i,j,k)
+    for (j=0; j<rlA; ++j) {
+      for (i=0; i<clA; ++i) {
+        if (A->blocks[j][i] != NULL) {
+          for (k=0; k<A->bheight/__GB_NROWS_MULTILINE; ++k) {
+            free(A->blocks[j][i][k].idx);
+            A->blocks[j][i][k].idx  = NULL;
+            free(A->blocks[j][i][k].val);
+            A->blocks[j][i][k].val  = NULL;
+          }
+          free(A->blocks[j][i]);
+          A->blocks[j][i] = NULL;
+        }
+      }
+      free(A->blocks[j]);
+      A->blocks[j]  = NULL;
+    }
+  }
+  free(A->blocks);
+  A->blocks = NULL;
+  free(A);
+  A = NULL;
+  *A_in  = A;
+  return 0;
+}
+
+int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {
+  bi_t i;
+  ri_t j, k;
+  re_l_t *dense_block[B->bheight] __attribute__((aligned(0x1000)));
+  //re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
+  uint64_t size = B->bwidth * sizeof(re_l_t);
+  for (i=0; i<B->bheight; ++i) {
+    posix_memalign((void **)&dense_block[i], 16, size);
+  }
+
+  const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
+  uint32_t lci; // local column index
+  while (1) {
+    omp_set_lock(&reduce_A_lock);
+    if (reduce_A_next_col_to_reduce < clB) {
+      lci = reduce_A_next_col_to_reduce;
+      ++reduce_A_next_col_to_reduce;
+    } else {
+      omp_unset_lock(&reduce_A_lock);
+      break;
+    }
+    omp_unset_lock(&reduce_A_lock);
+    for (j=0; j<nbrows_A; ++j) {
+      const ri_t first_block_idx  = 0;
+
+      // set dense block entries to zero
+      for (k=0; k<B->bheight; ++k) {
+        memset(dense_block[k], 0, size);
+      }
+      // copy sparse block data to dense representation
+      if (B->blocks[j][lci] != NULL)
+        copy_sparse_to_dense_block(B->blocks[j][lci], dense_block,
+            B->bheight, B->bwidth);
+
+      for (k=0; k<j; ++k) {
+        red_with_rectangular_block(A->blocks[j][k], B->blocks[k][lci],
+            dense_block, B->bheight, 1, modulus);
+      }
+
+      red_with_triangular_block(A->blocks[j][j], dense_block,
+          B->bheight, 1, modulus);
+
+
+      copy_dense_block_to_sparse(
+          dense_block, &B->blocks[j][lci],
+          B->bheight, B->bwidth, modulus);
+    }
+  }
+  for (i=0; i<B->bheight; ++i) {
+    free(dense_block[i]);
+    dense_block[i]  = NULL;
+  }
+
+  return 0;
+}
+#endif
+#if TASKS
 int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
     const int inv_scalars, const mod_t modulus, const int nthrds) {
 
@@ -113,164 +304,195 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
   return 0;
 }
 
-int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {
-bi_t i;
-ri_t j, k;
-re_l_t *dense_block[B->bheight] __attribute__((aligned(0x1000)));
-//re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
-uint64_t size = B->bwidth * sizeof(re_l_t);
-for (i=0; i<B->bheight; ++i) {
-  posix_memalign((void **)&dense_block[i], 16, size);
-}
-
-for (j=0; j<nbrows_A; ++j) {
-  const ri_t first_block_idx  = 0;
-  // TODO: Martani uses a minimum possibly for zero blocks at the end
-  const ri_t last_block_idx   = j;
-
-  // set dense block entries to zero
-  for (k=0; k<B->bheight; ++k)
-    memset(dense_block[k], 0, size);
-
-  // copy sparse block data to dense representation
-  if (B->blocks[j][block_col_idx_B] != NULL)
-    copy_sparse_to_dense_block(B->blocks[j][block_col_idx_B], dense_block,
-        B->bheight, B->bwidth);
-
-  for (k=0; k<last_block_idx; ++k) {
-#if DDDEBUG
-    printf("j %d -- k %d -- lci %d\n", j, k, block_col_idx_B);
-#endif
-    red_with_rectangular_block(A->blocks[j][k], B->blocks[k][block_col_idx_B],
-        dense_block, B->bheight, 1, modulus);
-    /*
-        printf("RECTANGULAR DONE\n");
-        for (int kk=0; kk<B->bheight; ++kk) {
-        for (int ll=0; ll<B->bheight; ++ll) {
-        printf("(%d,%d) %ld ",kk,ll,dense_block[kk][ll]);
-        }
-        printf("\n");
-        }
-        */
-  }
-
-
-#if DDDEBUG
-  printf("j %d -- lbi %d\n", j, last_block_idx);
-#endif
-  red_with_triangular_block(A->blocks[j][last_block_idx], dense_block,
-      B->bheight, 1, modulus);
-  /*printf("TRIANGULAR DONE\n");
-    for (int kk=0; kk<B->bheight; ++kk) {
-    for (int ll=0; ll<B->bheight; ++ll) {
-    printf("%ld ",dense_block[kk][ll]);
-    }
-    printf("\n");
-    }
-    */
-
-
-  //printf("OUT BEFORE %p\n",B->blocks[j][block_col_idx_B]);
-  copy_dense_block_to_sparse(
-      dense_block, &B->blocks[j][block_col_idx_B],
-      B->bheight, B->bwidth, modulus);
-  //printf("OUT AFTERWARDS %p\n",B->blocks[j][block_col_idx_B]);
-#if DDDEBUG
-  printf("after copying\n");
-  if (B->blocks[j][block_col_idx_B] != NULL) {
-    for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
-      if (B->blocks[j][block_col_idx_B][kk].sz>0) {
-        printf("%d\n",kk);
-        for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
-          printf("%d %d ",B->blocks[j][block_col_idx_B][kk].val[2*ll], B->blocks[j][block_col_idx_B][kk].val[2*ll+1]);
-        }
-        printf("\n");
-      }
-    }
-  }
-#endif
-}
-for (i=0; i<B->bheight; ++i) {
-  free(dense_block[i]);
-  dense_block[i]  = NULL;
-}
-
-return 0;
-}
-
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-  const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C, 
+  const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
   const int inv_scalars, const mod_t modulus) {
-bi_t i;
-ri_t j, k;
-re_l_t *dense_block[D->bheight] __attribute__((aligned(0x1000)));
-//re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
-uint64_t size = D->bwidth * sizeof(re_l_t);
-for (i=0; i<D->bheight; ++i) {
-  posix_memalign((void **)&dense_block[i], 16, size);
-}
-
-// take maximum number and check if blocks are NULL in loop
-const ri_t last_block_idx = nbcols_C;
-
-for (j=0; j<nbrows_C; ++j) {
-  const ri_t first_block_idx  = 0;
-
-  // set dense block entries to zero
-  for (k=0; k<D->bheight; ++k)
-    memset(dense_block[k], 0, size);
-
-  // copy sparse block data to dense representation
-  if (D->blocks[j][block_col_idx_D] != NULL)
-    copy_sparse_to_dense_block(D->blocks[j][block_col_idx_D], dense_block,
-        D->bheight, D->bwidth);
-
-  for (k=0; k<last_block_idx; ++k) {
-#if DDEBUG_C
-    printf("j %d -- k %d -- lci %d\n", j, k, block_col_idx_D);
-#endif
-    if (C->blocks[j][k] != NULL) {
-      red_with_rectangular_block(C->blocks[j][k], B->blocks[k][block_col_idx_D],
-          dense_block, B->bheight, inv_scalars, modulus);
-    }
-    /*
-    printf("RECTANGULAR DONE\n");
-    for (int kk=0; kk<B->bheight; ++kk) {
-      for (int ll=0; ll<B->bheight; ++ll) {
-        printf("(%d,%d) %ld ",kk,ll,dense_block[kk][ll]);
-      }
-      printf("\n");
-    }
-    */
+  bi_t i;
+  ri_t j, k;
+  re_l_t *dense_block[D->bheight] __attribute__((aligned(0x1000)));
+  //re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
+  uint64_t size = D->bwidth * sizeof(re_l_t);
+  for (i=0; i<D->bheight; ++i) {
+    posix_memalign((void **)&dense_block[i], 16, size);
   }
-  //printf("OUT BEFORE %p\n",B->blocks[j][block_col_idx_B]);
-  copy_dense_block_to_sparse(
-      dense_block, &D->blocks[j][block_col_idx_D],
-      D->bheight, D->bwidth, modulus);
-  //printf("OUT AFTERWARDS %p\n",B->blocks[j][block_col_idx_B]);
+
+  // take maximum number and check if blocks are NULL in loop
+  const ri_t last_block_idx = nbcols_C;
+
+  for (j=0; j<nbrows_C; ++j) {
+    const ri_t first_block_idx  = 0;
+
+    // set dense block entries to zero
+    for (k=0; k<D->bheight; ++k)
+      memset(dense_block[k], 0, size);
+
+    // copy sparse block data to dense representation
+    if (D->blocks[j][block_col_idx_D] != NULL)
+      copy_sparse_to_dense_block(D->blocks[j][block_col_idx_D], dense_block,
+          D->bheight, D->bwidth);
+
+    for (k=0; k<last_block_idx; ++k) {
+#if DDEBUG_C
+      printf("j %d -- k %d -- lci %d\n", j, k, block_col_idx_D);
+#endif
+      if (C->blocks[j][k] != NULL) {
+        red_with_rectangular_block(C->blocks[j][k], B->blocks[k][block_col_idx_D],
+            dense_block, B->bheight, inv_scalars, modulus);
+      }
+      /*
+         printf("RECTANGULAR DONE\n");
+         for (int kk=0; kk<B->bheight; ++kk) {
+         for (int ll=0; ll<B->bheight; ++ll) {
+         printf("(%d,%d) %ld ",kk,ll,dense_block[kk][ll]);
+         }
+         printf("\n");
+         }
+         */
+    }
+    //printf("OUT BEFORE %p\n",B->blocks[j][block_col_idx_B]);
+    copy_dense_block_to_sparse(
+        dense_block, &D->blocks[j][block_col_idx_D],
+        D->bheight, D->bwidth, modulus);
+    //printf("OUT AFTERWARDS %p\n",B->blocks[j][block_col_idx_B]);
 #if DDEBUG_C
     printf("after copying\n");
     if (D->blocks[j][block_col_idx_D] != NULL) {
-    for (int kk=0; kk<D->bheight/__GB_NROWS_MULTILINE; ++kk) {
-      if (D->blocks[j][block_col_idx_D][kk].sz>0) {
-      printf("%d\n",kk);
-      for (int ll=0; ll<D->blocks[j][block_col_idx_D][kk].sz; ++ll) {
-        printf("%d %d ",D->blocks[j][block_col_idx_D][kk].val[2*ll], D->blocks[j][block_col_idx_D][kk].val[2*ll+1]);
+      for (int kk=0; kk<D->bheight/__GB_NROWS_MULTILINE; ++kk) {
+        if (D->blocks[j][block_col_idx_D][kk].sz>0) {
+          printf("%d\n",kk);
+          for (int ll=0; ll<D->blocks[j][block_col_idx_D][kk].sz; ++ll) {
+            printf("%d %d ",D->blocks[j][block_col_idx_D][kk].val[2*ll], D->blocks[j][block_col_idx_D][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
       }
-      printf("\n");
-    }
-    }
     }
 #endif
+  }
+
+  for (i=0; i<D->bheight; ++i) {
+    free(dense_block[i]);
+    dense_block[i]  = NULL;
+  }
+
+  return 0;
+}
+#else
+int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
+    const int inv_scalars, const mod_t modulus, const int nthrds) {
+
+  sbm_fl_t *C = *C_in;
+
+  ci_t i, rc;
+  ri_t j, k;
+  const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
+  const ri_t rlC  = (ri_t) ceil((float) C->nrows / C->bheight);
+  const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
+
+  reduce_C_next_col_to_reduce = 0;
+  omp_init_lock(&reduce_C_lock);
+
+#pragma omp parallel shared(reduce_C_next_col_to_reduce) num_threads(nthrds)
+    {
+#pragma omp for nowait
+      for (i=0; i<nthrds; ++i) {
+        rc  = elim_fl_C_blocks_task(B, C,  D, i, rlC, clC, inv_scalars, modulus);
+      }
+    }
+  omp_destroy_lock(&reduce_C_lock);
+  // free C
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i,j,k)
+    for (j=0; j<rlC; ++j) {
+      for (i=0; i<clC; ++i) {
+        if (C->blocks[j][i] != NULL) {
+          for (k=0; k<C->bheight/__GB_NROWS_MULTILINE; ++k) {
+            free(C->blocks[j][i][k].idx);
+            C->blocks[j][i][k].idx  = NULL;
+            free(C->blocks[j][i][k].val);
+            C->blocks[j][i][k].val  = NULL;
+          }
+          free(C->blocks[j][i]);
+          C->blocks[j][i] = NULL;
+        }
+      }
+      free(C->blocks[j]);
+      C->blocks[j]  = NULL;
+    }
+  }
+  free(C->blocks);
+  C->blocks = NULL;
+  free(C);
+  C = NULL;
+  *C_in = C;
+  return 0;
 }
 
-for (i=0; i<D->bheight; ++i) {
-  free(dense_block[i]);
-  dense_block[i]  = NULL;
-}
+int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
+  const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+  const int inv_scalars, const mod_t modulus) {
 
-return 0;
+  const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
+  bi_t i;
+  ri_t j, k;
+  re_l_t *dense_block[D->bheight] __attribute__((aligned(0x1000)));
+  //re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
+  uint64_t size = D->bwidth * sizeof(re_l_t);
+  for (i=0; i<D->bheight; ++i) {
+    posix_memalign((void **)&dense_block[i], 16, size);
+  }
+
+  uint32_t lci; // local column index
+  // take maximum number and check if blocks are NULL in loop
+  const ri_t last_block_idx = nbcols_C;
+
+  while (1) {
+    omp_set_lock(&reduce_C_lock);
+    if (reduce_C_next_col_to_reduce < clD) {
+      lci = reduce_C_next_col_to_reduce;
+      ++reduce_C_next_col_to_reduce;
+    } else {
+      omp_unset_lock(&reduce_C_lock);
+      break;
+    }
+    omp_unset_lock(&reduce_C_lock);
+
+    for (j=0; j<nbrows_C; ++j) {
+      const ri_t first_block_idx  = 0;
+
+      // set dense block entries to zero
+      for (k=0; k<D->bheight; ++k)
+        memset(dense_block[k], 0, size);
+
+      // copy sparse block data to dense representation
+      if (D->blocks[j][lci] != NULL) {
+        copy_sparse_to_dense_block(D->blocks[j][lci], dense_block,
+            D->bheight, D->bwidth);
+      }
+      for (k=0; k<last_block_idx; ++k) {
+#if DDEBUG_C
+        printf("j %d -- k %d -- lci %d\n", j, k, block_col_idx_D);
+#endif
+        if (C->blocks[j][k] != NULL) {
+          red_with_rectangular_block(C->blocks[j][k], B->blocks[k][lci],
+              dense_block, B->bheight, inv_scalars, modulus);
+        }
+      }
+      copy_dense_block_to_sparse(
+          dense_block, &D->blocks[j][lci],
+          D->bheight, D->bwidth, modulus);
+    }
+  }
+
+  for (i=0; i<D->bheight; ++i) {
+    free(dense_block[i]);
+    dense_block[i]  = NULL;
+  }
+
+  return 0;
 }
+#endif
 
 void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_block,
     const ri_t bheight, const int inv_scalars, const mod_t modulus) {

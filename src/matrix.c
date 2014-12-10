@@ -472,7 +472,7 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
     bi_t buffer_B[clB]; // buffer status for blocks in B
     memset(buffer_B, 0, clB * sizeof(bi_t));
 
-#pragma omp for schedule(dynamic) nowait ordered
+#pragma omp for nowait ordered
     for (i=0; i<ml_rlB; ++i) {
       if (A->ml[i].sz == 0)
         continue;
@@ -518,6 +518,12 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
       for (i=0; i<rlB; ++i) {
         for (j=0; j<clB; ++j) {
           for (k=0; k<ml_bheight; ++k) {
+            if (B->blocks[i][j][k].sz == 0) {
+              free(B->blocks[i][j][k].idx);
+              B->blocks[i][j][k].idx  = NULL;
+              free(B->blocks[i][j][k].val);
+              B->blocks[i][j][k].val  = NULL;
+            }
             if ((float)B->blocks[i][j][k].sz / (float)B->bwidth
                 < __GB_HYBRID_THRESHOLD) {
               B->blocks[i][j][k].idx =  realloc(
