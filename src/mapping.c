@@ -2192,17 +2192,6 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       i2++;
     }
-    // Realloc memory usage:
-    for (k=0; k<clB; ++k) {
-      if (B->blocks[rbi][k][lib].sz>0) {
-        B->blocks[rbi][k][lib].idx = realloc(
-            B->blocks[rbi][k][lib].idx,
-            B->blocks[rbi][k][lib].sz * sizeof(bi_t));
-        B->blocks[rbi][k][lib].val = realloc(
-            B->blocks[rbi][k][lib].val,
-            2 * B->blocks[rbi][k][lib].sz  * sizeof(re_t));
-      }
-    }
     if (A->ml[mli].sz>0) {
       A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
       A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
@@ -2256,7 +2245,52 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       i1++;
     }
+    if (A->ml[mli].sz >0) {
+      A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
+      A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
+    }
+  }
+
+  // hybrid multirows for the righthand side block matrices?
+  if (B->hr) {
+    uint32_t idx  = 0;
+    // TODO: Implement hybrid stuff
+    for (i=0; i<clB; ++i) {
+      for (j=0; j<rounded_cvb/__GB_NROWS_MULTILINE; ++j) {
+        if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
+            < __GB_HYBRID_THRESHOLD) {
+          B->blocks[rbi][i][j].idx =  realloc(
+              B->blocks[rbi][i][j].idx,
+              B->blocks[rbi][i][j].sz * sizeof(bi_t));
+          B->blocks[rbi][i][j].val =  realloc(
+              B->blocks[rbi][i][j].val,
+              2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
+          continue;
+        }
+        re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
+        idx  = 0;
+        for (k=0; k<B->bwidth; ++k) {
+          if (idx < B->blocks[rbi][i][j].sz && B->blocks[rbi][i][j].idx[idx] == k) {
+            tmp_val_ptr[2*k]    = B->blocks[rbi][i][j].val[2*idx];
+            tmp_val_ptr[2*k+1]  = B->blocks[rbi][i][j].val[2*idx+1];
+            idx++;
+          } else {
+            tmp_val_ptr[2*k]    = 0;
+            tmp_val_ptr[2*k+1]  = 0;
+          }
+        }
+        free(B->blocks[rbi][i][j].idx);
+        B->blocks[rbi][i][j].idx    = NULL;
+        free(B->blocks[rbi][i][j].val);
+        B->blocks[rbi][i][j].val    = tmp_val_ptr;
+        B->blocks[rbi][i][j].sz     = B->bwidth;
+        B->blocks[rbi][i][j].dense  = 1;
+      }
+    }
+  } else { // cut down memory usage
     // Realloc memory usage:
+    // Note that A is reallocated during the swapping of the data, so we
+    // reallocate only B here.
     int ctr;
     for (k=0; k<clB; ++k) {
       ctr = 0;
@@ -2275,50 +2309,6 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       if (ctr == 0) {
         free(B->blocks[rbi][k]);
         B->blocks[rbi][k] = NULL;
-      }
-    }
-    if (A->ml[mli].sz >0) {
-      A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
-      A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
-    }
-  }
-
-  // hybrid multirows for the righthand side block matrices?
-  if (B->hr) {
-    uint32_t idx  = 0;
-    // TODO: Implement hybrid stuff
-    for (i=0; i<clB; ++i) {
-      for (j=0; j<B->bheight/__GB_NROWS_MULTILINE; ++j) {
-        if (B->blocks[rbi][i] != NULL) {
-          if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
-              < __GB_HYBRID_THRESHOLD) {
-            B->blocks[rbi][i][j].idx =  realloc(
-                B->blocks[rbi][i][j].idx,
-                B->blocks[rbi][i][j].sz * sizeof(bi_t));
-            B->blocks[rbi][i][j].val =  realloc(
-                B->blocks[rbi][i][j].val,
-                2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
-            continue;
-          }
-          re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
-          idx  = 0;
-          for (k=0; k<B->bwidth; ++k) {
-            if (idx < B->blocks[rbi][i][j].sz && B->blocks[rbi][i][j].idx[idx] == k) {
-              tmp_val_ptr[2*k]    = B->blocks[rbi][i][j].val[2*idx];
-              tmp_val_ptr[2*k+1]  = B->blocks[rbi][i][j].val[2*idx+1];
-              idx++;
-            } else {
-              tmp_val_ptr[2*k]    = 0;
-              tmp_val_ptr[2*k+1]  = 0;
-            }
-          }
-          free(B->blocks[rbi][i][j].idx);
-          B->blocks[rbi][i][j].idx    = NULL;
-          free(B->blocks[rbi][i][j].val);
-          B->blocks[rbi][i][j].val    = tmp_val_ptr;
-          B->blocks[rbi][i][j].sz     = B->bwidth;
-          B->blocks[rbi][i][j].dense  = 1;
-        }
       }
     }
   }

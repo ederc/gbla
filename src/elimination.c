@@ -8,7 +8,7 @@
 #define DDEBUG_D_ONE 0
 #define DENSE_MULTILINE_C_AFTER_ELIM  0
 
-#define TASKS 1
+#define TASKS 0
 
 // global variables for echelonization of D
 static omp_lock_t echelonize_lock;

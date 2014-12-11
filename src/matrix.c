@@ -500,13 +500,21 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
         B->blocks[rbi][bir][lib].sz++;
       }
       if (free_memory == 1) {
+        printf("%d destructs? %d\n",i,A->ml[i].sz);
         free(A->ml[i].idx);
-        A->ml[i].idx  = NULL;
+        //A->ml[i].idx  = NULL;
         free(A->ml[i].val);
-        A->ml[i].val  = NULL;
+        //A->ml[i].val  = NULL;
       }
     }
   }
+  if (free_memory == 1) {
+    free(A->ml);
+    A->ml = NULL;
+    free(A);
+    A = NULL;
+  }
+  A_in  = &A;
   // hybrid multirows for the righthand side block matrices?
   if (B->hr) {
 #pragma omp parallel num_threads(nthrds)
@@ -587,12 +595,5 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
       }
     }
   }
-  if (free_memory == 1) {
-    free(A->ml);
-    A->ml = NULL;
-    free(A);
-    A = NULL;
-  }
-  A_in  = &A;
   return B;
 }
