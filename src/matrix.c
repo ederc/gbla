@@ -500,7 +500,6 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
         B->blocks[rbi][bir][lib].sz++;
       }
       if (free_memory == 1) {
-        printf("%d destructs? %d\n",i,A->ml[i].sz);
         free(A->ml[i].idx);
         //A->ml[i].idx  = NULL;
         free(A->ml[i].val);
