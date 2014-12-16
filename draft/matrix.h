@@ -30,7 +30,7 @@ typedef struct CSR_pol {
 typedef struct CSR_zo {
 	uint32_t row;
 	uint32_t col;
-	uint64_t nnz ; /* this is start_zo[row], I only it were c++ */
+	uint64_t nnz ; /* this is start_zo[row] */
 	uint64_t * start_zo ;
 	uint32_t * colid_zo ;
 	uint32_t * map_zo_pol ;
@@ -73,14 +73,17 @@ void appendRowUnit(CSR_zo * mat
 {
 	uint64_t old = mat->start_zo[mat->row] ;
 	mat->nnz = old + size;
+	/* XXX this may be slow */
 	SAFE_REALLOC(mat->colid_zo,mat->nnz,uint32_t);
 	uint64_t i = 0 ;
 	for ( ; i < size ; ++i) {
 		mat->colid_zo[old+i] = colid[i] ;
 	}
 	mat->row ++ ;
+	/* XXX this may be slow */
 	SAFE_REALLOC(mat->start_zo,mat->row+1,uint64_t);
 	mat->start_zo[mat->row] = mat->nnz  ;
+	/* XXX this may be slow */
 	SAFE_REALLOC(mat->map_zo_pol,mat->row,uint32_t);
 	mat->map_zo_pol[mat->row-1] = pol;
 }
@@ -97,10 +100,16 @@ typedef struct GBMatrix_t {
 } GBMatrix_t;
 
 
+const CSR_zo * getLastMatrixConst(const GBMatrix_t * A)
+{
+	return &(A->matrix_zo[A->matrix_nb-1]);
+}
+
 CSR_zo * getLastMatrix(GBMatrix_t * A)
 {
 	return &(A->matrix_zo[A->matrix_nb-1]);
 }
+
 
 typedef struct DenseMatrix_t {
 	uint32_t row ;
