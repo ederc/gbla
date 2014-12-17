@@ -84,7 +84,7 @@ OBJ$(opt):
 
 
 $(RUN)$(dbg): $(RUN).c
-	#  make LIBS$(dbg) ;
+	make LIBS$(dbg) ;
 	make OBJ$(dbg)  ;
 	gcc $(DBG) $(PRF) $(WAR) $(FFLAS_LIBS) $(RED)$(dbg).o $(RUN).c -o $(RUN)$(dbg) -lm -lstdc++
 

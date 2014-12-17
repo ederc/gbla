@@ -386,6 +386,7 @@ uint32_t * readFileSplit(
 uint32_t RowReduce_int32_t ( int32_t p, int32_t * A, uint32_t m, uint32_t n, uint32_t lda) ;
 uint32_t RowReduce_double  ( double p, double * A, uint32_t m, uint32_t n, uint32_t lda) ;
 void     Freduce_double(double p, double * A, uint32_t n);
+void     Finit_double  (double p, const double * A, double * B, uint32_t n);
 int cblas_daxpy(const int N, const double alpha, const double * X, const int incX, double * Y, const int incY);
 
 void reduce( GBMatrix_t * A
@@ -496,6 +497,57 @@ void reduce( GBMatrix_t * A
 			}                                                                */
 			Mjoin(Freduce,elem_t)(p,D->data+(i_offset+i)*ldd, B->col) ;
 		}
+	}
+}
+
+void reduce_fast( GBMatrix_t * A
+		, DenseMatrix_t * B
+		/* , GBMatrix_t * Bt */
+		, GBMatrix_t * C
+		, DenseMatrix_t * D )
+{
+	int32_t blk = A->matrix_nb-1 ;
+	assert(blk == 0);
+	uint32_t ldb = B->col ;
+	uint32_t ldd = D->col ;
+	uint32_t N = B->col ;
+	elem_t p = A->mod ;
+	CSR_zo * Ad = &(A->matrix_zo[blk]);
+	CSR_zo * Cd = &(C->matrix_zo[blk]);
+	elem_t * Bd = B->data ;
+	elem_t * Dd = D->data ;
+
+	SAFE_MALLOC_DECL(temp_D,D->col,elem_t);
+	uint32_t i ;
+	assert(Cd->row == D->row);
+	assert(Cd->col == A->col);
+	assert(D->col == B->col);
+	SAFE_MALLOC_DECL(temp_C,Cd->col,elem_t);
+	for (i = 0 ; i < Cd->row ; ++i) {
+		uint64_t jz  ;
+		for ( jz = 0 ; jz < Cd->col ; ++jz)
+			temp_C[jz] = 0. ;
+		for ( jz = Cd->start_zo[i] ; jz < Cd->start_zo[i+1] ; ++jz) {
+			assert(Cd->colid_zo[jz]<Cd->col);
+			temp_C[Cd->colid_zo[jz]] = Cd->data[jz] ;
+		}
+		cblas_dcopy(D->col,Dd+i*ldd,1,temp_D,1);
+
+		uint32_t j ;
+		for ( j = 0 ; j < Cd->col ; ++j) {
+			elem_t tc = Mjoin(fmod,elem_t)(-temp_C[j],p) ;
+			if (tc != 0) {
+				/* temp_C -= temp_C[j] * A[j] */
+				for ( jz = Ad->start_zo[j] ; jz < Ad->start_zo[j+1] ; ++jz) {
+					assert(Ad->colid_zo[jz]<Ad->col);
+					temp_C[Ad->colid_zo[jz]] += tc * Ad->data[jz] ;
+				}
+
+				/* temp_D -= temp_C[j] * B[j] */
+				cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1);
+			}
+		}
+		Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ;
 	}
 }
 

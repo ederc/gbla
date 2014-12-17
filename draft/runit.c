@@ -7,8 +7,8 @@
 
 int main(int ac, char **av) {
 
-	if (ac != 2) {
-		fprintf(stderr,"usage %s nom_fichier\n",av[0]);
+	if (ac < 2 || ac > 3) {
+		fprintf(stderr,"usage %s nom_fichier in new rev sorted format [1|0] (1 if reduce)]\n",av[0]);
 		return -1;
 	}
 
@@ -18,6 +18,11 @@ int main(int ac, char **av) {
 	gettimeofday(&start,NULL);
 
 	FILE * fh = fopen(av[1],"r") ;
+	int red = 0 ;
+	if (ac == 3) {
+		red = atoi(av[2]);
+		assert(red == 1 || red == 0);
+	}
 	uint32_t * col_perm;
 
 	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
@@ -43,7 +48,12 @@ int main(int ac, char **av) {
 
 	gettimeofday(&start,NULL);
 
-	reduce(A,B,C,D);
+	if (red == 1) {
+		reduce(A,B,C,D);
+	}
+	else {
+		reduce_fast(A,B,C,D);
+	}
 
 	gettimeofday(&end,NULL);
 

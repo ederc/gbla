@@ -7,6 +7,7 @@ extern "C" {
 uint32_t RowReduce_int32_t ( int32_t p, int32_t * A, uint32_t m, uint32_t n, uint32_t lda) ;
 uint32_t RowReduce_double  ( double p, double * A, uint32_t m, uint32_t n, uint32_t lda) ;
 void     Freduce_double(double p, double * A, uint32_t n);
+void     Finit_double  (double p, const double * A, double * B, uint32_t n);
 
 #ifdef __cplusplus
 }
@@ -46,4 +47,10 @@ void Freduce_double(double p, double * A, uint32_t n)
 {
 	FFPACK::Modular<double> F(p);
 	FFLAS::freduce(F,n,A,1);
+}
+
+void Finit_double(double p, const double * A, double * B, uint32_t n)
+{
+	FFPACK::Modular<double> F(p);
+	FFLAS::finit(F,n,A,1,B,1);
 }
