@@ -1,10 +1,10 @@
 DBG=-O0 -g
 WAR=-Wall -Wextra -ansi
-OPT=-march=native -O3 -DNDEBUG -UDEBUG
+OPT=-march=native -O3 -DNDEBUG -UDEBUG  -flto
 NEW=-D_PROPOSED_FORMAT
 LIB=-lm
-PRF=-pg
-#  PRF=
+#  PRF=-pg
+PRF=
 
 TST=dumb_write
 TGT=dump_matrix

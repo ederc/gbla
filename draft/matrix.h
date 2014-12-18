@@ -250,20 +250,5 @@ void printPoly(CSR_pol * P)
 }
 
 
-void checkMat(GBMatrix_t *A)
-{
-#ifndef NDEBUG
-	uint32_t row = 0 ;
-	uint32_t nnz = 0 ;
-	uint32_t i = 0 ;
-	for ( ; i < A->matrix_nb ; ++i) {
-		row += A->matrix_zo[i].row;
-		nnz += A->matrix_zo[i].nnz;
-	}
-	assert (nnz == A->nnz);
-	assert (row == A->row);
-#endif
-}
-
 #endif /* __GB_matrix_H */
 /* vim: set ft=c: */

@@ -23,7 +23,9 @@ int main(int ac, char **av) {
 		red = atoi(av[2]);
 		assert(red == 1 || red == 0);
 	}
+#if 0
 	uint32_t * col_perm;
+#endif
 
 	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
 	SAFE_MALLOC_DECL(B,1,DenseMatrix_t);
@@ -35,8 +37,10 @@ int main(int ac, char **av) {
 	init(C);
 	/* init(D); */
 
-
-	col_perm = readFileSplit(A,B,C,D,fh);
+#if 0
+	col_perm =
+#endif
+		readFileSplit(A,B,C,D,fh);
 
 	gettimeofday(&end,NULL);
 
