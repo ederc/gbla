@@ -474,7 +474,6 @@ void reduce( GBMatrix_t * A
 #if 1
 			for ( jz = Cd->start_zo[i]; jz < Cd->start_zo[i+1] ; ++jz ) {
 				k = Cd->colid_zo[jz];
-				/* cblas_daxpy */
 				cblas_daxpy(B->col,-Cd->data[jz],B->data+k*ldb,1,D->data+(i_offset+i)*ldd,1);
 				/* for ( j = 0 ; j < B->col ; ++j) {
 					D->data[(i_offset+i)*ldd+j] -= ( Cd->data[jz] * B->data[k*ldb+j] ) ;
@@ -498,6 +497,16 @@ void reduce( GBMatrix_t * A
 	}
 }
 
+
+void spaxpy(elem_t tc, const elem_t * A, const uint32_t nb, const uint32_t * colid, elem_t * B)
+{
+	uint32_t jz ;
+	for (jz = 0 ; jz < nb ; ++jz) {
+		B[colid[jz]] += tc * A[jz] ;
+	}
+}
+
+
 void reduce_fast( GBMatrix_t * A
 		, DenseMatrix_t * B
 		, GBMatrix_t * C
@@ -512,9 +521,37 @@ void reduce_fast( GBMatrix_t * A
 	CSR_zo * Cd = &(C->matrix_zo[blk]);
 	elem_t * Bd = B->data ;
 	elem_t * Dd = D->data ;
+	uint32_t i ;
+
+	/* XXX convert B to sparse */
+	SAFE_MALLOC_DECL(Bsp,1,CSR_zo);
+
+	Bsp->row=B->row;
+	Bsp->col=B->col;
+	Bsp->nnz=0;
+	SAFE_CALLOC(Bsp->start_zo,Bsp->row+1,uint64_t);
+	Bsp->start_zo[0] = 0 ;
+	SAFE_MALLOC(Bsp->colid_zo,Bsp->row*Bsp->col,uint32_t);
+	SAFE_MALLOC(Bsp->data,Bsp->row*Bsp->col,elem_t);
+	for ( i = 0 ; i < Bsp ->row ; ++i) {
+		uint32_t j ;
+		for (j = 0 ; j < Bsp->col ; ++j) {
+			if (Bd[i*ldb+j] != 0) {
+				Bsp->start_zo[i+1] +=1 ;
+				Bsp->colid_zo[Bsp->nnz] = j ;
+				Bsp->data[Bsp->nnz] = Bd[i*ldb+j] ;
+				Bsp->nnz += 1;
+			}
+		}
+	}
+	for ( i = 0 ; i < Bsp ->row ; ++i) {
+		Bsp->start_zo[i+1] +=Bsp->start_zo[i] ;
+	}
+	SAFE_REALLOC(Bsp->colid_zo,Bsp->nnz,uint32_t);
+	SAFE_REALLOC(Bsp->data,Bsp->nnz,elem_t);
+
 
 	SAFE_MALLOC_DECL(temp_D,D->col,elem_t);
-	uint32_t i ;
 	assert(Cd->row == D->row);
 	assert(Cd->col == A->col);
 	assert(D->col == B->col);
@@ -535,13 +572,15 @@ void reduce_fast( GBMatrix_t * A
 			elem_t tc = Mjoin(fmod,elem_t)(-temp_C[j],p) ;
 			if (tc != (elem_t)0) {
 				/* temp_C -= temp_C[j] * A[j] */
-				for ( jz = Ad->start_zo[j] ; jz < Ad->start_zo[j+1] ; ++jz) {
-					assert(Ad->colid_zo[jz]<Ad->col);
-					temp_C[Ad->colid_zo[jz]] += tc * Ad->data[jz] ;
-				}
+				spaxpy(tc,Ad->data+Ad->start_zo[j],Ad->start_zo[j+1]-Ad->start_zo[j],
+						Ad->colid_zo+Ad->start_zo[j],temp_C);
 
 				/* temp_D -= temp_C[j] * B[j] */
-				cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1);
+
+				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
+				spaxpy(tc,Bsp->data+Bsp->start_zo[j],Bsp->start_zo[j+1]-Bsp->start_zo[j],
+						Bsp->colid_zo+Bsp->start_zo[j],temp_D);
+
 			}
 		}
 		/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */

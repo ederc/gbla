@@ -3,10 +3,12 @@
 
 #include <sys/time.h>
 #include "io.h"
+#include <omp.h>
 
 
 int main(int ac, char **av) {
 
+	/* omp_set_numthreads(1); */
 	if (ac < 2 || ac > 3) {
 		fprintf(stderr,"usage %s nom_fichier in new rev sorted format [1|0] (1 if reduce)]\n",av[0]);
 		return -1;
@@ -79,7 +81,7 @@ int main(int ac, char **av) {
 	fprintf(stderr," ECHELON time         : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
 				           +(double)(end.tv_usec - start.tv_usec)/1e6));
 
-	fprintf(stderr,"  -- result           : %u\n",r+A->row);
+	fprintf(stderr,"  -- result           : %u\n",r);
 
 	fprintf(stderr," TOTAL   time         : %.3f s\n", ((double)(end.tv_sec - aa.tv_sec)
 				           +(double)(end.tv_usec - aa.tv_usec)/1e6));
