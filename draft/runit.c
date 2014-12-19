@@ -2,17 +2,62 @@
 
 
 #include <sys/time.h>
+#include <string.h>
 #include "io.h"
-#include <omp.h>
+/* #include <omp.h> */
+
+
+void usage(char * nom) {
+		fprintf(stderr,"usage %s [-r] (if reduce) nom_fichier in new rev sorted format  ]\n",nom);
+}
+
+FILE* ouvrir(char* a,char* b)
+{
+	if ( (strcmp(a,"-") == 0) && (strcmp(b,"r") == 0) )
+		return stdin;
+	else
+	{
+		FILE *f=fopen(a,b);
+		if (!f)
+		{
+			fprintf(stderr,"Can't open %s\n",a);
+			exit(1);
+		}
+		return f;
+	}
+}
+
 
 
 int main(int ac, char **av) {
 
 	/* omp_set_numthreads(1); */
-	if (ac < 2 || ac > 3) {
-		fprintf(stderr,"usage %s nom_fichier in new rev sorted format [1|0] (1 if reduce)]\n",av[0]);
+	if (ac < 2 ) {
+		usage(av[0]);
 		return -1;
 	}
+
+	int red = 0 ;
+
+	if (ac > 1 && ( (strcmp(av[1],"-h") == 0) ||(strcmp(av[1],"--help") == 0) || (strcmp(av[1],"-?") == 0) ) ) {
+		usage(av[0]);
+		return -1;
+	}
+
+	if (ac > 1 &&  (strcmp(av[1],"-r") == 0)) {
+		red = 1 ;
+		ac-- ;
+		av++ ;
+	}
+
+	if (ac < 1) {
+		usage(av[0]);
+		return -1 ;
+	}
+
+	char * fic = av[1] ;
+
+	FILE * fh = ouvrir(fic,"r");
 
 	struct timeval start,end ;
 	struct timeval aa ;
@@ -21,12 +66,6 @@ int main(int ac, char **av) {
 	gettimeofday(&start,NULL);
 	gettimeofday(&aa,NULL);
 
-	FILE * fh = fopen(av[1],"r") ;
-	int red = 0 ;
-	if (ac == 3) {
-		red = atoi(av[2]);
-		assert(red == 1 || red == 0);
-	}
 #if 0
 	uint32_t * col_perm;
 #endif
