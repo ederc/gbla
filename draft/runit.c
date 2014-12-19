@@ -27,6 +27,8 @@ int main(int ac, char **av) {
 	uint32_t * col_perm;
 #endif
 
+	fprintf(stderr," reducing ? %u\n",(red==1));
+
 	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
 	SAFE_MALLOC_DECL(B,1,DenseMatrix_t);
 	SAFE_MALLOC_DECL(C,1,GBMatrix_t);

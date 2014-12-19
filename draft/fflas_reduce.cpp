@@ -9,6 +9,8 @@ uint32_t RowReduce_double  ( double p, double * A, uint32_t m, uint32_t n, uint3
 void     Freduce_double(double p, double * A, uint32_t n);
 void     Finit_double  (double p, const double * A, double * B, uint32_t n);
 
+// #include <cblas.h>
+
 #ifdef __cplusplus
 }
 #endif
