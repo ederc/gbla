@@ -1,8 +1,8 @@
 #include <stdint.h>
 
 
-#include "io.h"
 #include <sys/time.h>
+#include "io.h"
 
 
 int main(int ac, char **av) {
@@ -13,9 +13,11 @@ int main(int ac, char **av) {
 	}
 
 	struct timeval start,end ;
+	struct timeval aa ;
 
 	/* READ and SPLIT  */
 	gettimeofday(&start,NULL);
+	gettimeofday(&aa,NULL);
 
 	FILE * fh = fopen(av[1],"r") ;
 	int red = 0 ;
@@ -46,7 +48,7 @@ int main(int ac, char **av) {
 
 	gettimeofday(&end,NULL);
 
-	fprintf(stderr," LOAD time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
+	fprintf(stderr," LOAD    time         : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
 				           +(double)(end.tv_usec - start.tv_usec)/1e6));
 
 
@@ -63,19 +65,24 @@ int main(int ac, char **av) {
 
 	gettimeofday(&end,NULL);
 
-	fprintf(stderr," REDUCE  time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
+	fprintf(stderr," REDUCE  time         : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
 				           +(double)(end.tv_usec - start.tv_usec)/1e6));
 
 	gettimeofday(&start,NULL);
 
 	/* ECHELON */
 
-	echelonD(A,D);
+	uint32_t r = echelonD(A,D);
 
 	gettimeofday(&end,NULL);
 
-	fprintf(stderr," ECHELON time : %.3f\n", ((double)(end.tv_sec - start.tv_sec)
+	fprintf(stderr," ECHELON time         : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
 				           +(double)(end.tv_usec - start.tv_usec)/1e6));
+
+	fprintf(stderr,"  -- result           : %u\n",r+A->row);
+
+	fprintf(stderr," TOTAL   time         : %.3f s\n", ((double)(end.tv_sec - aa.tv_sec)
+				           +(double)(end.tv_usec - aa.tv_usec)/1e6));
 
 
 	return 0;

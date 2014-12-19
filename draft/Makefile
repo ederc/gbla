@@ -80,7 +80,7 @@ OBJ$(dbg):
 
 
 LIBS$(opt): $(RED).cpp
-	g++ $(OPT) $(PRF) $(WAR) $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(opt).o
+	g++ $(OPT) $(PRF)  $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(opt).o
 OBJ$(opt):
 	gcc $(OPT) $(PRF) $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(opt).o
 

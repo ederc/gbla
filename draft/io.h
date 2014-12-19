@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <sys/time.h>
 
 #include "matrix.h"
 #include "field_ops.h"
@@ -55,7 +56,7 @@ uint32_t getSparsestRows(uint32_t * colid
 		}
 	}
 
-	fprintf(stderr,"k dim will be : %u\n",k_dim);
+	fprintf(stderr,"  -- number of pivots : %u\n",k_dim);
 	return k_dim ;
 }
 
@@ -289,7 +290,7 @@ uint32_t * readFileSplit(
 	assert(mod > 1);
 	SAFE_READ_DECL_V(nnz,uint64_t,fh);
 
-	fprintf(stderr," Mat is %u x %u (sparsity : %f) mod %lu\n",m,n,(double)(nnz)/(double)(m*n),(int64_t)mod);
+	fprintf(stderr," Mat is %u x %u (sparsity : %f) mod %lu\n",m,n,(double)(nnz)/((double)m*(double)n),(int64_t)mod);
 
 	A_init->col = C_init->col = n ;
 	A_init->mod = C_init->mod = mod ;
@@ -305,6 +306,10 @@ uint32_t * readFileSplit(
 	SAFE_READ_DECL_V(colid_size,uint64_t,fh);
 	SAFE_READ_DECL_P(buffer,colid_size,uint32_t,fh); /* buffer has the matrix */
 	SAFE_MALLOC_DECL(colid_zo,nnz,uint32_t); /* colid expands buffer */
+
+	struct timeval start,end ;
+	gettimeofday(&start,NULL);
+
 
 	expandColid(buffer,colid_size,colid_zo
 #ifndef NDEBUG
@@ -330,6 +335,13 @@ uint32_t * readFileSplit(
 	SAFE_REALLOC(pivots,pivots_size,uint32_t);
 	SAFE_REALLOC(nonpiv,nonpiv_size,uint32_t);
 
+	gettimeofday(&end,NULL);
+
+	fprintf(stderr,"  >> introspect       : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
+				           +(double)(end.tv_usec - start.tv_usec)/1e6));
+
+	gettimeofday(&start,NULL);
+
 	splitHorizontal(A_init,C_init,colid_zo,start_zo,m
 #ifndef NDEBUG
 			,nnz
@@ -343,6 +355,12 @@ uint32_t * readFileSplit(
 
 	assert(nnz == A_init->nnz + C_init->nnz);
 
+	gettimeofday(&end,NULL);
+
+	fprintf(stderr,"  >> split horizontal : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
+				+(double)(end.tv_usec - start.tv_usec)/1e6));
+
+
 
 	/* size of nnz for pols: */
 	SAFE_READ_V(polys->nb,uint32_t,fh);
@@ -352,9 +370,17 @@ uint32_t * readFileSplit(
 
 	/* XXX what if elem_s == elem_t ??? */
 	SAFE_READ_DECL_P(polys_vals_pol,polys->start_pol[polys->nb],elem_s,fh);
+
+	gettimeofday(&start,NULL);
 	SAFE_MEMCPY_CVT(polys->vals_pol,elem_t,polys_vals_pol,polys->start_pol[polys->nb]);
 
 	splitVertical(A_init,C_init,nonpiv,nonpiv_size,polys,A,B,C,D);
+
+	gettimeofday(&end,NULL);
+
+	fprintf(stderr,"  >> split vertical   : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
+				+(double)(end.tv_usec - start.tv_usec)/1e6));
+
 
 	return nonpiv ;
 }
@@ -507,7 +533,7 @@ void reduce_fast( GBMatrix_t * A
 		uint32_t j ;
 		for ( j = 0 ; j < Cd->col ; ++j) {
 			elem_t tc = Mjoin(fmod,elem_t)(-temp_C[j],p) ;
-			if (tc != 0) {
+			if (tc != (elem_t)0) {
 				/* temp_C -= temp_C[j] * A[j] */
 				for ( jz = Ad->start_zo[j] ; jz < Ad->start_zo[j+1] ; ++jz) {
 					assert(Ad->colid_zo[jz]<Ad->col);
@@ -524,13 +550,15 @@ void reduce_fast( GBMatrix_t * A
 	Mjoin(Freduce,elem_t)(p, Dd, D->col*D->row) ;
 }
 
-void echelonD( GBMatrix_t * A
+uint32_t echelonD( GBMatrix_t * A
 	     , DenseMatrix_t * D)
 {
 
 	uint32_t r = Mjoin(RowReduce,elem_t)(D->mod,D->data,D->row,D->col,D->col);
 
-	fprintf(stderr,"result : %u\n",r+A->row);
+	fprintf(stderr,"  -- residual rank    : %u\n",r);
+
+	return r + A->row;
 }
 
 #endif /* __GB_io_H */
