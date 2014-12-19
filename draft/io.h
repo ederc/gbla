@@ -410,91 +410,50 @@ void reduce( GBMatrix_t * A
 	 *
 	 */
 	int32_t blk = A->matrix_nb-1 ;
+	assert(blk == 0);
 	uint32_t ldb = B->col ;
 	uint32_t N = B->col ;
 	elem_t p = A->mod ;
-	for ( ; blk >=0  ; --blk) {
-		CSR_zo * Ad = & (A->matrix_zo[blk]);
-		uint32_t M = Ad->row ;
-		int32_t i = M -1;
-		/* B = A^(-1) B */
-		uint64_t i_offset = blk * MAT_ROW_BLOCK;
-		for ( ; i >= 0 ; --i) {
-			uint64_t jz   ;
-			assert( (elem_t)-1<1); /* unsigned will fail */
-#if 1
-			for ( jz = Ad->start_zo[i]+1 ; jz < Ad->start_zo[i+1] ; ++jz) {
-				uint64_t j = Ad->colid_zo[jz];
-				cblas_daxpy(N,-Ad->data[jz],B->data+j*ldb,1,B->data+(i_offset+i)*ldb,1);
-#if 0 /* safe */
-				for ( k = 0 ; k < N ; ++k) {
-					B->data[(i_offset+i)*ldb+k] -=  Ad->data[jz] * B->data[j*ldb+k] ;;
-				}
-#endif
-			}
-#else
-			for ( k = 0 ; k < N ; ++k) {
-				for ( jz = Ad->start_zo[i]+1 ; jz < Ad->start_zo[i+1] ; ++jz) {
-					uint64_t j = Ad->colid_zo[jz];
-					B->data[(i_offset+i)*ldb+k] -=  Ad->data[jz] * B->data[j*ldb+k] ;;
-				}
-			}
-
-#endif
-			Mjoin(Freduce,elem_t)(p,B->data+(i_offset+i)*ldb,N);
-#if 0 /* safe */
-			for ( k = 0 ; k < N ; ++k) {
-				Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ;
-			}
-#endif
-#if 1
-			assert(Ad->data[Ad->start_zo[i]] == 1);
-#else
-			elem_t d = Ad->data[Ad->start_zo[i]] ;
-			elem_t di = Mjoin(invert,double)(d,p);
-			k = 0;
-			for ( ; k < N ; ++k) {
-				B->data[(i_offset+i)*ldb+k] *= di ;
-				Mjoin(fmodin,elem_t)(B->data+(i_offset+i)*ldb+k, p) ;
-			}
-#endif
+	/* for ( ; blk >=0  ; --blk) { */
+	CSR_zo * Ad = & (A->matrix_zo[blk]);
+	uint32_t M = Ad->row ;
+	int32_t i = M -1;
+	/* B = A^(-1) B */
+	uint64_t i_offset = blk * MAT_ROW_BLOCK;
+	uint64_t jz,k   ;
+	/* uint64_t zzz  ;
+	for ( zzz = 0, i = 0 ; i < B->row * B->col ; ++i) if (B->data[i] != 0) zzz ++ ;
+	fprintf(stderr,"avant : %f\n",(double)zzz/(double)B->row/(double)B->col);          */
+	for ( i = M-1 ; i >= 0 ; --i) {
+		assert( (elem_t)-1<1); /* unsigned will fail */
+		for ( jz = Ad->start_zo[i]+1 ; jz < Ad->start_zo[i+1] ; ++jz) {
+			k = Ad->colid_zo[jz];
+			cblas_daxpy(N,-Ad->data[jz],B->data+k*ldb,1,B->data+(i_offset+i)*ldb,1);
 		}
+		Mjoin(Freduce,elem_t)(p,B->data+(i_offset+i)*ldb,N);
+		assert(Ad->data[Ad->start_zo[i]] == 1);
 	}
+	/* } */
+	/* for ( zzz = 0, i = 0 ; i < B->row * B->col ; ++i) if (B->data[i] != 0) zzz ++ ;
+	fprintf(stderr,"après: %f\n",(double)zzz/(double)B->row/(double)B->col);          */
+
 
 	blk = C->matrix_nb-1 ;
-	for ( ; blk >=0  ; --blk) {
-		CSR_zo * Cd = &(C->matrix_zo[blk]);
-		uint32_t i_offset = blk * MAT_ROW_BLOCK;
-		int32_t i  ;
-		uint32_t ldd = D->col ;
-		/* D = D - C . B */
-		assert( (elem_t)-1<1); /* unsigned will fail */
-		uint64_t jz,k  ;
-		for ( i = 0 ; i < (int32_t)Cd->row ;  ++i) {
-#if 1
-			for ( jz = Cd->start_zo[i]; jz < Cd->start_zo[i+1] ; ++jz ) {
-				k = Cd->colid_zo[jz];
-				cblas_daxpy(B->col,-Cd->data[jz],B->data+k*ldb,1,D->data+(i_offset+i)*ldd,1);
-				/* for ( j = 0 ; j < B->col ; ++j) {
-					D->data[(i_offset+i)*ldd+j] -= ( Cd->data[jz] * B->data[k*ldb+j] ) ;
-				}                                                                               */
-			}
-#else
-			for ( j = 0 ; j < B->col ; ++j) {
-				for ( jz = Cd->start_zo[i]; jz < Cd->start_zo[i+1] ; ++jz ) {
-				k = Cd->colid_zo[jz];
-					D->data[(i_offset+i)*ldd+j] -= ( Cd->data[jz] * B->data[k*ldb+j] ) ;
-				}
-			}
-#endif
-			Mjoin(Freduce,elem_t)(p,D->data+(i_offset+i)*ldd, B->col) ;
-#if 0 /* safe */
-			for ( j = 0 ; j < B->col ; ++j) {
-				Mjoin(fmodin,elem_t)(D->data+(i_offset+i)*ldd+j, p) ;
-			}
-#endif
+	assert(blk == 0 );
+	/* for ( ; blk >=0  ; --blk) { */
+	CSR_zo * Cd = &(C->matrix_zo[blk]);
+	i_offset = blk * MAT_ROW_BLOCK;
+	uint32_t ldd = D->col ;
+	/* D = D - C . B */
+	assert( (elem_t)-1<1); /* unsigned will fail */
+	for ( i = 0 ; i < (int32_t)Cd->row ;  ++i) {
+		for ( jz = Cd->start_zo[i]; jz < Cd->start_zo[i+1] ; ++jz ) {
+			k = Cd->colid_zo[jz];
+			cblas_daxpy(N,-Cd->data[jz],B->data+k*ldb,1,D->data+(i_offset+i)*ldd,1);
 		}
+		Mjoin(Freduce,elem_t)(p,D->data+(i_offset+i)*ldd, N) ;
 	}
+	/* } */
 }
 
 
