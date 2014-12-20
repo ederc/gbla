@@ -57,6 +57,7 @@ taille_t getSparsestRows(
 		}
 	}
 
+	free(creux_v);
 	fprintf(stderr,"  -- number of pivots : %u\n",k_dim);
 	return k_dim ;
 }
@@ -205,7 +206,6 @@ void splitVerticalUnit(
 	}
 #ifndef NDEBUG
 	checkMatUnit(A_k);
-#endif
 
 	for (i = 0 ; i < A_k->row ; ++i) {
 		for (jz = A_k->start_zo[i] ; jz < A_k->start_zo[i+1] ; ++jz) {
@@ -213,6 +213,7 @@ void splitVerticalUnit(
 			assert(k < A_k->col);
 		}
 	}
+#endif
 
 	for (i = 0 ; i < A_k->row ; ++i) {
 #ifndef NDEBUG
@@ -364,6 +365,8 @@ taille_t * readFileSplit(
 
 	/* taille_t k_split = */ createPivots(pivots,&pivots_size,nonpiv,&nonpiv_size,k_dim,pivots_data,n);
 
+	free(pivots_data);
+
 	assert(k_dim >= pivots_size);
 	assert(n-k_dim >= nonpiv_size);
 
@@ -388,6 +391,9 @@ taille_t * readFileSplit(
 #endif
 
 	free(pivots);
+	free(start_zo);
+	free(map_zo_pol);
+	free(colid_zo);
 
 	A_init->row = k_dim;
 	C_init->row = m - k_dim;
@@ -421,6 +427,7 @@ taille_t * readFileSplit(
 				+(double)(end.tv_usec - start.tv_usec)/1e6));
 
 
+	free(polys);
 	return nonpiv ;
 }
 

@@ -254,7 +254,8 @@ void printPoly(CSR_pol * P)
 void checkMatUnit(const CSR_zo *Ak)
 {
 
-	assert(Ak);
+	if (Ak == NULL) exit(-1);
+#ifndef NDEBUG
 	taille_t i = 0 ;
 	index_t jz = 0 ;
 	assert(Ak->start_zo[0] == 0);
@@ -267,11 +268,14 @@ void checkMatUnit(const CSR_zo *Ak)
 	}
 	assert(Ak->start_zo[Ak->row] == Ak->nnz);
 
+#endif
 	fprintf(stderr,"ok\n");
 }
 
 void checkMat(const GBMatrix_t *A)
 {
+	if (A == NULL) exit(-1);
+#ifndef NDEBUG
 	taille_t row = 0 ;
 	index_t nnz = 0 ;
 	taille_t i = 0 ;
@@ -286,6 +290,7 @@ void checkMat(const GBMatrix_t *A)
 
 	const CSR_zo * Ak = &(A->matrix_zo[0]);
 	checkMatUnit(Ak);
+#endif
 
 }
 
