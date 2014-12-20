@@ -256,7 +256,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 		uint32_t j1 = A_k->start_zo[i+1] ;
 		uint32_t start_idx = polys->start_pol[ A_k->map_zo_pol[i] ] ;
 		/* fprintf(stderr,"row %u, poly %u, start %u\n",i,A_k->map_zo_pol[i],start_idx); */
-		MEMCPY(A_k->data+j0,polys->vals_pol+start_idx,j1-j0);
+		MEMCPY(A_k->data+j0,polys->data_pol+start_idx,j1-j0);
 		/* uint32_t jj = 0 ; for ( ; jj < j1-j0 ; ++jj) fprintf(stderr,"%u ",A_k->data[j0+jj]) ; fprintf(stderr,"\n"); */
 		/* insert_sort(&A_k->colid_zo[j0], j1-j0) ; */
 		/* insert_sort_duo_data(A_k->colid_zo+j0, j1-j0, A_k->data+j0) ; */

@@ -6,25 +6,11 @@
 #include "printer.h"
 
 
-/*
-   struct matrixFile_t {
-
-   taille_t row ;
-   taille_t col ;
-   index_t nnz ;
-   elem_t mod ;
-   taille_t * start_zo ;
-   taille_t * map_zo_pol ;
-   taille_t * colid_zo ;
-   taille_t * start_pol;
-   elem_t   * vals_pol;
-   } ;
-   */
 
 typedef struct CSR_pol {
 	taille_t nb ;
 	taille_t * start_pol ;
-	elem_t  * vals_pol ;
+	elem_t   * data_pol ;
 } CSR_pol;
 
 typedef struct CSR_zo {
@@ -243,7 +229,7 @@ void printPoly(CSR_pol * P)
 	for ( ; i < P->nb ; ++i) {
 		taille_t j = P->start_pol[i] ;
 		for ( ; j < P->start_pol[i+1] ; ++j) {
-			Mjoin(print,elem_t)(P->vals_pol[j]);
+			Mjoin(print,elem_t)(P->data_pol[j]);
 			fprintf(stderr," ");
 		}
 		fprintf(stderr,"\n");
@@ -269,7 +255,7 @@ void checkMatUnit(const CSR_zo *Ak)
 	assert(Ak->start_zo[Ak->row] == Ak->nnz);
 
 #endif
-	fprintf(stderr,"ok\n");
+	/* fprintf(stderr,"ok\n"); */
 }
 
 void checkMat(const GBMatrix_t *A)
@@ -294,6 +280,34 @@ void checkMat(const GBMatrix_t *A)
 
 }
 
+void freeMatDense(DenseMatrix_t * A)
+{
+	free(A->data);
+}
 
+void freeMatUnit(CSR_zo * A)
+{
+	free(A->start_zo);
+	free(A->colid_zo);
+	free(A->data);
+	free(A->map_zo_pol);
+	/* free(A); */
+}
+
+void freePol( CSR_pol * A)
+{
+	free (A->start_pol);
+	free (A->data_pol);
+}
+
+
+void freeMat(GBMatrix_t * A)
+{
+	taille_t i;
+	for (i=0 ; i < A->matrix_nb ; ++i) {
+		freeMatUnit(&(A->matrix_zo[i])) ;
+	}
+	free(A->matrix_zo);
+}
 #endif /* __GB_matrix_H */
 /* vim: set ft=c: */

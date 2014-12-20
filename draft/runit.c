@@ -66,9 +66,7 @@ int main(int ac, char **av) {
 	gettimeofday(&start,NULL);
 	gettimeofday(&aa,NULL);
 
-#if 0
-	uint32_t * col_perm;
-#endif
+	taille_t * col_perm;
 
 	fprintf(stderr," reducing ? %u\n",(red==1));
 
@@ -82,11 +80,9 @@ int main(int ac, char **av) {
 	init(C);
 	/* init(D); */
 
-#if 0
-	col_perm =
-#endif
-		readFileSplit(A,B,C,D,fh);
+	col_perm = readFileSplit(A,B,C,D,fh);
 
+	fclose(fh);
 	gettimeofday(&end,NULL);
 
 	fprintf(stderr," LOAD    time         : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
@@ -125,6 +121,15 @@ int main(int ac, char **av) {
 	fprintf(stderr," TOTAL   time         : %.3f s\n", ((double)(end.tv_sec - aa.tv_sec)
 				           +(double)(end.tv_usec - aa.tv_usec)/1e6));
 
+	free(col_perm);
+	freeMat(A);
+	free(A);
+	freeMat(C);
+	free(C);
+	freeMatDense(B);
+	free(B);
+	freeMatDense(D);
+	free(D);
 
 	return 0;
 }

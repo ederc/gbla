@@ -217,10 +217,10 @@ void splitVerticalUnit(
 
 	for (i = 0 ; i < A_k->row ; ++i) {
 #ifndef NDEBUG
-		checkMatUnit(A_k);
+		/* checkMatUnit(A_k); */
 #endif
 		taille_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
-		elem_t * d = polys->vals_pol+start_p ;
+		elem_t * d = polys->data_pol+start_p ;
 		for (jz = A_k->start_zo[i] ; jz < A_k->start_zo[i+1] ; ++jz) {
 			taille_t k = A_k->colid_zo[jz]  ;
 			assert(k < A_k->col);
@@ -414,10 +414,11 @@ taille_t * readFileSplit(
 	SAFE_READ_P(polys->start_pol,polys->nb+1,uint32_t,fh);
 
 	/* XXX what if elem_s == elem_t ??? */
-	SAFE_READ_DECL_P(polys_vals_pol,polys->start_pol[polys->nb],elem_s,fh);
+	SAFE_READ_DECL_P(polys_data_pol,polys->start_pol[polys->nb],elem_s,fh);
 
 	gettimeofday(&start,NULL);
-	SAFE_MEMCPY_CVT(polys->vals_pol,elem_t,polys_vals_pol,polys->start_pol[polys->nb]);
+	SAFE_MEMCPY_CVT(polys->data_pol,elem_t,polys_data_pol,polys->start_pol[polys->nb]);
+	free(polys_data_pol);
 
 	splitVertical(A_init,C_init,nonpiv,nonpiv_size,polys,A,B,C,D);
 
@@ -427,6 +428,11 @@ taille_t * readFileSplit(
 				+(double)(end.tv_usec - start.tv_usec)/1e6));
 
 
+	freeMat(A_init);
+	free(A_init);
+	freeMat(C_init);
+	free(C_init);
+	freePol(polys);
 	free(polys);
 	return nonpiv ;
 }
@@ -562,6 +568,7 @@ void reduce_fast(
 	}
 	SAFE_REALLOC(Bsp->colid_zo,Bsp->nnz,taille_t);
 	SAFE_REALLOC(Bsp->data,Bsp->nnz,elem_t);
+	Bsp->map_zo_pol = NULL ;
 
 #ifndef NDEBUG
 	checkMatUnit(Bsp);
@@ -602,7 +609,11 @@ void reduce_fast(
 		/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */
 		cblas_dcopy(D->col,temp_D,1,Dd+i*ldd,1);
 	}
+	freeMatUnit(Bsp);
+	free(Bsp);
 	Mjoin(Freduce,elem_t)(p, Dd, D->col*D->row) ;
+	free(temp_D);
+	free(temp_C);
 }
 
 taille_t echelonD(
