@@ -391,18 +391,4 @@ void permuteDNS(CSR_zo * C_k, GBMatrix_t * C, uint32_t * start_b, elem_t * data)
 }
 
 
-void checkMat(GBMatrix_t *A)
-{
-#ifndef NDEBUG
-	uint32_t row = 0 ;
-	uint32_t nnz = 0 ;
-	uint32_t i = 0 ;
-	for ( ; i < A->matrix_nb ; ++i) {
-		row += A->matrix_zo[i].row;
-		nnz += A->matrix_zo[i].nnz;
-	}
-	assert (nnz == A->nnz);
-	assert (row == A->row);
-#endif
-}
 

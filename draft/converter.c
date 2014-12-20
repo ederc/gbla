@@ -116,6 +116,7 @@ int main( int ac, char ** av)
 		/* saving element. will either be masked or next one is number
 		 * of consecutive column indexes (>=2 then) */
 		colid_zo[here] = cols[j] ;
+		assert(colid_zo[here] < n);
 		/* fprintf(stderr,"first in row %u\n", cols[j]); */
 		if ( j + 1 == start_zo[k+1] ) { /* just one element */
 			colid_zo[here++] |= NEGMASK ;
@@ -143,6 +144,7 @@ int main( int ac, char ** av)
 				/* next element to consider */
 				cons = 0 ;
 				colid_zo[++here] = cols[j];
+				assert(colid_zo[here] < n);
 			}
 			if (j + 1 == start_zo[k+1]) { /* last element in row */
 				/* fprintf(stderr,"end of row"); */

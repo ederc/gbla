@@ -9,56 +9,57 @@
 /*
    struct matrixFile_t {
 
-   uint32_t row ;
-   uint32_t col ;
-   uint64_t nnz ;
+   taille_t row ;
+   taille_t col ;
+   index_t nnz ;
    elem_t mod ;
-   uint32_t * start_zo ;
-   uint32_t * map_zo_pol ;
-   uint32_t * colid_zo ;
-   uint32_t * start_pol;
+   taille_t * start_zo ;
+   taille_t * map_zo_pol ;
+   taille_t * colid_zo ;
+   taille_t * start_pol;
    elem_t   * vals_pol;
    } ;
    */
 
 typedef struct CSR_pol {
-	uint32_t nb ;
-	uint32_t * start_pol ;
+	taille_t nb ;
+	taille_t * start_pol ;
 	elem_t  * vals_pol ;
 } CSR_pol;
 
 typedef struct CSR_zo {
-	uint32_t row;
-	uint32_t col;
-	uint64_t nnz ; /* this is start_zo[row] */
-	uint64_t * start_zo ;
-	uint32_t * colid_zo ;
-	uint32_t * map_zo_pol ;
+	taille_t row;
+	taille_t col;
+	index_t nnz ; /* this is start_zo[row] */
+	index_t  * start_zo ;
+	taille_t * colid_zo ;
+	taille_t * map_zo_pol ;
 	elem_t   * data ;
 
 } CSR_zo;
 
-uint32_t * getRow(CSR_zo * mat, uint32_t i)
+taille_t * getRow(CSR_zo * mat, taille_t i)
 {
 	return mat->colid_zo + mat->start_zo[i];
 }
 
-uint64_t size(CSR_zo * mat)
+index_t size(CSR_zo * mat)
 {
 	return mat->start_zo[mat->row] ;
 }
 
 void initUnit(CSR_zo * mat)
 {
-	if (!mat) return ;
+	/* if (!mat) return ; */
+	assert(mat);
 	mat->row=0;
 	mat->col=0;
 	mat->nnz=0;
 	/* mat->mod=0; */
-	SAFE_MALLOC(mat->start_zo,1,uint64_t);
+	SAFE_MALLOC(mat->start_zo,1,index_t);
 	mat->start_zo[0]=0;
-	/* SAFE_MALLOC(mat->colid_zo,0,uint32_t); */
-	/* SAFE_MALLOC(mat->map_zo_pol,0,uint32_t); */
+	/* SAFE_MALLOC(mat->colid_zo,0,taille_t); */
+	/* SAFE_MALLOC(mat->map_zo_pol,0,taille_t); */
 	/* SAFE_MALLOC(mat->data,0,elem_t); */
 	mat->colid_zo = NULL ;
 	mat->map_zo_pol = NULL ;
@@ -66,36 +67,36 @@ void initUnit(CSR_zo * mat)
 }
 
 void appendRowUnit(CSR_zo * mat
-		, uint32_t * colid
-		, uint64_t size
-		, uint32_t pol
+		, taille_t * colid
+		, index_t size
+		, taille_t pol
 		)
 {
-	uint64_t old = mat->start_zo[mat->row] ;
+	index_t old = mat->start_zo[mat->row] ;
 	mat->nnz = old + size;
 	/* XXX this may be slow */
-	SAFE_REALLOC(mat->colid_zo,mat->nnz,uint32_t);
-	uint64_t i = 0 ;
+	SAFE_REALLOC(mat->colid_zo,mat->nnz,taille_t);
+	index_t i = 0 ;
 	for ( ; i < size ; ++i) {
 		mat->colid_zo[old+i] = colid[i] ;
 	}
 	mat->row ++ ;
 	/* XXX this may be slow */
-	SAFE_REALLOC(mat->start_zo,mat->row+1,uint64_t);
+	SAFE_REALLOC(mat->start_zo,mat->row+1,index_t);
 	mat->start_zo[mat->row] = mat->nnz  ;
 	/* XXX this may be slow */
-	SAFE_REALLOC(mat->map_zo_pol,mat->row,uint32_t);
+	SAFE_REALLOC(mat->map_zo_pol,mat->row,taille_t);
 	mat->map_zo_pol[mat->row-1] = pol;
 }
 
 typedef struct GBMatrix_t {
 
-	uint32_t row ;
-	uint32_t col ;
-	uint64_t nnz ;
+	taille_t row ;
+	taille_t col ;
+	index_t nnz ;
 	elem_t   mod ;
-	/* uint32_t block_size ; */
-	uint32_t matrix_nb ;  /* nb of 0/1 matrices */
+	/* taille_t block_size ; */
+	taille_t matrix_nb ;  /* nb of 0/1 matrices */
 	CSR_zo  * matrix_zo ; /* 0/1 matrices reprensenting positions */
 } GBMatrix_t;
 
@@ -112,8 +113,8 @@ CSR_zo * getLastMatrix(GBMatrix_t * A)
 
 
 typedef struct DenseMatrix_t {
-	uint32_t row ;
-	uint32_t col ;
+	taille_t row ;
+	taille_t col ;
 	elem_t   mod ;
 	elem_t *  data ;
 } DenseMatrix_t ;
@@ -134,9 +135,9 @@ void appendMatrix(GBMatrix_t * A)
 }
 
 void appendRow(GBMatrix_t * A
-		, uint32_t * colid
-		, uint64_t size
-		, uint32_t pol
+		, taille_t * colid
+		, index_t size
+		, taille_t pol
 		)
 {
 	A->row += 1;
@@ -165,14 +166,14 @@ void printMatUnit(CSR_zo * A)
 {
 	fprintf(stderr,"block %u x %u - %lu",A->row, A->col,A->nnz);
 	fprintf(stderr,"\nstart:\n<");
-	uint32_t i = 0 ;
+	taille_t i = 0 ;
 	for ( ; i < A->row+1 ; ++i) {
 		fprintf(stderr,"%lu ", A->start_zo[i]);
 	}
 	fprintf(stderr,">\ncolumns\n<");
 	i = 0 ;
 	for ( ; i < A->row ; ++i) {
-		uint32_t j = A->start_zo[i] ;
+		index_t j = A->start_zo[i] ;
 		for ( ; j < A->start_zo[i+1] ; ++j) {
 			fprintf(stderr,"%u ", A->colid_zo[j]);
 		}
@@ -188,7 +189,7 @@ void printMatUnit(CSR_zo * A)
 		fprintf(stderr,">\nDATA:\n<");
 		i = 0;
 		for ( ; i < A->row ; ++i) {
-			uint32_t j = A->start_zo[i] ;
+			index_t j = A->start_zo[i] ;
 			for ( ; j < A->start_zo[i+1] ; ++j) {
 				Mjoin(print,elem_t)(A->data[j]);
 				fprintf(stderr," ");
@@ -205,7 +206,7 @@ void printMat(GBMatrix_t * A)
 	fprintf(stderr,"mod ");
 	Mjoin(print,elem_t)(A->mod);
 	fprintf(stderr,"\n");
-	uint32_t k = 0 ;
+	taille_t k = 0 ;
 	for (  ; k < A->matrix_nb ; ++k ) {
 		printMatUnit(&(A->matrix_zo[k]));
 	}
@@ -213,14 +214,14 @@ void printMat(GBMatrix_t * A)
 
 void printMatDense(DenseMatrix_t * A)
 {
-	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col, (uint64_t)A->row*(uint64_t)A->col);
+	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col, (index_t)A->row*(index_t)A->col);
 	fprintf(stderr,"mod ");
 	Mjoin(print,elem_t)(A->mod);
 	fprintf(stderr,"\n");
 
-	uint32_t i = 0 ;
+	taille_t i = 0 ;
 	for (  ; i < A->row ; ++i ) {
-		uint32_t j = 0 ;
+		taille_t j = 0 ;
 		for (  ; j < A->col ; ++j ) {
 			Mjoin(print,elem_t)(A->data[A->col*i+j]);
 			fprintf(stderr," ");
@@ -233,20 +234,59 @@ void printPoly(CSR_pol * P)
 {
 	fprintf(stderr,"polys (%u)\n",P->nb);
 	fprintf(stderr,"start\n");
-	uint32_t i = 0 ;
+	taille_t i = 0 ;
 	for ( ; i < P->nb+1 ; ++i) {
 		fprintf(stderr,"%u ", P->start_pol[i]);
 	}
 	fprintf(stderr,"\ndata:\n");
 	i = 0 ;
 	for ( ; i < P->nb ; ++i) {
-		uint32_t j = P->start_pol[i] ;
+		taille_t j = P->start_pol[i] ;
 		for ( ; j < P->start_pol[i+1] ; ++j) {
 			Mjoin(print,elem_t)(P->vals_pol[j]);
 			fprintf(stderr," ");
 		}
 		fprintf(stderr,"\n");
 	}
+}
+
+
+void checkMatUnit(const CSR_zo *Ak)
+{
+
+	assert(Ak);
+	taille_t i = 0 ;
+	index_t jz = 0 ;
+	assert(Ak->start_zo[0] == 0);
+	for ( i = 0 ; i < Ak->row ; ++i) {
+		assert(Ak->start_zo[i+1] <= Ak->nnz);
+		for (jz = Ak->start_zo[i] ; jz < Ak->start_zo[i+1] ; ++jz) {
+			taille_t k = Ak->colid_zo[jz];
+			assert(k < Ak->col);
+		}
+	}
+	assert(Ak->start_zo[Ak->row] == Ak->nnz);
+
+	fprintf(stderr,"ok\n");
+}
+
+void checkMat(const GBMatrix_t *A)
+{
+	taille_t row = 0 ;
+	index_t nnz = 0 ;
+	taille_t i = 0 ;
+	for ( ; i < A->matrix_nb ; ++i) {
+		row += A->matrix_zo[i].row;
+		nnz += A->matrix_zo[i].nnz;
+	}
+	assert (nnz == A->nnz);
+	assert (row == A->row);
+
+	assert( A->matrix_nb == 1);
+
+	const CSR_zo * Ak = &(A->matrix_zo[0]);
+	checkMatUnit(Ak);
+
 }
 
 
