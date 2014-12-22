@@ -13,28 +13,55 @@ typedef struct CSR_pol {
 	elem_t   * data_pol ;
 } CSR_pol;
 
-typedef struct CSR_zo {
+typedef struct CSR {
 	taille_t row;
 	taille_t col;
-	index_t nnz ; /* this is start_zo[row] */
-	index_t  * start_zo ;
-	taille_t * colid_zo ;
+	index_t  nnz ; /* this is start[row] */
+	index_t  * start ;
+	taille_t * colid ;
 	taille_t * map_zo_pol ;
 	elem_t   * data ;
 
-} CSR_zo;
+} CSR;
 
-taille_t * getRow(CSR_zo * mat, taille_t i)
+typedef struct GBMatrix_t {
+
+	taille_t   row ;
+	taille_t   col ;
+	index_t    nnz ;
+	elem_t     mod ;
+	taille_t   sub_nb ;  /* nb of 0/1 matrices */
+	CSR      * sub ; /* 0/1 matrices reprensenting positions */
+} GBMatrix_t;
+
+typedef struct DNS {
+	taille_t  row ;
+	taille_t  col ;
+	elem_t    mod ;
+	index_t   nnz ;
+	elem_t  * ptr ;
+} DNS ;
+
+typedef struct DenseMatrix_t {
+	taille_t   row ;
+	taille_t   col ;
+	elem_t     mod ;
+	index_t    nnz ;
+	taille_t   blk_nb ;
+	DNS      * blk ;
+} DenseMatrix_t ;
+
+taille_t * getRow(CSR * mat, taille_t i)
 {
-	return mat->colid_zo + mat->start_zo[i];
+	return mat->colid + mat->start[i];
 }
 
-index_t size(CSR_zo * mat)
+index_t size(CSR * mat)
 {
-	return mat->start_zo[mat->row] ;
+	return mat->start[mat->row] ;
 }
 
-void initUnit(CSR_zo * mat)
+void initSparseUnit(CSR * mat)
 {
 	/* if (!mat) return ; */
 	assert(mat);
@@ -42,82 +69,66 @@ void initUnit(CSR_zo * mat)
 	mat->col=0;
 	mat->nnz=0;
 	/* mat->mod=0; */
-	SAFE_MALLOC(mat->start_zo,1,index_t);
-	mat->start_zo[0]=0;
-	/* SAFE_MALLOC(mat->colid_zo,0,taille_t); */
+	SAFE_MALLOC(mat->start,1,index_t);
+	mat->start[0]=0;
+	/* SAFE_MALLOC(mat->colid,0,taille_t); */
 	/* SAFE_MALLOC(mat->map_zo_pol,0,taille_t); */
 	/* SAFE_MALLOC(mat->data,0,elem_t); */
-	mat->colid_zo = NULL ;
+	mat->colid = NULL ;
 	mat->map_zo_pol = NULL ;
 	mat->data = NULL ;
 }
 
-void appendRowUnit(CSR_zo * mat
+void appendRowUnit(CSR * mat
 		, taille_t * colid
 		, index_t size
 		, taille_t pol
 		)
 {
-	index_t old = mat->start_zo[mat->row] ;
+	index_t old = mat->start[mat->row] ;
 	mat->nnz = old + size;
 	/* XXX this may be slow */
-	SAFE_REALLOC(mat->colid_zo,mat->nnz,taille_t);
+	SAFE_REALLOC(mat->colid,mat->nnz,taille_t);
 	index_t i = 0 ;
 	for ( ; i < size ; ++i) {
-		mat->colid_zo[old+i] = colid[i] ;
+		mat->colid[old+i] = colid[i] ;
 	}
 	mat->row ++ ;
 	/* XXX this may be slow */
-	SAFE_REALLOC(mat->start_zo,mat->row+1,index_t);
-	mat->start_zo[mat->row] = mat->nnz  ;
+	SAFE_REALLOC(mat->start,mat->row+1,index_t);
+	mat->start[mat->row] = mat->nnz  ;
 	/* XXX this may be slow */
 	SAFE_REALLOC(mat->map_zo_pol,mat->row,taille_t);
 	mat->map_zo_pol[mat->row-1] = pol;
 }
 
-typedef struct GBMatrix_t {
-
-	taille_t row ;
-	taille_t col ;
-	index_t nnz ;
-	elem_t   mod ;
-	/* taille_t block_size ; */
-	taille_t matrix_nb ;  /* nb of 0/1 matrices */
-	CSR_zo  * matrix_zo ; /* 0/1 matrices reprensenting positions */
-} GBMatrix_t;
 
 
-const CSR_zo * getLastMatrixConst(const GBMatrix_t * A)
+const CSR * getLastMatrixConst(const GBMatrix_t * A)
 {
-	return &(A->matrix_zo[A->matrix_nb-1]);
+	return &(A->sub[A->sub_nb-1]);
 }
 
-CSR_zo * getLastMatrix(GBMatrix_t * A)
+CSR * getLastMatrix(GBMatrix_t * A)
 {
-	return &(A->matrix_zo[A->matrix_nb-1]);
+	return &(A->sub[A->sub_nb-1]);
 }
 
 
-typedef struct DenseMatrix_t {
-	taille_t row ;
-	taille_t col ;
-	elem_t   mod ;
-	elem_t *  data ;
-} DenseMatrix_t ;
 
 void appendMatrix(GBMatrix_t * A)
 {
-	A->matrix_nb++;
-	if (A->matrix_zo == NULL) {
-		assert(A->matrix_nb == 1);
-		SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
+	A->sub_nb++;
+	if (A->sub == NULL) {
+		assert(A->sub_nb == 1);
+		SAFE_MALLOC(A->sub,A->sub_nb,CSR);
 	}
 	else {
-		assert(A->matrix_nb > 1);
-		SAFE_REALLOC(A->matrix_zo,A->matrix_nb,CSR_zo);
+		assert(A->sub_nb > 1);
+		SAFE_REALLOC(A->sub,A->sub_nb,CSR);
 	}
-	initUnit(&(A->matrix_zo[A->matrix_nb-1]));
-	(A->matrix_zo[A->matrix_nb-1]).col = A->col ;
+	initSparseUnit(&(A->sub[A->sub_nb-1]));
+	(A->sub[A->sub_nb-1]).col = A->col ;
 }
 
 void appendRow(GBMatrix_t * A
@@ -129,39 +140,48 @@ void appendRow(GBMatrix_t * A
 	A->row += 1;
 	A->nnz += size ;
 
-	if ( ( A->matrix_nb == 0) || ((A->matrix_zo[A->matrix_nb-1]).row == MAT_ROW_BLOCK) ){
+	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLOCK) ){
 		appendMatrix(A);
 	}
 
-	appendRowUnit(&(A->matrix_zo[A->matrix_nb-1]),colid,size,pol);
+	appendRowUnit(&(A->sub[A->sub_nb-1]),colid,size,pol);
 }
 
-void init(GBMatrix_t * A)
+void initSparse(GBMatrix_t * A)
 {
 	if (!A) return;
 	A->row = 0 ;
 	A->col = 0 ;
 	A->nnz = 0 ;
-	A->matrix_nb = 0 ;
-	/* SAFE_MALLOC(A->matrix_zo,A->matrix_nb,CSR_zo); */
-	/* initUnit(A->matrix_zo); */
-	A->matrix_zo = NULL ;
+	A->sub_nb = 0 ;
+	/* SAFE_MALLOC(A->sub,A->sub_nb,CSR); */
+	/* initSparseUnit(A->sub); */
+	A->sub = NULL ;
 }
 
-void printMatUnit(CSR_zo * A)
+void initDenseUnit (DNS * A)
+{
+	A->row = 0 ;
+	A->col = 0 ;
+	A->mod = 0 ;
+	A->nnz = 0;
+	A->ptr = NULL ;
+}
+
+void printMatUnit(CSR * A)
 {
 	fprintf(stderr,"block %u x %u - %lu",A->row, A->col,A->nnz);
 	fprintf(stderr,"\nstart:\n<");
 	taille_t i = 0 ;
 	for ( ; i < A->row+1 ; ++i) {
-		fprintf(stderr,"%lu ", A->start_zo[i]);
+		fprintf(stderr,"%lu ", A->start[i]);
 	}
 	fprintf(stderr,">\ncolumns\n<");
 	i = 0 ;
 	for ( ; i < A->row ; ++i) {
-		index_t j = A->start_zo[i] ;
-		for ( ; j < A->start_zo[i+1] ; ++j) {
-			fprintf(stderr,"%u ", A->colid_zo[j]);
+		index_t j = A->start[i] ;
+		for ( ; j < A->start[i+1] ; ++j) {
+			fprintf(stderr,"%u ", A->colid[j]);
 		}
 		fprintf(stderr,"|");
 	}
@@ -175,8 +195,8 @@ void printMatUnit(CSR_zo * A)
 		fprintf(stderr,">\nDATA:\n<");
 		i = 0;
 		for ( ; i < A->row ; ++i) {
-			index_t j = A->start_zo[i] ;
-			for ( ; j < A->start_zo[i+1] ; ++j) {
+			index_t j = A->start[i] ;
+			for ( ; j < A->start[i+1] ; ++j) {
 				Mjoin(print,elem_t)(A->data[j]);
 				fprintf(stderr," ");
 			}
@@ -193,14 +213,14 @@ void printMat(GBMatrix_t * A)
 	Mjoin(print,elem_t)(A->mod);
 	fprintf(stderr,"\n");
 	taille_t k = 0 ;
-	for (  ; k < A->matrix_nb ; ++k ) {
-		printMatUnit(&(A->matrix_zo[k]));
+	for (  ; k < A->sub_nb ; ++k ) {
+		printMatUnit(&(A->sub[k]));
 	}
 }
 
-void printMatDense(DenseMatrix_t * A)
+void printMatDense(DNS * A)
 {
-	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col, (index_t)A->row*(index_t)A->col);
+	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col, A->nnz);
 	fprintf(stderr,"mod ");
 	Mjoin(print,elem_t)(A->mod);
 	fprintf(stderr,"\n");
@@ -209,7 +229,7 @@ void printMatDense(DenseMatrix_t * A)
 	for (  ; i < A->row ; ++i ) {
 		taille_t j = 0 ;
 		for (  ; j < A->col ; ++j ) {
-			Mjoin(print,elem_t)(A->data[A->col*i+j]);
+			Mjoin(print,elem_t)(A->ptr[A->col*i+j]);
 			fprintf(stderr," ");
 		}
 		fprintf(stderr,"\n");
@@ -237,22 +257,22 @@ void printPoly(CSR_pol * P)
 }
 
 
-void checkMatUnit(const CSR_zo *Ak)
+void checkMatUnit(const CSR *Ak)
 {
 
 	if (Ak == NULL) exit(-1);
 #ifndef NDEBUG
 	taille_t i = 0 ;
 	index_t jz = 0 ;
-	assert(Ak->start_zo[0] == 0);
+	assert(Ak->start[0] == 0);
 	for ( i = 0 ; i < Ak->row ; ++i) {
-		assert(Ak->start_zo[i+1] <= Ak->nnz);
-		for (jz = Ak->start_zo[i] ; jz < Ak->start_zo[i+1] ; ++jz) {
-			taille_t k = Ak->colid_zo[jz];
+		assert(Ak->start[i+1] <= Ak->nnz);
+		for (jz = Ak->start[i] ; jz < Ak->start[i+1] ; ++jz) {
+			taille_t k = Ak->colid[jz];
 			assert(k < Ak->col);
 		}
 	}
-	assert(Ak->start_zo[Ak->row] == Ak->nnz);
+	assert(Ak->start[Ak->row] == Ak->nnz);
 
 #endif
 	/* fprintf(stderr,"ok\n"); */
@@ -265,30 +285,30 @@ void checkMat(const GBMatrix_t *A)
 	taille_t row = 0 ;
 	index_t nnz = 0 ;
 	taille_t i = 0 ;
-	for ( ; i < A->matrix_nb ; ++i) {
-		row += A->matrix_zo[i].row;
-		nnz += A->matrix_zo[i].nnz;
+	for ( ; i < A->sub_nb ; ++i) {
+		row += A->sub[i].row;
+		nnz += A->sub[i].nnz;
 	}
 	assert (nnz == A->nnz);
 	assert (row == A->row);
 
-	assert( A->matrix_nb == 1);
+	assert( A->sub_nb == 1);
 
-	const CSR_zo * Ak = &(A->matrix_zo[0]);
+	const CSR * Ak = &(A->sub[0]);
 	checkMatUnit(Ak);
 #endif
 
 }
 
-void freeMatDense(DenseMatrix_t * A)
+void freeMatDense(DNS * A)
 {
-	free(A->data);
+	free(A->ptr);
 }
 
-void freeMatUnit(CSR_zo * A)
+void freeMatUnit(CSR * A)
 {
-	free(A->start_zo);
-	free(A->colid_zo);
+	free(A->start);
+	free(A->colid);
 	free(A->data);
 	free(A->map_zo_pol);
 	/* free(A); */
@@ -304,10 +324,10 @@ void freePol( CSR_pol * A)
 void freeMat(GBMatrix_t * A)
 {
 	taille_t i;
-	for (i=0 ; i < A->matrix_nb ; ++i) {
-		freeMatUnit(&(A->matrix_zo[i])) ;
+	for (i=0 ; i < A->sub_nb ; ++i) {
+		freeMatUnit(&(A->sub[i])) ;
 	}
-	free(A->matrix_zo);
+	free(A->sub);
 }
 #endif /* __GB_matrix_H */
 /* vim: set ft=c: */

@@ -59,11 +59,11 @@ int main(int ac, char **av) {
 
 	FILE * fh = ouvrir(fic,"r");
 
-	struct timeval start,end ;
+	struct timeval tic,tac ;
 	struct timeval aa ;
 
 	/* READ and SPLIT  */
-	gettimeofday(&start,NULL);
+	gettimeofday(&tic,NULL);
 	gettimeofday(&aa,NULL);
 
 	taille_t * col_perm;
@@ -71,27 +71,27 @@ int main(int ac, char **av) {
 	fprintf(stderr," reducing ? %u\n",(red==1));
 
 	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
-	SAFE_MALLOC_DECL(B,1,DenseMatrix_t);
+	SAFE_MALLOC_DECL(B,1,DNS);
 	SAFE_MALLOC_DECL(C,1,GBMatrix_t);
-	SAFE_MALLOC_DECL(D,1,DenseMatrix_t);
+	SAFE_MALLOC_DECL(D,1,DNS);
 
-	init(A);
-	/* init(Bt); */
-	init(C);
-	/* init(D); */
+	initSparse(A);
+	initDenseUnit(B);
+	initSparse(C);
+	initDenseUnit(D);
 
 	col_perm = readFileSplit(A,B,C,D,fh);
 
 	fclose(fh);
-	gettimeofday(&end,NULL);
+	gettimeofday(&tac,NULL);
 
-	fprintf(stderr," LOAD    time         : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
-				           +(double)(end.tv_usec - start.tv_usec)/1e6));
+	fprintf(stderr," LOAD    time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
+				           +(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
 
 	/* REDUCE */
 
-	gettimeofday(&start,NULL);
+	gettimeofday(&tic,NULL);
 
 	if (red == 1) {
 		reduce(A,B,C,D);
@@ -100,26 +100,26 @@ int main(int ac, char **av) {
 		reduce_fast(A,B,C,D);
 	}
 
-	gettimeofday(&end,NULL);
+	gettimeofday(&tac,NULL);
 
-	fprintf(stderr," REDUCE  time         : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
-				           +(double)(end.tv_usec - start.tv_usec)/1e6));
+	fprintf(stderr," REDUCE  time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
+				           +(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
-	gettimeofday(&start,NULL);
+	gettimeofday(&tic,NULL);
 
 	/* ECHELON */
 
 	uint32_t r = echelonD(A,D);
 
-	gettimeofday(&end,NULL);
+	gettimeofday(&tac,NULL);
 
-	fprintf(stderr," ECHELON time         : %.3f s\n", ((double)(end.tv_sec - start.tv_sec)
-				           +(double)(end.tv_usec - start.tv_usec)/1e6));
+	fprintf(stderr," ECHELON time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
+				           +(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
 	fprintf(stderr,"  -- result           : %u\n",r);
 
-	fprintf(stderr," TOTAL   time         : %.3f s\n", ((double)(end.tv_sec - aa.tv_sec)
-				           +(double)(end.tv_usec - aa.tv_usec)/1e6));
+	fprintf(stderr," TOTAL   time         : %.3f s\n", ((double)(tac.tv_sec - aa.tv_sec)
+				           +(double)(tac.tv_usec - aa.tv_usec)/1e6));
 
 	free(col_perm);
 	freeMat(A);
