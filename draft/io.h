@@ -172,7 +172,7 @@ void splitVerticalUnit(
 
 	/* Init dense */
 
-	SAFE_CALLOC(B->data,B->row*B->col,elem_t);
+	SAFE_CALLOC(B->data,(index_t)B->row*(index_t)B->col,elem_t);
 
 
 	/* Init sparse */
@@ -550,8 +550,8 @@ void reduce_fast(
 	Bsp->nnz=0;
 	SAFE_CALLOC(Bsp->start_zo,Bsp->row+1,index_t);
 	Bsp->start_zo[0] = 0 ;
-	SAFE_MALLOC(Bsp->colid_zo,Bsp->row*Bsp->col,taille_t);
-	SAFE_MALLOC(Bsp->data,Bsp->row*Bsp->col,elem_t);
+	SAFE_MALLOC(Bsp->colid_zo,(index_t)Bsp->row*(index_t)Bsp->col,taille_t);
+	SAFE_MALLOC(Bsp->data,(index_t)Bsp->row*(index_t)Bsp->col,elem_t);
 	for ( i = 0 ; i < Bsp ->row ; ++i) {
 		taille_t j ;
 		for (j = 0 ; j < Bsp->col ; ++j) {
