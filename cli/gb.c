@@ -26,13 +26,15 @@ void print_help() {
   printf("    -f          Free memory on the go.\n");
   printf("                Default: 1, memory is freed on the go.\n");
   printf("                Use 0 for keeping complete memory until the end.\n");
+  /*
   printf("    -m          Number of rows per multiline.\n");
   printf("                Default: 1.\n");
+  */
   printf("    -p          Writes intermediate matrices in pbm format.\n");
   printf("    -s          Splicing options:\n");
   printf("                0: standard Faugère-Lachartre block method,\n");
   printf("                1: A and C are multiline, B and D are blocks.\n");
-  printf("                Default: 0.\n");
+  printf("                Default: 1.\n");
   printf("    -t THRDS    Number of threads used.\n");
   printf("                Default: 1.\n");
   printf("    -v LEVEL    Level of verbosity:\n");
@@ -57,7 +59,7 @@ int main(int argc, char *argv[]) {
   int block_dimension   = 256;
   int write_pbm         = 0;
   int nthreads          = 1;
-  int splicing          = 0;
+  int splicing          = 1;
 
   int index;
   int opt;
@@ -100,9 +102,9 @@ int main(int argc, char *argv[]) {
       case 's': 
         splicing = atoi(optarg);
         if (splicing<0)
-          splicing  = 0;
+          splicing  = 1;
         if (splicing>1)
-          splicing  = 0;
+          splicing  = 1;
         break;
       case 'v': 
         verbose = atoi(optarg);
