@@ -24,6 +24,11 @@ uint64_t JOAAT_hash(char *key, size_t len)
 	 __typeof__ (b) _b = (b); \
 	 _a > _b ? _a : _b; })
 
+#define min(a,b) \
+	({ __typeof__ (a) _a = (a); \
+	 __typeof__ (b) _b = (b); \
+	 _a < _b ? _a : _b; })
+
 #define SWAP(a,b)  \
 	t = a ; \
 	a = b ; \

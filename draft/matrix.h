@@ -102,6 +102,33 @@ void appendRowUnit(CSR * mat
 	mat->map_zo_pol[mat->row-1] = pol;
 }
 
+void appendRowDataUnit(CSR * mat
+		, taille_t * colid
+		, index_t size
+		, elem_t * data
+		)
+{
+	if (size > 0) {
+
+		index_t old = mat->start[mat->row] ;
+		mat->nnz = old + size;
+		/* XXX this may be slow */
+		SAFE_REALLOC(mat->colid,mat->nnz,taille_t);
+		SAFE_REALLOC(mat->data ,mat->nnz,elem_t);
+		index_t i ;
+		for ( i = 0 ; i < size ; ++i) {
+			mat->colid[old+i] = colid[i] ;
+		}
+		for ( i = 0 ; i < size ; ++i) {
+			mat->data[old+i] = data[i] ;
+		}
+	}
+
+	mat->row ++ ;
+	/* XXX this may be slow */
+	SAFE_REALLOC(mat->start,mat->row+1,index_t);
+	mat->start[mat->row] = mat->nnz  ;
+}
 
 
 const CSR * getLastMatrixConst(const GBMatrix_t * A)
@@ -146,6 +173,23 @@ void appendRow(GBMatrix_t * A
 
 	appendRowUnit(&(A->sub[A->sub_nb-1]),colid,size,pol);
 }
+
+void appendRowData(GBMatrix_t * A
+		, taille_t * colid
+		, index_t size
+		, elem_t * data
+		)
+{
+	A->row += 1;
+	A->nnz += size ;
+
+	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLOCK) ){
+		appendMatrix(A);
+	}
+
+	appendRowDataUnit(&(A->sub[A->sub_nb-1]),colid,size,data);
+}
+
 
 void initSparse(GBMatrix_t * A)
 {
@@ -288,14 +332,13 @@ void checkMat(const GBMatrix_t *A)
 	for ( ; i < A->sub_nb ; ++i) {
 		row += A->sub[i].row;
 		nnz += A->sub[i].nnz;
+		const CSR * Ak = &(A->sub[i]);
+		checkMatUnit(Ak);
 	}
 	assert (nnz == A->nnz);
 	assert (row == A->row);
 
-	assert( A->sub_nb == 1);
-
-	const CSR * Ak = &(A->sub[0]);
-	checkMatUnit(Ak);
+	/* assert( A->sub_nb == 1); */
 #endif
 
 }
