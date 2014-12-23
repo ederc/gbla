@@ -8,7 +8,7 @@ double walltime(struct timeval t_start) {
 	return (double)((t_end.tv_sec - t_start.tv_sec) * 1000000 + t_end.tv_usec - t_start.tv_usec);
 }
 
-#define USE_SEEK
+/* #define USE_SEEK */
 
 // ========== READING ==========
 sm_t *load_jcf_matrix(const char *fn, int verbose) {
@@ -32,23 +32,31 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 	uint64_t  fl;
 
 	// open in binary mode first to get file size with fseek
-	FILE *
+
 #ifdef USE_SEEK
-		fh        = fopen(fn,"rb");
-	if (fh == NULL) {
-		if (verbose > 0)
-			printf("File not found!\n");
-		return NULL;
-	}
-	else {
-		fseek(fh, 0L, SEEK_END);
-		fl  = ftell(fh);
-		fclose(fh);
+	{
+	  FILE*	fh        = fopen(fn,"rb");
+	  if (fh == NULL) {
+	    if (verbose > 0)
+	      printf("File not found!\n");
+	    return NULL;
+	  }
+	  else {
+	    fseek(fh, 0L, SEEK_END);
+	    fl  = ftell(fh);
+	    fclose(fh);
+	  }
 	}
 #endif /* USE_SEEK */
 
 	// now read data from file
-	fh  = fopen(fn,"r");
+	FILE* fh;
+	if (strcmp(fn,"-")==0)
+	  {
+	    fh=stdin;
+	  }
+	else
+	  fh= fopen(fn,"r");
 	// get columns
 	if (fread(&m, sizeof(uint32_t), 1, fh) != 1) {
 		if (verbose > 0)
@@ -223,7 +231,8 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 	M->fsu      = fsu;
 
 
-	fclose(fh);
+	if (strcmp(fn,"-") !=0)
+	  fclose(fh);
 	return M;
 }
 
