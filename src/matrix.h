@@ -105,7 +105,7 @@ typedef struct sbm_fl_t {
                           if 1 then hybrid (sparse/dense) rows are accepted */
   nnz_t nnz;        /*!<  number of nonzero elements */
   double density;   /*!<  density of this submatrix */
-  mbl_t ***blocks;  /*!<  address of blocks: M->blocks[i][j] gives address of 
+  mbl_t ***blocks;  /*!<  address of blocks: M->blocks[i][j] gives address of
                           block. There are nrows/bheight * ncols/bwidth blocks. */
 } sbm_fl_t;
 
@@ -129,7 +129,7 @@ typedef struct sm_fl_ml_t {
                           if 0 then those rows are not accepted */
   nnz_t nnz;        /*!<  number of nonzero elements */
   double density;   /*!<  density of this submatrix */
-  ml_t *ml;         /*!<  address of multilines: M->ml[i] gives address of 
+  ml_t *ml;         /*!<  address of multilines: M->ml[i] gives address of
                           multiline i. There are nrows/__GB_NROWS_MULTILINE
                           multilines. */
 } sm_fl_ml_t;
