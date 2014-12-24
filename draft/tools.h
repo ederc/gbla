@@ -1,6 +1,8 @@
 #ifndef __GB_tools_H
 #define __GB_tools_H
 
+#include "macros.h"
+
 uint64_t JOAAT_hash(char *key, size_t len)
 {
 	uint64_t hash, i;
@@ -15,24 +17,6 @@ uint64_t JOAAT_hash(char *key, size_t len)
 	hash += (hash << 15);
 	return hash;
 }
-
-#define Mjoin(pre,nam) my_join(pre , nam)
-#define my_join(pre, nam) pre ## _ ## nam
-
-#define max(a,b) \
-	({ __typeof__ (a) _a = (a); \
-	 __typeof__ (b) _b = (b); \
-	 _a > _b ? _a : _b; })
-
-#define min(a,b) \
-	({ __typeof__ (a) _a = (a); \
-	 __typeof__ (b) _b = (b); \
-	 _a < _b ? _a : _b; })
-
-#define SWAP(a,b)  \
-	t = a ; \
-	a = b ; \
-	b = t
 
 #if 0
 void insert_sort(uint32_t * liste, uint32_t  size)

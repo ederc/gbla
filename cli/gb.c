@@ -45,11 +45,11 @@ void print_help() {
   printf("                      the overall computations.\n");
   printf("\n");
 
-  return; 
+  return;
 }
 
 
-int main(int argc, char *argv[]) {  
+int main(int argc, char *argv[]) {
   const char *fn        = NULL;
   int free_mem          = 1;
   int reduce_completely = 0;
@@ -60,6 +60,7 @@ int main(int argc, char *argv[]) {
   int write_pbm         = 0;
   int nthreads          = 1;
   int splicing          = 1;
+  int new_format        = 0;
 
   int index;
   int opt;
@@ -70,14 +71,14 @@ int main(int argc, char *argv[]) {
 
   opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "b:cf:hm:t:v:ps:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:cf:hm:t:v:ps:n")) != -1) {
     switch (opt) {
-      case 'b': 
+      case 'b':
         block_dimension = atoi(optarg);
         if (block_dimension < 1)
           block_dimension = 256;
         break;
-      case 'c': 
+      case 'c':
         reduce_completely = 1;
         break;
       case 'f':
@@ -88,29 +89,32 @@ int main(int argc, char *argv[]) {
       case 'h':
         print_help();
         return 0;
-      case 'm': 
+      case 'm':
         nrows_multiline = atoi(optarg);
         if (nrows_multiline < 1)
           nrows_multiline = 1;
         break;
-      case 'p': 
+      case 'p':
         write_pbm = 1;
         break;
-      case 't': 
+      case 't':
         nthreads  = atoi(optarg);
         break;
-      case 's': 
+      case 's':
         splicing = atoi(optarg);
         if (splicing<0)
           splicing  = 1;
         if (splicing>1)
           splicing  = 1;
         break;
-      case 'v': 
+      case 'v':
         verbose = atoi(optarg);
         if (verbose > 3)
           verbose = 2;
         break;
+      case 'n':
+	new_format = 1;
+	break;
       case '?':
         if (optopt == 'f')
           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
@@ -159,7 +163,7 @@ int main(int argc, char *argv[]) {
     printf(">>>>\tSTART loading JCF matrix ...\n");
   }
   // load JCF matrix
-  M = load_jcf_matrix(fn, verbose);
+  M = load_jcf_matrix(fn, verbose,new_format);
   if (verbose > 1) {
     printf("<<<<\tDONE  loading JCF matrix.\n");
     // print walltime
@@ -212,7 +216,7 @@ int main(int argc, char *argv[]) {
       break;
     // submatrices A and C of multiline type, submatrices B and D are of block type
     case 1:
-      if (fl_ml_A_C(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose, 
+      if (fl_ml_A_C(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose,
             reduce_completely)) {
         printf("Error while trying to eliminate matrix from file '%s' in A and C multiline,\n",fn);
         printf("B and D block type mode.\n");
@@ -295,12 +299,12 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
   }
 #if __GB_CLI_DEBUG
-  // column loops 
+  // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops 
+  // row loops
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
@@ -333,12 +337,12 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       }
     }
   }
-  // column loops 
+  // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops 
+  // row loops
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
@@ -503,20 +507,20 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     map_fl_t *map2  = (map_fl_t *)malloc(sizeof(map_fl_t));
 
     process_matrix(D_red, map2, block_dimension);
-  /*  
-  // column loops 
+  /*
+  // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops 
+  // row loops
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
 
   int ii,jj,kk,ll;
-  
+
   printf("B BEFORE CONVERSION\n");
   for (ii=0; ii<rlB; ++ii) {
     for (jj=0; jj<clB; ++jj) {
@@ -700,7 +704,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   /*
   int ii,jj,kk,ll;
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops 
+  // row loops
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
   printf("D after splicing\n");
   for (ii=0; ii<rlD; ++ii) {
@@ -727,10 +731,10 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   */
 #if __GB_CLI_DEBUG
 
-  // column loops 
+  // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops 
+  // row loops
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / __GB_NROWS_MULTILINE);
@@ -813,7 +817,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART copying multiline C to block representation ...\n");
   }
-  sbm_fl_t *C_block = copy_multiline_to_block_matrix_rl(&C, block_dimension, block_dimension, 1, nthreads); 
+  sbm_fl_t *C_block = copy_multiline_to_block_matrix_rl(&C, block_dimension, block_dimension, 1, nthreads);
   if (verbose > 1) {
     printf("<<<<\tDONE  copying multiline C to block representation.\n");
     printf("TIME\t%.3f sec\n",
@@ -822,9 +826,9 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-  // column loops 
+  // column loops
   const uint32_t clC  = (uint32_t) ceil((float)C_block->ncols / C_block->bwidth);
-  // row loops 
+  // row loops
   const uint32_t rlC  = (uint32_t) ceil((float)C_block->nrows / C_block->bheight);
 
   // reducing submatrix C to zero using methods of Faugère & Lachartre

@@ -40,12 +40,13 @@ double walltime(struct timeval t_start);
  * matrix in (sm_t *) format.
  *
  * \param fn File name
- * \param vebose If 1: Printing of error messages 
+ * \param vebose If 1: Printing of error messages
  *               If 2: Also printing of meta information
+ * @param format 0 for old, 1 for new
  *
  * \return Corresponding sparse matrix in (sm_t *) format
  */
-sm_t *load_jcf_matrix(const char *fn, int verbose);
+sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format);
 
 
 
@@ -56,7 +57,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose);
  *
  * \param M Matrix in (sm_t *) format
  * \param fn File name
- * \param vebose If 1: Printing of error messages 
+ * \param vebose If 1: Printing of error messages
  *               If 2: Also printing meta information
  */
 void write_jcf_matrix_to_file(sm_t *M, const char *fn, int verbose);
@@ -67,7 +68,7 @@ void write_jcf_matrix_to_file(sm_t *M, const char *fn, int verbose);
  *
  * \param M Matrix in (sm_t *) format
  * \param fn File name
- * \param vebose If 1: Printing of error messages 
+ * \param vebose If 1: Printing of error messages
  *               If 2: Also printing meta information
  */
 void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);

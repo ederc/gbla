@@ -1,5 +1,8 @@
 #include "io.h"
 
+#include "draft/selecter.h"
+#include "draft/macros.h"
+
 
 // ========== TIMINGS ==========
 double walltime(struct timeval t_start) {
@@ -11,7 +14,7 @@ double walltime(struct timeval t_start) {
 /* #define USE_SEEK */
 
 // ========== READING ==========
-sm_t *load_jcf_matrix(const char *fn, int verbose) {
+sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 	// meta information of matrix
 	double density;
@@ -29,7 +32,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 	ci_t n;
 	mod_t     mod;
 	nnz_t     nnz;
-	uint64_t  fl;
+	uint64_t  fl = 0;
 
 	// open in binary mode first to get file size with fseek
 
@@ -57,6 +60,26 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 	  }
 	else
 	  fh= fopen(fn,"r");
+
+	if (new_format == 1) {
+		uint32_t b;
+		if (fread(&b, sizeof(uint32_t), 1, fh) != 1) {
+			if (verbose > 0)
+				printf("Error while reading file '%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+
+		if ( b != Mjoin(select,uint16_t)() || (sizeof(re_t) != sizeof(uint16_t) || (re_t)(-1) < 0 ) ){
+			if (verbose >0)
+				printf("Error the data is not in expected representation\n");
+			fclose(fh);
+			return NULL;
+		}
+
+		fl += sizeof(uint32_t);
+	}
+
 	// get columns
 	if (fread(&m, sizeof(uint32_t), 1, fh) != 1) {
 		if (verbose > 0)
@@ -72,11 +95,24 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 		return NULL;
 	}
 	// get modulus
+	if (new_format == 1) {
+		re_t mode;
+		if ((fread(&mode, sizeof(re_t), 1, fh) != 1) || (mode == 1)) {
+			if (verbose > 0)
+				printf("Error while reading file '%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+		mod = (uint32_t) mode ; /* this is wrong in general */
+	}
+	else {
 	if ((fread(&mod, sizeof(uint32_t), 1, fh) != 1) || (mod == 1)) {
-		if (verbose > 0)
-			printf("Error while reading file '%s'\n",fn);
-		fclose(fh);
-		return NULL;
+			if (verbose > 0)
+				printf("Error while reading file '%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+
 	}
 	// get number of nonzero elements
 	if (fread(&nnz, sizeof(uint64_t), 1, fh) != 1) {
@@ -85,6 +121,10 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 		fclose(fh);
 		return NULL;
 	}
+
+#ifndef USE_SEEK
+	fl += 3*sizeof(uint32_t)+sizeof(uint64_t);
+#endif
 
 	// density of matrix
 	density =   (double) n * (double) m;
@@ -103,120 +143,236 @@ sm_t *load_jcf_matrix(const char *fn, int verbose) {
 	M->mod      = mod;
 	M->density  = (float)density;
 
+	if (new_format == 0) {
+
 #ifndef USE_SEEK
-	// maximal possible nonzero entries per row is n*sizeof(entry_t)
-	re_t *nze = (re_t *)malloc(nnz * sizeof(re_t));
-	ci_t *pos = (ci_t *)malloc(nnz * sizeof(ci_t));
-	ci_t *sz  = (ci_t *)malloc(m   * sizeof(ci_t));
+		// maximal possible nonzero entries per row is n*sizeof(entry_t)
+		re_t *nze = (re_t *)malloc(nnz * sizeof(re_t));
+		ci_t *pos = (ci_t *)malloc(nnz * sizeof(ci_t));
+		ci_t *sz  = (ci_t *)malloc(m   * sizeof(ci_t));
 
-	if (fread(nze, sizeof(re_t), nnz, fh) != nnz) {
-		if (verbose > 0)
-			printf("Error while reading file '%s'\n",fn);
-		free(M); /* XXX and many others */
-		fclose(fh);
-		return NULL ;
-	}
-
-	if (fread(pos,sizeof(ci_t),nnz,fh) != nnz) {
-		if (verbose > 0)
-			printf("Error while reading file '%s'\n",fn);
-		free(M); /* XXX and many others */
-		fclose(fh);
-		return NULL ;
-	}
-
-	if (fread(sz,sizeof(ci_t),m,fh) != m) {
-		if (verbose > 0)
-			printf("Error while reading file '%s'\n",fn);
-		free(M); /* XXX and many others */
-		fclose(fh);
-		return NULL ;
-	}
-
-	fl = 3*sizeof(uint32_t) + sizeof(uint64_t) + nnz * sizeof(re_t) + (nnz + m)*sizeof(ci_t);
-
-	ri_t i;
-	ci_t j;
-	ci_t here = 0 ;
-	for (i = 0 ; i < m ; ++i) {
-		M->rows[i] = (re_t *)malloc(sz[i] * sizeof(re_t));
-		M->pos[i]  = (ci_t *)malloc(sz[i] * sizeof(ci_t));
-		for (j = 0; j < sz[i]; ++j) {
-			M->rows[i][j] = nze[here+j];
-			M->pos[i][j]  = pos[here+j];
+		if (fread(nze, sizeof(re_t), nnz, fh) != nnz) {
+			if (verbose > 0)
+				printf("Error while reading file '%s'\n",fn);
+			free(M); /* XXX and many others */
+			fclose(fh);
+			return NULL ;
 		}
-		M->rwidth[i]  = sz[i];
-		here += sz[i] ;
-	}
-	free(sz);
+
+		if (fread(pos,sizeof(ci_t),nnz,fh) != nnz) {
+			if (verbose > 0)
+				printf("Error while reading file '%s'\n",fn);
+			free(M); /* XXX and many others */
+			fclose(fh);
+			return NULL ;
+		}
+
+		if (fread(sz,sizeof(ci_t),m,fh) != m) {
+			if (verbose > 0)
+				printf("Error while reading file '%s'\n",fn);
+			free(M); /* XXX and many others */
+			fclose(fh);
+			return NULL ;
+		}
+
+		fl +=  nnz * sizeof(re_t) + (nnz + m)*sizeof(ci_t);
+
+		ri_t i;
+		ci_t j;
+		ci_t here = 0 ;
+		for (i = 0 ; i < m ; ++i) {
+			M->rows[i] = (re_t *)malloc(sz[i] * sizeof(re_t));
+			M->pos[i]  = (ci_t *)malloc(sz[i] * sizeof(ci_t));
+			for (j = 0; j < sz[i]; ++j) {
+				M->rows[i][j] = nze[here+j];
+				M->pos[i][j]  = pos[here+j];
+			}
+			M->rwidth[i]  = sz[i];
+			here += sz[i] ;
+		}
+		free(sz);
 
 #else /* USE SEEK */
 
-	re_t *nze = (re_t *)malloc(n * sizeof(re_t));
-	ci_t *pos = (ci_t *)malloc(n * sizeof(ci_t));
+		re_t *nze = (re_t *)malloc(n * sizeof(re_t));
+		ci_t *pos = (ci_t *)malloc(n * sizeof(ci_t));
 
 
-	// store header size of file
-	// size of m, n, mod and nb
-	uint32_t hs  = 3 * sizeof(uint32_t) + sizeof(uint64_t);
+		// store header size of file
+		// size of m, n, mod and nb
+		uint32_t hs  = 3 * sizeof(uint32_t) + sizeof(uint64_t);
 
-	// offsets for file handling
-	uint64_t row_size_offset  = nnz * sizeof(re_t) + nnz * sizeof(uint32_t) + hs;
-	uint64_t row_val_offset   = hs;
-	uint64_t row_pos_offset   = nnz * sizeof(re_t) + hs;
+		// offsets for file handling
+		uint64_t row_size_offset  = nnz * sizeof(re_t) + nnz * sizeof(uint32_t) + hs;
+		uint64_t row_val_offset   = hs;
+		uint64_t row_pos_offset   = nnz * sizeof(re_t) + hs;
 
-	ri_t i;
-	ci_t j;
-	ci_t sz;
+		ri_t i;
+		ci_t j;
+		ci_t sz;
 
-	for (i = 0; i < m; ++i) {
-		fseek(fh, row_size_offset, SEEK_SET);
-		if (fread(&sz, sizeof(ci_t), 1, fh) != 1) {
-			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
-			free(M);
-			fclose(fh);
-			return NULL;
+		for (i = 0; i < m; ++i) {
+			fseek(fh, row_size_offset, SEEK_SET);
+			if (fread(&sz, sizeof(ci_t), 1, fh) != 1) {
+				if (verbose > 0)
+					printf("Error while reading file '%s'\n",fn);
+				free(M);
+				fclose(fh);
+				return NULL;
+			}
+
+			row_size_offset +=  sizeof(ci_t);
+
+			fseek(fh, row_val_offset, SEEK_SET);
+			if (fread(nze, sizeof(re_t), sz, fh) != sz) {
+				if (verbose > 0)
+					printf("Error while reading file '%s'\n",fn);
+				free(M);
+				fclose(fh);
+				return NULL;
+			}
+
+			row_val_offset +=  sz * sizeof(re_t);
+
+			fseek(fh, row_pos_offset, SEEK_SET);
+			if (fread(pos, sizeof(ci_t), sz, fh) != sz) {
+				if (verbose > 0)
+					printf("Error while reading file '%s'\n",fn);
+				free(M);
+				fclose(fh);
+				return NULL;
+			}
+
+			row_pos_offset +=  sz * sizeof(ci_t);
+
+			// reserve memory in matrix M for rows[i]
+			M->rows[i] = (re_t *)malloc(sz * sizeof(re_t));
+			M->pos[i]  = (ci_t *)malloc(sz * sizeof(ci_t));
+			for (j = 0; j < sz; ++j) {
+				M->rows[i][j] = nze[j];
+				M->pos[i][j]  = pos[j];
+			}
+			M->rwidth[i]  = sz;
 		}
-
-		row_size_offset +=  sizeof(ci_t);
-
-		fseek(fh, row_val_offset, SEEK_SET);
-		if (fread(nze, sizeof(re_t), sz, fh) != sz) {
-			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
-			free(M);
-			fclose(fh);
-			return NULL;
-		}
-
-		row_val_offset +=  sz * sizeof(re_t);
-
-		fseek(fh, row_pos_offset, SEEK_SET);
-		if (fread(pos, sizeof(ci_t), sz, fh) != sz) {
-			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
-			free(M);
-			fclose(fh);
-			return NULL;
-		}
-
-		row_pos_offset +=  sz * sizeof(ci_t);
-
-		// reserve memory in matrix M for rows[i]
-		M->rows[i] = (re_t *)malloc(sz * sizeof(re_t));
-		M->pos[i]  = (ci_t *)malloc(sz * sizeof(ci_t));
-		for (j = 0; j < sz; ++j) {
-			M->rows[i][j] = nze[j];
-			M->pos[i][j]  = pos[j];
-		}
-		M->rwidth[i]  = sz;
-	}
 
 #endif /* USE_SEEK */
 
-	free(nze);
-	free(pos);
+		free(nze);
+		free(pos);
+	}
+	else { /* new_format == 1 */
+
+		if ((sizeof(ci_t) != sizeof(uint32_t)) ||  ((ci_t)-1 < 0))
+				exit(-1);
+
+		uint64_t *sta = (uint64_t *)malloc((m+1) * sizeof(uint64_t));
+		if (fread(sta, sizeof(uint64_t), m+1 , fh) != m+1) {
+			if (verbose > 0)
+				printf("Error while reading file '%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+		printf("%lu\n",sta[0]);
+		printf("%lu %lu\n",sta[m],nnz);
+
+		uint32_t *mzp = (uint32_t*)malloc(m * sizeof(uint32_t));
+		if (fread(mzp, sizeof(uint32_t), m , fh) != m) {
+			if (verbose > 0)
+				printf("Error while reading file '%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+
+		fl += (m+1)*sizeof(uint64_t) + m*sizeof(uint32_t) ;
+
+		uint64_t czs;
+		if (fread(&czs, sizeof(uint64_t), 1, fh) != 1) {
+			if (verbose > 0)
+				printf("Error while reading file c'%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+		printf("%lu\n",czs);
+
+		uint32_t * cz = (uint32_t*)malloc(czs * sizeof(uint32_t));
+		if (fread(cz, sizeof(uint32_t), czs, fh) != czs) {
+			if (verbose > 0)
+				printf("Error while reading file d'%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+
+		fl += sizeof(uint64_t) + sizeof(uint32_t)*(czs);
+
+		uint32_t np;
+		if (fread(&np, sizeof(uint32_t), 1, fh) != 1) {
+			if (verbose > 0)
+				printf("Error while reading file e'%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+
+		uint32_t * sp = (uint32_t*)malloc((np+1) * sizeof(uint32_t));
+		if (fread(sp, sizeof(uint32_t), np+1, fh) != (np+1)) {
+			if (verbose > 0)
+				printf("Error while reading file f'%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+
+		fl += sizeof(uint32_t)*(np+1);
+
+
+		re_t * vp = (re_t*)malloc((sp[np]) * sizeof(re_t)) ;
+		if (fread(vp, sizeof(re_t), sp[np], fh) != sp[np]) {
+			if (verbose > 0)
+				printf("Error while reading file g'%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+
+		fl += sizeof(uint32_t)*(sp[np]);
+
+		uint32_t * pos = (uint32_t*)malloc(nnz * sizeof(uint32_t));
+
+		{ /* expand */
+			uint32_t mask = (1<<31);
+			uint64_t i = 0 ;
+			uint64_t j = 0 ;
+			uint32_t col ;
+			for ( ; i < czs ;) {
+				col = cz[i++] ;
+				if (col & mask) {
+					pos[j++] = col ^ mask ;
+				}
+				else {
+					uint32_t k = 0 ;
+					for (; k < cz[i] ;++k) {
+						pos[j++] = col + k;
+					}
+					++i;
+				}
+			}
+
+		}
+
+		ri_t i;
+		ci_t j;
+		ci_t here = 0 ;
+		for (i = 0 ; i < m ; ++i) {
+			ci_t sz = sta[i+1]-sta[i];
+			M->rows[i] = (re_t *)malloc(sz * sizeof(re_t));
+			M->pos[i]  = (ci_t *)malloc(sz * sizeof(ci_t));
+			re_t * nze = vp + sp[mzp[i]] ;
+			for (j = 0; j < sz; ++j) {
+				M->rows[i][j] = nze[j];
+				M->pos[i][j]  = pos[here+j];
+			}
+			M->rwidth[i]  = sz;
+			here += sz ;
+		}
+
+	}
 
 
 	// file size of matrix
