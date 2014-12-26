@@ -113,8 +113,8 @@ int main(int argc, char *argv[]) {
           verbose = 2;
         break;
       case 'n':
-	new_format = 1;
-	break;
+	      new_format = 1;
+	      break;
       case '?':
         if (optopt == 'f')
           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
     printf(">>>>\tSTART loading JCF matrix ...\n");
   }
   // load JCF matrix
-  M = load_jcf_matrix(fn, verbose,new_format);
+  M = load_jcf_matrix(fn, verbose, new_format);
   if (verbose > 1) {
     printf("<<<<\tDONE  loading JCF matrix.\n");
     // print walltime

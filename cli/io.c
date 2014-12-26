@@ -259,8 +259,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		free(nze);
 		free(pos);
-	}
-	else { /* new_format == 1 */
+	} else { /* new_format == 1 */
 
 		if ((sizeof(ci_t) != sizeof(uint32_t)) ||  ((ci_t)-1 < 0))
 				exit(-1);
@@ -272,8 +271,6 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fclose(fh);
 			return NULL;
 		}
-		printf("%lu\n",sta[0]);
-		printf("%lu %lu\n",sta[m],nnz);
 
 		uint32_t *mzp = (uint32_t*)malloc(m * sizeof(uint32_t));
 		if (fread(mzp, sizeof(uint32_t), m , fh) != m) {
@@ -292,7 +289,6 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fclose(fh);
 			return NULL;
 		}
-		printf("%lu\n",czs);
 
 		uint32_t * cz = (uint32_t*)malloc(czs * sizeof(uint32_t));
 		if (fread(cz, sizeof(uint32_t), czs, fh) != czs) {
@@ -353,7 +349,6 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 					++i;
 				}
 			}
-
 		}
 
 		ri_t i;
