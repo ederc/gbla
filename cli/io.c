@@ -354,11 +354,12 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		ri_t i;
 		ci_t j;
 		ci_t here = 0 ;
+    re_t *nze;
 		for (i = 0 ; i < m ; ++i) {
-			ci_t sz = sta[i+1]-sta[i];
-			M->rows[i] = (re_t *)malloc(sz * sizeof(re_t));
-			M->pos[i]  = (ci_t *)malloc(sz * sizeof(ci_t));
-			re_t * nze = vp + sp[mzp[i]] ;
+			ci_t sz     = sta[i+1]-sta[i];
+			M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
+			M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
+			nze         = vp + sp[mzp[i]] ;
 			for (j = 0; j < sz; ++j) {
 				M->rows[i][j] = nze[j];
 				M->pos[i][j]  = pos[here+j];
@@ -367,8 +368,14 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			here += sz ;
 		}
 
+    // free data
+    free(pos);
+    free(vp);
+    free(sp);
+    free(cz);
+    free(mzp);
+    free(sta);
 	}
-
 
 	// file size of matrix
 	fs  = (double) fl / 1024 / 1024;
@@ -380,7 +387,6 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 	M->fs       = (float)fs;
 	M->fsu      = fsu;
-
 
 	if (strcmp(fn,"-") !=0)
 	  fclose(fh);
