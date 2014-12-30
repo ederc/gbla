@@ -12,6 +12,9 @@ LIB=-lm
 #  PRF=-pg
 PRF=
 
+par=_par
+PAR=-fopenmp
+
 TST=dumb_write
 TGT=dump_matrix
 CVT=converter
@@ -77,16 +80,33 @@ RED=fflas_reduce
 FFLAS=/home/bboyer/usr/
 FFLAS_CFLAGS=`sh $(FFLAS)/bin/fflas-ffpack-config --cflags-full`
 FFLAS_LIBS=`sh $(FFLAS)/bin/fflas-ffpack-config --libs`
+
 LIBS$(dbg): $(RED).cpp
 	$(CXX) $(DBG) $(PRF)  $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(dbg).o
+
+LIBS$(dbg)$(par): $(RED).cpp
+	$(CXX) $(DBG) $(PRF) $(PAR) $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(dbg)$(par).o
+
+
 OBJ$(dbg):
 	$(CC) $(DBG) $(PRF) $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(dbg).o
+
+OBJ$(dbg)$(par):
+	$(CC) $(DBG) $(PRF) $(PAR) $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(dbg)$(par).o
 
 
 LIBS$(opt): $(RED).cpp
 	$(CXX) $(OPT) $(PRF)  $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(opt).o
+
+LIBS$(opt)$(par): $(RED).cpp
+	$(CXX) $(OPT) $(PRF)  $(STA) $(PAR) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(opt)$(par).o
+
+
 OBJ$(opt):
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(opt).o
+
+OBJ$(opt)$(par):
+	$(CC) $(OPT) $(PRF) $(WAR) $(PAR) $(STA) -c $(RUN).c -o $(RUN)$(opt)$(par).o
 
 
 
@@ -95,10 +115,22 @@ $(RUN)$(dbg): $(RUN).c
 	make OBJ$(dbg)  ;
 	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(RED)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(dbg) -lm -lstdc++
 
+$(RUN)$(dbg)$(par): $(RUN).c
+	make LIBS$(dbg)$(par) ;
+	make OBJ$(dbg)$(par)  ;
+	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(PAR) $(RED)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(dbg)$(par) -lm -lstdc++
+
+
 $(RUN)$(opt): $(RUN).c
 	make LIBS$(opt) ;
 	make OBJ$(opt)  ;
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(RED)$(opt).o $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(opt) -lm -lstdc++
+
+$(RUN)$(opt)$(par): $(RUN).c
+	make LIBS$(opt)$(par) ;
+	make OBJ$(opt)$(par)  ;
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(RED)$(opt)$(par).o $(PAR) $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(opt)$(par) -lm -lstdc++
+
 
 clean:
 	-rm *.o

@@ -87,6 +87,10 @@ int main(int ac, char **av) {
 
 	fprintf(stderr," LOAD    time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
 				           +(double)(tac.tv_usec - tic.tv_usec)/1e6));
+	fprintf(stderr,"   -- sparsity of A   : %.3f (%u x %u - %lu)\n",(double)A->nnz/(double)A->row/(double)A->col,A->row,A->col,A->nnz);
+	fprintf(stderr,"   -- sparsity of B   : %.3f (%u x %u - %lu)\n",(double)B->nnz/(double)B->row/(double)B->col,B->row,B->col,B->nnz);
+	fprintf(stderr,"   -- sparsity of C   : %.3f (%u x %u - %lu)\n",(double)C->nnz/(double)C->row/(double)C->col,C->row,C->col,C->nnz);
+	fprintf(stderr,"   -- sparsity of D   : %.3f (%u x %u - %lu)\n",(double)D->nnz/(double)D->row/(double)D->col,D->row,D->col,D->nnz);
 
 
 	/* REDUCE */

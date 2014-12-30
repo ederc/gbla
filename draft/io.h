@@ -23,7 +23,8 @@
 
 /* buffer:
 */
-taille_t getSparsestRows(
+
+taille_t getSparsestRows_fast(
 		taille_t   * colid
 		, index_t  * start
 		, taille_t   row
@@ -33,6 +34,7 @@ taille_t getSparsestRows(
 {
 	taille_t i = 0;
 	taille_t k_dim = 0;
+
 	SAFE_MALLOC_DECL(creux_v,row,taille_t);
 	for ( i = 0 ; i < row ; ++i)
 		creux_v[i] = start[i+1]-start[i];
@@ -40,6 +42,7 @@ taille_t getSparsestRows(
 	for ( i = 0 ; i < col ; ++i ) {
 		pivots_data[i] = (taille_t)(-1);
 	}
+
 	for ( i = 0 ; i < row ; ++i ) {
 		taille_t pivot_j = colid[start[i]] ;     /* first column row i */
 		taille_t creux   = creux_v[i] ; /* length of row i */
@@ -56,6 +59,96 @@ taille_t getSparsestRows(
 			}
 		}
 	}
+
+	free(creux_v);
+	fprintf(stderr,"  -- number of pivots : %u\n",k_dim);
+	return k_dim ;
+}
+
+taille_t getSparsestRows(
+		taille_t   * colid
+		, index_t  * start
+		, taille_t   row
+		, taille_t   col
+		, taille_t * pivots_data /* pivots_data[j] is the sparsest row with j as pivot */
+		)
+{
+	taille_t i = 0;
+	taille_t k_dim = 0;
+
+	/*  get k */
+
+	for ( i = 0 ; i < col ; ++i ) {
+		pivots_data[i] = (taille_t)(-1);
+	}
+
+	for ( i = 0 ; i < row ; ++i ) {
+		taille_t pivot_j = colid[start[i]] ;     /* first column row i */
+		assert(pivot_j < col);
+		taille_t old_i = pivots_data[pivot_j] ; /* last row for pivot column */
+		if (old_i == (taille_t)(-1)) {
+			pivots_data[pivot_j] = i ;
+			++k_dim;
+		}
+	}
+	printf("good k : %u\n",k_dim);
+
+	/*  get number of columms to pivot */
+
+	taille_t goodk = 0 ;
+	taille_t badk = 0;
+	for ( i = 0 ; i < col ; ++i) {
+		if (pivots_data[i] != (taille_t)(-1)) {
+			++goodk ;
+			if (goodk == k_dim) {
+				break;
+			}
+		}
+		else {
+			++badk ;
+		}
+	}
+	printf("bad k : %u\n",badk);
+
+	/*  get best sparsity  for A */
+
+	SAFE_CALLOC_DECL(creux_v,row,taille_t);
+
+	for ( i = 0 ; i < row ; ++i) {
+		index_t jz ;
+		for (jz = start[i] ; jz < start[i+1] ; ++jz) {
+			if (colid[jz] >= (k_dim+badk))
+					break;
+			if (pivots_data[colid[jz]] != (taille_t)(-1)) {
+				creux_v[i] += 1 ;
+			}
+		}
+	}
+
+	/*  reinit (not necessary ? */
+
+
+	for ( i = 0 ; i < col ; ++i ) {
+		pivots_data[i] = (taille_t)(-1);
+	}
+
+	for ( i = 0 ; i < row ; ++i ) {
+		taille_t pivot_j = colid[start[i]] ;     /* first column row i */
+		taille_t creux   = creux_v[i] ; /* length of row i */
+		assert(pivot_j < col);
+		taille_t old_i = pivots_data[pivot_j] ; /* last row for pivot column */
+		if (old_i == (taille_t)(-1)) {
+			pivots_data[pivot_j] = i ;
+			/* ++k_dim; */
+		}
+		else  {
+			taille_t old_creux = creux_v[old_i];
+			if (old_creux > creux) { /* this row is sparser */
+				pivots_data[pivot_j] = i ;
+			}
+		}
+	}
+
 
 	free(creux_v);
 	fprintf(stderr,"  -- number of pivots : %u\n",k_dim);
@@ -357,7 +450,8 @@ taille_t * readFileSplit(
 
 	SAFE_CALLOC_DECL(pivots_data,n,taille_t);
 
-	taille_t k_dim = getSparsestRows(colid,start,m,n, pivots_data);
+	/* taille_t k_dim = getSparsestRows(colid,start,m,n, pivots_data); */
+	taille_t k_dim = getSparsestRows_fast(colid,start,m,n, pivots_data);
 	assert(k_dim);
 	SAFE_MALLOC_DECL(pivots,k_dim,taille_t);
 	SAFE_MALLOC_DECL(nonpiv,n-k_dim,taille_t);
@@ -475,9 +569,12 @@ void reduce(
 		taille_t M = Ad->row ;
 		/* B = A^(-1) B */
 
-		for ( i = M ; i--  ; ) {
+		for ( i = M ; i--    ; ) {
 			index_t i_offset = k * MAT_ROW_BLOCK + i;
 			assert( (elem_t)-1<1); /* unsigned will fail */
+/* #ifdef _OPENMP */
+/* #pragma omp parallel for private (kz) schedule (static,5) */
+/* #endif */
 			for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz) {
 				kz = Ad->colid[jz];
 				cblas_daxpy(N,-Ad->data[jz],B->ptr+kz*(index_t)ldb,1,B->ptr+i_offset*(index_t)ldb,1);
@@ -493,6 +590,10 @@ void reduce(
 		taille_t ldd = D->col ;
 		/* D = D - C . B */
 		assert( (elem_t)-1<1); /* unsigned will fail */
+#ifdef _OPENMP
+#pragma omp parallel for private (kz,jz) schedule (static,5)
+#endif
+
 		for ( i = 0 ; i < Cd->row ;  ++i) {
 			index_t i_offset = k * MAT_ROW_BLOCK + i;
 			for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
@@ -603,17 +704,28 @@ void reduce_fast(
 
 	taille_t blk = 16 ;
 
-	SAFE_MALLOC_DECL(temp_D,(index_t)D->col*(index_t)blk,elem_t);
-	assert(D->col == B->col);
-	SAFE_MALLOC_DECL(temp_C,(index_t)C->col*(index_t)blk,elem_t);
 	index_t jz  ;
+#ifndef _OPENMP
+	SAFE_MALLOC_DECL(temp_D,(index_t)D->col*(index_t)blk,elem_t);
+	SAFE_MALLOC_DECL(temp_C,(index_t)C->col*(index_t)blk,elem_t);
+#endif
 
 	/* SAFE_MALLOC_DECL(jump,blk,taille_t); */
 	/* SAFE_MALLOC_DECL(diag,blk,elem_t); */
 	taille_t k ;
+	assert(D->col == B->col);
 	for (k = 0 ; k < C->sub_nb ; ++k) {
 		CSR * C_k = &(C->sub[k]) ;
+#ifdef _OPENMP
+#pragma omp parallel for private (jz) schedule (static,5)
+#endif
+
 		for ( i = 0 ; i < C_k->row ; i += blk ) {
+#ifdef _OPENMP
+			SAFE_MALLOC_DECL(temp_D,(index_t)D->col*(index_t)blk,elem_t);
+			SAFE_MALLOC_DECL(temp_C,(index_t)C->col*(index_t)blk,elem_t);
+#endif
+
 			taille_t blk_i = min(blk,C_k->row - i);
 			index_t i_offset = k*MAT_ROW_BLOCK + i ;
 			cblas_dscal(C->col*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
@@ -776,12 +888,19 @@ void reduce_fast(
 			/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */
 			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
 
+#ifdef _OPENMP
+		free(temp_D);
+		free(temp_C);
+#endif
 		}
+
 	}
 	freeMat(Bsp);
 	free(Bsp);
+#ifndef _OPENMP
 	free(temp_D);
 	free(temp_C);
+#endif
 	Mjoin(Freduce,elem_t)(p, Dd, (index_t)D->col*(index_t)D->row) ;
 }
 

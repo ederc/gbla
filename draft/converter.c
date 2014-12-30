@@ -51,6 +51,7 @@ int main( int ac, char ** av)
 	SAFE_READ_DECL_V(mod,uint32_t,titi);
 	fwrite(&mod,sizeof(elem_s),1,toto);
 	SAFE_READ_DECL_V(nnz,uint64_t,titi);
+	/* XXX we don't need to write this */
 	fwrite(&nnz,sizeof(uint64_t),1,toto);
 
 	SAFE_READ_DECL_P(data,nnz,OLD_TYPE,titi);
@@ -266,6 +267,7 @@ int main( int ac, char ** av)
 	}
 #endif /* REVERT */
 
+	/* XXX we don't need to write this, we could write rows */
 	fwrite(start_zo,sizeof(uint64_t),m+1,toto);
        	fwrite(map_zo_pol,sizeof(uint32_t),m,toto);
 	/* i = 0 ; for ( ; i < m ; ++i) fprintf(stderr,"%u ",map_zo_pol[i]) ; fprintf(stderr,"\n"); */
