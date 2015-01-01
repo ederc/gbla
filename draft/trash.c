@@ -37,7 +37,7 @@ void do_permute_columns_up(
 
 		/* get B */
 
-		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
+		uint32_t row_offset = blk*MAT_ROW_BLK ;
 		elem_t * data = B->data + (row_offset * B->col) ;
 
 		permuteDNS(A_k,A,start_b,data);
@@ -86,7 +86,7 @@ void do_permute_columns_lo(
 				,polys);
 
 		/*  D */
-		uint32_t row_offset = blk*MAT_ROW_BLOCK ;
+		uint32_t row_offset = blk*MAT_ROW_BLK ;
 		elem_t * data = D->data + (row_offset * D->col) ;
 
 		permuteDNS(C_k,C,start_b,data);
@@ -201,7 +201,7 @@ uint32_t get_permute_columns(
 			for ( ; j < A_k->start_zo[i+1] ; ++j) {
 				col_size[A_k->colid_zo[j]] += 1 ;
 				if (A_k->colid_zo[j] >= A->row )
-					last_elt[A_k->colid_zo[j]-A->row] = (A->matrix_nb-1)*MAT_ROW_BLOCK+i ; /* zero based, but 0 is an index if column not empty :-) */
+					last_elt[A_k->colid_zo[j]-A->row] = (A->matrix_nb-1)*MAT_ROW_BLK+i ; /* zero based, but 0 is an index if column not empty :-) */
 			}
 		}
 	}
@@ -282,7 +282,7 @@ void permuteCSR( CSR_zo * A_k , GBMatrix_t * A, uint32_t * start_b, uint32_t k
 
 	appendMatrix(A);
 	CSR_zo * Ad = getLastMatrix(A);
-	/* XXX BUG : MAT_ROW_BLOCK */
+	/* XXX BUG : MAT_ROW_BLK */
 	SAFE_REALLOC(Ad->start_zo,A_k->row+1,uint64_t);
 	Ad->start_zo[0] = 0 ;
 	Ad->row = A_k->row ;

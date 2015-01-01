@@ -7,10 +7,11 @@
 #define elem_t double   /* field element type    */
 #endif
 
-/* #define READ_MAT_ROW_BLOCK 128      |+ read matrix MAT_ROW_BLOCK by MAT_ROW_BLOCK +| */
-/* #define MAT_ROW_BLOCK (1UL<<31)     |+ write matrix MAT_ROW_BLOCK by MAT_ROW_BLOCK +| */
-#define MAT_ROW_BLOCK (1UL<<10)     /* write matrix MAT_ROW_BLOCK by MAT_ROW_BLOCK */
-#define GROW_REALLOC 16 /* grow by GROW_REALLOC when using realloc */
+/* #define READ_MAT_ROW_BLK 128      |+ read matrix MAT_ROW_BLK by MAT_ROW_BLK +| */
+/* #define MAT_ROW_BLK (1UL<<31)     |+ write matrix MAT_ROW_BLK by MAT_ROW_BLK +| */
+#define MAT_SUB_BLK   16
+#define MAT_ROW_BLK (MAT_SUB_BLK*64) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
+/* #define GROW_REALLOC 16 |+ grow by GROW_REALLOC when using realloc +| */
 #define storage_t       int32_t  /* Element representation mod p on file */
 #define index_t       uint64_t  /* indexing elements */
 #define taille_t      uint32_t /* size_t */

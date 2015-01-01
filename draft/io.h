@@ -306,7 +306,7 @@ void splitVerticalUnit(
 		}
 
 		for (i = 0 ; i < A_k->row ; ++i) {
-			index_t i_offset =  j * MAT_ROW_BLOCK + i ;
+			index_t i_offset =  j * MAT_ROW_BLK + i ;
 			taille_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
 			elem_t * d = polys->data_pol+start_p ;
 			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
@@ -414,7 +414,7 @@ taille_t * readFileSplit(
 
 	/* READ in row col nnz mod */
 	SAFE_READ_DECL_V(m,uint32_t,fh);
-	/* assert(m < MAT_ROW_BLOCK); */
+	/* assert(m < MAT_ROW_BLK); */
 	SAFE_READ_DECL_V(n,uint32_t,fh);
 	SAFE_READ_DECL_V(mod,elem_s,fh);
 	assert(mod > 1);
@@ -562,28 +562,74 @@ void reduce(
 	taille_t N = B->col ;
 	elem_t p = A->mod ;
 	taille_t i ;
-	index_t jz  ;
-	index_t kz ;
+	SAFE_CALLOC_DECL(row_beg,B->row,uint32_t);
+	for ( k = 0 ; k < B->row ; ++k) {
+		uint32_t ii = 0 ;
+		while ( *(B->ptr+k*ldb+ii) == 0) {
+			row_beg[k] += 1 ;
+			++ii ;
+		}
+	}
+
+
 	for ( k = A->sub_nb ; k --  ; ) {
 		CSR * Ad = & (A->sub[k]);
 		taille_t M = Ad->row ;
 		/* B = A^(-1) B */
 
 		for ( i = M ; i--    ; ) {
-			index_t i_offset = k * MAT_ROW_BLOCK + i;
+			index_t i_offset = k * MAT_ROW_BLK + i;
 			assert( (elem_t)-1<1); /* unsigned will fail */
-/* #ifdef _OPENMP */
-/* #pragma omp parallel for private (kz) schedule (static,5) */
-/* #endif */
-			for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz) {
-				kz = Ad->colid[jz];
-				cblas_daxpy(N,-Ad->data[jz],B->ptr+kz*(index_t)ldb,1,B->ptr+i_offset*(index_t)ldb,1);
+		#if 0
+#ifdef _OPENMP
+			{
+				taille_t rz  ;
+				taille_t nb = (taille_t)(Ad->start[i+1]-Ad->start[i]) ;
+				if (nb > 1) {
+					nb -- ;
+					SAFE_CALLOC_DECL(accu,nb*ldb,elem_t);
+#pragma omp parallel for /* schedule (static,8) */
+					for ( rz = 0 ; rz < nb ; ++rz)
+					{
+						index_t jz = Ad->start[i]+1+rz ;
+						taille_t kz = Ad->colid[jz];
+						taille_t rs = row_beg[kz];
+						cblas_daxpy(N-rs,-Ad->data[jz],B->ptr+kz*(index_t)ldb+rs,1,accu+ldb*rz+rs,1);
+					}
+					elem_t mini = row_beg[i_offset] ;
+					index_t jz ;
+/* #pragma omp parallel for reduction(min:mini) */
+					for (jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz){
+						taille_t kz = Ad->colid[jz];
+						mini = min(mini,row_beg[kz]);
+					}
+					row_beg[i_offset] = mini ;
+
+					taille_t kz;
+#pragma omp parallel for private(rz)/*  schedule (static,8) */
+					for (kz = mini ; kz < N ; ++kz) {
+						for ( rz = 0 ; rz < nb ; ++rz) {
+							B->ptr[i_offset*(index_t)ldb+kz] += accu[rz*ldb+kz] ;
+						}
+					}
+
+				}
 			}
+#endif
+#else
+			index_t jz  ;
+			for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz)
+			{
+				taille_t kz = Ad->colid[jz];
+				taille_t rs = min(row_beg[i_offset],row_beg[kz]);
+				cblas_daxpy(N-rs,-Ad->data[jz],B->ptr+kz*(index_t)ldb+rs,1,B->ptr+i_offset*(index_t)ldb+rs,1);
+				row_beg[i_offset] = rs ;
+			}
+#endif
 			Mjoin(Freduce,elem_t)(p,B->ptr+i_offset*(index_t)ldb,N);
 			assert(Ad->data[Ad->start[i]] == 1);
 		}
 	}
-
 
 	for ( k = 0 ; k < C->sub_nb  ; ++k ) {
 		CSR * Cd = &(C->sub[k]);
@@ -591,18 +637,21 @@ void reduce(
 		/* D = D - C . B */
 		assert( (elem_t)-1<1); /* unsigned will fail */
 #ifdef _OPENMP
-#pragma omp parallel for private (kz,jz) schedule (static,5)
+#pragma omp parallel for /* schedule (static,8) */
 #endif
-
 		for ( i = 0 ; i < Cd->row ;  ++i) {
-			index_t i_offset = k * MAT_ROW_BLOCK + i;
+			index_t i_offset = k * MAT_ROW_BLK + i;
+			index_t jz  ;
 			for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
-				kz = Cd->colid[jz];
-				cblas_daxpy(N,-Cd->data[jz],B->ptr+kz*(index_t)ldb,1,D->ptr+i_offset*(index_t)ldd,1);
+				uint32_t kz = Cd->colid[jz];
+				uint32_t rs = row_beg[kz] ;
+				cblas_daxpy(N-rs,-Cd->data[jz],B->ptr+kz*(index_t)ldb+rs,1,D->ptr+i_offset*(index_t)ldd+rs,1);
 			}
 			Mjoin(Freduce,elem_t)(p,D->ptr+i_offset*(index_t)ldd, N) ;
 		}
 	}
+
+	free(row_beg);
 }
 
 
@@ -702,7 +751,7 @@ void reduce_fast(
 	checkMat(Bsp);
 #endif
 
-	taille_t blk = 16 ;
+	taille_t blk = MAT_SUB_BLK ;
 
 	index_t jz  ;
 #ifndef _OPENMP
@@ -717,18 +766,20 @@ void reduce_fast(
 	for (k = 0 ; k < C->sub_nb ; ++k) {
 		CSR * C_k = &(C->sub[k]) ;
 #ifdef _OPENMP
-#pragma omp parallel for private (jz) schedule (static,5)
+#pragma omp parallel for private (jz) /* schedule (static,8) */
 #endif
 
 		for ( i = 0 ; i < C_k->row ; i += blk ) {
 #ifdef _OPENMP
 			SAFE_MALLOC_DECL(temp_D,(index_t)D->col*(index_t)blk,elem_t);
-			SAFE_MALLOC_DECL(temp_C,(index_t)C->col*(index_t)blk,elem_t);
+			SAFE_CALLOC_DECL(temp_C,(index_t)C->col*(index_t)blk,elem_t);
 #endif
 
 			taille_t blk_i = min(blk,C_k->row - i);
-			index_t i_offset = k*MAT_ROW_BLOCK + i ;
+			index_t i_offset = k*MAT_ROW_BLK + i ;
+#ifndef _OPENMP
 			cblas_dscal(C->col*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
+#endif
 			taille_t ii = 0 ;
 			for ( ii = 0 ; ii < blk_i ; ++ii) {
 				for ( jz = C_k->start[i+ii] ; jz < C_k->start[i+ii+1] ; ++jz) {
@@ -746,11 +797,11 @@ void reduce_fast(
 					elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*C->col+j],p) ;
 					if (tc != 0.) {
 						/* temp_C -= temp_C[j] * A[j] */
-						taille_t jj = j%MAT_ROW_BLOCK ;
-						taille_t kk = j/MAT_ROW_BLOCK ;
+						taille_t jj = j%MAT_ROW_BLK ;
+						taille_t kk = j/MAT_ROW_BLK ;
 						CSR * A_k = &(A->sub[kk]);
 						taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-						assert(kk*MAT_ROW_BLOCK+jj == j);
+						assert(kk*MAT_ROW_BLK+jj == j);
 						spaxpy(tc,A_k->data+A_k->start[jj],
 								sz,
 								A_k->colid+A_k->start[jj]
@@ -780,11 +831,11 @@ void reduce_fast(
 					/* temp_C -= temp_C[j] * A[j] */
 					if (tc != 0.) {
 						if (td != 0.) {
-							taille_t jj = j%MAT_ROW_BLOCK ;
-							taille_t kk = j/MAT_ROW_BLOCK ;
+							taille_t jj = j%MAT_ROW_BLK ;
+							taille_t kk = j/MAT_ROW_BLK ;
 							CSR * A_k = &(A->sub[kk]);
 							taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-							assert(kk*MAT_ROW_BLOCK+jj == j);
+							assert(kk*MAT_ROW_BLK+jj == j);
 							spaxpy2(tc,td,A_k->data+A_k->start[jj],
 									sz,
 									A_k->colid+A_k->start[jj]
@@ -802,11 +853,11 @@ void reduce_fast(
 						}
 						else {
 							/* temp_C -= temp_C[j] * A[j] */
-							taille_t jj = j%MAT_ROW_BLOCK ;
-							taille_t kk = j/MAT_ROW_BLOCK ;
+							taille_t jj = j%MAT_ROW_BLK ;
+							taille_t kk = j/MAT_ROW_BLK ;
 							CSR * A_k = &(A->sub[kk]);
 							taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-							assert(kk*MAT_ROW_BLOCK+jj == j);
+							assert(kk*MAT_ROW_BLK+jj == j);
 							spaxpy(tc,A_k->data+A_k->start[jj],
 									sz,
 									A_k->colid+A_k->start[jj]
@@ -826,11 +877,11 @@ void reduce_fast(
 					}
 					else if (td != 0) {
 						/* temp_C -= temp_C[j] * A[j] */
-						taille_t jj = j%MAT_ROW_BLOCK ;
-						taille_t kk = j/MAT_ROW_BLOCK ;
+						taille_t jj = j%MAT_ROW_BLK ;
+						taille_t kk = j/MAT_ROW_BLK ;
 						CSR * A_k = &(A->sub[kk]);
 						taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-						assert(kk*MAT_ROW_BLOCK+jj == j);
+						assert(kk*MAT_ROW_BLK+jj == j);
 						spaxpy(td,A_k->data+A_k->start[jj],
 								sz,
 								A_k->colid+A_k->start[jj]
@@ -862,11 +913,11 @@ void reduce_fast(
 						jump[nbnz++] = ii ;
 					}
 				}
-				taille_t jj = j%MAT_ROW_BLOCK ;
-				taille_t kk = j/MAT_ROW_BLOCK ;
+				taille_t jj = j%MAT_ROW_BLK ;
+				taille_t kk = j/MAT_ROW_BLK ;
 				CSR * A_k = &(A->sub[kk]);
 				taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-				assert(kk*MAT_ROW_BLOCK+jj == j);
+				assert(kk*MAT_ROW_BLK+jj == j);
 				spaxpyn(diag,A_k->data+A_k->start[jj],
 						sz,
 						A_k->colid+A_k->start[jj]

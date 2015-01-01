@@ -167,7 +167,7 @@ void appendRow(GBMatrix_t * A
 	A->row += 1;
 	A->nnz += size ;
 
-	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLOCK) ){
+	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLK) ){
 		appendMatrix(A);
 	}
 
@@ -183,7 +183,7 @@ void appendRowData(GBMatrix_t * A
 	A->row += 1;
 	A->nnz += size ;
 
-	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLOCK) ){
+	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLK) ){
 		appendMatrix(A);
 	}
 
