@@ -219,7 +219,7 @@ void splitHorizontal(
 
 
 void expandColid(
-	       	const uint32_t   * compress
+	       	const taille_t * compress
 		, index_t          size_compressed
 		, taille_t       * expand
 #ifndef NDEBUG
@@ -562,9 +562,9 @@ void reduce(
 	taille_t N = B->col ;
 	elem_t p = A->mod ;
 	taille_t i ;
-	SAFE_CALLOC_DECL(row_beg,B->row,uint32_t);
+	SAFE_CALLOC_DECL(row_beg,B->row,taille_t);
 	for ( k = 0 ; k < B->row ; ++k) {
-		uint32_t ii = 0 ;
+		taille_t ii = 0 ;
 		while ( *(B->ptr+k*ldb+ii) == 0) {
 			row_beg[k] += 1 ;
 			++ii ;
@@ -643,8 +643,8 @@ void reduce(
 			index_t i_offset = k * MAT_ROW_BLK + i;
 			index_t jz  ;
 			for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
-				uint32_t kz = Cd->colid[jz];
-				uint32_t rs = row_beg[kz] ;
+				taille_t kz = Cd->colid[jz];
+				taille_t rs = row_beg[kz] ;
 				cblas_daxpy(N-rs,-Cd->data[jz],B->ptr+kz*(index_t)ldb+rs,1,D->ptr+i_offset*(index_t)ldd+rs,1);
 			}
 			Mjoin(Freduce,elem_t)(p,D->ptr+i_offset*(index_t)ldd, N) ;
@@ -718,6 +718,7 @@ void reduce_fast(
 	elem_t * Dd = D->ptr;
 	taille_t i ;
 
+#ifdef USE_B_SPARSE
 	/* XXX convert B to sparse */
 	SAFE_MALLOC_DECL(Bsp,1,GBMatrix_t);
 	initSparse(Bsp);
@@ -749,6 +750,19 @@ void reduce_fast(
 
 #ifndef NDEBUG
 	checkMat(Bsp);
+#endif
+#else
+
+	SAFE_CALLOC_DECL(row_beg,B->row,taille_t);
+	for ( i = 0 ; i < B->row ; ++i) {
+		taille_t ii = 0 ;
+		while ( *(B->ptr+i*ldb+ii) == 0) {
+			row_beg[i] += 1 ;
+			++ii ;
+		}
+	}
+
+
 #endif
 
 	taille_t blk = MAT_SUB_BLK ;
@@ -790,6 +804,8 @@ void reduce_fast(
 			cblas_dcopy(D->col*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
 
 			taille_t j ;
+
+#ifdef USE_B_SPARSE
 #if 0
 			for ( j = 0 ; j < C->col ; ++j) {
 				/* XXX invert loops ? */
@@ -820,7 +836,7 @@ void reduce_fast(
 				}
 			}
 
-#endif
+#endif /* if 0 */
 
 #if 1
 			for ( j = 0 ; j < C->col ; ++j) {
@@ -900,7 +916,7 @@ void reduce_fast(
 					}
 				}
 			}
-#endif
+#endif /* if 1 */
 
 #if 0
 
@@ -935,23 +951,85 @@ void reduce_fast(
 			}
 
 
-#endif
+#endif /* if 0 */
+#else /* USE_B_SPARSE */
+			for ( j = 0 ; j < C->col ; ++j) {
+				for ( ii = 0 ; ii < blk_i ; ii += 2 ) {
+					elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*C->col+j],p) ;
+					elem_t td = Mjoin(fmod,elem_t)(-temp_C[(ii+1)*C->col+j],p) ;
+					if (tc != (elem_t)0.) {
+						if (td != (elem_t)0.) {
+							taille_t jj = j%MAT_ROW_BLK ;
+							taille_t kk = j/MAT_ROW_BLK ;
+							assert(kk*MAT_ROW_BLK+jj == j);
+							CSR * Ad = &(A->sub[kk]);
+							/* temp_C -= temp_C[j] * A[j] */
+							for ( jz = Ad->start[jj] ; jz < Ad->start[jj+1] ; ++jz) {
+								assert(Ad->colid[jz]<Ad->col);
+								temp_C[Ad->colid[jz]+ii*(C->col)] += tc * Ad->data[jz] ;
+								temp_C[Ad->colid[jz]+(ii+1)*(C->col)] += tc * Ad->data[jz] ;
+							}
+
+							/* temp_D -= temp_C[j] * B[j] */
+							taille_t rs = row_beg[j] ;
+							cblas_daxpy(D->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*(D->col)+rs,1);
+							cblas_daxpy(D->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+(ii+1)*(D->col)+rs,1);
+						}
+						else {
+							taille_t jj = j%MAT_ROW_BLK ;
+							taille_t kk = j/MAT_ROW_BLK ;
+							assert(kk*MAT_ROW_BLK+jj == j);
+							CSR * Ad = &(A->sub[kk]);
+							/* temp_C -= temp_C[j] * A[j] */
+							for ( jz = Ad->start[jj] ; jz < Ad->start[jj+1] ; ++jz) {
+								assert(Ad->colid[jz]<Ad->col);
+								temp_C[Ad->colid[jz]+ii*(C->col)] += tc * Ad->data[jz] ;
+							}
+
+							/* temp_D -= temp_C[j] * B[j] */
+							taille_t rs = row_beg[j] ;
+							cblas_daxpy(D->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*(D->col)+rs,1);
+						}
+					}
+					else if (td != (elem_t)0.) {
+						taille_t jj = j%MAT_ROW_BLK ;
+						taille_t kk = j/MAT_ROW_BLK ;
+						assert(kk*MAT_ROW_BLK+jj == j);
+						CSR * Ad = &(A->sub[kk]);
+						/* temp_C -= temp_C[j] * A[j] */
+						for ( jz = Ad->start[jj] ; jz < Ad->start[jj+1] ; ++jz) {
+							assert(Ad->colid[jz]<Ad->col);
+							temp_C[Ad->colid[jz]+(ii+1)*(C->col)] += tc * Ad->data[jz] ;
+						}
+
+						/* temp_D -= temp_C[j] * B[j] */
+						taille_t rs = row_beg[j] ;
+						cblas_daxpy(D->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+(ii+1)*(D->col)+rs,1);
+					}
+				}
+			}
+#endif /* USE_B_SPARSE */
 			/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */
 			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
 
 #ifdef _OPENMP
 		free(temp_D);
 		free(temp_C);
-#endif
+#endif /* _OPENMP */
 		}
 
 	}
+#ifdef USE_B_SPARSE
 	freeMat(Bsp);
 	free(Bsp);
+#else /* USE_B_SPARSE */
+	free(row_beg);
+#endif /* USE_B_SPARSE */
+
 #ifndef _OPENMP
 	free(temp_D);
 	free(temp_C);
-#endif
+#endif /* _OPENMP */
 	Mjoin(Freduce,elem_t)(p, Dd, (index_t)D->col*(index_t)D->row) ;
 }
 
