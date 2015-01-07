@@ -965,188 +965,190 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
   ri_t min_loop = to > N-1 ? N-1 : to;
   for (i=from; i<=min_loop; ++i) {
-    memset(dense_array_1, 0, coldim * sizeof(re_l_t));
-    memset(dense_array_2, 0, coldim * sizeof(re_l_t));
-    copy_multiline_to_dense_array(A->ml[i], dense_array_1, dense_array_2, coldim);
+    if (A->ml[i].val != NULL) {
+      memset(dense_array_1, 0, coldim * sizeof(re_l_t));
+      memset(dense_array_2, 0, coldim * sizeof(re_l_t));
+      copy_multiline_to_dense_array(A->ml[i], dense_array_1, dense_array_2, coldim);
 #if DDEBUG_D
-    for (int kk = 0; kk< coldim/2; ++kk) {
-      printf("3-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
-    }
-    for (int kk = 0; kk< coldim/2; ++kk) {
-      printf("4-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
-    }
-#endif
-    re_t h_a1 = 1, h_a2 = 1;
-
-    re_t v1_col1 = 0, v2_col1 = 0, v1_col2 = 0, v2_col2 = 0;
-    ri_t tmp  = 0;
-
-    for (j=from; j<i; ++j) {
-      ml_row  = &(A->ml[j]);
-      if (ml_row->sz == 0)
-        continue;
-
-      head_line_1 = get_head_multiline_hybrid(ml_row, 0,
-          &h_a1, &head_line_1_idx, coldim);
-      head_line_2 = get_head_multiline_hybrid(ml_row, 1,
-          &h_a2, &head_line_2_idx, coldim);
-
-      if (head_line_1 != -1) {
-        v1_col1 = dense_array_1[head_line_1] % modulus;
-        v2_col1 = dense_array_2[head_line_1] % modulus;
-
-        if (v1_col1 != 0)
-          v1_col1 = modulus - v1_col1;
-        if (v2_col1 != 0)
-          v2_col1 = modulus - v2_col1;
-      } else {
-        v1_col1 = 0;
-        v2_col1 = 0;
+      for (int kk = 0; kk< coldim/2; ++kk) {
+        printf("3-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
       }
+      for (int kk = 0; kk< coldim/2; ++kk) {
+        printf("4-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
+      }
+#endif
+      re_t h_a1 = 1, h_a2 = 1;
+
+      re_t v1_col1 = 0, v2_col1 = 0, v1_col2 = 0, v2_col2 = 0;
+      ri_t tmp  = 0;
+
+      for (j=from; j<i; ++j) {
+        ml_row  = &(A->ml[j]);
+        if (ml_row->sz == 0)
+          continue;
+
+        head_line_1 = get_head_multiline_hybrid(ml_row, 0,
+            &h_a1, &head_line_1_idx, coldim);
+        head_line_2 = get_head_multiline_hybrid(ml_row, 1,
+            &h_a2, &head_line_2_idx, coldim);
+
+        if (head_line_1 != -1) {
+          v1_col1 = dense_array_1[head_line_1] % modulus;
+          v2_col1 = dense_array_2[head_line_1] % modulus;
+
+          if (v1_col1 != 0)
+            v1_col1 = modulus - v1_col1;
+          if (v2_col1 != 0)
+            v2_col1 = modulus - v2_col1;
+        } else {
+          v1_col1 = 0;
+          v2_col1 = 0;
+        }
 #if DDEBUG_D_ONE
-      printf("v11 %d\n",v1_col1);
-      printf("v21 %d\n",v2_col1);
+        printf("v11 %d\n",v1_col1);
+        printf("v21 %d\n",v2_col1);
 #endif
-      if (head_line_2 != -1) {
-        v1_col2 = dense_array_1[head_line_2] % modulus;
-        v2_col2 = dense_array_2[head_line_2] % modulus;
+        if (head_line_2 != -1) {
+          v1_col2 = dense_array_1[head_line_2] % modulus;
+          v2_col2 = dense_array_2[head_line_2] % modulus;
 
-        intermediate_val  = ml_row->val[2*head_line_2_idx];
-        tmp_val = v1_col2 + (uint32_t)v1_col1 * intermediate_val;
-        v1_col2 = tmp_val % modulus;
-        tmp_val = v2_col2 + (uint32_t)v2_col1 * intermediate_val;
-        v2_col2 = tmp_val % modulus;
+          intermediate_val  = ml_row->val[2*head_line_2_idx];
+          tmp_val = v1_col2 + (uint32_t)v1_col1 * intermediate_val;
+          v1_col2 = tmp_val % modulus;
+          tmp_val = v2_col2 + (uint32_t)v2_col1 * intermediate_val;
+          v2_col2 = tmp_val % modulus;
 
-        if (v1_col2 != 0)
-          v1_col2 = modulus - v1_col2;
-        if (v2_col2 != 0)
-          v2_col2 = modulus - v2_col2;
-      } else {
-        v1_col2 = 0;
-        v2_col2 = 0;
-      }
+          if (v1_col2 != 0)
+            v1_col2 = modulus - v1_col2;
+          if (v2_col2 != 0)
+            v2_col2 = modulus - v2_col2;
+        } else {
+          v1_col2 = 0;
+          v2_col2 = 0;
+        }
 #if DDEBUG_D_ONE
-      printf("v12 %d\n",v1_col2);
-      printf("v22 %d\n",v2_col2);
+        printf("v12 %d\n",v1_col2);
+        printf("v22 %d\n",v2_col2);
 #endif
-      if (ml_row->sz < coldim) {
-        sparse_scal_mul_sub_2_rows_vect_array_multiline(
-            v1_col1, v2_col1,
-            v1_col2, v2_col2,
-            *ml_row,
-            dense_array_1,
-            dense_array_2);
-      } else {
-        dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
-            v1_col1, v2_col1,
-            v1_col2, v2_col2,
-            *ml_row,
-            dense_array_1,
-            dense_array_2,
-            head_line_1,
-            head_line_2);
-      }
-    }
-#if DDEBUG_D
-    for (int kk = 0; kk< coldim/2; ++kk) {
-      printf("5-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
-    }
-    for (int kk = 0; kk< coldim/2; ++kk) {
-      printf("6-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
-    }
-#endif
-    // normalize dense arrays
-    head_line_1 = normalize_dense_array(dense_array_1, coldim, modulus);
-    head_line_2 = normalize_dense_array(dense_array_2, coldim, modulus);
-#if DDEBUG_D
-    for (int kk = 0; kk< coldim/2; ++kk) {
-      printf("7-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
-    }
-    for (int kk = 0; kk< coldim/2; ++kk) {
-      printf("8-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
-    }
-#endif
-    // reduce by same multiline
-    if (head_line_1 >= head_line_2 && head_line_1 != -1 && head_line_2 != -1) {
-      dense_array_2[head_line_1] %= modulus;
-      if (dense_array_2[head_line_1] != 0) {
-        register uint32_t h = modulus - dense_array_2[head_line_1];
-        register uint32_t v__;
-        for (k=head_line_1; k<coldim; ++k) {
-          v__               =   dense_array_1[k] & 0x000000000000ffff;
-          dense_array_2[k]  +=  h * v__;
+        if (ml_row->sz < coldim) {
+          sparse_scal_mul_sub_2_rows_vect_array_multiline(
+              v1_col1, v2_col1,
+              v1_col2, v2_col2,
+              *ml_row,
+              dense_array_1,
+              dense_array_2);
+        } else {
+          dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
+              v1_col1, v2_col1,
+              v1_col2, v2_col2,
+              *ml_row,
+              dense_array_1,
+              dense_array_2,
+              head_line_1,
+              head_line_2);
         }
       }
-    }
+#if DDEBUG_D
+      for (int kk = 0; kk< coldim/2; ++kk) {
+        printf("5-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
+      }
+      for (int kk = 0; kk< coldim/2; ++kk) {
+        printf("6-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
+      }
+#endif
+      // normalize dense arrays
+      head_line_1 = normalize_dense_array(dense_array_1, coldim, modulus);
+      head_line_2 = normalize_dense_array(dense_array_2, coldim, modulus);
+#if DDEBUG_D
+      for (int kk = 0; kk< coldim/2; ++kk) {
+        printf("7-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
+      }
+      for (int kk = 0; kk< coldim/2; ++kk) {
+        printf("8-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
+      }
+#endif
+      // reduce by same multiline
+      if (head_line_1 >= head_line_2 && head_line_1 != -1 && head_line_2 != -1) {
+        dense_array_2[head_line_1] %= modulus;
+        if (dense_array_2[head_line_1] != 0) {
+          register uint32_t h = modulus - dense_array_2[head_line_1];
+          register uint32_t v__;
+          for (k=head_line_1; k<coldim; ++k) {
+            v__               =   dense_array_1[k] & 0x000000000000ffff;
+            dense_array_2[k]  +=  h * v__;
+          }
+        }
+      }
 
-    head_line_2 = get_head_dense_array(dense_array_2, &h_a2, coldim, modulus);
+      head_line_2 = get_head_dense_array(dense_array_2, &h_a2, coldim, modulus);
 
-    // make A->ml[i] dense, i.e. free memory for idx and enlarge memory for val
-    // initialize all values in val with 0, set size of A->ml[i] to coldim
-    if (A->ml[i].dense == 0) {
-      free (A->ml[i].idx);
-      A->ml[i].idx  = NULL;
-      A->ml[i].val  = realloc(A->ml[i].val, 2 * coldim * sizeof(re_t));
-      A->ml[i].sz   = coldim;
-    }
-    memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
+      // make A->ml[i] dense, i.e. free memory for idx and enlarge memory for val
+      // initialize all values in val with 0, set size of A->ml[i] to coldim
+      if (A->ml[i].dense == 0) {
+        free (A->ml[i].idx);
+        A->ml[i].idx  = NULL;
+        A->ml[i].val  = realloc(A->ml[i].val, 2 * coldim * sizeof(re_t));
+        A->ml[i].sz   = coldim;
+      }
+      memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
 
 #if DDEBUG_Dd
-    printf("DENSE1\n");
-    for (int uu=0; uu<coldim; ++uu)
-      printf("%u :: ",dense_array_1[uu]);
-    printf("DENSE2\n");
-    for (int uu=0; uu<coldim; ++uu)
-      printf("%u :: ",dense_array_2[uu]);
+      printf("DENSE1\n");
+      for (int uu=0; uu<coldim; ++uu)
+        printf("%u :: ",dense_array_1[uu]);
+      printf("DENSE2\n");
+      for (int uu=0; uu<coldim; ++uu)
+        printf("%u :: ",dense_array_2[uu]);
 #endif
-    
-    // save the line with the smallest column entry first
-    if (head_line_1 == -1) {
-      copy_dense_array_to_zero_dense_multiline(
-          dense_array_2, head_line_2, &A->ml[i], coldim, modulus);
-    } else {
-      if (head_line_2 == -1) {
+
+      // save the line with the smallest column entry first
+      if (head_line_1 == -1) {
         copy_dense_array_to_zero_dense_multiline(
-            dense_array_1, head_line_1, &A->ml[i], coldim, modulus);
-      } else { // both are not empty
-        if (head_line_1 > head_line_2) {
-          copy_dense_arrays_to_zero_dense_multiline(
-              dense_array_2, dense_array_1, head_line_2, &A->ml[i], coldim, modulus);
-        } else {
-      //copy_dense_arrays_to_dense_multiline(
-      //    dense_array_1, dense_array_2, ml, coldim, modulus);
-          copy_dense_arrays_to_zero_dense_multiline(
-              dense_array_1, dense_array_2, head_line_1, &A->ml[i], coldim, modulus);
+            dense_array_2, head_line_2, &A->ml[i], coldim, modulus);
+      } else {
+        if (head_line_2 == -1) {
+          copy_dense_array_to_zero_dense_multiline(
+              dense_array_1, head_line_1, &A->ml[i], coldim, modulus);
+        } else { // both are not empty
+          if (head_line_1 > head_line_2) {
+            copy_dense_arrays_to_zero_dense_multiline(
+                dense_array_2, dense_array_1, head_line_2, &A->ml[i], coldim, modulus);
+          } else {
+            //copy_dense_arrays_to_dense_multiline(
+            //    dense_array_1, dense_array_2, ml, coldim, modulus);
+            copy_dense_arrays_to_zero_dense_multiline(
+                dense_array_1, dense_array_2, head_line_1, &A->ml[i], coldim, modulus);
+          }
         }
       }
-    }
 #if DDEBUG_D
-  printf("BEFORE NORMALIZE\n");
-  const uint32_t rlD  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
-  int ii,jj,kk,ll;
-  for (ii=0; ii<rlD; ++ii) {
-    printf("%d .. \n",ii);
-    printf("size %d\n", A->ml[ii].sz * 2);
-    if (A->ml[ii].sz>0) {
-      for (ll=0; ll<A->ml[ii].sz; ++ll) {
-        /*
-        if (D_red->ml[ii].idx != NULL)
-          printf("%d -- ", D_red->ml[ii].idx[ll]);
-        else
-          printf("%d -- ", ll);
-          */
-        printf("%d %d ", A->ml[ii].val[2*ll], A->ml[ii].val[2*ll+1]);
+      printf("BEFORE NORMALIZE\n");
+      const uint32_t rlD  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
+      int ii,jj,kk,ll;
+      for (ii=0; ii<rlD; ++ii) {
+        printf("%d .. \n",ii);
+        printf("size %d\n", A->ml[ii].sz * 2);
+        if (A->ml[ii].sz>0) {
+          for (ll=0; ll<A->ml[ii].sz; ++ll) {
+            /*
+               if (D_red->ml[ii].idx != NULL)
+               printf("%d -- ", D_red->ml[ii].idx[ll]);
+               else
+               printf("%d -- ", ll);
+               */
+            printf("%d %d ", A->ml[ii].val[2*ll], A->ml[ii].val[2*ll+1]);
+          }
+          printf("\n");
+        }
       }
-      printf("\n");
-    }
-  }
 #endif
-    // normalize multiline
-    normalize_multiline(&A->ml[i], coldim, modulus);
-    if (head_line_1 != -1)
-      npiv_real++;
-    if (head_line_2 != -1)
-      npiv_real++;
+      // normalize multiline
+      normalize_multiline(&A->ml[i], coldim, modulus);
+      if (head_line_1 != -1)
+        npiv_real++;
+      if (head_line_2 != -1)
+        npiv_real++;
+    }
   }
   free(dense_array_1);
   dense_array_1 = NULL;
