@@ -1252,6 +1252,7 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
       printf("14-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
     }
 #endif
+    }
     if (curr_row_to_reduce == local_last_piv + 1) {
       curr_row_fully_reduced  = 1;
       ready_for_waiting_list  = 0;
@@ -1270,11 +1271,9 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
     printf("1 %p -- 2 %p\n",dense_array_1,dense_array_2);
     printf("BEFORE A.val %p\n",A->ml[curr_row_to_reduce].val);
     */
+    if (A->ml[curr_row_to_reduce].val != NULL) {
       save_back_and_reduce(&(A->ml[curr_row_to_reduce]), dense_array_1,
           dense_array_2, coldim, modulus, curr_row_fully_reduced, curr_row_to_reduce);
-    } else {
-      if (local_last_piv+1 == curr_row_to_reduce)
-        curr_row_fully_reduced  ==  1;
     }
     /*
     printf("AFTER A.val %p\n",A->ml[curr_row_to_reduce].val);
