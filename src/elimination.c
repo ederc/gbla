@@ -895,8 +895,9 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
   ri_t rank = 0;
 
   for (i=0; i<ml_nrows_D_red; ++i) {
-    if (D_red->ml[i].sz == 0)
+    if (D_red->ml[i].sz == 0) {
       continue;
+    }
 
 
     head_line_1 = get_head_multiline_hybrid(&(D_red->ml[i]), 0,
@@ -1002,7 +1003,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
         v1_col1 = 0;
         v2_col1 = 0;
       }
-#if DDEBUG_D
+#if DDEBUG_D_ONE
       printf("v11 %d\n",v1_col1);
       printf("v21 %d\n",v2_col1);
 #endif
@@ -1018,13 +1019,13 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
         if (v1_col2 != 0)
           v1_col2 = modulus - v1_col2;
-        if (v2_col1 != 0)
+        if (v2_col2 != 0)
           v2_col2 = modulus - v2_col2;
       } else {
         v1_col2 = 0;
         v2_col2 = 0;
       }
-#if DDEBUG_D
+#if DDEBUG_D_ONE
       printf("v12 %d\n",v1_col2);
       printf("v22 %d\n",v2_col2);
 #endif
@@ -1042,7 +1043,8 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
             *ml_row,
             dense_array_1,
             dense_array_2,
-            head_line_1);
+            head_line_1,
+            head_line_2);
       }
     }
 #if DDEBUG_D
@@ -1226,6 +1228,7 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
     }
 
     omp_unset_lock(&echelonize_lock);
+    if (A->ml[curr_row_to_reduce].val != NULL) {
     // set zero
     memset(dense_array_1, 0, coldim * sizeof(re_l_t));
     memset(dense_array_2, 0, coldim * sizeof(re_l_t));
@@ -1264,12 +1267,15 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
 
     // save back to multiline
     /*
-    printf("0-mlidx %p -- mlval %p\n",A->ml[curr_row_to_reduce].idx,A->ml[curr_row_to_reduce].val);
     printf("1 %p -- 2 %p\n",dense_array_1,dense_array_2);
     printf("BEFORE A.val %p\n",A->ml[curr_row_to_reduce].val);
     */
-    save_back_and_reduce(&(A->ml[curr_row_to_reduce]), dense_array_1,
-        dense_array_2, coldim, modulus, curr_row_fully_reduced, curr_row_to_reduce);
+      save_back_and_reduce(&(A->ml[curr_row_to_reduce]), dense_array_1,
+          dense_array_2, coldim, modulus, curr_row_fully_reduced, curr_row_to_reduce);
+    } else {
+      if (local_last_piv+1 == curr_row_to_reduce)
+        curr_row_fully_reduced  ==  1;
+    }
     /*
     printf("AFTER A.val %p\n",A->ml[curr_row_to_reduce].val);
     printf("1 %p -- 2 %p\n",dense_array_1,dense_array_2);
@@ -1336,7 +1342,7 @@ void echelonize_one_row(sm_fl_ml_t *A,
 #if DEBUG_ECHELONIZE
     printf("j %d\n",j);
 #endif
-    if (ml_row->sz == 0)
+    if (ml_row->val == NULL || ml_row->sz == 0)
       continue;
 #if DDEBUG_D
     if (ml_row != NULL) {
@@ -1429,7 +1435,8 @@ void echelonize_one_row(sm_fl_ml_t *A,
           *ml_row,
           dense_array_1,
           dense_array_2,
-          head_line_1);
+          head_line_1,
+          head_line_2);
     }
 #if DDEBUG_D
     for (int kk = 0; kk< coldim/2; ++kk) {

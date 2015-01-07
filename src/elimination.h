@@ -316,20 +316,21 @@ static inline void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
               const ml_t multiline,
               re_l_t *dense_val1,
               re_l_t *dense_val2,
-              const ci_t offset) {
+              const ci_t offset1,
+              const ci_t offset2) {
 
-  if (offset < 0)
+  if (offset1 < 0)
     return;
 
   // check cases where one pair of the elements is zero
   if (Av1_col1 == 0 && Av2_col1 == 0) {
     dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
-        Av1_col2, Av2_col2, multiline, 1, dense_val1, dense_val2, offset);
+        Av1_col2, Av2_col2, multiline, 1, dense_val1, dense_val2, offset2);
     return;
   }
   if (Av1_col2 == 0 && Av2_col2 == 0) {
     dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
-        Av1_col1, Av2_col1, multiline, 0, dense_val1, dense_val2, offset);
+        Av1_col1, Av2_col1, multiline, 0, dense_val1, dense_val2, offset1);
     return;
   }
   
@@ -341,7 +342,7 @@ static inline void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
   register uint32_t v1__, v2__;
   register uint32_t idx;
 
-  for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+  for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
     for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
       v1__ = p_val[2*(i+j)];
       v2__ = p_val[2*(i+j)+1];
