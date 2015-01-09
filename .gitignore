@@ -32,8 +32,8 @@ config.status
 config.sub
 configure
 depcomp
-gb
-gb.pc
+gbla
+gbla.pc
 install-sh
 libgb.la
 libtool
@@ -47,7 +47,7 @@ missing
 src/.dirstamp
 src/config.h
 src/config.h.in
-src/gb_config.h
+src/gbla_config.h
 src/stamp-h1
 tags
 test/read-jcf-matrix-density

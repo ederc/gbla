@@ -1,4 +1,4 @@
-AC_INIT([gb],[0.0.1])
+AC_INIT([gbla],[0.0.1])
 
 AC_CANONICAL_HOST
 
@@ -370,6 +370,6 @@ fi
 
 AC_PROG_MAKE_SET
 
-AC_CONFIG_FILES([Makefile test/Makefile src/gb_config.h gb.pc])
+AC_CONFIG_FILES([Makefile test/Makefile src/gbla_config.h gbla.pc])
 AC_OUTPUT
 

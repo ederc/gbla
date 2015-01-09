@@ -1,4 +1,4 @@
-#include "gb.h"
+#include "gbla.h"
 
 #define __GB_CLI_DEBUG  0
 

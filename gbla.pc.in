@@ -3,8 +3,8 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: GB
-Description: Groebner Basis algorithms.
+Name: gbla
+Description: Linear algebra for Groebner Basis algorithms.
 Version: @PACKAGE_VERSION@
-Libs: -L${libdir} -lgb -lm
+Libs: -L${libdir} -lgbla -lm
 Cflags: -I${includedir}/ @CFLAGS@ @SIMD_CFLAGS@ @OPENMP_CFLAGS@

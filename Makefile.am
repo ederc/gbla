@@ -3,14 +3,14 @@ ACLOCAL_AMFLAGS = -I m4
 
 AM_CFLAGS=${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS} -lm
 
-lib_LTLIBRARIES = libgb.la
+lib_LTLIBRARIES = libgbla.la
 
-libgb_la_SOURCES = \
+libgbla_la_SOURCES = \
 	src/matrix.h	src/matrix.c \
 	src/mapping.h	src/mapping.c \
 	src/elimination.h	src/elimination.c
 
-BUILT_SOURCES = src/gb_config.h
+BUILT_SOURCES = src/gbla_config.h
 
 pkgincludesubdir = $(includedir)/src
 pkgincludesub_HEADERS = \
@@ -19,25 +19,25 @@ pkgincludesub_HEADERS = \
 	src/mapping.h \
 	src/elimination.h 
 
-nodist_pkgincludesub_HEADERS = src/gb_config.h
+nodist_pkgincludesub_HEADERS = src/gbla_config.h
 
 EXTRA_DIST=src/Doxyfile autogen.sh
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = gb.pc
+pkgconfig_DATA = gbla.pc
 
-libgb_la_LDFLAGS = -release $(RELEASE) -no-undefined
-libgb_la_LIBADD = $(LIBPNG_LIBADD)
+libgbla_la_LDFLAGS = -release $(RELEASE) -no-undefined
+libgbla_la_LIBADD = $(LIBPNG_LIBADD)
 
-bin_PROGRAMS = gb
+bin_PROGRAMS = gbla
 
 # set up the console program. Listing the headers in sources ensure that
 # those files are included in distributions.
-gb_SOURCES = \
-	cli/gb.h	cli/gb.c	\
+gbla_SOURCES = \
+	cli/gbla.h	cli/gbla.c	\
 	cli/io.h	cli/io.c
 
-gb_LDADD = $(top_builddir)/libgb.la $(DEPS_LIBS)
+gbla_LDADD = $(top_builddir)/libgbla.la $(DEPS_LIBS)
 
 SUBDIRS = test
 check:
