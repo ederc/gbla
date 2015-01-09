@@ -1321,6 +1321,7 @@ void echelonize_one_row(sm_fl_ml_t *A,
   ci_t j;
   int head_line_1       = -1;
   int head_line_2       = -1;
+  int nzc               = 0; // tracks if there is a nonzero coeff at all
   ci_t head_line_1_idx  = 0;
   ci_t head_line_2_idx  = 0;
 
@@ -1339,6 +1340,7 @@ void echelonize_one_row(sm_fl_ml_t *A,
   printf("fp %d -- lp %d\n",first_piv, last_piv);
 #endif
   for (j=first_piv; j<last_piv+1; ++j) {
+    nzc = 0;
     ml_row  = &(A->ml[j]);
 #if DEBUG_ECHELONIZE
     printf("j %d\n",j);
@@ -1379,19 +1381,23 @@ void echelonize_one_row(sm_fl_ml_t *A,
       printf("v21 %d\n",v2_col1);
 #endif
 
-      if (v1_col1 != 0)
+      if (v1_col1 != 0) {
         v1_col1 = modulus - v1_col1;
-      if (v2_col1 != 0)
+        nzc = 1;
+      }
+      if (v2_col1 != 0) {
         v2_col1 = modulus - v2_col1;
+        nzc = 1;
+      }
     } else {
       v1_col1 = 0;
       v2_col1 = 0;
     }
 #if DDEBUG_D_ONE
-      printf("v11 %d\n",v1_col1);
-      printf("v21 %d\n",v2_col1);
+    printf("v11 %d\n",v1_col1);
+    printf("v21 %d\n",v2_col1);
 #endif
-      //printf("hl2 %d => %d ?\n",head_line_2,head_line_2 != -1);
+    //printf("hl2 %d => %d ?\n",head_line_2,head_line_2 != -1);
     if (head_line_2 != -1) {
       v1_col2 = dense_array_1[head_line_2] % modulus;
       v2_col2 = dense_array_2[head_line_2] % modulus;
@@ -1410,34 +1416,40 @@ void echelonize_one_row(sm_fl_ml_t *A,
       printf("v22 %d\n",v2_col2);
 #endif
 
-      if (v1_col2 != 0)
+      if (v1_col2 != 0) {
         v1_col2 = modulus - v1_col2;
-      if (v2_col2 != 0)
+        nzc = 1;
+      }
+      if (v2_col2 != 0) {
         v2_col2 = modulus - v2_col2;
+        nzc = 1;
+      }
     } else {
       v1_col2 = 0;
       v2_col2 = 0;
     }
 #if DDEBUG_D_ONE
-      printf("v12 %d\n",v1_col2);
-      printf("v22 %d\n",v2_col2);
+    printf("v12 %d\n",v1_col2);
+    printf("v22 %d\n",v2_col2);
 #endif
-    if (ml_row->sz < coldim) {
-      sparse_scal_mul_sub_2_rows_vect_array_multiline(
-          v1_col1, v2_col1,
-          v1_col2, v2_col2,
-          *ml_row,
-          dense_array_1,
-          dense_array_2);
-    } else {
-      dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
-          v1_col1, v2_col1,
-          v1_col2, v2_col2,
-          *ml_row,
-          dense_array_1,
-          dense_array_2,
-          head_line_1,
-          head_line_2);
+    if (nzc == 1) {
+      if (ml_row->sz < coldim) {
+        sparse_scal_mul_sub_2_rows_vect_array_multiline(
+            v1_col1, v2_col1,
+            v1_col2, v2_col2,
+            *ml_row,
+            dense_array_1,
+            dense_array_2);
+      } else {
+        dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
+            v1_col1, v2_col1,
+            v1_col2, v2_col2,
+            *ml_row,
+            dense_array_1,
+            dense_array_2,
+            head_line_1,
+            head_line_2);
+      }
     }
 #if DDEBUG_D
     for (int kk = 0; kk< coldim/2; ++kk) {
