@@ -9,7 +9,7 @@
 #ifndef GB_MAPPING_H
 #define GB_MAPPING_H
 
-#include <gb_config.h>
+#include <gbla_config.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>

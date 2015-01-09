@@ -16,8 +16,8 @@
 #include <time.h>
 #include <sys/time.h>
 #include <math.h>
+#include <gbla_config.h>
 #include <matrix.h>
-#include <gb_config.h>
 
 // ========== TIMINGS ==========
 
