@@ -24,6 +24,11 @@
 #define MAT_SUB_BLK   16
 #define MAT_ROW_BLK (MAT_SUB_BLK*64) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
 #define USE_B_SPARSE
+#define DEROULE
+#define UNRL 4
+#undef USE_SAXPY
+#define USE_SAXPY2
+#undef USE_SAXPYn
 /* #define GROW_REALLOC 16 |+ grow by GROW_REALLOC when using realloc +| */
 
 #ifndef NDEBUG

@@ -420,7 +420,7 @@ taille_t * readFileSplit(
 	assert(mod > 1);
 	SAFE_READ_DECL_V(nnz,uint64_t,fh);
 
-	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %f) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n),(int64_t)mod);
+	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
 
 	A_init->col = C_init->col = n ;
 	A_init->mod = C_init->mod = mod ;
@@ -662,10 +662,33 @@ void spaxpy(
 		const taille_t * colid,
 		elem_t         * B)
 {
-	taille_t jz ;
-	for (jz = 0 ; jz < nb ; ++jz) {
+	taille_t jz = 0 ;
+#ifndef DEROULE
+	for ( ; jz < nb ; ++jz) {
 		B[colid[jz]] += tc * A[jz] ;
 	}
+#else /* UNROLL */
+	for ( ; jz < (nb/UNRL)*UNRL ; jz += UNRL) {
+			B[colid[jz]]   += tc * A[jz] ;
+			B[colid[jz+1]] += tc * A[jz+1] ;
+#if (UNRL>2)
+			B[colid[jz+2]] += tc * A[jz+2] ;
+			B[colid[jz+3]] += tc * A[jz+3] ;
+#endif
+#if (UNRL>4)
+			B[colid[jz+4]] += tc * A[jz+4] ;
+			B[colid[jz+5]] += tc * A[jz+5] ;
+#endif
+#if (UNRL>6)
+			B[colid[jz+6]] += tc * A[jz+6] ;
+			B[colid[jz+7]] += tc * A[jz+7] ;
+#endif
+	}
+	assert((int64_t)nb - (int64_t)jz < UNRL);
+	for (  ; jz < nb ; ++jz) {
+		B[colid[jz]] += tc * A[jz] ;
+	}
+#endif
 }
 
 void spaxpy2(
@@ -678,11 +701,42 @@ void spaxpy2(
 		const taille_t   ld
 	    )
 {
-	taille_t jz ;
-	for (jz = 0 ; jz < nb ; ++jz) {
+	taille_t jz = 0 ;
+#ifdef DEROULE
+	for ( ; jz < (nb/UNRL)*UNRL ; jz +=UNRL) {
+			B[colid[jz]]      += tc * A[jz] ;
+			B[colid[jz+1]]    += tc * A[jz+1] ;
+			B[colid[jz]+ld]   += td * A[jz] ;
+			B[colid[jz+1]+ld] += td * A[jz+1] ;
+#if (UNRL>2)
+			B[colid[jz+2]]    += tc * A[jz+2] ;
+			B[colid[jz+3]]    += tc * A[jz+3] ;
+			B[colid[jz+2]+ld] += td * A[jz+2] ;
+			B[colid[jz+3]+ld] += td * A[jz+3] ;
+#endif
+#if (UNRL>4)
+			B[colid[jz+4]]    += tc * A[jz+4] ;
+			B[colid[jz+4]+ld] += td * A[jz+4] ;
+			B[colid[jz+5]]    += tc * A[jz+5] ;
+			B[colid[jz+5]+ld] += td * A[jz+5] ;
+#endif
+#if (UNRL>6)
+			B[colid[jz+6]]    += tc * A[jz+6] ;
+			B[colid[jz+6]+ld] += td * A[jz+6] ;
+			B[colid[jz+7]]    += tc * A[jz+7] ;
+			B[colid[jz+7]+ld] += td * A[jz+7] ;
+#endif
+	}
+	for (  ; jz < nb ; ++jz) {
 		B[colid[jz]]    += tc * A[jz] ;
 		B[colid[jz]+ld] += td * A[jz] ;
 	}
+#else /* UNROLL */
+	for ( ; jz < nb ; ++jz) {
+		B[colid[jz]]    += tc * A[jz] ;
+		B[colid[jz]+ld] += td * A[jz] ;
+	}
+#endif
 }
 
 void spaxpyn(
@@ -806,10 +860,14 @@ void reduce_fast(
 			taille_t j ;
 
 #ifdef USE_B_SPARSE
-#if 0
+#ifdef USE_SAXPY
+#if defined(USE_SAXPYn) || defined(USE_SAXPY2)
+#error "make a choice"
+#endif
+
 			for ( j = 0 ; j < C->col ; ++j) {
 				/* XXX invert loops ? */
-				for ( ii = 0 ; ii < blk_i ; ii += 2 ) {
+				for ( ii = 0 ; ii < blk_i ; ii += 1 ) {
 					elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*C->col+j],p) ;
 					if (tc != 0.) {
 						/* temp_C -= temp_C[j] * A[j] */
@@ -838,7 +896,11 @@ void reduce_fast(
 
 #endif /* if 0 */
 
-#if 1
+#ifdef USE_SAXPY2
+#if defined(USE_SAXPY) || defined(USE_SAXPYn)
+#error "make a choice"
+#endif
+
 			for ( j = 0 ; j < C->col ; ++j) {
 				/* XXX invert loops ? */
 				for ( ii = 0 ; ii < blk_i ; ii += 2 ) {
@@ -918,7 +980,10 @@ void reduce_fast(
 			}
 #endif /* if 1 */
 
-#if 0
+#ifdef USE_SAXPYn
+#if defined(USE_SAXPY) || defined(USE_SAXPY2)
+#error "make a choice"
+#endif
 
 			for ( j = 0 ; j < C->col ; ++j) {
 				taille_t nbnz = 0;
