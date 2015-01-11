@@ -21,8 +21,13 @@
 
 /* #define READ_MAT_ROW_BLK 128      |+ read matrix MAT_ROW_BLK by MAT_ROW_BLK +| */
 /* #define MAT_ROW_BLK (1UL<<31)     |+ write matrix MAT_ROW_BLK by MAT_ROW_BLK +| */
+#ifndef _OPENMP
 #define MAT_SUB_BLK 16
 #define MAT_ROW_BLK (MAT_SUB_BLK*8) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
+#else
+#define MAT_SUB_BLK 16
+#define MAT_ROW_BLK (MAT_SUB_BLK*32) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
+#endif
 #define USE_B_SPARSE
 #define DEROULE
 #define UNRL 4
