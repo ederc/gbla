@@ -704,26 +704,33 @@ void spaxpy2(
 	taille_t jz = 0 ;
 #ifdef DEROULE
 	for ( ; jz < (nb/UNRL)*UNRL ; jz +=UNRL) {
-			B[colid[jz]]      += tc * A[jz] ;
+			B[colid[jz  ]]    += tc * A[jz  ] ;
 			B[colid[jz+1]]    += tc * A[jz+1] ;
-			B[colid[jz]+ld]   += td * A[jz] ;
-			B[colid[jz+1]+ld] += td * A[jz+1] ;
 #if (UNRL>2)
 			B[colid[jz+2]]    += tc * A[jz+2] ;
 			B[colid[jz+3]]    += tc * A[jz+3] ;
+#endif
+#if (UNRL>4)
+			B[colid[jz+4]]    += tc * A[jz+4] ;
+			B[colid[jz+5]]    += tc * A[jz+5] ;
+#endif
+#if (UNRL>6)
+			B[colid[jz+6]]    += tc * A[jz+6] ;
+			B[colid[jz+7]]    += tc * A[jz+7] ;
+#endif
+
+			B[colid[jz  ]+ld] += td * A[jz  ] ;
+			B[colid[jz+1]+ld] += td * A[jz+1] ;
+#if (UNRL>2)
 			B[colid[jz+2]+ld] += td * A[jz+2] ;
 			B[colid[jz+3]+ld] += td * A[jz+3] ;
 #endif
 #if (UNRL>4)
-			B[colid[jz+4]]    += tc * A[jz+4] ;
 			B[colid[jz+4]+ld] += td * A[jz+4] ;
-			B[colid[jz+5]]    += tc * A[jz+5] ;
 			B[colid[jz+5]+ld] += td * A[jz+5] ;
 #endif
 #if (UNRL>6)
-			B[colid[jz+6]]    += tc * A[jz+6] ;
 			B[colid[jz+6]+ld] += td * A[jz+6] ;
-			B[colid[jz+7]]    += tc * A[jz+7] ;
 			B[colid[jz+7]+ld] += td * A[jz+7] ;
 #endif
 	}
@@ -827,8 +834,6 @@ void reduce_fast(
 	SAFE_MALLOC_DECL(temp_C,(index_t)C->col*(index_t)blk,elem_t);
 #endif
 
-	/* SAFE_MALLOC_DECL(jump,blk,taille_t); */
-	/* SAFE_MALLOC_DECL(diag,blk,elem_t); */
 	taille_t k ;
 	assert(D->col == B->col);
 	for (k = 0 ; k < C->sub_nb ; ++k) {
@@ -985,6 +990,8 @@ void reduce_fast(
 #error "make a choice"
 #endif
 
+			SAFE_MALLOC_DECL(jump,blk,taille_t);
+			SAFE_MALLOC_DECL(diag,blk,elem_t);
 			for ( j = 0 ; j < C->col ; ++j) {
 				taille_t nbnz = 0;
 				for ( ii = 0 ; ii < blk_i ; ++ii) {
