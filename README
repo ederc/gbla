@@ -1,5 +1,5 @@
 === OVERVIEW ===
-gb-la is a library for reducing matrices coming Groebner bases.
+gbla is a library for reducing matrices coming from Groebner basis computations.
 Its core functionality is the special Gaussian Elimination of
 structured hybrid sparse-dense matrices due to Faugère and Lachartre.
 
@@ -7,5 +7,5 @@ structured hybrid sparse-dense matrices due to Faugère and Lachartre.
 
 === DEBUGGING ===
 In order to debug gb one needs to use
-libtool e gdb --args ./gb-la --options
+libtool e gdb --args ./gbla --options
 since we build the library using libtool and link it than against the binary gb.
