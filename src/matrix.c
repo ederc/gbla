@@ -2,29 +2,34 @@
 
 #define NOT_DENSE_COPYING 0
 
-void copy_block_matrix_to_sparse_matrix(sbm_fl_t **input,
-    sm_t **output, int deleteIn, int nthrds) {
+void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
+    sm_fl_ml_t **input_ml, ri_t rank_input_ml, sm_t **output,
+    int deleteIn, int nthrds) {
 
-  sbm_fl_t *in  = *input;
-  sm_t *out     = *output;
+  sbm_fl_t *in_bl   = *input_bl;
+  sm_fl_ml_t *in_ml = *input_ml;
+  sm_t *out         = *output;
 
   ri_t i, ii;
   ci_t j;
   bi_t k;
   bi_t l;
 
+  ri_t rank = rank_input_ml / __GB_NROWS_MULTILINE +
+    rank_input_ml % __GB_NROWS_MULTILINE;
   // initialize meta data for multiline matrix out
-  out->nrows    = in->nrows;  // row dimension
-  out->ncols    = in->ncols;  // col dimension
+  out->nrows    = in_bl->nrows + rank_input_ml; // row dimension
+  out->ncols    = in_bl->ncols;                 // col dimension
 
   // allocate memory for blocks
   ri_t rl = out->nrows;
+  printf("nrows sm %d\n",rl);
 
   out->rows   = (re_t **)malloc(rl * sizeof(re_t *));
   out->pos    = (ci_t **)malloc(rl * sizeof(ci_t *));
   out->rwidth = (ci_t *)malloc(rl * sizeof(ci_t));
   memset(out->rwidth, 0, rl * sizeof(ci_t));
-  #pragma omp parallel num_threads(nthrds)
+#pragma omp parallel num_threads(nthrds)
   {
 #pragma omp for private(i) nowait
     for (i=0; i<rl; ++i) {
@@ -35,8 +40,10 @@ void copy_block_matrix_to_sparse_matrix(sbm_fl_t **input,
     }
   }
 
-  const ri_t rlin = (ri_t) ceil((float) in->nrows / in->bheight);
-  const ci_t clin = (ci_t) ceil((float) in->ncols / in->bwidth);
+  // write B first into output matrix
+
+  const ri_t rlin_bl = (ri_t) ceil((float) in_bl->nrows / in_bl->bheight);
+  const ci_t clin_bl = (ci_t) ceil((float) in_bl->ncols / in_bl->bwidth);
   // we need buffers for all multiline entries since the copying process
   // revisits already filled up multilines.if we reset the buffer to zero, we
   // might realloc only init_buffer memory and lose what we have already in the
@@ -47,43 +54,44 @@ void copy_block_matrix_to_sparse_matrix(sbm_fl_t **input,
   ri_t sparse_idx;
   re_t v1, v2;
   mli_t crb = 0;
-  const bi_t ml_bheight = in->bheight / __GB_NROWS_MULTILINE;
-  #pragma omp parallel num_threads(nthrds)
+  const bi_t ml_bheight = in_bl->bheight / __GB_NROWS_MULTILINE;
+#pragma omp parallel num_threads(nthrds)
   {
-    #pragma omp for private(sparse_idx,i,ii,j,k,l,block_idx,block_vert,v1,v2) nowait
-    for (i=0; i<rlin; ++i) { // loop over multilines
-      block_vert = i * in->bheight;
-      for (j=0; j<clin; ++j) {
-        block_idx = j * in->bwidth;
-        if (in->blocks[i][j] == NULL) {
+#pragma omp for lastprivate(sparse_idx) private(i,ii,j,k,l,block_idx,block_vert,v1,v2) nowait
+    for (i=0; i<rlin_bl; ++i) { // loop over multilines
+      block_vert = i * in_bl->bheight;
+      for (j=0; j<clin_bl; ++j) {
+        block_idx = j * in_bl->bwidth;
+        if (in_bl->blocks[i][j] == NULL) {
           continue;
         }
         for (k=0;k<ml_bheight; ++k) {
-          if (in->blocks[i][j][k].sz == 0) {
+          if (in_bl->blocks[i][j][k].sz == 0) {
             continue;
           }
           sparse_idx  = block_vert+2*k;
-          if (in->blocks[i][j][k].dense == 0) {
-            for (l=0; l<in->blocks[i][j][k].sz; ++l) {
+          printf("bl-si %d\n", sparse_idx);
+          if (in_bl->blocks[i][j][k].dense == 0) {
+            for (l=0; l<in_bl->blocks[i][j][k].sz; ++l) {
               // fill in data
-              v1  = in->blocks[i][j][k].val[2*l];
-              v2  = in->blocks[i][j][k].val[2*l+1];
+              v1  = in_bl->blocks[i][j][k].val[2*l];
+              v2  = in_bl->blocks[i][j][k].val[2*l+1];
               if (v1 != 0) {
                 out->rows[sparse_idx][out->rwidth[sparse_idx]]  = v1;
-                out->pos[sparse_idx][out->rwidth[sparse_idx]]   = block_idx + in->blocks[i][j][k].idx[l];
+                out->pos[sparse_idx][out->rwidth[sparse_idx]]   = block_idx + in_bl->blocks[i][j][k].idx[l];
                 out->rwidth[sparse_idx]++;
               }
               if (v2 != 0) {
                 out->rows[sparse_idx+1][out->rwidth[sparse_idx+1]]  = v2;
-                out->pos[sparse_idx+1][out->rwidth[sparse_idx+1]]   = block_idx + in->blocks[i][j][k].idx[l];
+                out->pos[sparse_idx+1][out->rwidth[sparse_idx+1]]   = block_idx + in_bl->blocks[i][j][k].idx[l];
                 out->rwidth[sparse_idx+1]++;
               }
             }
           } else {
-            for (l=0; l<in->blocks[i][j][k].sz; ++l) {
+            for (l=0; l<in_bl->blocks[i][j][k].sz; ++l) {
               // fill in data
-              v1  = in->blocks[i][j][k].val[2*l];
-              v2  = in->blocks[i][j][k].val[2*l+1];
+              v1  = in_bl->blocks[i][j][k].val[2*l];
+              v2  = in_bl->blocks[i][j][k].val[2*l+1];
               if (v1 != 0) {
                 out->rows[sparse_idx][out->rwidth[sparse_idx]]  = v1;
                 out->pos[sparse_idx][out->rwidth[sparse_idx]]   = block_idx + l;
@@ -100,46 +108,121 @@ void copy_block_matrix_to_sparse_matrix(sbm_fl_t **input,
       }
     }
   }
-  // realloc memory
-  #pragma omp parallel num_threads(nthrds)
-    {
-#pragma omp for private(i) nowait
-      for (i=0; i<out->nrows; ++i) {
-        out->rows[i]  = realloc(out->rows[i],out->rwidth[i]*sizeof(re_t));
-        out->pos[i]   = realloc(out->pos[i],out->rwidth[i]*sizeof(ci_t));
+
+  // write D second into output matrix
+
+  if (in_bl->nrows % 2 == 1)
+    sparse_idx++;
+  else
+    sparse_idx =  sparse_idx + 2;
+
+  const ri_t rlin_ml = (ri_t) ceil((float) in_ml->nrows / __GB_NROWS_MULTILINE);
+  const ci_t clin_ml = in_ml->ncols;
+
+  // we need buffers for all multiline entries since the copying process
+  // revisits already filled up multilines.if we reset the buffer to zero, we
+  // might realloc only init_buffer memory and lose what we have already in the
+  // multiline stored.
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for firstprivate(sparse_idx) private(i,ii,j,k,l,block_idx,block_vert,v1,v2) nowait
+    for (i=0; i<rlin_ml; ++i) { // loop over multilines
+      if (out->rwidth[sparse_idx] > 0)
+        sparse_idx++;
+      if (out->rwidth[sparse_idx] > 0)
+        sparse_idx++;
+      if (in_ml->ml[i].val == NULL || in_ml->ml[i].sz == 0) {
+        continue;
       }
-    }
-
-  if (deleteIn) {
-  // free memory for input matrix
-  #pragma omp parallel num_threads(nthrds)
-    {
-#pragma omp for private(i,j,k) nowait
-      for (i=0; i<rlin; ++i) {
-        for (j=0; j<clin; ++j) {
-          if (in->blocks[i][j] != NULL) {
-            for (k=0; k<ml_bheight; ++k) {
-              free(in->blocks[i][j][k].idx);
-              in->blocks[i][j][k].idx = NULL;
-
-              free(in->blocks[i][j][k].val);
-              in->blocks[i][j][k].val = NULL;
-            }
-            free(in->blocks[i][j]);
-            in->blocks[i][j] = NULL;
+      if (in_ml->ml[i].dense == 0) {
+        for (j=0; j<clin_ml; ++j) {
+          v1  = in_ml->ml[i].val[2*j];
+          v2  = in_ml->ml[i].val[2*j+1];
+          if (v1 != 0) {
+            out->rows[sparse_idx][out->rwidth[sparse_idx]]  = v1;
+            out->pos[sparse_idx][out->rwidth[sparse_idx]]   = in_ml->ml[i].idx[j];
+            out->rwidth[sparse_idx]++;
+          }
+          if (v2 != 0) {
+            out->rows[sparse_idx+1][out->rwidth[sparse_idx+1]]  = v2;
+            out->pos[sparse_idx+1][out->rwidth[sparse_idx+1]]   = in_ml->ml[i].idx[j];
+            out->rwidth[sparse_idx+1]++;
           }
         }
-        free(in->blocks[i]);
-        in->blocks[i] = NULL;
+      } else {
+        for (j=0; j<clin_ml; ++j) {
+          v1  = in_ml->ml[i].val[2*j];
+          v2  = in_ml->ml[i].val[2*j+1];
+          if (v1 != 0) {
+            out->rows[sparse_idx][out->rwidth[sparse_idx]]  = v1;
+            out->pos[sparse_idx][out->rwidth[sparse_idx]]   = j;
+            out->rwidth[sparse_idx]++;
+          }
+          if (v2 != 0) {
+            out->rows[sparse_idx+1][out->rwidth[sparse_idx+1]]  = v2;
+            out->pos[sparse_idx+1][out->rwidth[sparse_idx+1]]   = j;
+            out->rwidth[sparse_idx+1]++;
+          }
+        }
       }
     }
-    free(in->blocks);
-    in->blocks  = NULL;
-    free(in);
-    in  = NULL;
   }
-  *input  = in;
-  *output = out;
+  // realloc memory
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i) nowait
+    for (i=0; i<out->nrows; ++i) {
+      out->rows[i]  = realloc(out->rows[i],out->rwidth[i]*sizeof(re_t));
+      out->pos[i]   = realloc(out->pos[i],out->rwidth[i]*sizeof(ci_t));
+    }
+  }
+
+  if (deleteIn) {
+    // free memory for input matrix
+#pragma omp parallel num_threads(nthrds)
+    {
+#pragma omp for private(i,j,k) nowait
+      for (i=0; i<rlin_bl; ++i) {
+        for (j=0; j<clin_bl; ++j) {
+          if (in_bl->blocks[i][j] != NULL) {
+            for (k=0; k<ml_bheight; ++k) {
+              free(in_bl->blocks[i][j][k].idx);
+              in_bl->blocks[i][j][k].idx = NULL;
+
+              free(in_bl->blocks[i][j][k].val);
+              in_bl->blocks[i][j][k].val = NULL;
+            }
+            free(in_bl->blocks[i][j]);
+            in_bl->blocks[i][j] = NULL;
+          }
+        }
+        free(in_bl->blocks[i]);
+        in_bl->blocks[i] = NULL;
+      }
+    }
+    free(in_bl->blocks);
+    in_bl->blocks  = NULL;
+    free(in_bl);
+    in_bl  = NULL;
+    // free memory for input matrix
+#pragma omp parallel num_threads(nthrds)
+    {
+#pragma omp for private(i,j,k) nowait
+      for (i=0; i<rlin_ml; ++i) {
+        free(in_ml->ml[i].idx);
+        in_ml->ml[i].idx = NULL;
+        free(in_ml->ml[i].val);
+        in_ml->ml[i].val = NULL;
+      }
+    }
+    free(in_ml->ml);
+    in_ml->ml  = NULL;
+    free(in_ml);
+    in_ml  = NULL;
+  }
+  *input_bl = in_bl;
+  *input_ml = in_ml;
+  *output   = out;
 }
 
 sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,

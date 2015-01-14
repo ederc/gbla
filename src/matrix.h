@@ -140,16 +140,21 @@ typedef struct sm_fl_ml_t {
  *
  * \note This procedure is only used for complete reduced row echelon forms
  *
- * \param pointer to block matrix in, input matrix
+ * \param pointer to block matrix input_bl
  *
- * \param sparse matrix out, output matrix
+ * \param pointer to multiline matrix input_ml
+ *
+ * \param rank of multiline matrix rank_input_ml
+ *
+ * \param sparse matrix output
  *
  * \param deleteIn, if 1 the input matrix in is deleted, if 0 in is not deleted.
  *
  * \param number of threads to copy data in parallel nthrds
  */
-void copy_block_matrix_to_sparse_matrix(sbm_fl_t **input,
-    sm_t **output, int deleteIn, int nthrds);
+void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
+    sm_fl_ml_t **input_ml, ri_t rank_input_ml, sm_t **output,
+    int deleteIn, int nthrds);
 
 /**
  * \brief Copies data from block matrix in to multiline matrix out. If deleteIn
