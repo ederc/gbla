@@ -1,6 +1,7 @@
 #include "io.h"
 
 #include "draft/selecter.h"
+#include "draft/types.h"
 #include "draft/macros.h"
 
 
@@ -70,6 +71,15 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL;
 		}
 
+		if (( b & VERMASK ) != VERMASK) {
+			if (verbose > 0)
+				printf("Error while reading file '%s' (bad version)\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+
+		b = b ^ VERMASK ;
+
 		if ( b != Mjoin(select,uint16_t)() || (sizeof(re_t) != sizeof(uint16_t) || (re_t)(-1) < 0 ) ){
 			if (verbose >0)
 				printf("Error the data is not in expected representation\n");
@@ -106,7 +116,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		mod = (uint32_t) mode ; /* this is wrong in general */
 	}
 	else {
-	if ((fread(&mod, sizeof(uint32_t), 1, fh) != 1) || (mod == 1)) {
+		if ((fread(&mod, sizeof(uint32_t), 1, fh) != 1) || (mod == 1)) {
 			if (verbose > 0)
 				printf("Error while reading file '%s'\n",fn);
 			fclose(fh);
@@ -262,10 +272,10 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	} else { /* new_format == 1 */
 
 		if ((sizeof(ci_t) != sizeof(uint32_t)) ||  ((ci_t)-1 < 0))
-				exit(-1);
+			exit(-1);
 
-		uint64_t *sta = (uint64_t *)malloc((m+1) * sizeof(uint64_t));
-		if (fread(sta, sizeof(uint64_t), m+1 , fh) != m+1) {
+		uint32_t *row = (uint32_t *)malloc((m) * sizeof(uint32_t));
+		if (fread(row, sizeof(uint32_t), m , fh) != m+1) {
 			if (verbose > 0)
 				printf("Error while reading file '%s'\n",fn);
 			fclose(fh);
@@ -280,7 +290,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL;
 		}
 
-		fl += (m+1)*sizeof(uint64_t) + m*sizeof(uint32_t) ;
+		fl +=  2*m*sizeof(uint32_t) ;
 
 		uint64_t czs;
 		if (fread(&czs, sizeof(uint64_t), 1, fh) != 1) {
@@ -308,26 +318,43 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL;
 		}
 
-		uint32_t * sp = (uint32_t*)malloc((np+1) * sizeof(uint32_t));
-		if (fread(sp, sizeof(uint32_t), np+1, fh) != (np+1)) {
+		uint64_t zp;
+		if (fread(&zp, sizeof(uint64_t), 1, fh) != 1) {
+			if (verbose > 0)
+				printf("Error while reading file e'%s'\n",fn);
+			fclose(fh);
+			return NULL;
+		}
+		fl += sizeof(uint64_t);
+
+		uint32_t * rp = (uint32_t*)malloc((np) * sizeof(uint32_t)); /* row length */
+		if (fread(rp, sizeof(uint32_t), np, fh) != (np+1)) {
 			if (verbose > 0)
 				printf("Error while reading file f'%s'\n",fn);
 			fclose(fh);
 			return NULL;
 		}
+		fl += sizeof(uint32_t)*(np);
 
-		fl += sizeof(uint32_t)*(np+1);
+		ri_t i;
+		uint64_t * sp = (uint64_t*)malloc((np+1) * sizeof(uint64_t)); /* row pointers */
+		sp[0] = 0 ;
+		for ( i = 0 ; i < np ; ++i) {
+			sp[i+1] = sp[i] + rp[i] ;
+		}
+		free(rp);
 
 
-		re_t * vp = (re_t*)malloc((sp[np]) * sizeof(re_t)) ;
-		if (fread(vp, sizeof(re_t), sp[np], fh) != sp[np]) {
+
+		re_t * vp = (re_t*)malloc((zp) * sizeof(re_t)) ;
+		if (fread(vp, sizeof(re_t), zp, fh) != zp) {
 			if (verbose > 0)
 				printf("Error while reading file g'%s'\n",fn);
 			fclose(fh);
 			return NULL;
 		}
 
-		fl += sizeof(uint32_t)*(sp[np]);
+		fl += sizeof(uint32_t)*(zp);
 
 		uint32_t * pos = (uint32_t*)malloc(nnz * sizeof(uint32_t));
 
@@ -351,12 +378,11 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			}
 		}
 
-		ri_t i;
 		ci_t j;
 		ci_t here = 0 ;
-    re_t *nze;
+		re_t *nze;
 		for (i = 0 ; i < m ; ++i) {
-			ci_t sz     = sta[i+1]-sta[i];
+			ci_t sz     = row[i];
 			M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
 			M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
 			nze         = vp + sp[mzp[i]] ;
@@ -368,13 +394,13 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			here += sz ;
 		}
 
-    // free data
-    free(pos);
-    free(vp);
-    free(sp);
-    free(cz);
-    free(mzp);
-    free(sta);
+		// free data
+		free(pos);
+		free(vp);
+		free(sp);
+		free(cz);
+		free(mzp);
+		free(row);
 	}
 
 	// file size of matrix

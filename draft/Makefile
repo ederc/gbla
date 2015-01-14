@@ -16,7 +16,7 @@ par=_par
 PAR=-fopenmp
 
 TST=dumb_write
-TGT=dump_matrix
+DMP=dump_matrix
 CVT=converter
 RUN=runit
 opt=_opt
@@ -36,17 +36,17 @@ $(TST)_old$(opt): $(TST).c
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(TST).c -o $(TST)_old$(opt)
 
 ### dump matrix (to sms...)
-$(TGT)$(dbg): $(TGT).c $(TGT).h printer.h
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(TGT).c -o $(TGT)$(dbg)
+$(DMP)$(dbg): $(DMP).c $(DMP).h printer.h
+	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)$(dbg)
 
-$(TGT)$(opt): $(TGT).c $(TGT).h printer.h
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(TGT).c -o $(TGT)$(opt)
+$(DMP)$(opt): $(DMP).c $(DMP).h printer.h
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)$(opt)
 
-$(TGT)_new$(dbg): $(TGT).c $(TGT).h printer.h
-	$(CC) $(DBG) $(PRF) $(NEW) $(WAR) $(STA) $(TGT).c -o $(TGT)_new$(dbg)
+$(DMP)_new$(dbg): $(DMP).c $(DMP).h printer.h
+	$(CC) $(DBG) $(PRF) $(NEW) $(WAR) $(STA) $(DMP).c -o $(DMP)_new$(dbg)
 
-$(TGT)_new$(opt): $(TGT).c $(TGT).h printer.h
-	$(CC) $(OPT) $(PRF) $(NEW) $(WAR) $(STA) $(TGT).c -o $(TGT)_new$(opt)
+$(DMP)_new$(opt): $(DMP).c $(DMP).h printer.h
+	$(CC) $(OPT) $(PRF) $(NEW) $(WAR) $(STA) $(DMP).c -o $(DMP)_new$(opt)
 
 ### convert (old binary to new binary)
 $(CVT)_rev$(dbg): $(CVT).c

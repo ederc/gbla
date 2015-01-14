@@ -269,7 +269,8 @@ void splitVerticalUnit(
 
 	/* Init dense */
 
-	SAFE_CALLOC(B->ptr,(index_t)B->row*(index_t)B->col,elem_t);
+	taille_t ldb = B->ld;
+	SAFE_CALLOC(B->ptr,(index_t)B->row*(index_t)ldb,elem_t);
 
 
 	/* Init sparse */
@@ -295,7 +296,6 @@ void splitVerticalUnit(
 		assert(Ad->map_zo_pol==NULL);
 
 
-		taille_t ldb = B->col ;
 		taille_t here  = 0; /* shift */
 		index_t there = 0;
 		here = 0;
@@ -352,6 +352,156 @@ void splitVerticalUnit(
 	assert(A_init->nnz == A->nnz + B->nnz);
 }
 
+void splitVerticalUnitSparse(
+		const GBMatrix_t * A_init,
+		const taille_t   * nonpiv,
+		const taille_t     nonpiv_size,
+		const CSR_pol    * polys,
+		GBMatrix_t       * A,
+		GBMatrix_t       * B
+		)
+{
+
+	taille_t max_col = A->col + nonpiv_size ;
+
+
+	/* Init sparse */
+
+	taille_t j ;
+	for ( j = 0 ; j < A_init->sub_nb ; ++j) {
+		const CSR * A_k = &(A_init->sub[j]) ;
+#ifndef NDEBUG
+		checkMatUnit(A_k);
+#endif
+		appendMatrix(A);
+		appendMatrix(B);
+		CSR * Ad = getLastMatrix(A);
+		CSR * Bd = getLastMatrix(B);
+		Ad->row = A_k->row ;
+		Bd->row = A_k->row ;
+		Ad->col = A->col ;
+		Bd->col = B->col ;
+		Ad->nnz = 0 ;
+		Bd->nnz = 0 ;
+		/* A->row += Ad->row ; */
+		assert(A->col == Ad->col);
+		assert(B->col == Bd->col);
+
+		SAFE_REALLOC(Ad->start,Ad->row+1,index_t);
+		SAFE_REALLOC(Bd->start,Bd->row+1,index_t);
+		assert(Ad->map_zo_pol==NULL);
+
+
+		index_t there = 0;
+		taille_t i ;
+		index_t jz ;
+		for (i = 0 ; i <= Ad->row ; ++i) {
+			Ad->start[i] = 0 ;
+		}
+		for (i = 0 ; i <= Bd->row ; ++i) {
+			Bd->start[i] = 0 ;
+		}
+
+		SAFE_CALLOC_DECL(b_row_off,Bd->row,taille_t);
+
+
+		for (i = 0 ; i < A_k->row ; ++i) {
+			taille_t here  = 0; /* shift */
+			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
+				taille_t k = A_k->colid[jz]  ;
+				assert(k < A_k->col);
+				if ( k  < max_col ) {
+					while (here < nonpiv_size && k > nonpiv[here]) {
+						here ++ ;
+					}
+					if (here < nonpiv_size && k == nonpiv[here]) {
+						b_row_off[i] += 1 ;
+						Bd->nnz += 1 ;
+					}
+				}
+				else {
+					assert(nonpiv_size+k-max_col < B->col);
+					Bd->nnz += 1 ;
+				}
+			}
+			assert(here <= nonpiv_size);
+		}
+
+		Ad->nnz = A_k->nnz - Bd->nnz ;
+
+		SAFE_MALLOC(Ad->colid,Ad->nnz,taille_t);
+		SAFE_MALLOC(Bd->colid,Bd->nnz,taille_t);
+		SAFE_MALLOC(Ad->data ,Ad->nnz,elem_t);
+		SAFE_MALLOC(Bd->data ,Bd->nnz,elem_t);
+
+
+		taille_t la = 0 ;
+		there = 0;
+		for (i = 0 ; i < A_k->row ; ++i) {
+			taille_t here  = 0; /* shift */
+			index_t ici =  la ; ;
+			la += b_row_off[i] ;
+			taille_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
+			elem_t * d = polys->data_pol+start_p ;
+			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
+				taille_t k = A_k->colid[jz]  ;
+				assert(k < A_k->col);
+				if ( k  < max_col ) {
+					while (here < nonpiv_size && k > nonpiv[here]) {
+						here ++ ;
+					}
+					if (here < nonpiv_size && k == nonpiv[here]) {
+						assert(ici < Bd->nnz);
+						assert(here < Bd->col);
+						Bd->start[i+1] += 1 ;
+						Bd->colid[ici] = here ;
+						Bd->data[ici++] = *d ;
+						/* B->ptr[i_offset*(index_t)ldb+(index_t)here] = *d; |+ XXX +| */
+					}
+					else {
+						Ad->start[i+1] += 1 ;
+						Ad->colid[there] = k-here ;
+						Ad->data[there++] = *d ;
+					}
+				}
+				else {
+					assert(nonpiv_size+k-max_col < B->col);
+					assert(la < Bd->nnz);
+					Bd->start[i+1] += 1 ;
+					Bd->colid[la] = nonpiv_size+k-max_col ;
+					Bd->data[la++] = *d ;
+					/* B->ptr[i_offset*(index_t)ldb+(index_t)(nonpiv_size+k-max_col)] = *d ; |+ XXX +| */
+				}
+				++d;
+			}
+			assert(here <= nonpiv_size);
+		}
+
+		free(b_row_off);
+
+		for ( i = 1 ; i < Ad->row ; ++i) {
+			Ad->start[i+1] += Ad->start[i] ;
+		}
+		for ( i = 1 ; i < Bd->row ; ++i) {
+			Bd->start[i+1] += Bd->start[i] ;
+		}
+
+		assert(Ad->nnz ==  Ad->start[Ad->row] );
+		assert(Bd->nnz ==  Bd->start[Bd->row] );
+
+		A->nnz += Ad->nnz ;
+		B->nnz += Bd->nnz ;
+		assert(A->nnz);
+		assert(Ad->nnz == there);
+		/* realloc to smaller */
+		/* SAFE_REALLOC(Ad->colid,Ad->nnz,taille_t); */
+		/* SAFE_REALLOC(Ad->data ,Ad->nnz,elem_t); */
+
+	}
+
+	assert(A_init->nnz == A->nnz + B->nnz);
+}
+
 void splitVertical(
 		const GBMatrix_t   * A_init
 		, const GBMatrix_t * C_init
@@ -359,7 +509,7 @@ void splitVertical(
 		, const taille_t     nonpiv_size
 		, const CSR_pol    * polys
 		, GBMatrix_t    * A
-		, DNS * B
+		, GBMatrix_t    * B
 		, GBMatrix_t    * C
 		, DNS * D
 		)
@@ -369,15 +519,18 @@ void splitVertical(
 	A->mod = B->mod = C->mod = D->mod = A_init->mod;
 	A->col = C->col = A_init->row ;
 	B->col = D->col = A_init->col - A_init->row ;
+	D->ld  = ALIGN(D->col);
+
 
 	assert(A->row);
 	assert(C->row);
 
-	splitVerticalUnit(A_init,nonpiv,nonpiv_size,polys,A,B);
+	splitVerticalUnitSparse(A_init,nonpiv,nonpiv_size,polys,A,B);
 	splitVerticalUnit(C_init,nonpiv,nonpiv_size,polys,C,D);
 
 #ifndef NDEBUG
 	checkMat(A);
+	checkMat(B);
 	checkMat(C);
 #endif
 }
@@ -391,7 +544,7 @@ void splitVertical(
  */
 taille_t * readFileSplit(
 		GBMatrix_t    * A,
-		DNS * B,
+		GBMatrix_t    * B,
 		GBMatrix_t    * C,
 		DNS * D
 		, FILE        * fh
@@ -523,6 +676,26 @@ taille_t * readFileSplit(
 				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
 
+#ifdef STATS
+	{
+
+		index_t acc ;
+
+		acc = occupancySparse(A);
+		fprintf(stderr,"A occupancy by %u : %lu - %lu : %.3f (gain %.3f)\n",UNRL,acc,A->nnz, (double)(acc)/(double)A->nnz,(double)(acc-A->nnz)/(double)A->nnz);
+
+		acc = occupancySparse(B);
+		fprintf(stderr,"B occupancy by %u : %lu - %lu : %.3f (gain %.3f)\n",UNRL,acc,B->nnz, (double)(acc)/(double)B->nnz,(double)(acc-B->nnz)/(double)B->nnz);
+
+		acc = occupancySparse(C);
+		fprintf(stderr,"C occupancy by %u : %lu - %lu : %.3f (gain %.3f)\n",UNRL,acc,C->nnz, (double)(acc)/(double)C->nnz,(double)(acc-C->nnz)/(double)C->nnz);
+
+
+		acc = occupancyDense(D);
+		fprintf(stderr,"D occupancy by %u : %lu - %lu %.3f (gain %.3f)\n",UNRL,acc,D->nnz, (double)(acc)/(double)D->nnz, (double)(acc-D->nnz)/(double)D->nnz);
+	}
+#endif
+
 	freeMat(A_init);
 	free(A_init);
 	freeMat(C_init);
@@ -558,7 +731,7 @@ void reduce(
 	 *
 	 */
 	taille_t k  ;
-	taille_t ldb = B->col ;
+	taille_t ldb = B->ld ;
 	taille_t N = B->col ;
 	elem_t p = A->mod ;
 	taille_t i ;
@@ -580,43 +753,6 @@ void reduce(
 		for ( i = M ; i--    ; ) {
 			index_t i_offset = k * MAT_ROW_BLK + i;
 			assert( (elem_t)-1<1); /* unsigned will fail */
-		#if 0
-#ifdef _OPENMP
-			{
-				taille_t rz  ;
-				taille_t nb = (taille_t)(Ad->start[i+1]-Ad->start[i]) ;
-				if (nb > 1) {
-					nb -- ;
-					SAFE_CALLOC_DECL(accu,nb*ldb,elem_t);
-#pragma omp parallel for /* schedule (static,8) */
-					for ( rz = 0 ; rz < nb ; ++rz)
-					{
-						index_t jz = Ad->start[i]+1+rz ;
-						taille_t kz = Ad->colid[jz];
-						taille_t rs = row_beg[kz];
-						cblas_daxpy(N-rs,-Ad->data[jz],B->ptr+kz*(index_t)ldb+rs,1,accu+ldb*rz+rs,1);
-					}
-					elem_t mini = row_beg[i_offset] ;
-					index_t jz ;
-/* #pragma omp parallel for reduction(min:mini) */
-					for (jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz){
-						taille_t kz = Ad->colid[jz];
-						mini = min(mini,row_beg[kz]);
-					}
-					row_beg[i_offset] = mini ;
-
-					taille_t kz;
-#pragma omp parallel for private(rz)/*  schedule (static,8) */
-					for (kz = mini ; kz < N ; ++kz) {
-						for ( rz = 0 ; rz < nb ; ++rz) {
-							B->ptr[i_offset*(index_t)ldb+kz] += accu[rz*ldb+kz] ;
-						}
-					}
-
-				}
-			}
-#endif
-#else
 			index_t jz  ;
 			for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz)
 			{
@@ -625,7 +761,6 @@ void reduce(
 				cblas_daxpy(N-rs,-Ad->data[jz],B->ptr+kz*(index_t)ldb+rs,1,B->ptr+i_offset*(index_t)ldb+rs,1);
 				row_beg[i_offset] = rs ;
 			}
-#endif
 			Mjoin(Freduce,elem_t)(p,B->ptr+i_offset*(index_t)ldb,N);
 			assert(Ad->data[Ad->start[i]] == 1);
 		}
@@ -764,238 +899,311 @@ void spaxpyn(
 	}
 }
 
-
-
-void reduce_fast(
-		GBMatrix_t      * A
-		, DNS * B
-		, GBMatrix_t    * C
-		, DNS * D )
+void sparse_dcopy(
+		 taille_t row
+		, index_t * start
+		, taille_t * colid
+		, elem_t * data
+		, elem_t * temp_C
+		, taille_t ldc
+		)
 {
-	taille_t ldb = B->col ;
-	taille_t ldd = D->col ;
-	elem_t p = A->mod ;
-	elem_t * Bd = B->ptr;
-	elem_t * Dd = D->ptr;
-	taille_t i ;
-
-#ifdef USE_B_SPARSE
-	/* XXX convert B to sparse */
-	SAFE_MALLOC_DECL(Bsp,1,GBMatrix_t);
-	initSparse(Bsp);
-
-	Bsp->mod = B->mod;
-	Bsp->col = B->col;
-
-	SAFE_MALLOC_DECL(col_buf,B->col,taille_t);
-	SAFE_MALLOC_DECL(dat_buf,B->col,elem_t);
-
-	for ( i = 0 ; i < B ->row ; ++i) {
-		taille_t j ;
-		taille_t length = 0 ;
-		for (j = 0 ; j < B->col ; ++j) {
-			if (Bd[i*ldb+j] != 0) {
-				col_buf[length]   = j ;
-				dat_buf[length++] = Bd[(index_t)i*(index_t)ldb+(index_t)j];
-			}
-		}
-		appendRowData(Bsp,col_buf,length,dat_buf);
-	}
-
-	assert(Bsp->nnz == B->nnz);
-	assert(Bsp->row == B->row);
-	assert(Bsp->col == B->col);
-
-	free(col_buf);
-	free(dat_buf);
-
-#ifndef NDEBUG
-	checkMat(Bsp);
-#endif
-#else
-
-	SAFE_CALLOC_DECL(row_beg,B->row,taille_t);
-	for ( i = 0 ; i < B->row ; ++i) {
-		taille_t ii = 0 ;
-		while ( *(B->ptr+i*ldb+ii) == 0) {
-			row_beg[i] += 1 ;
-			++ii ;
+	taille_t ii = 0 ;
+	index_t jz;
+	for ( ii = 0 ; ii < row ;  ++ii) {
+		for ( jz = start[ii] ; jz < start[ii+1] ; ++jz) {
+			temp_C[ii*ldc+colid[jz]] = data[jz] ;
 		}
 	}
+}
 
-
-#endif
-
-	taille_t blk = MAT_SUB_BLK ;
-
-	index_t jz  ;
-#ifndef _OPENMP
-	SAFE_MALLOC_DECL(temp_D,(index_t)D->col*(index_t)blk,elem_t);
-	SAFE_MALLOC_DECL(temp_C,(index_t)C->col*(index_t)blk,elem_t);
-#endif
-
-	taille_t k ;
-	assert(D->col == B->col);
-	for (k = 0 ; k < C->sub_nb ; ++k) {
-		CSR * C_k = &(C->sub[k]) ;
-#ifdef _OPENMP
-#pragma omp parallel for private (jz) /* schedule (static,8) */
-#endif
-
-		for ( i = 0 ; i < C_k->row ; i += blk ) {
-#ifdef _OPENMP
-			SAFE_MALLOC_DECL(temp_D,(index_t)D->col*(index_t)blk,elem_t);
-			SAFE_CALLOC_DECL(temp_C,(index_t)C->col*(index_t)blk,elem_t);
-#endif
-
-			taille_t blk_i = min(blk,C_k->row - i);
-			index_t i_offset = k*MAT_ROW_BLK + i ;
-#ifndef _OPENMP
-			cblas_dscal(C->col*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
-#endif
-			taille_t ii = 0 ;
-			for ( ii = 0 ; ii < blk_i ; ++ii) {
-				for ( jz = C_k->start[i+ii] ; jz < C_k->start[i+ii+1] ; ++jz) {
-					assert(C_k->colid[jz] < C_k->col);
-					temp_C[ii*(C->col)+C_k->colid[jz]] = C_k->data[jz] ;
-				}
+void sparse_dcopy_block(
+		 taille_t row
+		, index_t * start
+		, taille_t * colid
+		, elem_t * data
+		, elem_t * temp_C
+		, taille_t ldc
+		)
+{
+	taille_t ii = 0 ;
+	index_t jz;
+	for ( ii = 0 ; ii < row ;  ++ii) {
+		for ( jz = start[ii] ; jz < start[ii+1] ; ++jz) {
+			taille_t k ;
+			for ( k = 0 ; k < UNRL ; ++k) {
+				temp_C[ii*ldc+colid[jz]+k] = data[UNRL*jz+k] ;
 			}
-			cblas_dcopy(D->col*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
+		}
+	}
+}
 
-			taille_t j ;
 
-#ifdef USE_B_SPARSE
-#ifdef USE_SAXPY
-#if defined(USE_SAXPYn) || defined(USE_SAXPY2)
-#error "make a choice"
-#endif
+void reduce_chunk_1(
+		taille_t blk_i
+		, GBMatrix_t * A
+		, GBMatrix_t * B
+		, elem_t * temp_C
+		, taille_t ldc
+		, elem_t * temp_D
+		, taille_t ldd
+		, elem_t p)
+{
+	taille_t j, ii ;
+	for ( j = 0 ; j < A->col ; ++j) { /* A->col == C->col */
+		/* XXX invert loops ? */
+		for ( ii = 0 ; ii < blk_i ; ii += 1 ) {
+			elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*ldc+j],p) ;
+			if (tc != 0.) {
+				/* temp_C -= temp_C[j] * A[j] */
+				taille_t jj = j%MAT_ROW_BLK ;
+				taille_t kk = j/MAT_ROW_BLK ;
+				CSR * A_k = &(A->sub[kk]);
+				taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+				assert(kk*MAT_ROW_BLK+jj == j);
+				spaxpy(tc,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+ii*ldc);
 
-			for ( j = 0 ; j < C->col ; ++j) {
-				/* XXX invert loops ? */
-				for ( ii = 0 ; ii < blk_i ; ii += 1 ) {
-					elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*C->col+j],p) ;
-					if (tc != 0.) {
-						/* temp_C -= temp_C[j] * A[j] */
-						taille_t jj = j%MAT_ROW_BLK ;
-						taille_t kk = j/MAT_ROW_BLK ;
-						CSR * A_k = &(A->sub[kk]);
-						taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-						assert(kk*MAT_ROW_BLK+jj == j);
-						spaxpy(tc,A_k->data+A_k->start[jj],
-								sz,
-								A_k->colid+A_k->start[jj]
-								,temp_C+ii*(C->col));
+				/* temp_D -= temp_C[j] * B[j] */
 
-						/* temp_D -= temp_C[j] * B[j] */
-
-						/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-						CSR * B_k = &(Bsp->sub[kk]);
-						sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
-						spaxpy(tc,B_k->data+B_k->start[jj],
-								sz,
-								B_k->colid+B_k->start[jj],
-								temp_D+ii*(D->col));
-					}
-				}
+				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
+				CSR * B_k = &(B->sub[kk]);
+				sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
+				spaxpy(tc,B_k->data+B_k->start[jj],
+						sz,
+						B_k->colid+B_k->start[jj],
+						temp_D+ii*(ldd));
 			}
+		}
+	}
+}
 
-#endif /* if 0 */
+void reduce_chunk_dense_1(
+		taille_t blk_i
+		, GBMatrix_t * A
+		, DNS * B
+		, elem_t * temp_C
+		, taille_t ldc
+		, elem_t * temp_D
+		, taille_t ldd
+		, elem_t p
+		, taille_t * row_beg
+	       	)
+{
+	taille_t j, ii ;
+	for ( j = 0 ; j < A->col ; ++j) {
+		for ( ii = 0 ; ii < blk_i ; ii += 1 ) {
+			elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*ldc+j],p) ;
+			if (tc != (elem_t)0.) {
+				/* temp_C -= temp_C[j] * A[j] */
+				taille_t jj = j%MAT_ROW_BLK ;
+				taille_t kk = j/MAT_ROW_BLK ;
+				assert(kk*MAT_ROW_BLK+jj == j);
+				CSR * A_k = &(A->sub[kk]);
+				taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+				spaxpy(tc,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+ii*ldc);
 
-#ifdef USE_SAXPY2
-#if defined(USE_SAXPY) || defined(USE_SAXPYn)
-#error "make a choice"
-#endif
+				/* temp_D -= temp_C[j] * B[j] */
+				taille_t rs = row_beg[j] ;
+				cblas_daxpy(B->col-rs, tc,B->ptr+(index_t)j*(index_t)B->ld+rs,1,temp_D+ii*ldd+rs,1);
+			}
+		}
+	}
+}
 
-			for ( j = 0 ; j < C->col ; ++j) {
-				/* XXX invert loops ? */
-				for ( ii = 0 ; ii < blk_i ; ii += 2 ) {
-					elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*C->col+j],p) ;
-					elem_t td = Mjoin(fmod,elem_t)(-temp_C[(ii+1)*C->col+j],p) ;
+
+void reduce_chunk_2(
+		taille_t blk_i
+		, GBMatrix_t * A
+		, GBMatrix_t * B
+		, elem_t * temp_C
+		, taille_t ldc
+		, elem_t * temp_D
+		, taille_t ldd
+		, elem_t p
+		)
+{
+	taille_t j, ii ;
+	for ( j = 0 ; j < A->col ; ++j) {
+		/* XXX invert loops ? */
+		for ( ii = 0 ; ii < blk_i ; ii += 2 ) {
+			elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*ldc+j],p) ;
+			elem_t td = Mjoin(fmod,elem_t)(-temp_C[(ii+1)*ldc+j],p) ;
+			/* temp_C -= temp_C[j] * A[j] */
+			if (tc != 0.) {
+				if (td != 0.) {
+					taille_t jj = j%MAT_ROW_BLK ;
+					taille_t kk = j/MAT_ROW_BLK ;
+					CSR * A_k = &(A->sub[kk]);
+					taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+					assert(kk*MAT_ROW_BLK+jj == j);
+					spaxpy2(tc,td,A_k->data+A_k->start[jj],
+							sz,
+							A_k->colid+A_k->start[jj]
+							,temp_C+ii*ldc,ldc);
+
+					/* temp_D -= temp_C[j] * B[j] */
+
+					/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
+					CSR * B_k = &(B->sub[kk]);
+					sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
+					spaxpy2(tc,td,B_k->data+B_k->start[jj],
+							sz,
+							B_k->colid+B_k->start[jj],
+							temp_D+ii*ldd,ldd);
+				}
+				else {
 					/* temp_C -= temp_C[j] * A[j] */
-					if (tc != 0.) {
-						if (td != 0.) {
-							taille_t jj = j%MAT_ROW_BLK ;
-							taille_t kk = j/MAT_ROW_BLK ;
-							CSR * A_k = &(A->sub[kk]);
-							taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-							assert(kk*MAT_ROW_BLK+jj == j);
-							spaxpy2(tc,td,A_k->data+A_k->start[jj],
-									sz,
-									A_k->colid+A_k->start[jj]
-									,temp_C+ii*(C->col),C->col);
+					taille_t jj = j%MAT_ROW_BLK ;
+					taille_t kk = j/MAT_ROW_BLK ;
+					CSR * A_k = &(A->sub[kk]);
+					taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+					assert(kk*MAT_ROW_BLK+jj == j);
+					spaxpy(tc,A_k->data+A_k->start[jj],
+							sz,
+							A_k->colid+A_k->start[jj]
+							,temp_C+ii*ldc);
 
-							/* temp_D -= temp_C[j] * B[j] */
+					/* temp_D -= temp_C[j] * B[j] */
 
-							/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-							CSR * B_k = &(Bsp->sub[kk]);
-							sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
-							spaxpy2(tc,td,B_k->data+B_k->start[jj],
-									sz,
-									B_k->colid+B_k->start[jj],
-									temp_D+ii*(D->col),D->col);
-						}
-						else {
-							/* temp_C -= temp_C[j] * A[j] */
-							taille_t jj = j%MAT_ROW_BLK ;
-							taille_t kk = j/MAT_ROW_BLK ;
-							CSR * A_k = &(A->sub[kk]);
-							taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-							assert(kk*MAT_ROW_BLK+jj == j);
-							spaxpy(tc,A_k->data+A_k->start[jj],
-									sz,
-									A_k->colid+A_k->start[jj]
-									,temp_C+ii*(C->col));
+					/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
+					CSR * B_k = &(B->sub[kk]);
+					sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
+					spaxpy(tc,B_k->data+B_k->start[jj],
+							sz,
+							B_k->colid+B_k->start[jj],
+							temp_D+ii*ldd);
 
-							/* temp_D -= temp_C[j] * B[j] */
-
-							/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-							CSR * B_k = &(Bsp->sub[kk]);
-							sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
-							spaxpy(tc,B_k->data+B_k->start[jj],
-									sz,
-									B_k->colid+B_k->start[jj],
-									temp_D+ii*(D->col));
-
-						}
-					}
-					else if (td != 0) {
-						/* temp_C -= temp_C[j] * A[j] */
-						taille_t jj = j%MAT_ROW_BLK ;
-						taille_t kk = j/MAT_ROW_BLK ;
-						CSR * A_k = &(A->sub[kk]);
-						taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
-						assert(kk*MAT_ROW_BLK+jj == j);
-						spaxpy(td,A_k->data+A_k->start[jj],
-								sz,
-								A_k->colid+A_k->start[jj]
-								,temp_C+(ii+1)*(C->col));
-
-						/* temp_D -= temp_C[j] * B[j] */
-
-						/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-						CSR * B_k = &(Bsp->sub[kk]);
-						sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
-						spaxpy(td,B_k->data+B_k->start[jj],
-								sz,
-								B_k->colid+B_k->start[jj],
-								temp_D+(ii+1)*(D->col));
-
-					}
 				}
 			}
-#endif /* if 1 */
+			else if (td != 0) {
+				/* temp_C -= temp_C[j] * A[j] */
+				taille_t jj = j%MAT_ROW_BLK ;
+				taille_t kk = j/MAT_ROW_BLK ;
+				CSR * A_k = &(A->sub[kk]);
+				taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+				assert(kk*MAT_ROW_BLK+jj == j);
+				spaxpy(td,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+(ii+1)*ldc);
 
-#ifdef USE_SAXPYn
-#if defined(USE_SAXPY) || defined(USE_SAXPY2)
-#error "make a choice"
-#endif
+				/* temp_D -= temp_C[j] * B[j] */
 
-			SAFE_MALLOC_DECL(jump,blk,taille_t);
-			SAFE_MALLOC_DECL(diag,blk,elem_t);
-			for ( j = 0 ; j < C->col ; ++j) {
+				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
+				CSR * B_k = &(B->sub[kk]);
+				sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
+				spaxpy(td,B_k->data+B_k->start[jj],
+						sz,
+						B_k->colid+B_k->start[jj],
+						temp_D+(ii+1)*ldd);
+
+			}
+		}
+	}
+}
+
+void reduce_chunk_dense_2(
+		taille_t blk_i
+		, GBMatrix_t * A
+		, DNS * B
+		, elem_t * temp_C
+		, taille_t ldc
+		, elem_t * temp_D
+		, taille_t ldd
+		, elem_t p
+		, taille_t * row_beg
+		)
+{
+	elem_t * Bd = B->ptr ;
+	taille_t ldb = B->ld ;
+
+	taille_t j, ii ;
+	for ( j = 0 ; j < A->col ; ++j) {
+		for ( ii = 0 ; ii < blk_i ; ii += 2 ) {
+			elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*ldc+j],p) ;
+			elem_t td = Mjoin(fmod,elem_t)(-temp_C[(ii+1)*ldc+j],p) ;
+			if (tc != (elem_t)0.) {
+				if (td != (elem_t)0.) {
+					/* temp_C -= temp_C[j] * A[j] */
+					taille_t jj = j%MAT_ROW_BLK ;
+					taille_t kk = j/MAT_ROW_BLK ;
+					assert(kk*MAT_ROW_BLK+jj == j);
+					CSR * A_k = &(A->sub[kk]);
+					taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+					assert(kk*MAT_ROW_BLK+jj == j);
+					spaxpy2(tc,td,A_k->data+A_k->start[jj],
+							sz,
+							A_k->colid+A_k->start[jj]
+							,temp_C+ii*ldc,ldc);
+
+					/* temp_D -= temp_C[j] * B[j] */
+					taille_t rs = row_beg[j] ;
+					cblas_daxpy(B->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*ldd+rs,1);
+					cblas_daxpy(B->col-rs, td,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+(ii+1)*ldd+rs,1);
+				}
+				else {
+					/* temp_C -= temp_C[j] * A[j] */
+					taille_t jj = j%MAT_ROW_BLK ;
+					taille_t kk = j/MAT_ROW_BLK ;
+					assert(kk*MAT_ROW_BLK+jj == j);
+					CSR * A_k = &(A->sub[kk]);
+					taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+					assert(kk*MAT_ROW_BLK+jj == j);
+					spaxpy(tc,A_k->data+A_k->start[jj],
+							sz,
+							A_k->colid+A_k->start[jj]
+							,temp_C+ii*ldc);
+
+					/* temp_D -= temp_C[j] * B[j] */
+					taille_t rs = row_beg[j] ;
+					cblas_daxpy(B->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*ldd+rs,1);
+				}
+			}
+			else if (td != (elem_t)0.) {
+				/* temp_C -= temp_C[j] * A[j] */
+				taille_t jj = j%MAT_ROW_BLK ;
+				taille_t kk = j/MAT_ROW_BLK ;
+				assert(kk*MAT_ROW_BLK+jj == j);
+				CSR * A_k = &(A->sub[kk]);
+				taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+				assert(kk*MAT_ROW_BLK+jj == j);
+				spaxpy(td,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+(ii+1)*ldc);
+
+				/* temp_D -= temp_C[j] * B[j] */
+				taille_t rs = row_beg[j] ;
+				cblas_daxpy(B->col-rs, td,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+(ii+1)*ldd+rs,1);
+			}
+		}
+	}
+}
+
+void reduce_chunk_n(
+		taille_t blk_i
+		, GBMatrix_t * A
+		, GBMatrix_t * B
+		, elem_t * temp_C
+		, taille_t ldc
+		, elem_t * temp_D
+		, taille_t ldd
+		, elem_t p)
+{
+	taille_t blk = MAT_SUB_BLK ;
+	taille_t j, ii ;
+	SAFE_MALLOC_DECL(jump,blk,taille_t);
+	SAFE_MALLOC_DECL(diag,blk,elem_t);
+			for ( j = 0 ; j < A->col ; ++j) {
 				taille_t nbnz = 0;
 				for ( ii = 0 ; ii < blk_i ; ++ii) {
-					elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*C->col+j],p) ;
+					elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*ldc+j],p) ;
 					if (tc != 0.) {
 						diag[nbnz]   = tc ;
 						jump[nbnz++] = ii ;
@@ -1009,78 +1217,91 @@ void reduce_fast(
 				spaxpyn(diag,A_k->data+A_k->start[jj],
 						sz,
 						A_k->colid+A_k->start[jj]
-						,temp_C,jump,nbnz,C->col);
+						,temp_C,jump,nbnz,ldc);
 
 				/* temp_D -= temp_C[j] * B[j] */
 
 				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-				CSR * B_k = &(Bsp->sub[kk]);
+				CSR * B_k = &(B->sub[kk]);
 				sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 				spaxpyn(diag,B_k->data+B_k->start[jj],
 						sz,
 						B_k->colid+B_k->start[jj],
-						temp_D,jump,nbnz,D->col);
+						temp_D,jump,nbnz,ldd);
 			}
+}
 
 
-#endif /* if 0 */
-#else /* USE_B_SPARSE */
-			for ( j = 0 ; j < C->col ; ++j) {
-				for ( ii = 0 ; ii < blk_i ; ii += 2 ) {
-					elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*C->col+j],p) ;
-					elem_t td = Mjoin(fmod,elem_t)(-temp_C[(ii+1)*C->col+j],p) ;
-					if (tc != (elem_t)0.) {
-						if (td != (elem_t)0.) {
-							taille_t jj = j%MAT_ROW_BLK ;
-							taille_t kk = j/MAT_ROW_BLK ;
-							assert(kk*MAT_ROW_BLK+jj == j);
-							CSR * Ad = &(A->sub[kk]);
-							/* temp_C -= temp_C[j] * A[j] */
-							for ( jz = Ad->start[jj] ; jz < Ad->start[jj+1] ; ++jz) {
-								assert(Ad->colid[jz]<Ad->col);
-								temp_C[Ad->colid[jz]+ii*(C->col)] += tc * Ad->data[jz] ;
-								temp_C[Ad->colid[jz]+(ii+1)*(C->col)] += tc * Ad->data[jz] ;
-							}
+void reduce_fast(
+		GBMatrix_t      * A
+		, GBMatrix_t    * B
+		, GBMatrix_t    * C
+		, DNS * D )
+{
+	taille_t ldd = D->ld ;
+	taille_t ldc = C->col ;
 
-							/* temp_D -= temp_C[j] * B[j] */
-							taille_t rs = row_beg[j] ;
-							cblas_daxpy(D->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*(D->col)+rs,1);
-							cblas_daxpy(D->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+(ii+1)*(D->col)+rs,1);
-						}
-						else {
-							taille_t jj = j%MAT_ROW_BLK ;
-							taille_t kk = j/MAT_ROW_BLK ;
-							assert(kk*MAT_ROW_BLK+jj == j);
-							CSR * Ad = &(A->sub[kk]);
-							/* temp_C -= temp_C[j] * A[j] */
-							for ( jz = Ad->start[jj] ; jz < Ad->start[jj+1] ; ++jz) {
-								assert(Ad->colid[jz]<Ad->col);
-								temp_C[Ad->colid[jz]+ii*(C->col)] += tc * Ad->data[jz] ;
-							}
 
-							/* temp_D -= temp_C[j] * B[j] */
-							taille_t rs = row_beg[j] ;
-							cblas_daxpy(D->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*(D->col)+rs,1);
-						}
-					}
-					else if (td != (elem_t)0.) {
-						taille_t jj = j%MAT_ROW_BLK ;
-						taille_t kk = j/MAT_ROW_BLK ;
-						assert(kk*MAT_ROW_BLK+jj == j);
-						CSR * Ad = &(A->sub[kk]);
-						/* temp_C -= temp_C[j] * A[j] */
-						for ( jz = Ad->start[jj] ; jz < Ad->start[jj+1] ; ++jz) {
-							assert(Ad->colid[jz]<Ad->col);
-							temp_C[Ad->colid[jz]+(ii+1)*(C->col)] += tc * Ad->data[jz] ;
-						}
+	elem_t p = A->mod ;
+	/* elem_t * Bd = B->ptr; */
+	elem_t * Dd = D->ptr;
+	taille_t i ;
 
-						/* temp_D -= temp_C[j] * B[j] */
-						taille_t rs = row_beg[j] ;
-						cblas_daxpy(D->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+(ii+1)*(D->col)+rs,1);
-					}
-				}
-			}
-#endif /* USE_B_SPARSE */
+
+	taille_t blk = MAT_SUB_BLK ;
+
+#ifndef _OPENMP
+	SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk,elem_t);
+	SAFE_MALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk,elem_t);
+#endif
+
+	taille_t k ;
+	assert(D->col == B->col);
+
+
+	for (k = 0 ; k < C->sub_nb ; ++k) {
+		CSR * C_k = &(C->sub[k]) ;
+#ifdef _OPENMP
+#pragma omp parallel for private (jz)
+#endif
+
+		for ( i = 0 ; i < C_k->row ; i += blk ) {
+			taille_t blk_i = min(blk,C_k->row - i);
+#ifdef _OPENMP
+			SAFE_MALLOC_DECL(temp_D,(index_t)lld*(index_t)blk_i,elem_t);
+			SAFE_CALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk_i,elem_t);
+#endif
+
+			index_t i_offset = k*MAT_ROW_BLK + i ;
+#ifndef _OPENMP
+			cblas_dscal(ldc*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
+#endif
+			sparse_dcopy( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
+
+			cblas_dcopy(ldd*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
+
+
+#ifdef USE_SAXPY
+#if defined(USE_SAXPYn) || defined(USE_SAXPY2)
+#error "make a choice"
+#endif
+			reduce_chunk_1(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+#endif /* USE_SAXPY */
+
+#ifdef USE_SAXPY2
+#if defined(USE_SAXPY) || defined(USE_SAXPYn)
+#error "make a choice"
+#endif
+			reduce_chunk_2(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+#endif /* USE_SAXPY2 */
+
+#ifdef USE_SAXPYn
+#if defined(USE_SAXPY) || defined(USE_SAXPY2)
+#error "make a choice"
+#endif
+			reduce_chunk_n(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+#endif /* USE_SAXPYn */
+
 			/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */
 			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
 
@@ -1091,19 +1312,201 @@ void reduce_fast(
 		}
 
 	}
-#ifdef USE_B_SPARSE
-	freeMat(Bsp);
-	free(Bsp);
-#else /* USE_B_SPARSE */
-	free(row_beg);
-#endif /* USE_B_SPARSE */
 
 #ifndef _OPENMP
 	free(temp_D);
 	free(temp_C);
 #endif /* _OPENMP */
-	Mjoin(Freduce,elem_t)(p, Dd, (index_t)D->col*(index_t)D->row) ;
+	Mjoin(Freduce,elem_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
 }
+
+void reduce_fast_block(
+		GBMatrix_t      * A
+		, GBMatrix_t    * B
+		, GBMatrix_t    * C
+		, DNS * D )
+{
+
+	SAFE_MALLOC_DECL(BH,1,GBMatrix_block_t);
+	initSparse_block(BH);
+	convert_CSR_2_CSR_block(BH,B);
+
+
+	taille_t ldd = D->ld ;
+	taille_t ldc = C->col ;
+
+
+	elem_t p = A->mod ;
+	elem_t * Dd = D->ptr;
+	taille_t i ;
+
+
+	taille_t blk = MAT_SUB_BLK ;
+
+#ifndef _OPENMP
+	SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk,elem_t);
+	SAFE_MALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk,elem_t);
+#endif
+
+	taille_t k ;
+	assert(D->col == B->col);
+
+
+	for (k = 0 ; k < C->sub_nb ; ++k) {
+		CSR * C_k = &(C->sub[k]) ;
+#ifdef _OPENMP
+#pragma omp parallel for private (jz)
+#endif
+
+		for ( i = 0 ; i < C_k->row ; i += blk ) {
+			taille_t blk_i = min(blk,C_k->row - i);
+#ifdef _OPENMP
+			SAFE_MALLOC_DECL(temp_D,(index_t)lld*(index_t)blk_i,elem_t);
+			SAFE_CALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk_i,elem_t);
+#endif
+
+			index_t i_offset = k*MAT_ROW_BLK + i ;
+#ifndef _OPENMP
+			cblas_dscal(ldc*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
+#endif
+			sparse_dcopy( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
+
+			cblas_dcopy(ldd*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
+
+
+#ifdef USE_SAXPY
+#if defined(USE_SAXPYn) || defined(USE_SAXPY2)
+#error "make a choice"
+#endif
+			reduce_chunk_1(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+#endif /* USE_SAXPY */
+
+#ifdef USE_SAXPY2
+#if defined(USE_SAXPY) || defined(USE_SAXPYn)
+#error "make a choice"
+#endif
+			reduce_chunk_2(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+#endif /* USE_SAXPY2 */
+
+#ifdef USE_SAXPYn
+#if defined(USE_SAXPY) || defined(USE_SAXPY2)
+#error "make a choice"
+#endif
+			reduce_chunk_n(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+#endif /* USE_SAXPYn */
+
+			/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */
+			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
+
+#ifdef _OPENMP
+		free(temp_D);
+		free(temp_C);
+#endif /* _OPENMP */
+		}
+
+	}
+
+#ifndef _OPENMP
+	free(temp_D);
+	free(temp_C);
+#endif /* _OPENMP */
+	Mjoin(Freduce,elem_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
+}
+
+
+void reduce_fast_dense(
+		GBMatrix_t      * A
+		, DNS * B
+		, GBMatrix_t    * C
+		, DNS * D )
+{
+	taille_t ldd = D->ld ;
+	taille_t ldb = B->ld ;
+	taille_t ldc = C->col ;
+
+	SAFE_CALLOC_DECL(row_beg,B->row,taille_t);
+	taille_t i ;
+	for ( i = 0 ; i < B->row ; ++i) {
+		taille_t ii = 0 ;
+		while ( *(B->ptr+i*ldb+ii) == 0) {
+			row_beg[i] += 1 ;
+			++ii ;
+		}
+	}
+
+
+	elem_t p = A->mod ;
+	elem_t * Dd = D->ptr;
+
+
+	taille_t blk = MAT_SUB_BLK ;
+
+#ifndef _OPENMP
+	SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk,elem_t);
+	SAFE_MALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk,elem_t);
+#endif
+
+	taille_t k ;
+	assert(D->col == B->col);
+
+
+	for (k = 0 ; k < C->sub_nb ; ++k) {
+		CSR * C_k = &(C->sub[k]) ;
+#ifdef _OPENMP
+#pragma omp parallel for private (jz)
+#endif
+
+		for ( i = 0 ; i < C_k->row ; i += blk ) {
+			taille_t blk_i = min(blk,C_k->row - i);
+#ifdef _OPENMP
+			SAFE_MALLOC_DECL(temp_D,(index_t)lld*(index_t)blk_i,elem_t);
+			SAFE_CALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk_i,elem_t);
+#endif
+
+			index_t i_offset = k*MAT_ROW_BLK + i ;
+#ifndef _OPENMP
+			cblas_dscal(ldc*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
+#endif
+			sparse_dcopy( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
+
+			cblas_dcopy(ldd*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
+
+
+#ifdef USE_SAXPY
+#if defined(USE_SAXPY2) || defined(USE_SAXPYn)
+#error "make a choice"
+#endif
+			reduce_chunk_dense_1(blk_i,A,B,temp_C,ldc,temp_D,ldd,p,row_beg);
+#endif /* USE_SAXPY */
+
+#ifdef USE_SAXPY2
+#if defined(USE_SAXPY) || defined(USE_SAXPYn)
+#error "make a choice"
+#endif
+			reduce_chunk_dense_2(blk_i,A,B,temp_C,ldc,temp_D,ldd,p,row_beg);
+#endif /* USE_SAXPY2 */
+
+			/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */
+			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
+
+#ifdef _OPENMP
+			free(temp_D);
+			free(temp_C);
+#endif /* _OPENMP */
+		}
+
+	}
+	free(row_beg);
+
+#ifndef _OPENMP
+	free(temp_D);
+	free(temp_C);
+#endif /* _OPENMP */
+	Mjoin(Freduce,elem_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
+}
+
+
+
 
 taille_t echelonD(
 		GBMatrix_t      * A

@@ -4,29 +4,13 @@
 #include <sys/time.h>
 #include <string.h>
 #include "io.h"
+#include "ouvrir.h"
 /* #include <omp.h> */
 
 
 void usage(char * nom) {
-		fprintf(stderr,"usage %s [-r] (if reduce) nom_fichier in new rev sorted format  ]\n",nom);
+	fprintf(stderr,"usage %s [-r] (if reduce) nom_fichier in new rev sorted format  ]\n",nom);
 }
-
-FILE* ouvrir(char* a,char* b)
-{
-	if ( (strcmp(a,"-") == 0) && (strcmp(b,"r") == 0) )
-		return stdin;
-	else
-	{
-		FILE *f=fopen(a,b);
-		if (!f)
-		{
-			fprintf(stderr,"Can't open %s\n",a);
-			exit(1);
-		}
-		return f;
-	}
-}
-
 
 
 int main(int ac, char **av) {
@@ -71,12 +55,12 @@ int main(int ac, char **av) {
 	fprintf(stderr," reducing ? %u\n",(red==1));
 
 	SAFE_MALLOC_DECL(A,1,GBMatrix_t);
-	SAFE_MALLOC_DECL(B,1,DNS);
+	SAFE_MALLOC_DECL(B,1,GBMatrix_t);
 	SAFE_MALLOC_DECL(C,1,GBMatrix_t);
 	SAFE_MALLOC_DECL(D,1,DNS);
 
 	initSparse(A);
-	initDenseUnit(B);
+	initSparse(B);
 	initSparse(C);
 	initDenseUnit(D);
 
@@ -86,7 +70,7 @@ int main(int ac, char **av) {
 	gettimeofday(&tac,NULL);
 
 	fprintf(stderr," LOAD    time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
-				           +(double)(tac.tv_usec - tic.tv_usec)/1e6));
+				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 	fprintf(stderr,"   -- sparsity of A   : %.3f%% (%u x %u - %lu)\n",(double)A->nnz/(double)A->row/(double)A->col*100.,A->row,A->col,A->nnz);
 	fprintf(stderr,"   -- sparsity of B   : %.3f%% (%u x %u - %lu)\n",(double)B->nnz/(double)B->row/(double)B->col*100.,B->row,B->col,B->nnz);
 	fprintf(stderr,"   -- sparsity of C   : %.3f%% (%u x %u - %lu)\n",(double)C->nnz/(double)C->row/(double)C->col*100.,C->row,C->col,C->nnz);
@@ -98,7 +82,11 @@ int main(int ac, char **av) {
 	gettimeofday(&tic,NULL);
 
 	if (red == 1) {
-		reduce(A,B,C,D);
+		SAFE_MALLOC_DECL(Bd,1,DNS);
+		initDenseUnit(Bd);
+		convert_CSR_2_DNS(Bd,B);
+		reduce(A,Bd,C,D);
+		freeMatDense(Bd);
 	}
 	else {
 		reduce_fast(A,B,C,D);
@@ -107,7 +95,7 @@ int main(int ac, char **av) {
 	gettimeofday(&tac,NULL);
 
 	fprintf(stderr," REDUCE  time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
-				           +(double)(tac.tv_usec - tic.tv_usec)/1e6));
+				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
 	gettimeofday(&tic,NULL);
 
@@ -118,19 +106,19 @@ int main(int ac, char **av) {
 	gettimeofday(&tac,NULL);
 
 	fprintf(stderr," ECHELON time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
-				           +(double)(tac.tv_usec - tic.tv_usec)/1e6));
+				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
 	fprintf(stderr,"  -- result           : %u\n",r);
 
 	fprintf(stderr," TOTAL   time         : %.3f s\n", ((double)(tac.tv_sec - aa.tv_sec)
-				           +(double)(tac.tv_usec - aa.tv_usec)/1e6));
+				+(double)(tac.tv_usec - aa.tv_usec)/1e6));
 
 	free(col_perm);
 	freeMat(A);
 	free(A);
 	freeMat(C);
 	free(C);
-	freeMatDense(B);
+	freeMat(B);
 	free(B);
 	freeMatDense(D);
 	free(D);

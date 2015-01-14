@@ -391,4 +391,131 @@ void permuteDNS(CSR_zo * C_k, GBMatrix_t * C, uint32_t * start_b, elem_t * data)
 }
 
 
+/* convert from dense */
+#ifdef USE_B_SPARSE
+	/* XXX convert B to sparse */
+	SAFE_MALLOC_DECL(Bsp,1,GBMatrix_t);
+	initSparse(Bsp);
+
+	Bsp->mod = B->mod;
+	Bsp->col = B->col;
+
+#ifndef BLOCK_CSR
+	SAFE_MALLOC_DECL(col_buf,B->col,taille_t);
+#else
+	SAFE_CALLOC_DECL(col_buf,DIVIDE_INTO(B->col,UNRL),taille_t);
+#endif
+	SAFE_CALLOC_DECL(dat_buf,B->ld,elem_t);
+
+	for ( i = 0 ; i < B ->row ; ++i) {
+		taille_t j ;
+		taille_t length = 0 ;
+#ifndef BLOCK_CSR
+		for (j = 0 ; j < B->col ; ++j) {
+			if (Bd[i*ldb+j] != 0) {
+				col_buf[length]   = j ;
+				dat_buf[length++] = Bd[(index_t)i*(index_t)ldb+(index_t)j];
+			}
+		}
+		appendRowData(Bsp,col_buf,length,dat_buf);
+#else
+		taille_t last_j = (taille_t)-1 ;
+		taille_t nnz = 0 ;
+		taille_t start = 0 ;
+		for (j = 0 ; j < B->col ; ++j) {
+			if (Bd[i*ldb+j] != 0) {
+				nnz ++ ;
+				if (last_j == (taille_t)-1) { /* first chunk not started */
+					col_buf[length] = j ;
+					last_j = j ;
+					dat_buf[start] = Bd[i*ldb+j];
+				} else {
+					if (last_j + UNRL > j) {
+						dat_buf[start+j-last_j] =  Bd[i*ldb+j];
+					}
+					else {
+						start += UNRL ;
+						++ length ;
+						col_buf[length] = j ;
+						last_j = j ;
+						dat_buf[start] = Bd[i*ldb+j];
+					}
+				}
+			}
+			assert(4*length == start);
+		}
+		appendRowData(Bsp,col_buf,length,dat_buf,nnz);
+#endif
+	}
+
+	assert(Bsp->nnz == B->nnz);
+	assert(Bsp->row == B->row);
+	assert(Bsp->col == B->col);
+
+	free(col_buf);
+	free(dat_buf);
+
+#ifndef NDEBUG
+	checkMat(Bsp);
+#endif
+#else
+
+
+
+#endif
+#if 0
+void insert_sort(uint32_t * liste, uint32_t  size)
+{
+	uint32_t d , c = 1 , t ;
+	for ( ; c < size ; ++c) {
+		d = c;
+		while ( d > 0 && liste[d] < liste[d-1]) {
+			SWAP(liste[d],liste[d-1]);
+			d--;
+		}
+	}
+}
+#endif
+
+
+
+void insert_sort_duo(uint32_t * liste, uint32_t  size, uint32_t * copain)
+{
+	uint32_t d , c = 1 , t ;
+	for ( ; c < size ; ++c) {
+		d = c;
+		while ( d > 0 && (liste)[d] < (liste)[d-1]) {
+			SWAP((liste)[d],(liste)[d-1]);
+			SWAP((copain)[d],(copain)[d-1]);
+			d--;
+		}
+	}
+}
+
+void insert_sort_duo_data(uint32_t * liste, uint32_t  size, elem_t * copain)
+{
+	uint32_t d , c = 1 , t ;
+	for ( ; c < size ; ++c) {
+		d = c;
+		while ( d > 0 && liste[d] < liste[d-1]) {
+			SWAP(liste[d],liste[d-1]);
+			SWAP(copain[d],copain[d-1]);
+			d--;
+		}
+	}
+}
+
+void insert_sort_duo_data_rev(uint32_t * liste, uint32_t  size, elem_t * copain)
+{
+	uint32_t d , c = 1 , t ;
+	for ( ; c < size ; ++c) {
+		d = c;
+		while ( d > 0 && liste[d] > liste[d-1]) {
+			SWAP(liste[d],liste[d-1]);
+			SWAP(copain[d],copain[d-1]);
+			d--;
+		}
+	}
+}
+
 
