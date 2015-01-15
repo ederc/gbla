@@ -144,6 +144,7 @@ void appendRowUnit(CSR * mat
 	mat->map_zo_pol[mat->row-1] = pol;
 }
 
+#if 0
 void appendRowDataUnit_block(CSR * mat
 		, taille_t * colid
 		, index_t size
@@ -175,6 +176,7 @@ void appendRowDataUnit_block(CSR * mat
 	SAFE_REALLOC(mat->start,mat->row+1,index_t);
 	mat->start[mat->row] = new_colsize ;
 }
+#endif
 
 void appendRowDataUnit(CSR * mat
 		, taille_t * colid
@@ -499,6 +501,7 @@ void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
 }
 
 
+#if 0
 void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 {
 	taille_t k ;
@@ -544,6 +547,7 @@ void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 	}
 
 }
+#endif
 
 
 #endif /* __GB_matrix_H */

@@ -24,6 +24,13 @@ void Mjoin(dump,TEMPL_TYPE)(FILE * fh,int all,int strict,int magma)
 		/* rows */
 		SAFE_READ_DECL_P(rows, m, uint32_t, fh); /* length of each row on 32 bits*/
 
+		SAFE_MALLOC_DECL(start,m+1,uint64_t);
+		start[0] = 0 ;
+		for ( i = 0 ; i < m ; ++i) {
+			start[i+1] = start[i] + rows[i] ;
+		}
+		free(rows);
+
 		/* map_zo_pol correspondance */
 		SAFE_READ_DECL_P(map_zo_pol,m,uint32_t,fh); /* rows are numbered on 32 bits */
 
@@ -42,15 +49,14 @@ void Mjoin(dump,TEMPL_TYPE)(FILE * fh,int all,int strict,int magma)
 		/* pol_start */
 		SAFE_READ_DECL_P(pol_rows,pol_nb,uint32_t,fh); /* length of each polynomial. less than number of rows */
 
-		SAFE_CALLOC_DECL(pol_start,pol_nb+1,uint64_t);
-		SAFE_CALLOC_DECL(start,m+1,uint64_t);
+		SAFE_MALLOC_DECL(pol_start,pol_nb+1,uint64_t);
+		pol_start[0]=0;
 
 		for ( i = 0 ; i < pol_nb ; ++i) {
 			pol_start[i+1] = pol_start[i] + pol_rows[i] ;
 		}
-		for ( i = 0 ; i < m ; ++i) {
-			start[i+1] = start[i] + rows[i] ;
-		}
+		free(pol_rows);
+
 		assert(pol_nnz = pol_start[pol_nb]);
 
 		/* pol_vals */
@@ -110,9 +116,7 @@ void Mjoin(dump,TEMPL_TYPE)(FILE * fh,int all,int strict,int magma)
 		fprintf(stderr,"\n");
 
 		free(pol_start);
-		free(pol_rows);
 		free(pol_vals);
-		free(rows);
 		free(map_zo_pol);
 		free(colid);
 		free(start);

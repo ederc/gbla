@@ -563,7 +563,7 @@ taille_t * readFileSplit(
 	/* format */
 	SAFE_READ_DECL_V(b,uint32_t,fh);
 	/* XXX set elem_s here and C++-ise*/
-	assert(b== Mjoin(select,elem_s)());
+	assert((b ^ VERMASK) == Mjoin(select,elem_s)());
 
 	/* READ in row col nnz mod */
 	SAFE_READ_DECL_V(m,uint32_t,fh);
@@ -579,7 +579,13 @@ taille_t * readFileSplit(
 	A_init->mod = C_init->mod = mod ;
 
 	/* READ in ZO start */
-	SAFE_READ_DECL_P(start,m+1,uint64_t,fh);
+	SAFE_READ_DECL_P(rows,m,uint32_t,fh);
+	SAFE_MALLOC_DECL(start,m+1,uint64_t);
+	start[0] = 0 ;
+	taille_t i ;
+	for ( i = 0 ; i < m ; ++i)
+		start[i+1] = start[i] + rows[i];
+	free(rows);
 
 	/* pol/zo correspondance */
 	SAFE_READ_DECL_P(map_zo_pol,m,uint32_t,fh);
@@ -658,11 +664,19 @@ taille_t * readFileSplit(
 	/* size of nnz for pols: */
 	SAFE_READ_V(polys->nb,uint32_t,fh);
 
+	SAFE_READ_DECL_V(pol_nnz,uint64_t,fh);
+
 	/* create GBpolynomials shared by A_init and B_init */
-	SAFE_READ_P(polys->start_pol,polys->nb+1,uint32_t,fh);
+	SAFE_READ_DECL_P(pol_rows,polys->nb,uint32_t,fh);
+	SAFE_MALLOC(polys->start_pol,polys->nb+1,uint32_t);
+	polys->start_pol[0] = 0 ;
+	for ( i = 0 ; i < polys->nb ; ++i)
+		polys->start_pol[i+1] = polys->start_pol[i]+pol_rows[i];
+	free(pol_rows);
+	assert(polys->start_pol[polys->nb] == pol_nnz);
 
 	/* XXX what if elem_s == elem_t ??? */
-	SAFE_READ_DECL_P(polys_data_pol,polys->start_pol[polys->nb],elem_s,fh);
+	SAFE_READ_DECL_P(polys_data_pol,pol_nnz,elem_s,fh);
 
 	gettimeofday(&tic,NULL);
 	SAFE_MEMCPY_CVT(polys->data_pol,elem_t,polys_data_pol,polys->start_pol[polys->nb]);
@@ -768,7 +782,7 @@ void reduce(
 
 	for ( k = 0 ; k < C->sub_nb  ; ++k ) {
 		CSR * Cd = &(C->sub[k]);
-		taille_t ldd = D->col ;
+		taille_t ldd = D->ld ;
 		/* D = D - C . B */
 		assert( (elem_t)-1<1); /* unsigned will fail */
 #ifdef _OPENMP
@@ -825,6 +839,23 @@ void spaxpy(
 	}
 #endif
 }
+
+#if 0
+void spaxpy_block(
+		elem_t           tc,
+		const elem_t   * A,
+		const taille_t   nb,
+		const taille_t * colid,
+		elem_t         * B)
+{
+	taille_t jz = 0 ;
+	for ( ; jz < nb ; ++jz) {
+		taille_t k ;
+		for (k = 0 ; k < UNRL ; ++k)
+		B[colid[jz+k]]   += tc * A[jz] ;
+	}
+}
+#endif
 
 void spaxpy2(
 		elem_t         tc,
@@ -917,6 +948,7 @@ void sparse_dcopy(
 	}
 }
 
+#if 0
 void sparse_dcopy_block(
 		 taille_t row
 		, index_t * start
@@ -937,6 +969,7 @@ void sparse_dcopy_block(
 		}
 	}
 }
+#endif
 
 
 void reduce_chunk_1(
@@ -980,6 +1013,7 @@ void reduce_chunk_1(
 	}
 }
 
+#if 0
 void reduce_chunk_1_block(
 		taille_t blk_i
 		, GBMatrix_t * A
@@ -1020,6 +1054,7 @@ void reduce_chunk_1_block(
 		}
 	}
 }
+#endif
 
 void reduce_chunk_dense_1(
 		taille_t blk_i
@@ -1344,7 +1379,7 @@ void reduce_fast(
 #endif /* USE_SAXPYn */
 
 			/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */
-			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
+			cblas_dcopy(ldd*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
 
 #ifdef _OPENMP
 		free(temp_D);
@@ -1361,6 +1396,7 @@ void reduce_fast(
 	Mjoin(Freduce,elem_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
 }
 
+#if 0
 void reduce_fast_block(
 		GBMatrix_t      * A
 		, GBMatrix_t    * B
@@ -1415,26 +1451,26 @@ void reduce_fast_block(
 			cblas_dcopy(ldd*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
 
 
-#ifdef USE_SAXPY
+/* #ifdef USE_SAXPY
 #if defined(USE_SAXPYn) || defined(USE_SAXPY2)
 #error "make a choice"
-#endif
-			reduce_chunk_1_block(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
-#endif /* USE_SAXPY */
+#endif                                            */
+			reduce_chunk_1_block(blk_i,A,BH,temp_C,ldc,temp_D,ldd,p);
+/* #endif |+ USE_SAXPY +|
 
 #ifdef USE_SAXPY2
 #if defined(USE_SAXPY) || defined(USE_SAXPYn)
 #error "make a choice"
 #endif
 			reduce_chunk_2_block(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
-#endif /* USE_SAXPY2 */
+#endif |+ USE_SAXPY2 +|
 
 #ifdef USE_SAXPYn
 #if defined(USE_SAXPY) || defined(USE_SAXPY2)
 #error "make a choice"
 #endif
 			reduce_chunk_n_block(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
-#endif /* USE_SAXPYn */
+#endif |+ USE_SAXPYn +|                                                             */
 
 			/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */
 			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
@@ -1453,6 +1489,7 @@ void reduce_fast_block(
 #endif /* _OPENMP */
 	Mjoin(Freduce,elem_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
 }
+#endif
 
 
 void reduce_fast_dense(
@@ -1554,7 +1591,7 @@ taille_t echelonD(
 		, DNS * D)
 {
 
-	taille_t r = Mjoin(RowReduce,elem_t)(D->mod,D->ptr,D->row,D->col,D->col);
+	taille_t r = Mjoin(RowReduce,elem_t)(D->mod,D->ptr,D->row,D->col,D->ld);
 
 	fprintf(stderr,"  -- residual rank    : %u\n",r);
 
