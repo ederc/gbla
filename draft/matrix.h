@@ -1,10 +1,10 @@
 #ifndef __GB_matrix_H
 #define __GB_matrix_H
 
+#include "config.h"
 #include "types.h"
-#include "tools.h"
+#include "macros.h"
 #include "printer.h"
-
 
 
 typedef struct CSR_pol {
@@ -52,15 +52,29 @@ typedef struct DenseMatrix_t {
 	DNS      * blk ;
 } DenseMatrix_t ;
 
-taille_t * getRow(CSR * mat, taille_t i)
-{
-	return mat->colid + mat->start[i];
-}
+/* ACCESS */
 
 index_t size(CSR * mat)
 {
 	return mat->start[mat->row] ;
 }
+
+taille_t * getRow(CSR * mat, taille_t i)
+{
+	return mat->colid + mat->start[i];
+}
+
+const CSR * getLastMatrixConst(const GBMatrix_t * A)
+{
+	return &(A->sub[A->sub_nb-1]);
+}
+
+CSR * getLastMatrix(GBMatrix_t * A)
+{
+	return &(A->sub[A->sub_nb-1]);
+}
+
+/* INIT */
 
 void initSparseUnit(CSR * mat)
 {
@@ -79,6 +93,33 @@ void initSparseUnit(CSR * mat)
 	mat->map_zo_pol = NULL ;
 	mat->data = NULL ;
 }
+
+
+void initSparse(GBMatrix_t * A)
+{
+	if (!A) return;
+	A->row = 0 ;
+	A->col = 0 ;
+	A->nnz = 0 ;
+	A->sub_nb = 0 ;
+	/* SAFE_MALLOC(A->sub,A->sub_nb,CSR); */
+	/* initSparseUnit(A->sub); */
+	A->sub = NULL ;
+}
+
+void initDenseUnit (DNS * A)
+{
+	A->row = 0 ;
+	A->col = 0 ;
+	A->ld  = 0 ;
+	A->mod = 0 ;
+	A->nnz = 0 ;
+	A->ptr = NULL ;
+}
+
+
+
+/* GROW */
 
 void appendRowUnit(CSR * mat
 		, taille_t * colid
@@ -103,79 +144,6 @@ void appendRowUnit(CSR * mat
 	mat->map_zo_pol[mat->row-1] = pol;
 }
 
-void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
-{
-	D->row = S->row ;
-	D->col = S->col ;
-	D->ld = ALIGN(D->col) ;
-	D->mod = S->mod ;
-	SAFE_CALLOC(D->ptr,(index_t)D->row * (index_t)D->ld,elem_t);
-
-	taille_t k ;
-	for (k = 0 ; k < S->sub_nb ; ++k) {
-		CSR * S_k = &(S->sub[k]) ;
-		taille_t i ;
-		index_t i_off = k * MAT_ROW_BLK ;
-		for (i = 0 ; i < S_k->row ; ++i) {
-			index_t jz ;
-			for ( jz = S_k->start[i] ; jz < S_k->start[i+1] ; ++jz) {
-				taille_t j = S_k->colid[jz] ;
-				D->ptr[(i_off+i)*D->ld+j] = S_k->data[jz] ;
-			}
-		}
-	}
-
-
-}
-
-
-void convert_CSR_2_CSR_block(GBMatrix_block_t * B, const GBMatrix_t * S )
-{
-	taille_t k ;
-	for (k = 0 ; k < S->sub_nb ; ++k) {
-		const CSR * B_k = &(S->sub[j]) ;
-		appendMatrix_block(B);
-		CSR * Bd = getLastMatrix(B);
-		Bd->row = B_k->row ;
-		Bd->col = B_k->col ;
-		Bd->mod = B_k->mod ;
-		Bd->nnz = B_k->nnz ;
-		SAFE_REALLOC(Bd->start,Bd->row+1,index_t);
-		taille_t i ;
-		for (i = 0 ; i <= Bd->row ; ++i) {
-			Bd->start[i] = 0 ;
-		}
-		taille_t komp = DIVIDE_INTO(Bd->col,UNRL);
-		taille_t kext = komp * UNRL ;
-		SAFE_CALLOC(Bd->data,DIVIDE_INTO(Bd->nnz,UNRL),elem_t);
-		SAFE_MALLOC(Bd->colid,Bd->nnz,taille_t);
-		index_t there = (index_t)-1 ;
-		for (i = 0 ; i < Bd->row ; ++i) {
-			index_t jz ;
-			taille_t last_j = (index_t) -1 ;
-			for (jz = B_k->start[i] ; jz < B_k->start[i+1] ; ++jz) {
-				taille_t j = B_k->colid[jz] ;
-					if (j/UNRL  == last_j) {
-						Bd->data[UNRL*there+j%UNRL] = B_k->data[jz] ;
-					}
-					else {
-						last_j = j/UNRL ;
-						++there ;
-						Bd->colid[there] = last_j ;
-						Bd->data[UNRL*there+j%UNRL] = B_k->data[jz] ;
-						Bd->start[i] += 1 ;
-					}
-				}
-
-			}
-		++there ;
-		SAFE_REALLOC(Bd->data,(UNRL)*there,elem_t);
-		SAFE_REALLOC(Bd->colid,there,taille_t);
-
-	}
-
-}
-
 void appendRowDataUnit_block(CSR * mat
 		, taille_t * colid
 		, index_t size
@@ -183,11 +151,12 @@ void appendRowDataUnit_block(CSR * mat
 		, index_t nnz
 		)
 {
+	index_t new_colsize ;
 	if (size > 0) {
 
 		index_t old = mat->nnz ;
 		index_t old_colsize = mat->start[mat->row]  ;
-		index_t new_colsize = old_colsize + size ;
+		new_colsize = old_colsize + size ;
 		mat->nnz = old + nnz;
 		/* XXX this may be slow */
 		SAFE_REALLOC(mat->colid, new_colsize ,taille_t);
@@ -236,18 +205,6 @@ void appendRowDataUnit(CSR * mat
 }
 
 
-const CSR * getLastMatrixConst(const GBMatrix_t * A)
-{
-	return &(A->sub[A->sub_nb-1]);
-}
-
-CSR * getLastMatrix(GBMatrix_t * A)
-{
-	return &(A->sub[A->sub_nb-1]);
-}
-
-
-
 void appendMatrix(GBMatrix_t * A)
 {
 	A->sub_nb++;
@@ -279,56 +236,6 @@ void appendRow(GBMatrix_t * A
 	appendRowUnit(&(A->sub[A->sub_nb-1]),colid,size,pol);
 }
 
-index_t occupancySparse(GBMatrix_t * A)
-{
-	taille_t k ;
-	index_t  acc = 0;
-	for ( k = 0 ; k < A->sub_nb  ; ++k ) {
-		CSR * Ad = &(A->sub[k]);
-		index_t j ;
-		taille_t i ;
-		for (i = 0 ; i < Ad->row ; ++i) {
-			SAFE_CALLOC_DECL(occup,Ad->col/UNRL+1,taille_t);
-			for ( j = Ad->start[i] ; j < Ad->start[i+1] ; ++j) {
-				occup[Ad->colid[j]/UNRL] += 1 ;
-			}
-			for ( j = 0 ; j < Ad->col/UNRL+1 ; ++j) {
-				if (occup[j] > 0)
-					acc += 1 ;
-			}
-			free(occup);
-
-		}
-	}
-	acc *= UNRL ;
-
-	return acc ;
-}
-
-index_t occupancyDense ( DNS * D)
-{
-	taille_t i,j ;
-	index_t  acc = 0;
-	for (i = 0 ; i < D->row ; ++i) {
-		SAFE_CALLOC_DECL(occup,D->col/UNRL+1,taille_t);
-		for (j = 0 ; j < D->col ; ++j) {
-			index_t k = (index_t)i*(index_t)D->col+j;
-			if (D->ptr[k] != 0) {
-				occup[j/UNRL] += 1 ;
-			}
-		}
-		taille_t k ;
-		for ( k = 0 ; k < D->col/UNRL+1 ; ++k) {
-			if (occup[k] > 0)
-				acc += 1 ;
-		}
-		free(occup);
-
-	}
-	acc *= UNRL ;
-	return acc ;
-}
-
 void appendRowData(GBMatrix_t * A
 		, taille_t * colid
 		, index_t size
@@ -345,28 +252,7 @@ void appendRowData(GBMatrix_t * A
 	appendRowDataUnit(&(A->sub[A->sub_nb-1]),colid,size,data);
 }
 
-
-void initSparse(GBMatrix_t * A)
-{
-	if (!A) return;
-	A->row = 0 ;
-	A->col = 0 ;
-	A->nnz = 0 ;
-	A->sub_nb = 0 ;
-	/* SAFE_MALLOC(A->sub,A->sub_nb,CSR); */
-	/* initSparseUnit(A->sub); */
-	A->sub = NULL ;
-}
-
-void initDenseUnit (DNS * A)
-{
-	A->row = 0 ;
-	A->col = 0 ;
-	A->ld  = 0 ;
-	A->mod = 0 ;
-	A->nnz = 0 ;
-	A->ptr = NULL ;
-}
+/* PRINT */
 
 void printMatUnit(CSR * A)
 {
@@ -456,6 +342,60 @@ void printPoly(CSR_pol * P)
 	}
 }
 
+/* STATS */
+
+index_t occupancySparse(GBMatrix_t * A)
+{
+	taille_t k ;
+	index_t  acc = 0;
+	for ( k = 0 ; k < A->sub_nb  ; ++k ) {
+		CSR * Ad = &(A->sub[k]);
+		index_t j ;
+		taille_t i ;
+		for (i = 0 ; i < Ad->row ; ++i) {
+			SAFE_CALLOC_DECL(occup,Ad->col/UNRL+1,taille_t);
+			for ( j = Ad->start[i] ; j < Ad->start[i+1] ; ++j) {
+				occup[Ad->colid[j]/UNRL] += 1 ;
+			}
+			for ( j = 0 ; j < Ad->col/UNRL+1 ; ++j) {
+				if (occup[j] > 0)
+					acc += 1 ;
+			}
+			free(occup);
+
+		}
+	}
+	acc *= UNRL ;
+
+	return acc ;
+}
+
+index_t occupancyDense ( DNS * D)
+{
+	taille_t i,j ;
+	index_t  acc = 0;
+	for (i = 0 ; i < D->row ; ++i) {
+		SAFE_CALLOC_DECL(occup,D->col/UNRL+1,taille_t);
+		for (j = 0 ; j < D->col ; ++j) {
+			index_t k = (index_t)i*(index_t)D->col+j;
+			if (D->ptr[k] != 0) {
+				occup[j/UNRL] += 1 ;
+			}
+		}
+		taille_t k ;
+		for ( k = 0 ; k < D->col/UNRL+1 ; ++k) {
+			if (occup[k] > 0)
+				acc += 1 ;
+		}
+		free(occup);
+
+	}
+	acc *= UNRL ;
+	return acc ;
+}
+
+
+/* CHECK */
 
 void checkMatUnit(const CSR *Ak)
 {
@@ -499,6 +439,8 @@ void checkMat(const GBMatrix_t *A)
 
 }
 
+/* FREE */
+
 void freeMatDense(DNS * A)
 {
 	free(A->ptr);
@@ -528,5 +470,81 @@ void freeMat(GBMatrix_t * A)
 	}
 	free(A->sub);
 }
+
+/* CONVERSION */
+
+void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
+{
+	D->row = S->row ;
+	D->col = S->col ;
+	D->ld = ALIGN(D->col) ;
+	D->mod = S->mod ;
+	SAFE_CALLOC(D->ptr,(index_t)D->row * (index_t)D->ld,elem_t);
+
+	taille_t k ;
+	for (k = 0 ; k < S->sub_nb ; ++k) {
+		CSR * S_k = &(S->sub[k]) ;
+		taille_t i ;
+		index_t i_off = k * MAT_ROW_BLK ;
+		for (i = 0 ; i < S_k->row ; ++i) {
+			index_t jz ;
+			for ( jz = S_k->start[i] ; jz < S_k->start[i+1] ; ++jz) {
+				taille_t j = S_k->colid[jz] ;
+				D->ptr[(i_off+i)*D->ld+j] = S_k->data[jz] ;
+			}
+		}
+	}
+
+
+}
+
+
+void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
+{
+	taille_t k ;
+	for (k = 0 ; k < S->sub_nb ; ++k) {
+		const CSR * B_k = &(S->sub[k]) ;
+		appendMatrix(B);
+		CSR * Bd = getLastMatrix(B);
+		Bd->row = B_k->row ;
+		Bd->col = B_k->col ;
+		Bd->nnz = B_k->nnz ;
+		SAFE_REALLOC(Bd->start,Bd->row+1,index_t);
+		taille_t i ;
+		for (i = 0 ; i <= Bd->row ; ++i) {
+			Bd->start[i] = 0 ;
+		}
+		/* taille_t komp = DIVIDE_INTO(Bd->col,UNRL); */
+		/* taille_t kext = komp * UNRL ; */
+		SAFE_CALLOC(Bd->data,DIVIDE_INTO(Bd->nnz,UNRL),elem_t);
+		SAFE_MALLOC(Bd->colid,Bd->nnz,taille_t);
+		index_t there = (index_t)-1 ;
+		for (i = 0 ; i < Bd->row ; ++i) {
+			index_t jz ;
+			taille_t last_j = (taille_t) -1 ;
+			for (jz = B_k->start[i] ; jz < B_k->start[i+1] ; ++jz) {
+				taille_t j = B_k->colid[jz] ;
+					if (j/UNRL  == last_j) {
+						Bd->data[UNRL*there+j%UNRL] = B_k->data[jz] ;
+					}
+					else {
+						last_j = j/UNRL ;
+						++there ;
+						Bd->colid[there] = last_j ;
+						Bd->data[UNRL*there+j%UNRL] = B_k->data[jz] ;
+						Bd->start[i] += 1 ;
+					}
+				}
+
+			}
+		++there ;
+		SAFE_REALLOC(Bd->data,(UNRL)*there,elem_t);
+		SAFE_REALLOC(Bd->colid,there,taille_t);
+
+	}
+
+}
+
+
 #endif /* __GB_matrix_H */
 /* vim: set ft=c: */

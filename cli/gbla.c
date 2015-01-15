@@ -30,6 +30,7 @@ void print_help() {
   printf("    -m          Number of rows per multiline.\n");
   printf("                Default: 1.\n");
   */
+  printf("    -n          Use the new format for matrices.\n");
   printf("    -p          Writes intermediate matrices in pbm format.\n");
   printf("    -s          Splicing options:\n");
   printf("                0: standard Faugère-Lachartre block method,\n");

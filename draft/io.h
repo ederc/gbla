@@ -980,6 +980,47 @@ void reduce_chunk_1(
 	}
 }
 
+void reduce_chunk_1_block(
+		taille_t blk_i
+		, GBMatrix_t * A
+		, GBMatrix_t * B
+		, elem_t * temp_C
+		, taille_t ldc
+		, elem_t * temp_D
+		, taille_t ldd
+		, elem_t p)
+{
+	taille_t j, ii ;
+	for ( j = 0 ; j < A->col ; ++j) { /* A->col == C->col */
+		/* XXX invert loops ? */
+		for ( ii = 0 ; ii < blk_i ; ii += 1 ) {
+			elem_t tc = Mjoin(fmod,elem_t)(-temp_C[ii*ldc+j],p) ;
+			if (tc != 0.) {
+				/* temp_C -= temp_C[j] * A[j] */
+				taille_t jj = j%MAT_ROW_BLK ;
+				taille_t kk = j/MAT_ROW_BLK ;
+				CSR * A_k = &(A->sub[kk]);
+				taille_t sz = (taille_t)(A_k->start[jj+1]-A_k->start[jj]);
+				assert(kk*MAT_ROW_BLK+jj == j);
+				spaxpy(tc,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+ii*ldc);
+
+				/* temp_D -= temp_C[j] * B[j] */
+
+				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
+				CSR * B_k = &(B->sub[kk]);
+				sz = (taille_t)(B_k->start[jj+1]-B_k->start[jj]) ;
+				spaxpy_block(tc,B_k->data+B_k->start[jj]*UNRL,
+						sz,
+						B_k->colid+B_k->start[jj],
+						temp_D+ii*(ldd));
+			}
+		}
+	}
+}
+
 void reduce_chunk_dense_1(
 		taille_t blk_i
 		, GBMatrix_t * A
@@ -1327,8 +1368,8 @@ void reduce_fast_block(
 		, DNS * D )
 {
 
-	SAFE_MALLOC_DECL(BH,1,GBMatrix_block_t);
-	initSparse_block(BH);
+	SAFE_MALLOC_DECL(BH,1,GBMatrix_t);
+	initSparse(BH);
 	convert_CSR_2_CSR_block(BH,B);
 
 
@@ -1357,7 +1398,6 @@ void reduce_fast_block(
 #ifdef _OPENMP
 #pragma omp parallel for private (jz)
 #endif
-
 		for ( i = 0 ; i < C_k->row ; i += blk ) {
 			taille_t blk_i = min(blk,C_k->row - i);
 #ifdef _OPENMP
@@ -1370,6 +1410,7 @@ void reduce_fast_block(
 			cblas_dscal(ldc*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
 #endif
 			sparse_dcopy( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
+			/* sparse_dcopy_block( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc); */
 
 			cblas_dcopy(ldd*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
 
@@ -1378,21 +1419,21 @@ void reduce_fast_block(
 #if defined(USE_SAXPYn) || defined(USE_SAXPY2)
 #error "make a choice"
 #endif
-			reduce_chunk_1(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+			reduce_chunk_1_block(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
 #endif /* USE_SAXPY */
 
 #ifdef USE_SAXPY2
 #if defined(USE_SAXPY) || defined(USE_SAXPYn)
 #error "make a choice"
 #endif
-			reduce_chunk_2(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+			reduce_chunk_2_block(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
 #endif /* USE_SAXPY2 */
 
 #ifdef USE_SAXPYn
 #if defined(USE_SAXPY) || defined(USE_SAXPY2)
 #error "make a choice"
 #endif
-			reduce_chunk_n(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
+			reduce_chunk_n_block(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
 #endif /* USE_SAXPYn */
 
 			/* Mjoin(Finit,elem_t)(p, temp_D, Dd+i*ldd, D->col) ; */

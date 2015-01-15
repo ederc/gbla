@@ -108,7 +108,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		re_t mode;
 		if ((fread(&mode, sizeof(re_t), 1, fh) != 1) || (mode == 1)) {
 			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
+				printf("Error while reading file '%s' (modulo)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
@@ -117,7 +117,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	else {
 		if ((fread(&mod, sizeof(uint32_t), 1, fh) != 1) || (mod == 1)) {
 			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
+				printf("Error while reading file '%s' (modulo)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
@@ -126,7 +126,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	// get number of nonzero elements
 	if (fread(&nnz, sizeof(uint64_t), 1, fh) != 1) {
 		if (verbose > 0)
-			printf("Error while reading file '%s'\n",fn);
+			printf("Error while reading file '%s' (nnz)\n",fn);
 		fclose(fh);
 		return NULL;
 	}
@@ -162,7 +162,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		if (fread(nze, sizeof(re_t), nnz, fh) != nnz) {
 			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
+				printf("Error while reading file '%s' (data)\n",fn);
 			free(M); /* XXX and many others */
 			fclose(fh);
 			return NULL ;
@@ -170,7 +170,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		if (fread(pos,sizeof(ci_t),nnz,fh) != nnz) {
 			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
+				printf("Error while reading file '%s' (cols)\n",fn);
 			free(M); /* XXX and many others */
 			fclose(fh);
 			return NULL ;
@@ -178,7 +178,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		if (fread(sz,sizeof(ci_t),m,fh) != m) {
 			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
+				printf("Error while reading file '%s' (rows)\n",fn);
 			free(M); /* XXX and many others */
 			fclose(fh);
 			return NULL ;
@@ -224,7 +224,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fseek(fh, row_size_offset, SEEK_SET);
 			if (fread(&sz, sizeof(ci_t), 1, fh) != 1) {
 				if (verbose > 0)
-					printf("Error while reading file '%s'\n",fn);
+					printf("Error while reading file '%s' (nnz)\n",fn);
 				free(M);
 				fclose(fh);
 				return NULL;
@@ -235,7 +235,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fseek(fh, row_val_offset, SEEK_SET);
 			if (fread(nze, sizeof(re_t), sz, fh) != sz) {
 				if (verbose > 0)
-					printf("Error while reading file '%s'\n",fn);
+					printf("Error while reading file '%s' (data)\n",fn);
 				free(M);
 				fclose(fh);
 				return NULL;
@@ -246,7 +246,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fseek(fh, row_pos_offset, SEEK_SET);
 			if (fread(pos, sizeof(ci_t), sz, fh) != sz) {
 				if (verbose > 0)
-					printf("Error while reading file '%s'\n",fn);
+					printf("Error while reading file '%s' (cols)\n",fn);
 				free(M);
 				fclose(fh);
 				return NULL;
@@ -274,9 +274,9 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			exit(-1);
 
 		uint32_t *row = (uint32_t *)malloc((m) * sizeof(uint32_t));
-		if (fread(row, sizeof(uint32_t), m , fh) != m+1) {
+		if (fread(row, sizeof(uint32_t), m , fh) != m) {
 			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
+				printf("Error while reading file '%s' (rows)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
@@ -284,7 +284,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		uint32_t *mzp = (uint32_t*)malloc(m * sizeof(uint32_t));
 		if (fread(mzp, sizeof(uint32_t), m , fh) != m) {
 			if (verbose > 0)
-				printf("Error while reading file '%s'\n",fn);
+				printf("Error while reading file '%s' (mat_zo_pol)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
@@ -294,7 +294,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		uint64_t czs;
 		if (fread(&czs, sizeof(uint64_t), 1, fh) != 1) {
 			if (verbose > 0)
-				printf("Error while reading file c'%s'\n",fn);
+				printf("Error while reading file '%s' (col size))\n",fn);
 			fclose(fh);
 			return NULL;
 		}
@@ -302,7 +302,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		uint32_t * cz = (uint32_t*)malloc(czs * sizeof(uint32_t));
 		if (fread(cz, sizeof(uint32_t), czs, fh) != czs) {
 			if (verbose > 0)
-				printf("Error while reading file d'%s'\n",fn);
+				printf("Error while reading file '%s' (cols)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
@@ -312,7 +312,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		uint32_t np;
 		if (fread(&np, sizeof(uint32_t), 1, fh) != 1) {
 			if (verbose > 0)
-				printf("Error while reading file e'%s'\n",fn);
+				printf("Error while reading file '%s' (nb pols)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
@@ -320,16 +320,16 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		uint64_t zp;
 		if (fread(&zp, sizeof(uint64_t), 1, fh) != 1) {
 			if (verbose > 0)
-				printf("Error while reading file e'%s'\n",fn);
+				printf("Error while reading file '%s' (nb pol data)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
 		fl += sizeof(uint64_t);
 
 		uint32_t * rp = (uint32_t*)malloc((np) * sizeof(uint32_t)); /* row length */
-		if (fread(rp, sizeof(uint32_t), np, fh) != (np+1)) {
+		if (fread(rp, sizeof(uint32_t), np, fh) != (np)) {
 			if (verbose > 0)
-				printf("Error while reading file f'%s'\n",fn);
+				printf("Error while reading file '%s' (pol rows)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
@@ -348,7 +348,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		re_t * vp = (re_t*)malloc((zp) * sizeof(re_t)) ;
 		if (fread(vp, sizeof(re_t), zp, fh) != zp) {
 			if (verbose > 0)
-				printf("Error while reading file g'%s'\n",fn);
+				printf("Error while reading file '%s' (pol data)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
