@@ -542,7 +542,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   */
     // copy block matrix B back to a sparse matrix in order to use
     // splice_fl_matrix() procedure again
-    copy_block_matrix_to_sparse_matrix(&B, &B_old, 1, nthreads);
+    //copy_block_matrix_to_sparse_matrix(&B, &B_old, 1, nthreads);
     /*
     printf("B OLD\n");
     for (int nn=0; nn<B_old->nrows; ++nn) {

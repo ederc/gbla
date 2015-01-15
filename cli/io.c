@@ -1,8 +1,7 @@
 #include "io.h"
-
-#include "draft/selecter.h"
-#include "draft/types.h"
-#include "draft/macros.h"
+#include "tools/selecter.h"
+#include "tools/types.h"
+#include "tools/macros.h"
 
 
 // ========== TIMINGS ==========

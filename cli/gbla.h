@@ -8,10 +8,10 @@
 #ifndef GB_GB_H
 #define GB_GB_H
 
-#include "io.h"
-#include <mapping.h>
-#include <elimination.h>
 #include <math.h>
+#include "io.h"
+#include "mapping.h"
+#include "elimination.h"
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the

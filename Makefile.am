@@ -17,7 +17,7 @@ pkgincludesub_HEADERS = \
 	src/types.h \
 	src/matrix.h \
 	src/mapping.h \
-	src/elimination.h 
+	src/elimination.h
 
 nodist_pkgincludesub_HEADERS = src/gbla_config.h
 
