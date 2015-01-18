@@ -5,39 +5,71 @@
 #include <string.h>
 #include "io.h"
 #include "ouvrir.h"
-/* #include <omp.h> */
+#include <omp.h>
 
 
 void usage(char * nom) {
-	fprintf(stderr,"usage %s [-r] (if reduce) nom_fichier in new rev sorted format  ]\n",nom);
+	fprintf(stderr,"usage %s [options]  nom_fichier \n",nom);
+	fprintf(stderr,"         nom_fichier in new rev sorted format\n");
+	fprintf(stderr,"  -r     full row echelon form\n");
+	fprintf(stderr,"  -t k   use k threads\n");
+
 }
 
 
 int main(int ac, char **av) {
 
-	/* omp_set_numthreads(1); */
 	if (ac < 2 ) {
 		usage(av[0]);
 		return -1;
 	}
 
 	int red = 0 ;
+	int nb_threads = 1;
 
-	if (ac > 1 && ( (strcmp(av[1],"-h") == 0) ||(strcmp(av[1],"--help") == 0) || (strcmp(av[1],"-?") == 0) ) ) {
-		usage(av[0]);
-		return -1;
+
+
+
+	while (ac > 2) {
+
+		if (ac > 1 && ( (strcmp(av[1],"-h") == 0) ||(strcmp(av[1],"--help") == 0) || (strcmp(av[1],"-?") == 0) ) ) {
+			usage(av[0]);
+			return -1;
+		}
+
+		if (ac > 1 && ( (strcmp(av[1],"-t") == 0)  ) ) {
+			nb_threads = atoi(av[2]) ;
+			ac -=2;
+			av +=2;
+#ifdef _OPENMP
+			if (nb_threads > 1)
+				omp_set_num_threads(nb_threads);
+#endif
+
+		}
+#ifndef _OPENMP
+		assert(nb_threads == 1);
+#endif
+
+		if (ac > 1 &&  (strcmp(av[1],"-r") == 0)) {
+			red = 1 ;
+			ac-- ;
+			av++ ;
+		}
 	}
 
-	if (ac > 1 &&  (strcmp(av[1],"-r") == 0)) {
-		red = 1 ;
-		ac-- ;
-		av++ ;
-	}
+#ifdef _OPENMP
+	if (nb_threads == 1)
+		omp_set_num_threads(1);
+#endif
 
-	if (ac < 1) {
+	fprintf(stderr,"using  %d thread(s)\n",nb_threads);
+
+	if (ac != 2) {
 		usage(av[0]);
 		return -1 ;
 	}
+
 
 	char * fic = av[1] ;
 
@@ -50,7 +82,7 @@ int main(int ac, char **av) {
 	gettimeofday(&tic,NULL);
 	gettimeofday(&aa,NULL);
 
-	taille_t * col_perm;
+	dimen_t * col_perm;
 
 	fprintf(stderr," reducing ? %u\n",(red==1));
 
@@ -71,11 +103,6 @@ int main(int ac, char **av) {
 
 	fprintf(stderr," LOAD    time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
 				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
-	fprintf(stderr,"   -- sparsity of A   : %.3f%% (%u x %u - %lu)\n",(double)A->nnz/(double)A->row/(double)A->col*100.,A->row,A->col,A->nnz);
-	fprintf(stderr,"   -- sparsity of B   : %.3f%% (%u x %u - %lu)\n",(double)B->nnz/(double)B->row/(double)B->col*100.,B->row,B->col,B->nnz);
-	fprintf(stderr,"   -- sparsity of C   : %.3f%% (%u x %u - %lu)\n",(double)C->nnz/(double)C->row/(double)C->col*100.,C->row,C->col,C->nnz);
-	fprintf(stderr,"   -- sparsity of D   : %.3f%% (%u x %u - %lu)\n",(double)D->nnz/(double)D->row/(double)D->col*100.,D->row,D->col,D->nnz);
-
 
 	/* REDUCE */
 
@@ -89,7 +116,11 @@ int main(int ac, char **av) {
 		freeMatDense(Bd);
 	}
 	else {
+#ifndef BLOCK_CSR
 		reduce_fast(A,B,C,D);
+#else
+		reduce_fast_block(A,B,C,D);
+#endif
 	}
 
 	gettimeofday(&tac,NULL);
@@ -101,7 +132,7 @@ int main(int ac, char **av) {
 
 	/* ECHELON */
 
-	uint32_t r = echelonD(A,D);
+	uint32_t r = echelonD(A,D,nb_threads);
 
 	gettimeofday(&tac,NULL);
 

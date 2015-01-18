@@ -28,23 +28,61 @@
 #define checkassert(a,b) a
 #endif
 
+#include <stdlib.h>
+#include <stdalign.h>
+/* #include <malloc.h> */
+
+static void* new_malloc(size_t size)  {
+    void *alignedPointer;
+#ifndef NDEBUG
+    int alignError = 0;
+
+    alignError =
+#endif
+	    posix_memalign(&alignedPointer, 32, size);
+
+#ifndef NDEBUG
+    assert(!alignError);
+#endif
+
+    /* alignedPointer = aligned_alloc(32,size); */
+
+    return alignedPointer;
+}
+
+
+#define erase(a,size,elt) \
+{ \
+/*	size_t i = 0 ; \
+	for ( i = 0 ; i < size ; ++i) \
+	    a[i] = (elt) 0 ; \
+	    */ \
+	memset(a,0,size*sizeof(elt)); \
+}
+
 #define SAFE_MALLOC(ptr,size,elt) \
-	ptr = (elt *) malloc((size)*sizeof(elt)); \
+	ptr = (elt *) new_malloc((size)*sizeof(elt)); \
 	assert(ptr)
 
+
 #define SAFE_CALLOC(ptr,size,elt) \
-	ptr = (elt *) calloc((size),sizeof(elt)); \
+	ptr = (elt *) new_malloc((size)*sizeof(elt)); \
+        erase(ptr,size,elt); \
 	assert(ptr)
+
+#define SAFE_REALLOC(ptr,size,elt) \
+	ptr = (elt *) realloc((ptr),(size)*sizeof(elt)); \
+	assert(ptr)
+
+	/* ptr = (elt *) new_realloc((ptr),(size)*sizeof(elt)); \ */
+	 /* ptr = (elt *) realloc((ptr),(size)*sizeof(elt)); \ */
+	/* assert(ptr && !( (uintptr_t)ptr % 32)) */
 
 #define SAFE_MALLOC_DECL(ptr,size,elt) \
 	elt * SAFE_MALLOC(ptr,size,elt)
 
 #define SAFE_CALLOC_DECL(ptr,size,elt) \
 	elt * SAFE_CALLOC(ptr,size,elt)
-
-#define SAFE_REALLOC(ptr,size,elt) \
-	ptr = (elt *) realloc((ptr),(size)*sizeof(elt)); \
-	assert(ptr)
 
 #define SAFE_READ_V(val,elt,file) \
 	checkassert(fread(&(val),sizeof(elt),1,file),1)
@@ -83,7 +121,17 @@
         MEMCPY_CVT(ptr_a,elm_a,ptr_b,(nb))
 
 
+#define BCST_AVX(a,b) \
+	__m256d a =  _mm256_broadcast_sd(&b)
 
+#define AXPY_AVX(y,a,x) \
+	_mm256_store_pd((y),  \
+			_mm256_add_pd(_mm256_load_pd((y)), \
+				_mm256_mul_pd((a), \
+					_mm256_load_pd((x)))));
+#define COPY_AVX(y,x) \
+	_mm256_store_pd(y,  \
+			_mm256_load_pd(x));
 #endif /* __GB_macros_H */
 
 /* vim: set ft=c: */

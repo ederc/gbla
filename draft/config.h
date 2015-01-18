@@ -6,9 +6,11 @@
 #define CONV_A
 #define CONV_C
 
-#ifdef AVX
+#include "malloc.h"
+
+/* #ifdef AVX */
 #include <immintrin.h>
-#endif
+/* #endif */
 
 #ifndef _OPENMP
 #ifdef BLOCK_CSR
