@@ -198,9 +198,29 @@ void splitHorizontal(
 		)
 {
 	dimen_t last_pivot=0;
-	dimen_t i = 0 ;
+	dimen_t i ;
 	assert(start[row] == nnz);
-	for ( ; i < row ; ++i)  {
+#if 0
+	dimen_t A_row = 0 ;
+	index_t A_nnz = 0 ;
+	for ( i = 0 ; i < row ; ++i)  {
+		assert(start[i] < nnz);
+		if ( (last_pivot < pivots_size) && (pivots[last_pivot] == i) ) {
+			A_nnz += start[i+1] - start[i] ;
+			A_row += 1 ;
+			++last_pivot;
+		}
+	}
+	A->nb_sub = DIVIDE_INTO(A_row,MAT_ROW_BLK);
+	A->row = A_row ;
+	A->nnz = A_nnz ;
+	B->nb_sub = DIVIDE_INTO(A_row,MAT_ROW_BLK);
+	B->row = row - A_row ;
+	B->nnz = start[row]  - A_nnz ;
+#endif
+
+	last_pivot = 0 ;
+	for ( i = 0 ; i < row ; ++i)  {
 		assert(start[i] < nnz);
 		if ( (last_pivot < pivots_size) && (pivots[last_pivot] == i) ) {
 			appendRow(A,colid+start[i],start[i+1]-start[i],map_zo_pol[i]);

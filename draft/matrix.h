@@ -141,67 +141,6 @@ void appendRowUnit(CSR * mat
 	mat->map_zo_pol[mat->row-1] = pol;
 }
 
-#ifdef BLOCK_CSR
-void appendRowDataUnit_block(CSR * mat
-		, dimen_t * colid
-		, index_t size
-		, elemt_t * data
-		, index_t nnz
-		)
-{
-	index_t new_colsize ;
-	if (size > 0) {
-
-		index_t old = mat->nnz ;
-		index_t old_colsize = mat->start[mat->row]  ;
-		new_colsize = old_colsize + size ;
-		mat->nnz = old + nnz;
-		/* XXX this may be slow */
-		SAFE_REALLOC(mat->colid, new_colsize ,dimen_t);
-		SAFE_REALLOC(mat->data , (UNRL * new_colsize) ,elemt_t);
-		index_t i ;
-		for ( i = 0 ; i < size ; ++i) {
-			mat->colid[old_colsize+i] = colid[i] ;
-		}
-		for ( i = 0 ; i < UNRL*size ; ++i) {
-			mat->data[UNRL*old_colsize+i] = data[i] ;
-		}
-	}
-
-	mat->row ++ ;
-	/* XXX this may be slow */
-	SAFE_REALLOC(mat->start,mat->row+1,index_t);
-	mat->start[mat->row] = new_colsize ;
-}
-#endif
-
-void appendRowDataUnit(CSR * mat
-		, dimen_t * colid
-		, index_t size
-		, elemt_t * data
-		)
-{
-	if (size > 0) {
-
-		index_t old = mat->start[mat->row] ;
-		mat->nnz = old + size;
-		/* XXX this may be slow */
-		SAFE_REALLOC(mat->colid,mat->nnz,dimen_t);
-		SAFE_REALLOC(mat->data ,mat->nnz,elemt_t);
-		index_t i ;
-		for ( i = 0 ; i < size ; ++i) {
-			mat->colid[old+i] = colid[i] ;
-		}
-		for ( i = 0 ; i < size ; ++i) {
-			mat->data[old+i] = data[i] ;
-		}
-	}
-
-	mat->row ++ ;
-	/* XXX this may be slow */
-	SAFE_REALLOC(mat->start,mat->row+1,index_t);
-	mat->start[mat->row] = mat->nnz  ;
-}
 
 void appendMatrix(GBMatrix_t * A)
 {
@@ -232,22 +171,6 @@ void appendRow(GBMatrix_t * A
 	}
 
 	appendRowUnit(&(A->sub[A->sub_nb-1]),colid,size,pol);
-}
-
-void appendRowData(GBMatrix_t * A
-		, dimen_t * colid
-		, index_t size
-		, elemt_t * data
-		)
-{
-	A->row += 1;
-	A->nnz += size ;
-
-	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLK) ){
-		appendMatrix(A);
-	}
-
-	appendRowDataUnit(&(A->sub[A->sub_nb-1]),colid,size,data);
 }
 
 /* PRINT */
