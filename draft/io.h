@@ -412,7 +412,7 @@ void splitVerticalUnitSparse(
 		assert(Ad->map_zo_pol==NULL);
 
 
-		index_t there = 0;
+		/* index_t there = 0; */
 		dimen_t i ;
 		index_t jz ;
 		for (i = 0 ; i <= Ad->row ; ++i) {
@@ -423,10 +423,15 @@ void splitVerticalUnitSparse(
 		}
 
 		SAFE_CALLOC_DECL(b_row_off,Bd->row,dimen_t);
+		SAFE_CALLOC_DECL(b_there,(Bd->row+1),index_t);
+		SAFE_CALLOC_DECL(b_la,(Bd->row+1),index_t);
 
 
 		for (i = 0 ; i < A_k->row ; ++i) {
+			assert(b_there[i+1] == 0);
+			assert(b_la[i+1] == 0);
 			dimen_t here  = 0; /* shift */
+			b_there[i+1] += b_there[i] ;
 			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
 				dimen_t k = A_k->colid[jz]  ;
 				assert(k < A_k->col);
@@ -436,12 +441,16 @@ void splitVerticalUnitSparse(
 					}
 					if (here < nonpiv_size && k == nonpiv[here]) {
 						b_row_off[i] += 1 ;
-						Bd->nnz += 1 ;
+						Bd->nnz      += 1 ;
+					}
+					else {
+						b_there[i+1]  += 1 ;
 					}
 				}
 				else {
 					assert(nonpiv_size+k-max_col < B->col);
-					Bd->nnz += 1 ;
+					Bd->nnz   += 1 ;
+					b_la[i+1] += 1 ;
 				}
 			}
 			assert(here <= nonpiv_size);
@@ -454,13 +463,23 @@ void splitVerticalUnitSparse(
 		SAFE_MALLOC(Ad->data ,Ad->nnz,elemt_t);
 		SAFE_MALLOC(Bd->data ,Bd->nnz,elemt_t);
 
+		for (i = 0 ; i < A_k->row ; ++i) {
+			b_la[i+1]  =  b_la[i+1] + b_row_off[i] ;
+		}
+		for (i = 0 ; i < A_k->row ; ++i) {
+			b_la[i+1] +=  b_la[i]  ;
+		}
 
-		dimen_t la = 0 ;
-		there = 0;
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+		/* dimen_t la = 0 ; */
+		/* there = 0; */
 		for (i = 0 ; i < A_k->row ; ++i) {
 			dimen_t here  = 0; /* shift */
-			index_t ici =  la ; ;
-			la += b_row_off[i] ;
+			index_t there = b_there[i] ;
+			index_t ici =  b_la[i] ;
+			index_t la  =  ici + b_row_off[i] ;
 			dimen_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
 			elemt_t * d = polys->data_pol+start_p ;
 			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
@@ -496,8 +515,11 @@ void splitVerticalUnitSparse(
 			}
 			assert(here <= nonpiv_size);
 		}
+		assert(Ad->nnz == b_there[Ad->row]);
 
 		free(b_row_off);
+		free(b_there);
+		free(b_la);
 
 		for ( i = 1 ; i < Ad->row ; ++i) {
 			Ad->start[i+1] += Ad->start[i] ;
@@ -512,10 +534,6 @@ void splitVerticalUnitSparse(
 		A->nnz += Ad->nnz ;
 		B->nnz += Bd->nnz ;
 		assert(A->nnz);
-		assert(Ad->nnz == there);
-		/* realloc to smaller */
-		/* SAFE_REALLOC(Ad->colid,Ad->nnz,dimen_t); */
-		/* SAFE_REALLOC(Ad->data ,Ad->nnz,elemt_t); */
 
 	}
 
@@ -879,14 +897,14 @@ void spaxpy_block(
 	assert(!((uintptr_t)A % 32u));
 	assert(!((uintptr_t)B % 32u));
 
-#ifdef AVX
-	BCST_AVX(dc,tc);
+#ifdef SIMD
+	SET1_SIMD(dc,tc);
 #endif
 	dimen_t jz  ;
 	for ( jz = 0 ; jz < nb ; ++jz) {
 		dimen_t col = colid[jz];
-#ifdef AVX
-		AXPY_AVX(B+col,dc,A+jz*UNRL);
+#ifdef SIMD
+		AXPY_SIMD(B+col,dc,A+jz*UNRL);
 #else
 		B[col  ] += tc * A[jz*UNRL  ] ;
 		B[col+1] += tc * A[jz*UNRL+1] ;
@@ -902,7 +920,7 @@ void spaxpy_block(
 		B[col+6] += tc * A[jz*UNRL+6] ;
 		B[col+7] += tc * A[jz*UNRL+7] ;
 #endif
-#endif /* AVX */
+#endif /* SIMD */
 
 	}
 }
@@ -979,14 +997,14 @@ void spaxpy2_block(
 
 
 	dimen_t jz  ;
-#ifdef AVX
-	BCST_AVX(dc,tc);
-	BCST_AVX(dd,td);
+#ifdef SIMD
+	SET1_SIMD(dc,tc);
+	SET1_SIMD(dd,td);
 #endif
 	for ( jz = 0 ; jz < nb ; ++jz) {
 		dimen_t col = colid[jz];
-#ifdef AVX
-		AXPY_AVX(B+col,dc,A+jz*UNRL);
+#ifdef SIMD
+		AXPY_SIMD(B+col,dc,A+jz*UNRL);
 #else
 		B[col  ]  += tc * A[jz*UNRL  ] ;
 		B[col+1]  += tc * A[jz*UNRL+1] ;
@@ -1002,10 +1020,10 @@ void spaxpy2_block(
 		B[col+6]  += tc * A[jz*UNRL+6] ;
 		B[col+7]  += tc * A[jz*UNRL+7] ;
 #endif
-#endif /* AVX */
+#endif /* SIMD */
 
-#ifdef AVX
-		AXPY_AVX(B+col+ld,dd,A+jz*UNRL);
+#ifdef SIMD
+		AXPY_SIMD(B+col+ld,dd,A+jz*UNRL);
 #else
 		B[col+ld  ] += td * A[jz*UNRL  ] ;
 		B[col+ld+1] += td * A[jz*UNRL+1] ;
@@ -1021,7 +1039,7 @@ void spaxpy2_block(
 		B[col+ld+6] += td * A[jz*UNRL+6] ;
 		B[col+ld+7] += td * A[jz*UNRL+7] ;
 #endif
-#endif /* AVX */
+#endif /* SIMD */
 
 	}
 }
@@ -1079,11 +1097,11 @@ void sparse_dcopy_block(
 	dimen_t ii = 0 ;
 	index_t jz;
 	for ( ii = 0 ; ii < row ;  ++ii) {
-		elemt_t * C_off = temp_C+ii*ldc;
+		elemt_t * C_off = temp_C+(index_t)ii*(index_t)ldc;
 		for ( jz = start[ii] ; jz < start[ii+1] ; ++jz) {
 			dimen_t col = colid[jz] ;
-#ifdef AVX
-			COPY_AVX(C_off+col,data+UNRL*jz);
+#ifdef SIMD
+			COPY_SIMD(C_off+col,data+UNRL*jz);
 #else
 			C_off[col  ] = data[UNRL*jz  ] ;
 			C_off[col+1] = data[UNRL*jz+1] ;
@@ -1099,7 +1117,7 @@ void sparse_dcopy_block(
 			C_off[col+6] = data[UNRL*jz+6] ;
 			C_off[col+7] = data[UNRL*jz+7] ;
 #endif
-#endif /* AVX */
+#endif /* SIMD */
 
 		}
 	}
@@ -1701,8 +1719,8 @@ void reduce_fast(
 		for ( i = 0 ; i < C_k->row ; i += blk ) {
 			dimen_t blk_i = min(blk,C_k->row - i);
 #ifdef _OPENMP
-			SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk_i,elemt_t);
-			SAFE_CALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk_i,elemt_t);
+			SAFE_MALLOC_DECL(temp_D,((index_t)ldd*(index_t)blk_i),elemt_t);
+			SAFE_CALLOC_DECL(temp_C,((index_t)ldc*(index_t)blk_i),elemt_t);
 #endif
 
 			index_t i_offset = k*MAT_ROW_BLK + i ;
@@ -1818,7 +1836,7 @@ void reduce_fast_block(
 			dimen_t blk_i = min(blk,C_k->row - i);
 #ifdef _OPENMP
 			SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk_i,elemt_t);
-			SAFE_CALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk_i,elemt_t);
+			SAFE_CALLOC_DECL(temp_C,((index_t)ldc*(index_t)blk_i),elemt_t);
 #endif
 
 			index_t i_offset = k*MAT_ROW_BLK + i ;
@@ -1932,7 +1950,7 @@ void reduce_fast_dense(
 			dimen_t blk_i = min(blk,C_k->row - i);
 #ifdef _OPENMP
 			SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk_i,elemt_t);
-			SAFE_CALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk_i,elemt_t);
+			SAFE_CALLOC_DECL(temp_C,((index_t)ldc*(index_t)blk_i),elemt_t);
 #endif
 
 			index_t i_offset = k*MAT_ROW_BLK + i ;

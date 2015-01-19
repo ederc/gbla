@@ -67,7 +67,7 @@ static void* new_malloc(size_t size)  {
 
 #define SAFE_CALLOC(ptr,size,elt) \
 	ptr = (elt *) new_malloc((size)*sizeof(elt)); \
-        erase(ptr,size,elt); \
+        erase((ptr),(size),elt); \
 	assert(ptr)
 
 #define SAFE_REALLOC(ptr,size,elt) \
@@ -79,10 +79,10 @@ static void* new_malloc(size_t size)  {
 	/* assert(ptr && !( (uintptr_t)ptr % 32)) */
 
 #define SAFE_MALLOC_DECL(ptr,size,elt) \
-	elt * SAFE_MALLOC(ptr,size,elt)
+	elt * SAFE_MALLOC((ptr),(size),elt)
 
 #define SAFE_CALLOC_DECL(ptr,size,elt) \
-	elt * SAFE_CALLOC(ptr,size,elt)
+	elt * SAFE_CALLOC((ptr),(size),elt)
 
 #define SAFE_READ_V(val,elt,file) \
 	checkassert(fread(&(val),sizeof(elt),1,file),1)
@@ -120,18 +120,38 @@ static void* new_malloc(size_t size)  {
 	SAFE_MALLOC(ptr_a,(nb),elm_a); \
         MEMCPY_CVT(ptr_a,elm_a,ptr_b,(nb))
 
+#ifdef SIMD
 
-#define BCST_AVX(a,b) \
-	__m256d a =  _mm256_broadcast_sd(&b)
+#ifdef AVX
+#define SET1  _mm256_set1_pd
+#define STORE _mm256_storeu_pd
+#define LOAD  _mm256_loadu_pd
+#define ADD   _mm256_add_pd
+#define MUL   _mm256_mul_pd
+#define ELEM  __m256d
+#endif /* AVX */
 
-#define AXPY_AVX(y,a,x) \
-	_mm256_store_pd((y),  \
-			_mm256_add_pd(_mm256_load_pd((y)), \
-				_mm256_mul_pd((a), \
-					_mm256_load_pd((x)))));
-#define COPY_AVX(y,x) \
-	_mm256_store_pd(y,  \
-			_mm256_load_pd(x));
+#ifdef SSE
+#define SET1  _mm_set1_pd
+#define STORE _mm_store_pd
+#define LOAD  _mm_load_pd
+#define ADD   _mm_add_pd
+#define MUL   _mm_mul_pd
+#define ELEM  __m128d
+#endif /* SSE */
+
+#define SET1_SIMD(a,b) \
+	ELEM a =  SET1(b)
+
+#define AXPY_SIMD(y,a,x) \
+	STORE((y),  ADD(LOAD((y)), MUL((a), LOAD((x)))))
+/* can do better if FMA */
+
+#define COPY_SIMD(y,x) \
+	STORE(y, LOAD(x))
+
+#endif /* SIMD */
+
 #endif /* __GB_macros_H */
 
 /* vim: set ft=c: */

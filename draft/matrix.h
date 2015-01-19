@@ -274,7 +274,7 @@ index_t occupancySparse(GBMatrix_t * A)
 		index_t j ;
 		dimen_t i ;
 		for (i = 0 ; i < Ad->row ; ++i) {
-			SAFE_CALLOC_DECL(occup,Ad->col/UNRL+1,dimen_t);
+			SAFE_CALLOC_DECL(occup,(Ad->col/UNRL+1),dimen_t);
 			for ( j = Ad->start[i] ; j < Ad->start[i+1] ; ++j) {
 				occup[Ad->colid[j]/UNRL] += 1 ;
 			}
@@ -296,7 +296,7 @@ index_t occupancyDense ( DNS * D)
 	dimen_t i,j ;
 	index_t  acc = 0;
 	for (i = 0 ; i < D->row ; ++i) {
-		SAFE_CALLOC_DECL(occup,D->col/UNRL+1,dimen_t);
+		SAFE_CALLOC_DECL(occup,(D->col/UNRL+1),dimen_t);
 		for (j = 0 ; j < D->col ; ++j) {
 			index_t k = (index_t)i*(index_t)D->col+j;
 			if (D->ptr[k] != 0) {
@@ -442,8 +442,30 @@ void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 		}
 		SAFE_CALLOC(Bd->data,UNRL*ALIGN(Bd->nnz),elemt_t);
 		SAFE_MALLOC(Bd->colid,ALIGN(Bd->nnz),dimen_t);
-		index_t there = (index_t)-1 ;
+		/* index_t there = (index_t)-1 ; */
+
+		SAFE_CALLOC_DECL(b_there,(Bd->row+1),index_t);
+		b_there[0] = (index_t)-1 ;
 		for (i = 0 ; i < B_k->row ; ++i) {
+			index_t jz ;
+			dimen_t last_j = (dimen_t) -1 ;
+			for (jz = B_k->start[i] ; jz < B_k->start[i+1] ; ++jz) {
+				dimen_t j = B_k->colid[jz] ;
+				if (j/UNRL  != last_j) {
+					last_j = j/UNRL ;
+					b_there[i+1] += 1 ;
+				}
+			}
+		}
+		for (i = 0 ; i < B_k->row ; ++i) {
+			b_there[i+1] += b_there[i] ;
+		}
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+		for (i = 0 ; i < B_k->row ; ++i) {
+			index_t there = b_there[i] ;
 			index_t jz ;
 			dimen_t last_j = (dimen_t) -1 ;
 			for (jz = B_k->start[i] ; jz < B_k->start[i+1] ; ++jz) {
@@ -467,7 +489,10 @@ void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 			/* Bd->start[i] += 1 ; */
 			/* ++there ; */
 		}
-		++there ;
+
+		index_t there = b_there[Bd->row] + 1 ;
+
+		free(b_there);
 
 		for ( i = 0 ; i < Bd->row ; ++i) {
 			/* assert(Bd->start[i+1]); */

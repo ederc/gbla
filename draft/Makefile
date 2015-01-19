@@ -13,14 +13,16 @@ LIB=-lm
 PRF=
 
 PAR=-fopenmp
-#  PAR=
 
 TST=dumb_write
 DMP=dump_matrix
 CVT=converter
 RUN=runit
+
 opt=_opt
 dbg=_dbg
+par=_par
+seq=_seq
 
 ### dumb write (test matrix)
 $(TST)_new$(dbg): $(TST).c
@@ -81,36 +83,71 @@ FFLAS=/home/bboyer/usr/
 FFLAS_CFLAGS=`sh $(FFLAS)/bin/fflas-ffpack-config --cflags-full`
 FFLAS_LIBS=`sh $(FFLAS)/bin/fflas-ffpack-config --libs`
 
+# SEQ
 
-LIBS$(dbg): $(RED).cpp
-	$(CXX) $(DBG) $(PRF) $(PAR) $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(dbg).o
-
-
-OBJ$(dbg):
-	$(CC) $(DBG) $(PRF) $(PAR) $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(dbg).o
+LIBS$(seq)$(dbg): $(RED).cpp
+	$(CXX) $(DBG) $(PRF)  $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(seq)$(dbg).o
 
 
-
-LIBS$(opt): $(RED).cpp
-	$(CXX) $(OPT) $(PRF)  $(STA) $(PAR) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(opt).o
-
-
-OBJ$(opt):
-	$(CC) $(OPT) $(PRF) $(WAR) $(PAR) $(STA) -c $(RUN).c -o $(RUN)$(opt).o
+OBJ$(seq)$(dbg):
+	$(CC) $(DBG) $(PRF)  $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(seq)$(dbg).o
 
 
 
-
-$(RUN)$(dbg): $(RUN).c
-	make LIBS$(dbg) ;
-	make OBJ$(dbg)  ;
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(PAR) $(RED)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(dbg) -lm -lstdc++
+LIBS$(seq)$(opt): $(RED).cpp
+	$(CXX) $(OPT) $(PRF)  $(STA)  $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(seq)$(opt).o
 
 
-$(RUN)$(opt): $(RUN).c
-	make LIBS$(opt) ;
-	make OBJ$(opt)  ;
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(RED)$(opt).o $(PAR) $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(opt) -lm -lstdc++
+OBJ$(seq)$(opt):
+	$(CC) $(OPT) $(PRF) $(WAR)  $(STA) -c $(RUN).c -o $(RUN)$(seq)$(opt).o
+
+
+
+
+$(RUN)$(seq)$(dbg): $(RUN).c
+	make LIBS$(seq)$(dbg) ;
+	make OBJ$(seq)$(dbg)  ;
+	$(CC) $(DBG) $(PRF) $(WAR) $(STA)  $(RED)$(seq)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(seq)$(dbg) -lm -lstdc++
+
+
+$(RUN)$(seq)$(opt): $(RUN).c
+	make LIBS$(seq)$(opt) ;
+	make OBJ$(seq)$(opt)  ;
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(RED)$(seq)$(opt).o  $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(seq)$(opt) -lm -lstdc++
+
+
+
+# PAR
+
+LIBS$(par)$(dbg): $(RED).cpp
+	$(CXX) $(DBG) $(PRF) $(PAR) $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(par)$(dbg).o
+
+
+OBJ$(par)$(dbg):
+	$(CC) $(DBG) $(PRF) $(PAR) $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(par)$(dbg).o
+
+
+
+LIBS$(par)$(opt): $(RED).cpp
+	$(CXX) $(OPT) $(PRF)  $(STA) $(PAR) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(par)$(opt).o
+
+
+OBJ$(par)$(opt):
+	$(CC) $(OPT) $(PRF) $(WAR) $(PAR) $(STA) -c $(RUN).c -o $(RUN)$(par)$(opt).o
+
+
+
+
+$(RUN)$(par)$(dbg): $(RUN).c
+	make LIBS$(par)$(dbg) ;
+	make OBJ$(par)$(dbg)  ;
+	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(PAR) $(RED)$(par)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(par)$(dbg) -lm -lstdc++
+
+
+$(RUN)$(par)$(opt): $(RUN).c
+	make LIBS$(par)$(opt) ;
+	make OBJ$(par)$(opt)  ;
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(RED)$(par)$(opt).o $(PAR) $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(par)$(opt) -lm -lstdc++
 
 
 clean:
