@@ -40,9 +40,9 @@ uint32_t RowReduce_double( double p, double * A, uint32_t m, uint32_t n, uint32_
 #ifndef _OPENMP
 	r = FFPACK::RowEchelonForm(F,m,n,A,lda,P,Qt);
 #else
-	// PAR_REGION{
+	PAR_REGION{
 		r = FFPACK::pPLUQ(F,FFLAS::FflasUnit,m,n,A,lda,P,Qt,nt);
-	// }
+	}
 #endif
 
 	FFLAS::fflas_delete(P);

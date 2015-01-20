@@ -27,8 +27,9 @@ int main(int ac, char **av) {
 	int red = 0 ;
 	int nb_threads = 1;
 
-
-
+#ifdef _OPENMP
+	nb_threads = omp_get_num_threads() ;
+#endif
 
 	while (ac > 2) {
 
@@ -59,8 +60,9 @@ int main(int ac, char **av) {
 	}
 
 #ifdef _OPENMP
-	if (nb_threads == 1)
-		omp_set_num_threads(1);
+	if (nb_threads == 1) {
+		omp_set_num_threads(nb_threads);
+	}
 #endif
 
 	fprintf(stderr,"using  %d thread(s)\n",nb_threads);
@@ -104,6 +106,7 @@ int main(int ac, char **av) {
 	fprintf(stderr," LOAD    time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
 				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
+#ifndef ONLY_FFLAS
 	/* REDUCE */
 
 	gettimeofday(&tic,NULL);
@@ -127,6 +130,8 @@ int main(int ac, char **av) {
 
 	fprintf(stderr," REDUCE  time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
 				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
+
+#endif
 
 	gettimeofday(&tic,NULL);
 

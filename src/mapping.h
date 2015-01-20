@@ -1,3 +1,18 @@
+/* gbla: Gröbner Basis Linear Algebra
+ * Copyright (C) 2015 Christian Eder <ederc@mathematik.uni-kl.de>
+ * This file is part of gbla.
+ * gbla is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * gbla is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with gbla . If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file mapping.h
  * \brief Interfaces for sparse matrix index maps used for subdividing the matrix
@@ -60,28 +75,28 @@ typedef struct map_fl_t {
  * \param size of rows row_size
  *
  * \param size of columns col_size
- * 
+ *
  * \param map to be initialized
  *
  */
 static inline void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_fl_t *map) {
-  // initialize map arrays and 
+  // initialize map arrays and
   // set initial values to __GB_MINUS_ONE_8
   map->pc = (ci_t *)malloc(col_size * sizeof(ci_t));
   memset(map->pc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
 
   map->npc  = (ci_t *)malloc(col_size * sizeof(ci_t));
   memset(map->npc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
-  
+
   map->pc_rev = (ci_t *)malloc(col_size * sizeof(ci_t));
   memset(map->pc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
-  
+
   map->npc_rev  = (ci_t *)malloc(col_size * sizeof(ci_t));
   memset(map->npc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
-  
+
   map->pri  = (ri_t *)malloc(col_size * sizeof(ri_t));
   memset(map->pri, __GB_MINUS_ONE_8, col_size * sizeof(ri_t));
-  
+
   map->npri = (ri_t *)malloc(row_size * sizeof(ri_t));
   memset(map->npri, __GB_MINUS_ONE_8, row_size * sizeof(ri_t));
 }
@@ -96,23 +111,23 @@ static inline void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_f
  *
  */
 static inline void init_fl_map(sm_t *M, map_fl_t *map) {
-  // initialize map arrays and 
+  // initialize map arrays and
   // set initial values to __GB_MINUS_ONE_8
   map->pc = (ci_t *)malloc(M->ncols * sizeof(ci_t));
   memset(map->pc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
 
   map->npc  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
   memset(map->npc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
-  
+
   map->pc_rev = (ci_t *)malloc(M->ncols * sizeof(ci_t));
   memset(map->pc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
-  
+
   map->npc_rev  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
   memset(map->npc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
-  
+
   map->pri  = (ri_t *)malloc(M->ncols * sizeof(ri_t));
   memset(map->pri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
-  
+
   map->npri = (ri_t *)malloc(M->ncols * sizeof(ri_t));
   memset(map->npri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
 }
@@ -254,7 +269,7 @@ static inline void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bi
 
 /**
  * \brief Swaps data arrangement in leftsided block matrices
- * 
+ *
  * \param block matrix A
  *
  * \param number of blocks in the corresponding row clA
@@ -309,7 +324,7 @@ static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
         //  Note that this reallocation is also used if the old memory allocated
         //  is bigger than what is needed. In this setting realloc just cuts the
         //  useless memory off.
-      } else { 
+      } else {
         tmp_idx_ptr = realloc(tmp_idx_ptr,
             A->blocks[rbi][j][i].sz * sizeof(bi_t));
         tmp_val_ptr = realloc(tmp_val_ptr,
@@ -349,8 +364,8 @@ static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
 /**
  * \brief Inserts elements from input matrix M in multiline rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
- * line rows inserting one entry in the first field, 0 in the second field. 
- * 
+ * line rows inserting one entry in the first field, 0 in the second field.
+ *
  * \param multiline sub matrix A
  *
  * \param original matrix M
@@ -375,8 +390,8 @@ static inline void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
 /**
  * \brief Inserts elements from input matrix M in multiline rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
- * line rows inserting one entry in the second field, 0 in the first field. 
- * 
+ * line rows inserting one entry in the second field, 0 in the first field.
+ *
  * \param multiline sub matrix A
  *
  * \param original matrix M
@@ -403,7 +418,7 @@ static inline void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
  * \brief Inserts elements from input matrix M in multiline rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
  * line ml inserting two entries.
- * 
+ *
  * \param multiline sub matrix A
  *
  * \param original matrix M
@@ -435,7 +450,7 @@ static inline void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
  * \brief Inserts elements from input matrix M in block rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
  * line blocks inserting one entry in the first field, 0 in the second field.
- * 
+ *
  * \param block matrix A
  *
  * \param original matrix M
@@ -466,7 +481,7 @@ static inline void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
  * \brief Inserts elements from input matrix M in block rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
  * line blocks inserting one entry in the second field, 0 in the first field.
- * 
+ *
  * \param block matrix A
  *
  * \param original matrix M
@@ -497,7 +512,7 @@ static inline void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
  * \brief Inserts elements from input matrix M in block rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
  * line blocks inserting two entries.
- * 
+ *
  * \param block matrix A
  *
  * \param original matrix M
@@ -531,7 +546,7 @@ static inline void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
 /**
  * \brief Constructs an indexer map for a Faugère-Lachartre decomposition of the
  * original matrix M
- * 
+ *
  * \param original matrix M
  *
  * \param indexer map for M

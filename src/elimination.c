@@ -1,3 +1,18 @@
+/* gbla: Gröbner Basis Linear Algebra
+ * Copyright (C) 2015 Christian Eder <ederc@mathematik.uni-kl.de>
+ * This file is part of gbla.
+ * gbla is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * gbla is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with gbla . If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "elimination.h"
 
 #define DDEBUG 0
@@ -870,7 +885,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
     D_red->nrows / __GB_NROWS_MULTILINE :
     D_red->nrows / __GB_NROWS_MULTILINE + 1;
 
-  // define lock 
+  // define lock
   //omp_lock_t echelonize_lock;
   omp_init_lock(&echelonize_lock);
 
@@ -942,7 +957,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
     return 0;
 
   ri_t npiv_real  = 0;
-  ri_t N          = A->nrows / __GB_NROWS_MULTILINE + 
+  ri_t N          = A->nrows / __GB_NROWS_MULTILINE +
                     A->nrows % __GB_NROWS_MULTILINE;
   const ci_t coldim = A->ncols;
 

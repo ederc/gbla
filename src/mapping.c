@@ -1,3 +1,19 @@
+/* gbla: Gröbner Basis Linear Algebra
+ * Copyright (C) 2015 Christian Eder <ederc@mathematik.uni-kl.de>
+ * This file is part of gbla.
+ * gbla is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * gbla is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with gbla . If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
 #include <mapping.h>
 
 #define __GB_DEBUG_LL     0
@@ -63,7 +79,7 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
   init_fl_map_sizes(A->ncols + (A->ncols % bheight), A->nrows + (A->ncols % bheight), map);
 
   map->npiv = 0;
-  
+
   for (i=0; i<rlA; ++i) {
     if (A->ml[i].sz > 0) {
       h1 = get_head_multiline_hybrid(&(A->ml[i]), 0,
@@ -118,7 +134,7 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
 
 void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
      const ci_t outer_coldim, const ci_t inner_coldim, int only_rows) {
- 
+
 #if DEBUG_RECONSTRUCT
   printf("inner coldim %d\n",inner_coldim);
 #endif
@@ -139,7 +155,7 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
 #if DEBUG_RECONSTRUCT
       printf("i %d, %d\n",i,inner_map->pri[i]);
 #endif
-      if (inner_map->pri[i] == __GB_MINUS_ONE_32) 
+      if (inner_map->pri[i] == __GB_MINUS_ONE_32)
         continue;
       idx_B     = i;
       rev_idx_A = outer_map->npc_rev[idx_B];
@@ -635,7 +651,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
 
@@ -664,7 +680,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
 
@@ -693,7 +709,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
   const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
 
@@ -722,7 +738,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
 
@@ -759,7 +775,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // Take maximal number of rows in blocks to be able to use array
   // piv_start_idx for construction of A & B as well as for the construction of
   // C & D.
-  uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows; 
+  uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows;
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
   piv_start_idx[0]  = M->nrows;
   uint32_t block_idx, block_idx_2;
@@ -827,19 +843,19 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   omp_set_dynamic(0);
 #pragma omp parallel private(cvb, rihb, block_idx, block_idx_2, i, j) num_threads(nthreads)
   {
-    cvb  = 0;        
+    cvb  = 0;
 #if __GB_DEBUG
     printf("nthreads %d\n",nthreads);
     printf("npiv %d -- bheight %d\n",map->npiv,B->bheight);
     printf("div %d\n", map->npiv/B->bheight);
 #endif
 
-#pragma omp for schedule(dynamic) nowait 
+#pragma omp for schedule(dynamic) nowait
     for (block_idx = 0; block_idx < nb/2; ++block_idx) {
       // construct block submatrices A & B
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
-      // TODO: Try to improve this rather strange looping. 
+      // TODO: Try to improve this rather strange looping.
       block_idx_2 = nb - block_idx - 1;
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
@@ -888,7 +904,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
         }
       }
     }
-  } 
+  }
 
   // find blocks for construction of C & D
   npiv  = 0;
@@ -944,7 +960,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       // construct block submatrices C & D
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
-      // TODO: Try to improve this rather strange looping. 
+      // TODO: Try to improve this rather strange looping.
       block_idx_2 = nb - block_idx - 1;
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
@@ -989,7 +1005,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
         }
       }
     }
-  } 
+  }
 #else
 
   // set leftout entries to zero
@@ -1017,7 +1033,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       // construct block submatrices A & B
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
-      // TODO: Try to improve this rather strange looping. 
+      // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
         if (map->pri[i] != __GB_MINUS_ONE_32) {
@@ -1041,7 +1057,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
         }
       }
     }
-  } 
+  }
 
   // find blocks for construction of C & D
   npiv  = 0;
@@ -1073,7 +1089,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       // construct block submatrices C & D
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
-      // TODO: Try to improve this rather strange looping. 
+      // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
         if (map->npri[i] != __GB_MINUS_ONE_32) {
@@ -1096,7 +1112,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
         }
       }
     }
-  } 
+  }
 #endif
 }
 
@@ -1164,7 +1180,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
 
@@ -1193,7 +1209,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
 
@@ -1230,7 +1246,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   // Take maximal number of rows in blocks to be able to use array
   // piv_start_idx for construction of A & B as well as for the construction of
   // C & D.
-  uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows; 
+  uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows;
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
   uint32_t block_idx, block_idx_2;
 
@@ -1297,19 +1313,19 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   omp_set_dynamic(0);
 #pragma omp parallel private(cvb, rihb, block_idx, block_idx_2, i, j) num_threads(nthreads)
   {
-    cvb  = 0;        
+    cvb  = 0;
 #if __GB_DEBUG
     printf("nthreads %d\n",nthreads);
     printf("npiv %d -- bheight %d\n",map->npiv,B->bheight);
     printf("div %d\n", map->npiv/B->bheight);
 #endif
 
-#pragma omp for schedule(dynamic) nowait 
+#pragma omp for schedule(dynamic) nowait
     for (block_idx = 0; block_idx < nb/2; ++block_idx) {
       // construct block submatrices A & B
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
-      // TODO: Try to improve this rather strange looping. 
+      // TODO: Try to improve this rather strange looping.
       block_idx_2 = nb - block_idx - 1;
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
@@ -1358,7 +1374,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         }
       }
     }
-  } 
+  }
 
   // find blocks for construction of C & D
   npiv  = 0;
@@ -1414,7 +1430,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       // construct block submatrices C & D
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
-      // TODO: Try to improve this rather strange looping. 
+      // TODO: Try to improve this rather strange looping.
       block_idx_2 = nb - block_idx - 1;
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
@@ -1459,7 +1475,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         }
       }
     }
-  } 
+  }
 #else
   // set leftout entries to zero
   for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
@@ -1486,7 +1502,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       // construct block submatrices A & B
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
-      // TODO: Try to improve this rather strange looping. 
+      // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
         if (map->pri[i] != __GB_MINUS_ONE_32) {
@@ -1510,7 +1526,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         }
       }
     }
-  } 
+  }
 
   // find blocks for construction of C & D
   npiv  = 0;
@@ -1542,7 +1558,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       // construct block submatrices C & D
       // Note: In the for loop we always construct block "block+1" and not block
       // "block".
-      // TODO: Try to improve this rather strange looping. 
+      // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
         if (map->npri[i] != __GB_MINUS_ONE_32) {
@@ -1552,7 +1568,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         if (cvb == D->bheight || i == 0) {
           // multiline version for C
           write_lr_matrix_ml(M, C, D, map, rihb, cvb, block_idx, 1);
-        
+
 
           if (destruct_input_matrix) {
             for (j=0; j<cvb; ++j) {
@@ -1566,7 +1582,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
         }
       }
     }
-  } 
+  }
 #endif
 }
 
@@ -1587,7 +1603,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   //const uint32_t loop_size  = (uint32_t) ceil(cvb / __GB_NROWS_MULTILINE);
 
 
-  // column loops 
+  // column loops
   const ci_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const ci_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
 
@@ -1956,7 +1972,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   //const uint32_t loop_size  = (uint32_t) ceil(cvb / __GB_NROWS_MULTILINE);
 
 
-  // column loops 
+  // column loops
   const ci_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
 
   // Usually blocks in B tend to be denser than blocks in A, but here A is just

@@ -1,3 +1,18 @@
+/* gbla: Gröbner Basis Linear Algebra
+ * Copyright (C) 2015 Christian Eder <ederc@mathematik.uni-kl.de>
+ * This file is part of gbla.
+ * gbla is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * gbla is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with gbla . If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file elimination.h
  * \brief Different Gaussian Elimination methods
@@ -300,7 +315,7 @@ static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
  *
  * \param value 2,2 from A Av2_col2
  *
- * \param corresponding multiline 
+ * \param corresponding multiline
  *
  * \param dense value 1 holder for delayed modulus dense_val1
  *
@@ -333,7 +348,7 @@ static inline void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
         Av1_col1, Av2_col1, multiline, 0, dense_val1, dense_val2, offset1);
     return;
   }
-  
+
   const re_t *p_val = multiline.val;
   const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
   uint32_t i;
@@ -532,7 +547,7 @@ static inline void dense_scal_mul_sub_2_rows_vect_array(
         Av1_col1, Av2_col1, multiline, 0, bwidth, dense_val1, dense_val2);
     return;
   }
-  
+
   const re_t *p_val = multiline.val;
   uint32_t i;
   bi_t j;
@@ -586,7 +601,7 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array(
               const mbl_t multiline,
               re_l_t *dense_val1,
               re_l_t *dense_val2) {
- 
+
   // check cases where one pair of the elements is zero
   if (Av1_col1 == 0 && Av2_col1 == 0) {
     sparse_scal_mul_sub_1_row_vect_array(
@@ -660,7 +675,7 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array_multiline(
               const ml_t multiline,
               re_l_t *dense_val1,
               re_l_t *dense_val2) {
- 
+
   // check cases where one pair of the elements is zero
   if (Av1_col1 == 0 && Av2_col1 == 0) {
     sparse_scal_mul_sub_1_row_vect_array_multiline(
@@ -731,7 +746,7 @@ static inline void dense_scal_mul_sub_1_row_array_array(
               const re_l_t *dense_array_source,
               re_l_t *dense_array1,
               re_l_t *dense_array2) {
- 
+
   bi_t i, j;
   register uint32_t v__;
 
@@ -817,10 +832,10 @@ static inline void dense_scal_mul_sub_2_rows_array_array(
     for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
       v1__  = dense_array_source1[i+j] & 0x000000000000ffff;
       v2__  = dense_array_source2[i+j] & 0x000000000000ffff;
-      
+
       dense_array1[i+j] +=  v1__ * Av1_col1;
       dense_array1[i+j] +=  v2__ * Av1_col2;
-      
+
       dense_array2[i+j] +=  v1__ * Av2_col1;
       dense_array2[i+j] +=  v2__ * Av2_col2;
     }
@@ -1205,7 +1220,7 @@ static inline void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
       idx           = m.idx[i];
       dense_1[idx]  = (re_l_t)m.val[2*i];
       dense_2[idx]  = (re_l_t)m.val[2*i+1];
-      
+
     }
   } else {
     for (i=0; i<coldim; ++i) {

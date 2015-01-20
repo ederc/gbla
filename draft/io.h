@@ -588,6 +588,9 @@ dimen_t * readFileSplit(
 		, FILE        * fh
 		)
 {
+
+	struct timeval tic,tac;
+	gettimeofday(&tic,NULL);
 	SAFE_MALLOC_DECL(A_init,1,GBMatrix_t);
 	SAFE_MALLOC_DECL(C_init,1,GBMatrix_t);
 	initSparse(A_init);
@@ -618,12 +621,6 @@ dimen_t * readFileSplit(
 
 	/* READ in ZO start */
 	SAFE_READ_DECL_P(rows,m,uint32_t,fh);
-	SAFE_MALLOC_DECL(start,m+1,uint64_t);
-	start[0] = 0 ;
-	dimen_t i ;
-	for ( i = 0 ; i < m ; ++i)
-		start[i+1] = start[i] + rows[i];
-	free(rows);
 
 	/* pol/zo correspondance */
 	SAFE_READ_DECL_P(map_zo_pol,m,uint32_t,fh);
@@ -632,10 +629,46 @@ dimen_t * readFileSplit(
 	/* colid in ZO */
 	SAFE_READ_DECL_V(colid_size,uint64_t,fh);
 	SAFE_READ_DECL_P(buffer,colid_size,uint32_t,fh); /* buffer has the matrix */
-	SAFE_MALLOC_DECL(colid,nnz,dimen_t); /* colid expands buffer */
 
-	struct timeval tic,tac;
+	/* size of nnz for pols: */
+	SAFE_READ_V(polys->nb,uint32_t,fh);
+
+	SAFE_READ_DECL_V(pol_nnz,uint64_t,fh);
+
+	/* create GBpolynomials shared by A_init and B_init */
+	SAFE_READ_DECL_P(pol_rows,polys->nb,uint32_t,fh);
+
+	/* XXX what if elemt_s == elemt_t ??? */
+	SAFE_READ_DECL_P(polys_data_pol,pol_nnz,elemt_s,fh);
+
+	gettimeofday(&tac,NULL);
+
+	fprintf(stderr,"  >> end reading      : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
+				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
+
+
 	gettimeofday(&tic,NULL);
+
+
+	SAFE_MALLOC_DECL(start,m+1,uint64_t);
+	start[0] = 0 ;
+	dimen_t i ;
+	for ( i = 0 ; i < m ; ++i)
+		start[i+1] = start[i] + rows[i];
+	free(rows);
+
+	SAFE_MALLOC(polys->start_pol,polys->nb+1,uint32_t);
+	polys->start_pol[0] = 0 ;
+	for ( i = 0 ; i < polys->nb ; ++i)
+		polys->start_pol[i+1] = polys->start_pol[i]+pol_rows[i];
+	free(pol_rows);
+
+	assert(polys->start_pol[polys->nb] == pol_nnz);
+	SAFE_MEMCPY_CVT(polys->data_pol,elemt_t,polys_data_pol,polys->start_pol[polys->nb]);
+	free(polys_data_pol);
+
+
+	SAFE_MALLOC_DECL(colid,nnz,dimen_t); /* colid expands buffer */
 
 
 	expandColid(buffer,colid_size,colid
@@ -644,6 +677,35 @@ dimen_t * readFileSplit(
 #endif
 		   );
 	free(buffer);
+
+#ifdef ONLY_FFLAS
+	D->row = m ;
+	D->col = n ;
+	D->ld  = ALIGN(n) ;
+	D->nnz = nnz ;
+	D->mod = mod ;
+	SAFE_CALLOC(D->ptr,(index_t)D->row*(index_t)D->ld,elemt_t);
+
+
+	for (i = 0 ; i < m  ; ++i) {
+		index_t jz ;
+		elemt_t * e = polys->data_pol + polys->start_pol[map_zo_pol[i]] ;
+		for ( jz = start[i] ; jz < start[i+1] ; ++jz) {
+			dimen_t j = colid[jz] ;
+			D->ptr[i*D->ld+j] = *e  ;
+			++e;
+		}
+	}
+
+	gettimeofday(&tac,NULL);
+	fprintf(stderr,"  >> fflas            : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
+				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
+
+
+	return NULL ;
+
+#endif
+
 
 	SAFE_CALLOC_DECL(pivots_data,n,dimen_t);
 
@@ -672,6 +734,8 @@ dimen_t * readFileSplit(
 
 	gettimeofday(&tic,NULL);
 
+
+
 	splitHorizontal(A_init,C_init,colid,start,m
 #ifndef NDEBUG
 			,nnz
@@ -699,26 +763,8 @@ dimen_t * readFileSplit(
 
 
 
-	/* size of nnz for pols: */
-	SAFE_READ_V(polys->nb,uint32_t,fh);
-
-	SAFE_READ_DECL_V(pol_nnz,uint64_t,fh);
-
-	/* create GBpolynomials shared by A_init and B_init */
-	SAFE_READ_DECL_P(pol_rows,polys->nb,uint32_t,fh);
-	SAFE_MALLOC(polys->start_pol,polys->nb+1,uint32_t);
-	polys->start_pol[0] = 0 ;
-	for ( i = 0 ; i < polys->nb ; ++i)
-		polys->start_pol[i+1] = polys->start_pol[i]+pol_rows[i];
-	free(pol_rows);
-	assert(polys->start_pol[polys->nb] == pol_nnz);
-
-	/* XXX what if elemt_s == elemt_t ??? */
-	SAFE_READ_DECL_P(polys_data_pol,pol_nnz,elemt_s,fh);
 
 	gettimeofday(&tic,NULL);
-	SAFE_MEMCPY_CVT(polys->data_pol,elemt_t,polys_data_pol,polys->start_pol[polys->nb]);
-	free(polys_data_pol);
 
 	splitVertical(A_init,C_init,nonpiv,nonpiv_size,polys,A,B,C,D);
 

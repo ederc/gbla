@@ -1,6 +1,7 @@
 #ifndef __GB_config_H
 #define __GB_config_H
 
+#define ONLY_FFLAS
 
 #define AVX
 #undef SSE

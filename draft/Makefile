@@ -4,8 +4,9 @@ CXX=g++
 #  CXX=clang++
 DBG=-O0 -g -mavx
 WAR=-Wall -Wextra -ansi
-STA=
-#  STA=-static
+#  STA=
+STA=-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive 
+OPT=-march=native -mtune=native -O3 -DNDEBUG -UDEBUG  -flto
 OPT=-march=native -mtune=native -O3 -DNDEBUG -UDEBUG  -flto
 NEW=-D_PROPOSED_FORMAT
 LIB=-lm
@@ -86,7 +87,7 @@ FFLAS_LIBS=`sh $(FFLAS)/bin/fflas-ffpack-config --libs`
 # SEQ
 
 LIBS$(seq)$(dbg): $(RED).cpp
-	$(CXX) $(DBG) $(PRF)  $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(seq)$(dbg).o
+	$(CXX) $(DBG) $(PRF) $(FFLAS_CFLAGS)  $(STA)  -c $(RED).cpp  -o $(RED)$(seq)$(dbg).o
 
 
 OBJ$(seq)$(dbg):
@@ -95,7 +96,7 @@ OBJ$(seq)$(dbg):
 
 
 LIBS$(seq)$(opt): $(RED).cpp
-	$(CXX) $(OPT) $(PRF)  $(STA)  $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(seq)$(opt).o
+	$(CXX) $(OPT) $(PRF)  $(FFLAS_CFLAGS)  $(STA)  -c $(RED).cpp  -o $(RED)$(seq)$(opt).o
 
 
 OBJ$(seq)$(opt):
@@ -107,20 +108,20 @@ OBJ$(seq)$(opt):
 $(RUN)$(seq)$(dbg): $(RUN).c
 	make LIBS$(seq)$(dbg) ;
 	make OBJ$(seq)$(dbg)  ;
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA)  $(RED)$(seq)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(seq)$(dbg) -lm -lstdc++
+	$(CC) $(DBG) $(PRF) $(WAR) $(RED)$(seq)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(seq)$(dbg) -lm -lstdc++ $(STA) 
 
 
 $(RUN)$(seq)$(opt): $(RUN).c
 	make LIBS$(seq)$(opt) ;
 	make OBJ$(seq)$(opt)  ;
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(RED)$(seq)$(opt).o  $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(seq)$(opt) -lm -lstdc++
+	$(CC) $(OPT) $(PRF) $(WAR) $(RED)$(seq)$(opt).o  $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(seq)$(opt) -lm -lstdc++ $(STA) 
 
 
 
 # PAR
 
 LIBS$(par)$(dbg): $(RED).cpp
-	$(CXX) $(DBG) $(PRF) $(PAR) $(STA) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(par)$(dbg).o
+	$(CXX) $(DBG) $(PRF) $(PAR) $(FFLAS_CFLAGS)  $(STA) -c $(RED).cpp  -o $(RED)$(par)$(dbg).o
 
 
 OBJ$(par)$(dbg):
@@ -129,7 +130,7 @@ OBJ$(par)$(dbg):
 
 
 LIBS$(par)$(opt): $(RED).cpp
-	$(CXX) $(OPT) $(PRF)  $(STA) $(PAR) $(FFLAS_CFLAGS)  -c $(RED).cpp  -o $(RED)$(par)$(opt).o
+	$(CXX) $(OPT) $(PRF)  $(PAR) $(FFLAS_CFLAGS)  $(STA) -c $(RED).cpp  -o $(RED)$(par)$(opt).o
 
 
 OBJ$(par)$(opt):
@@ -141,7 +142,7 @@ OBJ$(par)$(opt):
 $(RUN)$(par)$(dbg): $(RUN).c
 	make LIBS$(par)$(dbg) ;
 	make OBJ$(par)$(dbg)  ;
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(PAR) $(RED)$(par)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(par)$(dbg) -lm -lstdc++
+	$(CC) $(DBG) $(PRF) $(WAR) $(PAR) $(STA)  $(RED)$(par)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(par)$(dbg) -lm -lstdc++
 
 
 $(RUN)$(par)$(opt): $(RUN).c
