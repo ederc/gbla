@@ -14,13 +14,6 @@
  */
 
 /**
- * \file matrix.h
- * \brief Interfaces for matrix structures
- *
- * \author Christian Eder <ederc@mathematik.uni-kl.de>
- */
-
-/**
  * \file types.h
  * \brief General typedefs
  *
