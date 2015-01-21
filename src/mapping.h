@@ -194,6 +194,35 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     int M_freed, int A_freed, int D_freed, int nthrds);
 
 /**
+ * \brief Reconstructs matrix M after full reduced row echelon process
+ *
+ * \param input and output matrix M
+ *
+ * \param block sub matrix A
+ *
+ * \param block sub matrix B2
+ *
+ * \param block sub matrix D2
+ *
+ * \param outer mapping map
+ *
+ * \param column dimension of M coldim
+ *
+ * \param parameter to set/unset freeing of sub matrices free_matrices
+ *
+ * \param paramter indicating if M was already freed M_freed
+ *
+ * \param paramter indicating if A was already freed A_freed
+ *
+ * \param paramter indicating if D was already freed D_freed
+ *
+ * \param number of threads
+ */
+void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl_t *D2,
+    map_fl_t *map, const ci_t coldim, int free_matrices,
+    int M_freed, int A_freed, int D_freed, int nthrds);
+
+/**
  * \brief Reconstructs matrix M after elimination process
  *
  * \param input and output matrix M
@@ -544,6 +573,25 @@ static inline void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
 }
 
 /**
+ * \brief Constructs a mapping for splicing the BD part for the second round of
+ * FL reduction when performing a reduced row echelon form computations
+ * 
+ * \param new indexer map map
+ *
+ * \param indexer map from D map_D
+ *
+ * \param number of rows of BD rows_BD
+ *
+ * \param rank of D rank_D
+ *
+ * \param column dimension of B and D coldim
+ *
+ * \param number of threads nthreads
+ */
+void construct_fl_map_reduced(map_fl_t *map, map_fl_t *map_D, ri_t rows_BD,
+    ri_t rank_D, ci_t coldim, int nthreads);
+
+/**
  * \brief Constructs an indexer map for a Faugère-Lachartre decomposition of the
  * original matrix M
  *
@@ -587,11 +635,14 @@ void construct_fl_map(sm_t *M, map_fl_t *map);
  *  \param number of threads to be used nthreads
  *
  *  \param level of verbosity
+ *
+ *  \param checks if map was already defined outside map_defined
  */
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                       map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
                       int block_dim, int rows_multiline,
-                      int nthreads, int destruct_input_matrix, int verbose);
+                      int nthreads, int destruct_input_matrix, int verbose,
+                      int map_defined);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
