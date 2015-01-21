@@ -43,23 +43,63 @@
 #define checkassert(a,b) a
 #endif
 
+#include <stdlib.h>
+#include <stdalign.h>
+#include <malloc.h>
+#include <immintrin.h>
+
+
+static void* new_malloc(size_t size)  {
+    void *alignedPointer;
+#ifndef NDEBUG
+    int alignError = 0;
+
+    alignError =
+#endif
+	    posix_memalign(&alignedPointer, 32, size);
+
+#ifndef NDEBUG
+    assert(!alignError);
+#endif
+
+    /* alignedPointer = aligned_alloc(32,size); */
+
+    return alignedPointer;
+}
+
+
+#define erase(a,size,elt) \
+{ \
+/*	size_t i = 0 ; \
+	for ( i = 0 ; i < size ; ++i) \
+	    a[i] = (elt) 0 ; \
+	    */ \
+	memset(a,0,size*sizeof(elt)); \
+}
+
 #define SAFE_MALLOC(ptr,size,elt) \
-	ptr = (elt *) malloc((size)*sizeof(elt)); \
+	ptr = (elt *) new_malloc((size)*sizeof(elt)); \
 	assert(ptr)
+
 
 #define SAFE_CALLOC(ptr,size,elt) \
-	ptr = (elt *) calloc((size),sizeof(elt)); \
+	ptr = (elt *) new_malloc((size)*sizeof(elt)); \
+        erase((ptr),(size),elt); \
 	assert(ptr)
-
-#define SAFE_MALLOC_DECL(ptr,size,elt) \
-	elt * SAFE_MALLOC(ptr,size,elt)
-
-#define SAFE_CALLOC_DECL(ptr,size,elt) \
-	elt * SAFE_CALLOC(ptr,size,elt)
 
 #define SAFE_REALLOC(ptr,size,elt) \
 	ptr = (elt *) realloc((ptr),(size)*sizeof(elt)); \
 	assert(ptr)
+
+	/* ptr = (elt *) new_realloc((ptr),(size)*sizeof(elt)); \ */
+	 /* ptr = (elt *) realloc((ptr),(size)*sizeof(elt)); \ */
+	/* assert(ptr && !( (uintptr_t)ptr % 32)) */
+
+#define SAFE_MALLOC_DECL(ptr,size,elt) \
+	elt * SAFE_MALLOC((ptr),(size),elt)
+
+#define SAFE_CALLOC_DECL(ptr,size,elt) \
+	elt * SAFE_CALLOC((ptr),(size),elt)
 
 #define SAFE_READ_V(val,elt,file) \
 	checkassert(fread(&(val),sizeof(elt),1,file),1)
@@ -97,7 +137,37 @@
 	SAFE_MALLOC(ptr_a,(nb),elm_a); \
         MEMCPY_CVT(ptr_a,elm_a,ptr_b,(nb))
 
+#ifdef SIMD
 
+#ifdef AVX
+#define SET1  _mm256_set1_pd
+#define STORE _mm256_storeu_pd
+#define LOAD  _mm256_loadu_pd
+#define ADD   _mm256_add_pd
+#define MUL   _mm256_mul_pd
+#define ELEM  __m256d
+#endif /* AVX */
+
+#ifdef SSE
+#define SET1  _mm_set1_pd
+#define STORE _mm_store_pd
+#define LOAD  _mm_load_pd
+#define ADD   _mm_add_pd
+#define MUL   _mm_mul_pd
+#define ELEM  __m128d
+#endif /* SSE */
+
+#define SET1_SIMD(a,b) \
+	ELEM a =  SET1(b)
+
+#define AXPY_SIMD(y,a,x) \
+	STORE((y),  ADD(LOAD((y)), MUL((a), LOAD((x)))))
+/* can do better if FMA */
+
+#define COPY_SIMD(y,x) \
+	STORE(y, LOAD(x))
+
+#endif /* SIMD */
 
 #endif /* __GB_macros_H */
 

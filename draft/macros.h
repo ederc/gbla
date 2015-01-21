@@ -13,7 +13,6 @@
  * along with gbla . If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #ifndef __GB_macros_H
 #define __GB_macros_H
 
@@ -46,7 +45,9 @@
 
 #include <stdlib.h>
 #include <stdalign.h>
-/* #include <malloc.h> */
+#include <malloc.h>
+#include <immintrin.h>
+
 
 static void* new_malloc(size_t size)  {
     void *alignedPointer;

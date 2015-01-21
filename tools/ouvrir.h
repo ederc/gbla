@@ -1,6 +1,6 @@
 /* gbla: Gröbner Basis Linear Algebra
  * Copyright (C) 2015 Brice Boyer <brice.boyer@lip6.fr>
- *                    Jean-Charles Faugère <jean.charles-faugere@inria.fr>
+ *                    Jean-Charles Faugère <jean-charles.faugere@inria.fr>
  * This file is part of gbla.
  * gbla is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

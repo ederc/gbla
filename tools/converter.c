@@ -62,7 +62,7 @@ int main( int ac, char ** av)
 #endif
 
 	FILE * toto =fopen(out,"wb"); /* out */
-	uint32_t un = Mjoin(select,elem_s)();
+	uint32_t un = Mjoin(select,elemt_s)();
 	un = un | VERMASK ;
 	fwrite(&un,sizeof(uint32_t),1,toto);
 
@@ -71,7 +71,7 @@ int main( int ac, char ** av)
 	SAFE_READ_DECL_V(n,uint32_t,titi);
 	fwrite(&n,sizeof(uint32_t),1,toto);
 	SAFE_READ_DECL_V(mod,uint32_t,titi);
-	fwrite(&mod,sizeof(elem_s),1,toto);
+	fwrite(&mod,sizeof(elemt_s),1,toto);
 	SAFE_READ_DECL_V(nnz,uint64_t,titi);
 	/* XXX we don't need to write this */
 	fwrite(&nnz,sizeof(uint64_t),1,toto);
@@ -242,7 +242,7 @@ int main( int ac, char ** av)
 	}
 
 	uint64_t pol_nnz = pol_start[pol_nb];
-	SAFE_MALLOC_DECL(pol_data,pol_nnz,elem_s);
+	SAFE_MALLOC_DECL(pol_data,pol_nnz,elemt_s);
 
 	/* pol_data */
 	for ( i=0 ; i < pol_nb ; ++i) {
@@ -299,7 +299,7 @@ int main( int ac, char ** av)
 	free(pol_rows);
 	free(pol_start);
 
-	fwrite(pol_data,sizeof(elem_s),pol_nnz,toto);
+	fwrite(pol_data,sizeof(elemt_s),pol_nnz,toto);
 
 	free(pol_data);
 

@@ -1,6 +1,6 @@
-CC=gcc
+#  CC=gcc
 #  CC=clang
-CXX=g++
+#  CXX=g++
 #  CXX=clang++
 DBG=-O0 -g
 WAR=-Wall -Wextra -ansi
@@ -24,15 +24,16 @@ dbg=_dbg
 
 all:
 	make $(DMP)_new$(opt)
-	make $(CVT)_rev_sor$(opt)
+	make $(DMP)_old$(opt)
+	make $(CVT)_new$(opt)
 
 
 ### dump matrix (to sms...)
-$(DMP)$(dbg): $(DMP).c $(DMP).h 
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)$(dbg)
+$(DMP)_old$(dbg): $(DMP).c $(DMP).h 
+	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)_old$(dbg)
 
-$(DMP)$(opt): $(DMP).c $(DMP).h 
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)$(opt)
+$(DMP)_old$(opt): $(DMP).c $(DMP).h 
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)_old$(opt)
 
 $(DMP)_new$(dbg): $(DMP).c $(DMP).h
 	$(CC) $(DBG) $(PRF) $(NEW) $(WAR) $(STA) $(DMP).c -o $(DMP)_new$(dbg)
@@ -53,14 +54,14 @@ $(CVT)_rev$(opt): $(CVT).c
 $(CVT)$(opt): $(CVT).c
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -UREVERT -USORT $(CVT).c -o $(CVT)$(opt)
 
-$(CVT)_rev_sor$(dbg): $(CVT).c
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA) -DREVERT -DSORT $(CVT).c -o $(CVT)_rev_sor$(dbg)
+$(CVT)_new$(dbg): $(CVT).c
+	$(CC) $(DBG) $(PRF) $(WAR) $(STA) -DREVERT -DSORT $(CVT).c -o $(CVT)_new$(dbg)
 
 $(CVT)_sor$(dbg): $(CVT).c
 	$(CC) $(DBG) $(PRF) $(WAR) $(STA) -UREVERT -DSORT $(CVT).c -o $(CVT)_sor$(dbg)
 
-$(CVT)_rev_sor$(opt): $(CVT).c
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -DREVERT -DSORT $(CVT).c -o $(CVT)_rev_sor$(opt)
+$(CVT)_new$(opt): $(CVT).c
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -DREVERT -DSORT $(CVT).c -o $(CVT)_new$(opt)
 
 $(CVT)_sor$(opt): $(CVT).c
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -UREVERT -DSORT $(CVT).c -o $(CVT)_sor$(opt)
@@ -71,9 +72,4 @@ clean:
 	-rm *.o
 	-rm `find . -type f -executable`
 
-check:
-	-diff types.h ../draft/types.h
-	-diff macros.h ../draft/macros.h
-	-diff selecter.h ../draft/selecter.h
-	-diff ouvrir.h ../draft/ouvrir.h
 

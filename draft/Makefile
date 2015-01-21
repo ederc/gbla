@@ -155,3 +155,9 @@ clean:
 	-rm *.o
 	-rm `find . -type f -executable`
 
+check:
+	-diff types.h    ../tools/types.h
+	-diff macros.h   ../tools/macros.h
+	-diff selecter.h ../tools/selecter.h
+	-diff ouvrir.h   ../tools//ouvrir.h
+

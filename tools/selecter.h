@@ -14,7 +14,6 @@
  */
 
 
-
 #ifndef __GB_selecter_h
 #define __GB_selecter_h
 

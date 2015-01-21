@@ -17,11 +17,19 @@ pkgincludesub_HEADERS = \
 	src/types.h \
 	src/matrix.h \
 	src/mapping.h \
-	src/elimination.h
+	src/elimination.h \
+	tools/dump_matrix.h \
+	tools/macros.h \
+	tools/ouvrir.h  \
+	tools/print_helper.h \
+	tools/selecter.h \
+	tools/tools.h \
+	tools/types.h
+
 
 nodist_pkgincludesub_HEADERS = src/gbla_config.h
 
-EXTRA_DIST=src/Doxyfile autogen.sh
+EXTRA_DIST=autogen.sh tools/Makefile tools/converter.c tools/dump_matrix.c
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = gbla.pc
@@ -40,4 +48,5 @@ gbla_SOURCES = \
 gbla_LDADD = $(top_builddir)/libgbla.la $(DEPS_LIBS)
 
 SUBDIRS = test
+
 check:
