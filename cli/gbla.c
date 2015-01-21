@@ -22,10 +22,10 @@
 void print_help() {
   printf("\n");
   printf("NAME\n");
-  printf("    gb - computes a Groebner basis\n");
+  printf("    gbla - Linear algebra for Groebner basis computations\n");
   printf("\n");
   printf("SYNOPSIS\n");
-  printf("    gb [options] [file..]\n");
+  printf("    gbla [options] [file..]\n");
   printf("\n");
   printf("DESCRIPTION\n");
   printf("    Computes Gaussian Elimination of a structured hybrid sparse-\n");
