@@ -4,9 +4,8 @@ CXX=g++
 #  CXX=clang++
 DBG=-O0 -g -mavx
 WAR=-Wall -Wextra -ansi
-#  STA=
-STA=-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive 
-OPT=-march=native -mtune=native -O3 -DNDEBUG -UDEBUG  -flto
+STA=
+#  STA=-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive 
 OPT=-march=native -mtune=native -O3 -DNDEBUG -UDEBUG  -flto
 NEW=-D_PROPOSED_FORMAT
 LIB=-lm
@@ -15,7 +14,6 @@ PRF=
 
 PAR=-fopenmp
 
-TST=dumb_write
 DMP=dump_matrix
 CVT=converter
 RUN=runit
@@ -24,19 +22,6 @@ opt=_opt
 dbg=_dbg
 par=_par
 seq=_seq
-
-### dumb write (test matrix)
-$(TST)_new$(dbg): $(TST).c
-	$(CC) $(DBG) $(PRF) $(NEW) $(WAR) $(STA) $(TST).c -o $(TST)_new$(dbg)
-
-$(TST)_old$(dbg): $(TST).c
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(TST).c -o $(TST)_old$(dbg)
-
-$(TST)_new$(opt): $(TST).c
-	$(CC) $(OPT) $(PRF) $(NEW) $(WAR) $(STA) $(TST).c -o $(TST)_new$(opt)
-
-$(TST)_old$(opt): $(TST).c
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(TST).c -o $(TST)_old$(opt)
 
 ### dump matrix (to sms...)
 $(DMP)$(dbg): $(DMP).c $(DMP).h printer.h
