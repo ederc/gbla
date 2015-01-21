@@ -511,9 +511,9 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
 
 void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_block,
     const ri_t bheight, const int inv_scalars, const mod_t modulus) {
-bi_t i, j, k;
+int i, j, k;
 
-bi_t last_idx;
+int last_idx;
 
 for (i=0; i<bheight/2; ++i) {
   if (block_A[i].sz == 0)
