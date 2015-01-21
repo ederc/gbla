@@ -66,6 +66,46 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
   }
 }
 
+void construct_fl_map_reduced(map_fl_t *map, map_fl_t *map_D, ri_t rows_BD,
+    ri_t rank_D, ci_t coldim, int nthreads) {
+  ri_t i;
+  ci_t j;
+
+  ri_t rows_B = rows_BD - rank_D;
+  // pivot and non-pivot columns are exactly the ones from map_D, so we just
+  // point to them
+  map->pc       = map_D->pc;
+  map->npc      = map_D->npc;
+  map->pc_rev   = map_D->pc_rev;
+  map->npc_rev  = map_D->npc_rev;
+  
+  // for the rows we have to take the values from map_D, but we have to adjust
+  // them by rows_B down. So we have to create new mappings
+  map->npri = (ri_t *)malloc((rows_BD) * sizeof(ri_t));
+  //memset(map->npri, __GB_MINUS_ONE_8, (rows_BD) * sizeof(ri_t));
+
+  // number of pivots stays the same, i.e. rank_D
+  map->npiv = map_D->npiv;
+
+  // pivot rows stay the same, too
+  map->pri  = map_D->pri;
+
+  // all rows in B are non-pivot rows
+#pragma omp parallel num_threads(nthreads)
+  {
+#pragma omp for private(i) schedule(dynamic)
+  for (i=0; i<rows_BD; ++i)
+    map->npri[i]  = i;
+  }
+#pragma omp parallel num_threads(nthreads)
+  {
+#pragma omp for private(i) schedule(dynamic)
+  for (i=0; i<coldim; ++i)
+    if (map->pri[i] != __GB_MINUS_ONE_32)
+      map->npri[map->pri[i]]  = __GB_MINUS_ONE_32;
+  }
+}
+
 void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
   uint32_t i;
   uint32_t curr_row_idx = 0;
@@ -207,6 +247,229 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
   inner_map     = NULL;
   *inner_map_in = inner_map;
 }
+
+void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl_t *D2,
+    map_fl_t *map, const ci_t coldim, int free_matrices,
+    int M_freed, int A_freed, int D_freed, int nthrds) {
+
+  uint8_t *vec_free_B2, *vec_free_D2;
+  // 1 pivot from A and otherwise at most D->ncols = B->ncols elements
+  // ==> no reallocations!
+  //ci_t buffer = (ci_t) ceil((float)M->ncols / 10);
+
+  if (free_matrices == 1) {
+    posix_memalign((void *)&vec_free_B2, 16, (B2->nrows / __GB_NROWS_MULTILINE + 1)
+        * sizeof(uint8_t));
+    memset(vec_free_B2, 0, (B2->nrows / __GB_NROWS_MULTILINE + 1)
+        * sizeof(uint8_t));
+    posix_memalign((void *)&vec_free_D2, 16, (D2->nrows / __GB_NROWS_MULTILINE + 1)
+        * sizeof(uint8_t));
+    memset(vec_free_D2, 0, (D2->nrows / __GB_NROWS_MULTILINE + 1)
+        * sizeof(uint8_t));
+  }
+
+  uint32_t i, j, k;
+  uint32_t new_piv_to_row[coldim];
+  uint32_t new_piv  = 0;
+  for (i=0; i<coldim; ++i) {
+    if (map->pri[i] == __GB_MINUS_ONE_32)
+      continue;
+    new_piv_to_row[i] = new_piv;
+    new_piv++;
+  }
+
+  // maximal row length in M is 1 + B2->ncols = 1 + D2->ncols
+  ci_t max_row_length = 1 + B2->ncols;
+  const uint32_t rlB  = (uint32_t) ceil((float)B2->nrows / B2->bheight);
+  const uint32_t clB  = (uint32_t) ceil((float)B2->ncols / B2->bwidth);
+  const uint32_t rlD  = (uint32_t) ceil((float)D2->nrows / D2->bheight);
+  const uint32_t clD  = (uint32_t) ceil((float)D2->ncols / D2->bwidth);
+  M->nnz  = 0;
+
+  int ctr = 0;
+  ci_t row_M_width;
+  ci_t tmp_width;
+  uint32_t local_piv = 0;
+  uint16_t line;
+  for (i=0; i<coldim; ++i) {
+    if (map->pri[i] == __GB_MINUS_ONE_32)
+      continue;
+    ctr++;
+
+    M->rows[local_piv]  = realloc(M->rows[local_piv], max_row_length  * sizeof(re_t));
+    M->pos[local_piv]   = realloc(M->pos[local_piv], max_row_length * sizeof(ci_t));
+    M->rwidth[local_piv]  = 0;
+    ci_t block_row_idx, row_idx_block, block_start_idx, idx;
+    re_t val;
+    if (map->pri[i] >= map->npiv) { // we are in D
+      block_row_idx = (D2->nrows - 1 - (map->pri[i] - map->npiv)) / D2->bheight;
+      row_idx_block = ((D2->nrows - 1 - (map->pri[i] - map->npiv)) % D2->bheight)
+        / __GB_NROWS_MULTILINE;
+
+      line  = (D2->nrows - 1 - (map->pri[i] - map->npiv)) % __GB_NROWS_MULTILINE;
+
+      M->rows[local_piv][M->rwidth[local_piv]] = (re_t)1;
+      M->pos[local_piv][M->rwidth[local_piv]]  = i;
+      M->rwidth[local_piv]++;
+
+      for (j=0; j<clD; ++j) {
+        if (D2->blocks[block_row_idx][j] == NULL)
+          continue;
+        if ((D2->blocks[block_row_idx][j][row_idx_block].val == NULL) ||
+            (D2->blocks[block_row_idx][j][row_idx_block].sz == 0))
+          continue;
+
+        block_start_idx = D2->bwidth * j;
+
+        if (D2->blocks[block_row_idx][j][row_idx_block].dense == 0) {
+          for (k=0; k<D2->blocks[block_row_idx][j][row_idx_block].sz; ++k) {
+            idx = D2->blocks[block_row_idx][j][row_idx_block].idx[k];
+            val = D2->blocks[block_row_idx][j][row_idx_block].val[2*k+line];
+            if (val != 0) {
+              M->rows[local_piv][M->rwidth[local_piv]] = val;
+              M->pos[local_piv][M->rwidth[local_piv]]  = block_start_idx + idx;
+              M->rwidth[local_piv]++;
+            }
+          }
+        } else { // D2 block multiline is dense
+          for (k=0; k<D2->blocks[block_row_idx][j][row_idx_block].sz; ++k) {
+            val = D2->blocks[block_row_idx][j][row_idx_block].val[2*k+line];
+            if (val != 0) {
+              M->rows[local_piv][M->rwidth[local_piv]] = val;
+              M->pos[local_piv][M->rwidth[local_piv]]  = block_start_idx + k;
+              M->rwidth[local_piv]++;
+            }
+          }
+        }
+        if (free_matrices == 1) {
+          if (vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GB_NROWS_MULTILINE] == 1) {
+            if (D2->blocks[block_row_idx][j][row_idx_block].dense == 0) {
+              free (D2->blocks[block_row_idx][j][row_idx_block].idx);
+              D2->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
+            }
+            free (D2->blocks[block_row_idx][j][row_idx_block].val);
+            D2->blocks[block_row_idx][j][row_idx_block].val  = NULL;
+          }
+        }
+      }
+      if (free_matrices == 1) {
+        if (vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GB_NROWS_MULTILINE] == 0) {
+          vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GB_NROWS_MULTILINE]  = 1;
+        }
+      }
+    } else { // we are in A resp. B
+      block_row_idx = (B2->nrows - 1 - map->pri[i]) / B2->bheight;
+      row_idx_block = ((B2->nrows - 1 - map->pri[i]) % B2->bheight) / __GB_NROWS_MULTILINE;
+
+      line  = (B2->nrows - 1 - map->pri[i]) % __GB_NROWS_MULTILINE;
+
+      // A should be always freed already!
+      if (A_freed == 0) {
+      } else { // add 1 at pivot position for A part
+        M->rows[local_piv][M->rwidth[local_piv]] = (re_t)1;
+        M->pos[local_piv][M->rwidth[local_piv]]  = map->pc[i];
+        M->rwidth[local_piv]++;
+      }
+      // add B part to row in M
+      for (j=0; j<clB; ++j) {
+        if (B2->blocks[block_row_idx][j] == NULL)
+          continue;
+        if ((B2->blocks[block_row_idx][j][row_idx_block].val == NULL) ||
+            (B2->blocks[block_row_idx][j][row_idx_block].sz == 0))
+          continue;
+
+        block_start_idx = B2->bwidth * j;
+
+        if (B2->blocks[block_row_idx][j][row_idx_block].dense == 0) {
+          for (k=0; k<B2->blocks[block_row_idx][j][row_idx_block].sz; ++k) {
+            idx = B2->blocks[block_row_idx][j][row_idx_block].idx[k];
+            val = B2->blocks[block_row_idx][j][row_idx_block].val[2*k+line];
+            if (val != 0) {
+              M->rows[local_piv][M->rwidth[local_piv]] = val;
+              M->pos[local_piv][M->rwidth[local_piv]]  = block_start_idx + idx;
+              M->rwidth[local_piv]++;
+            }
+          }
+        } else { // B2 block multiline is dense
+          for (k=0; k<B2->blocks[block_row_idx][j][row_idx_block].sz; ++k) {
+            val = B2->blocks[block_row_idx][j][row_idx_block].val[2*k+line];
+            if (val != 0) {
+              M->rows[local_piv][M->rwidth[local_piv]] = val;
+              M->pos[local_piv][M->rwidth[local_piv]]  = block_start_idx + k;
+              M->rwidth[local_piv]++;
+            }
+          }
+        }
+        if (free_matrices == 1) {
+          if (vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 1) {
+            if (B2->blocks[block_row_idx][j][row_idx_block].dense == 0) {
+              free (B2->blocks[block_row_idx][j][row_idx_block].idx);
+              B2->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
+            }
+            //printf("frees block [%d][%d][%d]\n", block_row_idx,j,row_idx_block);
+            free (B2->blocks[block_row_idx][j][row_idx_block].val);
+            B2->blocks[block_row_idx][j][row_idx_block].val  = NULL;
+          }
+        }
+      }
+      if (free_matrices == 1) {
+        if (vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 0) {
+          vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE]  = 1;
+        }
+      }
+    }
+
+    // adjust memory, rows in M are done
+    M->nnz  = M->nnz + M->rwidth[local_piv];
+    M->rows[local_piv] = realloc(M->rows[local_piv],
+        (M->rwidth[local_piv]) * sizeof(re_t));
+    M->pos[local_piv] = realloc(M->pos[local_piv],
+        (M->rwidth[local_piv]) * sizeof(ci_t));
+
+    // next pivot row
+    local_piv++;
+  }
+
+  // free memory of B2 and D2
+  if (free_matrices == 1) {
+    free (vec_free_B2);
+    free (vec_free_D2);
+    for (i=0; i<rlB; ++i) {
+      for (j=0; j<clB; ++j) {
+        free(B2->blocks[i][j]);
+        B2->blocks[i][j] = NULL;
+      }
+      free(B2->blocks[i]);
+      B2->blocks[i]  = NULL;
+    }
+    free(B2->blocks);
+    free (B2);
+    B2 = NULL;
+
+    for (i=0; i<rlD; ++i) {
+      for (j=0; j<clD; ++j) {
+        free(D2->blocks[i][j]);
+        D2->blocks[i][j] = NULL;
+      }
+      free(D2->blocks[i]);
+      D2->blocks[i]  = NULL;
+    }
+    free(D2->blocks);
+    free (D2);
+    D2 = NULL;
+  }
+
+  // free memory for map
+  free(map->pc);
+  free(map->npc);
+  free(map->pc_rev);
+  free(map->npc_rev);
+  free(map->pri);
+  free(map->npri);
+  free(map);
+  map = NULL;
+}
+
 
 void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
@@ -628,14 +891,193 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   map = NULL;
 }
 
-void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-                    map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
-                    int block_dim, int rows_multiline,
-                    int nthreads, int destruct_input_matrix, int verbose) {
+void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t *B2, 
+    sbm_fl_t *D1, sbm_fl_t *D2, map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
+    int block_dim, int rows_multiline, int nthrds, int destruct_input_matrix,
+    int verbose) {
 
   int bdim  = block_dim / rows_multiline;
   // construct index map for Faugère-Lachartre decomposition of matrix M
-  construct_fl_map(M, map);
+  //construct_fl_map(M, map);
+
+  int i, j, k, l, m;
+
+  // initialize meta data for block submatrices
+  B1->nrows   = B->nrows;   // row dimension
+  B1->ncols   = map->npiv;  // col dimension
+  B1->bheight = bdim;       // block height
+  B1->bwidth  = bdim;       // block width
+  B1->ba      = dtrl;       // block alignment
+  B1->fe      = 0;          // fill empty blocks?
+  B1->hr      = 0;          // allow hybrid rows?
+  B1->nnz     = 0;          // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops 
+  const uint32_t rlB1 = (uint32_t) ceil((float)B1->nrows / B1->bheight);
+  const uint32_t clB1 = (uint32_t) ceil((float)B1->ncols / B1->bwidth);
+
+  B1->blocks = (mbl_t ***)malloc(rlB1 * sizeof(mbl_t **));
+  for (i=0; i<rlB1; ++i) {
+    B1->blocks[i] = (mbl_t **)malloc(clB1 * sizeof(mbl_t *));
+    for (j=0; j<clB1; ++j) {
+      B1->blocks[i][j] = (mbl_t *)malloc(
+          (B1->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(B1->bheight / __GB_NROWS_MULTILINE); ++k) {
+        B1->blocks[i][j][k].val = NULL;
+        B1->blocks[i][j][k].idx = NULL;
+        B1->blocks[i][j][k].sz  = B1->blocks[i][j][k].dense = 0;
+      }
+    }
+  }
+
+  B2->nrows    = B->nrows;              // row dimension
+  B2->ncols    = B->ncols - map->npiv;  // col dimension
+  B2->bheight  = bdim;                  // block height
+  B2->bwidth   = bdim;                  // block width
+  B2->ba       = dtlr;                  // block alignment
+  B2->fe       = 1;                     // fill empty blocks?
+  B2->hr       = 1;                     // allow hybrid rows?
+  B2->nnz      = 0;                     // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops 
+  const uint32_t rlB2  = (uint32_t) ceil((float)B2->nrows / B2->bheight);
+  const uint32_t clB2  = (uint32_t) ceil((float)B2->ncols / B2->bwidth);
+
+  B2->blocks = (mbl_t ***)malloc(rlB2 * sizeof(mbl_t **));
+  for (i=0; i<rlB2; ++i) {
+    B2->blocks[i] = (mbl_t **)malloc(clB2 * sizeof(mbl_t *));
+    for (j=0; j<clB2; ++j) {
+      B2->blocks[i][j] = (mbl_t *)malloc(
+          (B2->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(B2->bheight / __GB_NROWS_MULTILINE); ++k) {
+        B2->blocks[i][j][k].val = NULL;
+        B2->blocks[i][j][k].idx = NULL;
+        B2->blocks[i][j][k].sz  = B2->blocks[i][j][k].dense = 0;
+      }
+    }
+  }
+
+  // initialize meta data for block submatrices
+  D1->nrows   = map->npiv;            // row dimension
+  D1->ncols   = D->ncols - map->npiv; // col dimension
+  D1->bheight = bdim;                 // block height
+  D1->bwidth  = bdim;                 // block width
+  D1->ba      = dtrl;                 // block alignment
+  D1->fe      = 1;                    // fill empty blocks?
+  D1->hr      = 1;                    // allow hybrid rows?
+  D1->nnz     = 0;                    // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops 
+  const uint32_t rlD1 = (uint32_t) ceil((float)D1->nrows / D1->bheight);
+  const uint32_t clD1 = (uint32_t) ceil((float)D1->ncols / D1->bwidth);
+
+  D1->blocks = (mbl_t ***)malloc(rlD1 * sizeof(mbl_t **));
+  for (i=0; i<rlD1; ++i) {
+    D1->blocks[i] = (mbl_t **)malloc(clD1 * sizeof(mbl_t *));
+    for (j=0; j<clD1; ++j) {
+      D1->blocks[i][j] = (mbl_t *)malloc(
+          (D1->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(D1->bheight / __GB_NROWS_MULTILINE); ++k) {
+        D1->blocks[i][j][k].val = NULL;
+        D1->blocks[i][j][k].idx = NULL;
+        D1->blocks[i][j][k].sz  = D1->blocks[i][j][k].dense = 0;
+      }
+    }
+  }
+
+  D2->nrows    = map->npiv;            // row dimension
+  D2->ncols    = complete_ncols - map->npiv; // col dimension
+  D2->bheight  = bdim;                 // block height
+  D2->bwidth   = bdim;                 // block width
+  D2->ba       = dtlr;                 // block alignment
+  D2->fe       = 1;                    // fill empty blocks?
+  D2->hr       = 1;                    // allow hybrid rows?
+  D2->nnz      = 0;                    // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops 
+  const uint32_t rlD2  = (uint32_t) ceil((float)D2->nrows / D2->bheight);
+  const uint32_t clD2  = (uint32_t) ceil((float)D2->ncols / D2->bwidth);
+
+  D2->blocks = (mbl_t ***)malloc(rlD2 * sizeof(mbl_t **));
+  for (i=0; i<rlD2; ++i) {
+    D2->blocks[i] = (mbl_t **)malloc(clD2 * sizeof(mbl_t *));
+    for (j=0; j<clD2; ++j) {
+      D2->blocks[i][j] = (mbl_t *)malloc(
+          (D2->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(D2->bheight / __GB_NROWS_MULTILINE); ++k) {
+        D2->blocks[i][j][k].val = NULL;
+        D2->blocks[i][j][k].idx = NULL;
+        D2->blocks[i][j][k].sz  = D2->blocks[i][j][k].dense = 0;
+      }
+    }
+  }
+
+#if __GB_DEBUG
+  printf("B1[%dx%d]\n",B1->nrows,B1->ncols);
+  printf("B2[%dx%d]\n",B2->nrows,B2->ncols);
+  printf("D1[%dx%d]\n",D1->nrows,D1->ncols);
+  printf("D2[%dx%d]\n",D2->nrows,D2->ncols);
+#endif
+
+  // copy B block-row-wise to B1 and B2
+  
+  // allocate memory for a sparse matrix of B->bheight rows and move B's entries
+  // to B1 and B2 correspondingly
+  sm_t *tmp_B = (sm_t *)malloc(sizeof(sm_t));
+  tmp_B->rows   = (re_t **)malloc(B->bheight * sizeof(re_t *));
+  tmp_B->pos    = (ci_t **)malloc(B->bheight * sizeof(ci_t *));
+  tmp_B->rwidth = (ci_t *)malloc(B->bheight * sizeof(ci_t));
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i) nowait
+    for (i=0; i<B->bheight; ++i) {
+      tmp_B->rows[i]  = (re_t *)malloc(B->ncols * sizeof(re_t));
+      tmp_B->pos[i]   = (ci_t *)malloc(B->ncols * sizeof(ci_t));
+    }
+  }
+  bi_t rbi  = 0;          // row block index
+  bi_t cvb  = 0;          // current vector in block
+  ri_t rihb[B1->bheight]; // row indices horizontal blocks
+
+  for (i=B->nrows - 1; i>=0; --i) {
+    // clear tmp_B
+    memset(tmp_B->rwidth, 0, B->bheight * sizeof(ci_t));
+    for (i=0; i<B->bheight; ++i) {
+      memset(tmp_B->rows[i], 0, tmp_B->ncols * sizeof(re_t));
+      memset(tmp_B->pos[i], 0, B->ncols * sizeof(ci_t));
+    }
+    // block row index
+    ri_t bri  = (B->nrows - 1 - i) / B->bheight;
+    // row index in block
+    ri_t rib  = ((B->nrows - 1 - i) % B->bheight) / __GB_NROWS_MULTILINE;
+    // block start index
+    ri_t bsi;
+    re_t val;
+    ri_t idx;
+    bi_t line = (B->nrows - 1 - i) % __GB_NROWS_MULTILINE;
+
+  }
+    //for (j=0; j<
+}
+
+void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
+                    map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
+                    int block_dim, int rows_multiline,
+                    int nthreads, int destruct_input_matrix, int verbose,
+                    int map_defined) {
+
+  int bdim  = block_dim / rows_multiline;
+  // construct index map for Faugère-Lachartre decomposition of matrix M
+  if (map_defined == 0)
+    construct_fl_map(M, map);
 
   int i, j, k, l, m;
 
@@ -1061,7 +1503,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
   // find blocks for construction of C & D
   npiv  = 0;
-  for (i = (int)M->ncols-1; i > -1; --i) {
+  for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
       npiv++;
 
