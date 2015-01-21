@@ -16,6 +16,8 @@
 #ifndef __GB_macros_H
 #define __GB_macros_H
 
+#include "config.h"
+
 #define Mjoin(pre,nam) my_join(pre , nam)
 #define my_join(pre, nam) pre ## _ ## nam
 
@@ -35,6 +37,7 @@
 	b = t
 
 #define DIVIDE_INTO(x,y) (((x) + (y) - 1)/(y))
+#define ALIGN(x) DIVIDE_INTO(x,UNRL)*UNRL
 
 
 #ifndef NDEBUG

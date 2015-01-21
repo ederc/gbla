@@ -612,4 +612,239 @@ void appendRowDataUnit(CSR * mat
 	mat->start[mat->row] = mat->nnz  ;
 }
 
+dimen_t getSparsestRows(
+		dimen_t   * colid
+		, index_t  * start
+		, dimen_t   row
+		, dimen_t   col
+		, dimen_t * pivots_data /* pivots_data[j] is the sparsest row with j as pivot */
+		)
+{
+	dimen_t i = 0;
+	dimen_t k_dim = 0;
+
+	/*  get k */
+
+	for ( i = 0 ; i < col ; ++i ) {
+		pivots_data[i] = (dimen_t)(-1);
+	}
+
+	for ( i = 0 ; i < row ; ++i ) {
+		dimen_t pivot_j = colid[start[i]] ;     /* first column row i */
+		assert(pivot_j < col);
+		dimen_t old_i = pivots_data[pivot_j] ; /* last row for pivot column */
+		if (old_i == (dimen_t)(-1)) {
+			pivots_data[pivot_j] = i ;
+			++k_dim;
+		}
+	}
+	printf("good k : %u\n",k_dim);
+
+	/*  get number of columms to pivot */
+
+	dimen_t goodk = 0 ;
+	dimen_t badk = 0;
+	for ( i = 0 ; i < col ; ++i) {
+		if (pivots_data[i] != (dimen_t)(-1)) {
+			++goodk ;
+			if (goodk == k_dim) {
+				break;
+			}
+		}
+		else {
+			++badk ;
+		}
+	}
+	printf("bad k : %u\n",badk);
+
+	/*  get best sparsity  for A */
+
+	SAFE_CALLOC_DECL(creux_v,row,dimen_t);
+
+	for ( i = 0 ; i < row ; ++i) {
+		index_t jz ;
+		for (jz = start[i] ; jz < start[i+1] ; ++jz) {
+			if (colid[jz] >= (k_dim+badk))
+					break;
+			if (pivots_data[colid[jz]] != (dimen_t)(-1)) {
+				creux_v[i] += 1 ;
+			}
+		}
+	}
+
+	/*  reinit (not necessary ? */
+
+
+	for ( i = 0 ; i < col ; ++i ) {
+		pivots_data[i] = (dimen_t)(-1);
+	}
+
+	for ( i = 0 ; i < row ; ++i ) {
+		dimen_t pivot_j = colid[start[i]] ;     /* first column row i */
+		dimen_t creux   = creux_v[i] ; /* length of row i */
+		assert(pivot_j < col);
+		dimen_t old_i = pivots_data[pivot_j] ; /* last row for pivot column */
+		if (old_i == (dimen_t)(-1)) {
+			pivots_data[pivot_j] = i ;
+			/* ++k_dim; */
+		}
+		else  {
+			dimen_t old_creux = creux_v[old_i];
+			if (old_creux > creux) { /* this row is sparser */
+				pivots_data[pivot_j] = i ;
+			}
+		}
+	}
+
+
+	free(creux_v);
+	fprintf(stderr,"  -- number of pivots : %u\n",k_dim);
+	return k_dim ;
+}
+
+void appendMatrix(GBMatrix_t * A)
+{
+	A->sub_nb++;
+	if (A->sub == NULL) {
+		assert(A->sub_nb == 1);
+		SAFE_MALLOC(A->sub,A->sub_nb,CSR);
+	}
+	else {
+		assert(A->sub_nb > 1);
+		SAFE_REALLOC(A->sub,A->sub_nb,CSR);
+	}
+	initSparseUnit(&(A->sub[A->sub_nb-1]));
+	(A->sub[A->sub_nb-1]).col = A->col ;
+}
+
+void appendRowUnit(CSR * mat
+		, dimen_t * colid
+		, index_t size
+		, dimen_t pol
+		)
+{
+	index_t old = mat->start[mat->row] ;
+	mat->nnz = old + size;
+	/* XXX this may be slow */
+	SAFE_REALLOC(mat->colid,mat->nnz,dimen_t);
+	index_t i = 0 ;
+	for ( ; i < size ; ++i) {
+		mat->colid[old+i] = colid[i] ;
+	}
+	mat->row ++ ;
+	/* XXX this may be slow */
+	SAFE_REALLOC(mat->start,mat->row+1,index_t);
+	mat->start[mat->row] = mat->nnz  ;
+	/* XXX this may be slow */
+	SAFE_REALLOC(mat->map_zo_pol,mat->row,dimen_t);
+	mat->map_zo_pol[mat->row-1] = pol;
+}
+
+void appendRow(GBMatrix_t * A
+		, dimen_t * colid
+		, index_t size
+		, dimen_t pol
+		)
+{
+	A->row += 1;
+	A->nnz += size ;
+
+	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLK) ){
+		appendMatrix(A);
+	}
+
+	appendRowUnit(&(A->sub[A->sub_nb-1]),colid,size,pol);
+}
+
+void reduce_fast_dense(
+		GBMatrix_t      * A
+		, DNS * B
+		, GBMatrix_t    * C
+		, DNS * D )
+{
+	dimen_t ldd = D->ld ;
+	dimen_t ldb = B->ld ;
+	dimen_t ldc = ALIGN(C->col) ;
+
+	SAFE_CALLOC_DECL(row_beg,B->row,dimen_t);
+	dimen_t i ;
+	for ( i = 0 ; i < B->row ; ++i) {
+		dimen_t ii = 0 ;
+		while ( *(B->ptr+i*ldb+ii) == 0) {
+			row_beg[i] += 1 ;
+			++ii ;
+		}
+	}
+
+
+	elemt_t p = A->mod ;
+	elemt_t * Dd = D->ptr;
+
+
+	dimen_t blk = MAT_SUB_BLK ;
+
+#ifndef _OPENMP
+	SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk,elemt_t);
+	SAFE_MALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk,elemt_t);
+#endif
+
+	dimen_t k ;
+	assert(D->col == B->col);
+
+
+	for (k = 0 ; k < C->sub_nb ; ++k) {
+		CSR * C_k = C->sub + k ;
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+
+		for ( i = 0 ; i < C_k->row ; i += blk ) {
+			dimen_t blk_i = min(blk,C_k->row - i);
+#ifdef _OPENMP
+			SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk_i,elemt_t);
+			SAFE_CALLOC_DECL(temp_C,((index_t)ldc*(index_t)blk_i),elemt_t);
+#endif
+
+			index_t i_offset = k*MAT_ROW_BLK + i ;
+#ifndef _OPENMP
+			/* cblas_dscal(ldc*blk_i,0.,temp_C,1); |+ XXX blk * col < 2^32 +| */
+			memset(temp_C,0,(index_t)ldc*(index_t)blk_i*sizeof(elemt_t));
+#endif
+			sparse_dcopy( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
+
+			cblas_dcopy(ldd*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
+
+
+#ifdef USE_SAXPY
+#if defined(USE_SAXPY2) || defined(USE_SAXPYn)
+#error "make a choice"
+#endif
+			reduce_chunk_dense_1(blk_i,A,B,temp_C,ldc,temp_D,ldd,p,row_beg);
+#endif /* USE_SAXPY */
+
+#ifdef USE_SAXPY2
+#if defined(USE_SAXPY) || defined(USE_SAXPYn)
+#error "make a choice"
+#endif
+			reduce_chunk_dense_2(blk_i,A,B,temp_C,ldc,temp_D,ldd,p,row_beg);
+#endif /* USE_SAXPY2 */
+
+			/* Mjoin(Finit,elemt_t)(p, temp_D, Dd+i*ldd, D->col) ; */
+			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
+
+#ifdef _OPENMP
+			free(temp_D);
+			free(temp_C);
+#endif /* _OPENMP */
+		}
+
+	}
+	free(row_beg);
+
+#ifndef _OPENMP
+	free(temp_D);
+	free(temp_C);
+#endif /* _OPENMP */
+	Mjoin(Freduce,elemt_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
+}
 

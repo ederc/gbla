@@ -54,7 +54,7 @@
 #endif
 
 #ifdef AVX
-#define UNRL 2
+#define UNRL 4
 #endif
 
 #ifndef SIMD
@@ -69,7 +69,6 @@
 #define USE_SAXPY2
 #undef USE_SAXPYn
 #undef STATS
-#define ALIGN(x) DIVIDE_INTO((x),UNRL)*UNRL
 
 #ifndef SIMD
 #warning "you should enable simd operations"

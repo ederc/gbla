@@ -82,12 +82,12 @@ dimen_t * getRow(CSR * mat, dimen_t i)
 
 const CSR * getLastMatrixConst(const GBMatrix_t * A)
 {
-	return &(A->sub[A->sub_nb-1]);
+	return A->sub+(A->sub_nb-1);
 }
 
 CSR * getLastMatrix(GBMatrix_t * A)
 {
-	return &(A->sub[A->sub_nb-1]);
+	return A->sub+(A->sub_nb-1);
 }
 
 /* INIT */
@@ -134,60 +134,25 @@ void initDenseUnit (DNS * A)
 
 /* GROW */
 
-void appendRowUnit(CSR * mat
+
+void setRow(CSR * mat
+		, dimen_t i
 		, dimen_t * colid
 		, index_t size
 		, dimen_t pol
-		)
+	   )
 {
-	index_t old = mat->start[mat->row] ;
-	mat->nnz = old + size;
-	/* XXX this may be slow */
-	SAFE_REALLOC(mat->colid,mat->nnz,dimen_t);
-	index_t i = 0 ;
-	for ( ; i < size ; ++i) {
-		mat->colid[old+i] = colid[i] ;
+	dimen_t old = mat->start[i];
+	dimen_t * mat_colid = mat->colid + old ;
+	index_t j  ;
+	for ( j = 0 ; j < size ; ++j) {
+		mat_colid[j] = colid[j] ;
 	}
-	mat->row ++ ;
-	/* XXX this may be slow */
-	SAFE_REALLOC(mat->start,mat->row+1,index_t);
-	mat->start[mat->row] = mat->nnz  ;
-	/* XXX this may be slow */
-	SAFE_REALLOC(mat->map_zo_pol,mat->row,dimen_t);
-	mat->map_zo_pol[mat->row-1] = pol;
+	mat->start[i+1] = old + size ;
+	mat->map_zo_pol[i] = pol;
 }
 
 
-void appendMatrix(GBMatrix_t * A)
-{
-	A->sub_nb++;
-	if (A->sub == NULL) {
-		assert(A->sub_nb == 1);
-		SAFE_MALLOC(A->sub,A->sub_nb,CSR);
-	}
-	else {
-		assert(A->sub_nb > 1);
-		SAFE_REALLOC(A->sub,A->sub_nb,CSR);
-	}
-	initSparseUnit(&(A->sub[A->sub_nb-1]));
-	(A->sub[A->sub_nb-1]).col = A->col ;
-}
-
-void appendRow(GBMatrix_t * A
-		, dimen_t * colid
-		, index_t size
-		, dimen_t pol
-		)
-{
-	A->row += 1;
-	A->nnz += size ;
-
-	if ( ( A->sub_nb == 0) || ((A->sub[A->sub_nb-1]).row == MAT_ROW_BLK) ){
-		appendMatrix(A);
-	}
-
-	appendRowUnit(&(A->sub[A->sub_nb-1]),colid,size,pol);
-}
 
 /* PRINT */
 
@@ -237,7 +202,7 @@ void printMat(GBMatrix_t * A)
 	fprintf(stderr,"\n");
 	dimen_t k = 0 ;
 	for (  ; k < A->sub_nb ; ++k ) {
-		printMatUnit(&(A->sub[k]));
+		printMatUnit(A->sub + k);
 	}
 }
 
@@ -286,7 +251,7 @@ index_t occupancySparse(GBMatrix_t * A)
 	dimen_t k ;
 	index_t  acc = 0;
 	for ( k = 0 ; k < A->sub_nb  ; ++k ) {
-		CSR * Ad = &(A->sub[k]);
+		CSR * Ad = A->sub + k;
 		index_t j ;
 		dimen_t i ;
 		for (i = 0 ; i < Ad->row ; ++i) {
@@ -362,10 +327,10 @@ void checkMat(const GBMatrix_t *A)
 	dimen_t row = 0 ;
 	index_t nnz = 0 ;
 	dimen_t i = 0 ;
-	for ( ; i < A->sub_nb ; ++i) {
+	for ( i = 0 ; i < A->sub_nb ; ++i) {
 		row += A->sub[i].row;
 		nnz += A->sub[i].nnz;
-		const CSR * Ak = &(A->sub[i]);
+		const CSR * Ak = A->sub + i ;
 		checkMatUnit(Ak);
 	}
 	assert (nnz == A->nnz);
@@ -403,7 +368,7 @@ void freeMat(GBMatrix_t * A)
 {
 	dimen_t i;
 	for (i=0 ; i < A->sub_nb ; ++i) {
-		freeMatUnit(&(A->sub[i])) ;
+		freeMatUnit(A->sub+i) ;
 	}
 	free(A->sub);
 }
@@ -420,7 +385,7 @@ void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
 
 	dimen_t k ;
 	for (k = 0 ; k < S->sub_nb ; ++k) {
-		CSR * S_k = &(S->sub[k]) ;
+		CSR * S_k = S->sub+k ;
 		dimen_t i ;
 		index_t i_off = k * MAT_ROW_BLK ;
 		for (i = 0 ; i < S_k->row ; ++i) {
@@ -443,19 +408,19 @@ void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 	B->col = S->col;
 	B->nnz = S->nnz;
 	B->mod = S->mod;
+	B->sub_nb = S->sub_nb ;
+	SAFE_MALLOC(B->sub,B->sub_nb,CSR);
+
 	dimen_t k ;
 	for (k = 0 ; k < S->sub_nb ; ++k) {
-		const CSR * B_k = &(S->sub[k]) ;
-		appendMatrix(B);
-		CSR * Bd = getLastMatrix(B);
+		const CSR * B_k = S->sub+k ;
+		CSR * Bd = B->sub + k ;
 		Bd->row = B_k->row ;
 		Bd->col = B_k->col ;
 		Bd->nnz = B_k->nnz ;
-		SAFE_REALLOC(Bd->start,Bd->row+1,index_t);
+		Bd->map_zo_pol = NULL ;
+		SAFE_CALLOC(Bd->start,(Bd->row+1),index_t);
 		dimen_t i ;
-		for (i = 0 ; i <= Bd->row ; ++i) {
-			Bd->start[i] = 0 ;
-		}
 		SAFE_CALLOC(Bd->data,UNRL*ALIGN(Bd->nnz),elemt_t);
 		SAFE_MALLOC(Bd->colid,ALIGN(Bd->nnz),dimen_t);
 		/* index_t there = (index_t)-1 ; */

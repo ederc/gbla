@@ -81,95 +81,6 @@ dimen_t getSparsestRows_fast(
 	return k_dim ;
 }
 
-dimen_t getSparsestRows(
-		dimen_t   * colid
-		, index_t  * start
-		, dimen_t   row
-		, dimen_t   col
-		, dimen_t * pivots_data /* pivots_data[j] is the sparsest row with j as pivot */
-		)
-{
-	dimen_t i = 0;
-	dimen_t k_dim = 0;
-
-	/*  get k */
-
-	for ( i = 0 ; i < col ; ++i ) {
-		pivots_data[i] = (dimen_t)(-1);
-	}
-
-	for ( i = 0 ; i < row ; ++i ) {
-		dimen_t pivot_j = colid[start[i]] ;     /* first column row i */
-		assert(pivot_j < col);
-		dimen_t old_i = pivots_data[pivot_j] ; /* last row for pivot column */
-		if (old_i == (dimen_t)(-1)) {
-			pivots_data[pivot_j] = i ;
-			++k_dim;
-		}
-	}
-	printf("good k : %u\n",k_dim);
-
-	/*  get number of columms to pivot */
-
-	dimen_t goodk = 0 ;
-	dimen_t badk = 0;
-	for ( i = 0 ; i < col ; ++i) {
-		if (pivots_data[i] != (dimen_t)(-1)) {
-			++goodk ;
-			if (goodk == k_dim) {
-				break;
-			}
-		}
-		else {
-			++badk ;
-		}
-	}
-	printf("bad k : %u\n",badk);
-
-	/*  get best sparsity  for A */
-
-	SAFE_CALLOC_DECL(creux_v,row,dimen_t);
-
-	for ( i = 0 ; i < row ; ++i) {
-		index_t jz ;
-		for (jz = start[i] ; jz < start[i+1] ; ++jz) {
-			if (colid[jz] >= (k_dim+badk))
-					break;
-			if (pivots_data[colid[jz]] != (dimen_t)(-1)) {
-				creux_v[i] += 1 ;
-			}
-		}
-	}
-
-	/*  reinit (not necessary ? */
-
-
-	for ( i = 0 ; i < col ; ++i ) {
-		pivots_data[i] = (dimen_t)(-1);
-	}
-
-	for ( i = 0 ; i < row ; ++i ) {
-		dimen_t pivot_j = colid[start[i]] ;     /* first column row i */
-		dimen_t creux   = creux_v[i] ; /* length of row i */
-		assert(pivot_j < col);
-		dimen_t old_i = pivots_data[pivot_j] ; /* last row for pivot column */
-		if (old_i == (dimen_t)(-1)) {
-			pivots_data[pivot_j] = i ;
-			/* ++k_dim; */
-		}
-		else  {
-			dimen_t old_creux = creux_v[old_i];
-			if (old_creux > creux) { /* this row is sparser */
-				pivots_data[pivot_j] = i ;
-			}
-		}
-	}
-
-
-	free(creux_v);
-	fprintf(stderr,"  -- number of pivots : %u\n",k_dim);
-	return k_dim ;
-}
 
 void createPivots(
 		dimen_t   * pivots /* list of pivot columns */
@@ -216,36 +127,102 @@ void splitHorizontal(
 	dimen_t last_pivot=0;
 	dimen_t i ;
 	assert(start[row] == nnz);
-#if 0
-	dimen_t A_row = 0 ;
-	index_t A_nnz = 0 ;
-	for ( i = 0 ; i < row ; ++i)  {
-		assert(start[i] < nnz);
-		if ( (last_pivot < pivots_size) && (pivots[last_pivot] == i) ) {
-			A_nnz += start[i+1] - start[i] ;
-			A_row += 1 ;
-			++last_pivot;
-		}
-	}
-	A->nb_sub = DIVIDE_INTO(A_row,MAT_ROW_BLK);
-	A->row = A_row ;
-	A->nnz = A_nnz ;
-	B->nb_sub = DIVIDE_INTO(A_row,MAT_ROW_BLK);
-	B->row = row - A_row ;
-	B->nnz = start[row]  - A_nnz ;
-#endif
 
-	last_pivot = 0 ;
+
+	assert(A->row == pivots_size );
+	assert(C->row == row - pivots_size );
+	assert(C->row); /* return here and terminate */
+
+	A->sub_nb = DIVIDE_INTO(A->row,MAT_ROW_BLK);
+	assert(A->sub_nb);
+	C->sub_nb = DIVIDE_INTO(C->row,MAT_ROW_BLK);
+	assert(C->sub_nb);
+
+	SAFE_CALLOC_DECL(Asub_nnz,A->sub_nb,index_t);
+	SAFE_CALLOC_DECL(Csub_nnz,C->sub_nb,index_t);
+	SAFE_CALLOC_DECL(ami,row,uint8_t);
+	SAFE_CALLOC_DECL(qui,row,dimen_t);
+
+	dimen_t i_c = 0 , i_a = 0 ;
 	for ( i = 0 ; i < row ; ++i)  {
 		assert(start[i] < nnz);
 		if ( (last_pivot < pivots_size) && (pivots[last_pivot] == i) ) {
-			appendRow(A,colid+start[i],start[i+1]-start[i],map_zo_pol[i]);
+			dimen_t i_loc = i_a / MAT_ROW_BLK ;
+			Asub_nnz[i_loc] += start[i+1] - start[i] ;
 			++last_pivot;
+			ami[i] = 1 ;
+			qui[i] = i_a  ;
+			i_a ++ ;
 		}
 		else {
-			appendRow(C,colid+start[i],start[i+1]-start[i],map_zo_pol[i]);
+			dimen_t i_loc = i_c / MAT_ROW_BLK ;
+			Csub_nnz[i_loc] += start[i+1] - start[i] ;
+			qui[i] = i_c   ;
+			i_c ++ ;
 		}
 	}
+
+	SAFE_MALLOC(A->sub,A->sub_nb,CSR);
+	SAFE_MALLOC(C->sub,C->sub_nb,CSR);
+
+	dimen_t A_nnz = 0 ;
+
+	for ( i = 0 ; i < A->sub_nb ; ++i) {
+		CSR * A_sub = A->sub+i ;
+		A_sub->row = min((dimen_t)MAT_ROW_BLK,A->row-i*MAT_ROW_BLK);
+		A_sub->col = A->col ;
+		/* A_sub->mod = A->mod ; */
+		A_sub->nnz = Asub_nnz[i] ;
+		A_nnz += Asub_nnz[i] ;
+		SAFE_CALLOC(A_sub->start,(A_sub->row+1),index_t);
+		SAFE_MALLOC(A_sub->colid,A_sub->nnz,dimen_t);
+		SAFE_MALLOC(A_sub->map_zo_pol,A_sub->row,dimen_t);
+		A_sub->data = NULL ;
+	}
+
+	for ( i = 0 ; i < C->sub_nb ; ++i) {
+		CSR * C_sub = C->sub+i ;
+		C_sub->row = min((dimen_t)MAT_ROW_BLK,C->row-i*MAT_ROW_BLK);
+		C_sub->col = C->col ;
+		/* C_sub->mod = C->mod ; */
+		C_sub->nnz = Csub_nnz[i] ;
+		SAFE_CALLOC(C_sub->start,(C_sub->row+1),index_t);
+		SAFE_MALLOC(C_sub->colid,C_sub->nnz,dimen_t);
+		SAFE_MALLOC(C_sub->map_zo_pol,C_sub->row,dimen_t);
+		C_sub->data = NULL ;
+	}
+
+	free (Asub_nnz);
+	free (Csub_nnz);
+
+	A->nnz = A_nnz ;
+	C->nnz = start[row]  - A_nnz ;
+
+#ifdef _OPENMP
+/* #pragma omp parallel for */
+#endif
+	for ( i = 0 ; i < row ; ++i)  {
+		assert(start[i] < nnz);
+		dimen_t s_loc = qui[i] / MAT_ROW_BLK ;
+		dimen_t i_loc = qui[i] % MAT_ROW_BLK ;
+		if ( ami[i] == 1 ) {
+			assert(s_loc < A->sub_nb);
+			CSR * A_sub = A->sub+s_loc ;
+			assert(qui[i_loc] < A_sub->row);
+			setRow(A_sub,i_loc,colid+start[i],start[i+1]-start[i],map_zo_pol[i]);
+		}
+		else {
+			CSR * C_sub = C->sub+s_loc ;
+			setRow(C_sub,i_loc,colid+start[i],start[i+1]-start[i],map_zo_pol[i]);
+		}
+
+
+	}
+
+	free(ami);
+	free(qui);
+
+
 
 #ifndef NDEBUG
 	assert(A->nnz + C->nnz == nnz);
@@ -308,43 +285,69 @@ void splitVerticalUnit(
 	dimen_t ldb = B->ld;
 	SAFE_CALLOC(B->ptr,(index_t)B->row*(index_t)ldb,elemt_t);
 
+	A->sub_nb = A_init->sub_nb ;
+	SAFE_MALLOC(A->sub,A->sub_nb,CSR);
 
 	/* Init sparse */
 
 	dimen_t j ;
 	for ( j = 0 ; j < A_init->sub_nb ; ++j) {
-		const CSR * A_k = &(A_init->sub[j]) ;
+		const CSR * A_k = A_init->sub + j ;
 #ifndef NDEBUG
 		checkMatUnit(A_k);
 #endif
-		appendMatrix(A);
-		CSR * Ad = getLastMatrix(A);
+		CSR * Ad = A->sub + j;
 		Ad->row = A_k->row ;
 		Ad->col = A->col ;
 		Ad->nnz = 0 ;
 		/* A->row += Ad->row ; */
 		assert(A->col == Ad->col);
 
-		SAFE_REALLOC(Ad->start,Ad->row+1,index_t);
-		Ad->start[0] = 0 ;
+		SAFE_CALLOC(Ad->start,(Ad->row+1),index_t);
 		SAFE_MALLOC(Ad->colid,A_k->nnz,dimen_t);
 		SAFE_MALLOC(Ad->data ,A_k->nnz,elemt_t);
-		assert(Ad->map_zo_pol==NULL);
+		Ad->map_zo_pol=NULL;
 
 
-		dimen_t here  = 0; /* shift */
-		index_t there = 0;
-		here = 0;
+		SAFE_CALLOC_DECL(b_there,(A_k->row+1),index_t);
 		dimen_t i ;
-		index_t jz ;
-		for (i = 0 ; i <= Ad->row ; ++i) {
-			Ad->start[i] = 0 ;
-		}
 
 		for (i = 0 ; i < A_k->row ; ++i) {
+			dimen_t here  = 0; /* shift */
+			index_t jz ;
+			b_there[i+1] += b_there[i] ;
+			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
+				dimen_t k = A_k->colid[jz]  ;
+				assert(k < A_k->col);
+				if ( k  < max_col ) {
+					while (here < nonpiv_size && k > nonpiv[here]) {
+						here ++ ;
+					}
+					if (here < nonpiv_size && k == nonpiv[here]) {
+						B->nnz += 1 ;
+					}
+					else {
+						b_there[i+1] += 1 ;
+					}
+				}
+				else {
+					assert(nonpiv_size+k-max_col < B->col);
+					B->nnz += 1 ;
+				}
+			}
+			assert(here <= nonpiv_size);
+		}
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+		for (i = 0 ; i < A_k->row ; ++i) {
+			dimen_t here  = 0; /* shift */
+			index_t there = b_there[i];
 			index_t i_offset =  j * MAT_ROW_BLK + i ;
 			dimen_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
 			elemt_t * d = polys->data_pol+start_p ;
+			index_t jz ;
 			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
 				dimen_t k = A_k->colid[jz]  ;
 				assert(k < A_k->col);
@@ -354,7 +357,6 @@ void splitVerticalUnit(
 					}
 					if (here < nonpiv_size && k == nonpiv[here]) {
 						B->ptr[i_offset*(index_t)ldb+(index_t)here] = *d; /* XXX */
-						B->nnz += 1 ;
 					}
 					else {
 						Ad->start[i+1] += 1 ;
@@ -365,20 +367,20 @@ void splitVerticalUnit(
 				else {
 					assert(nonpiv_size+k-max_col < B->col);
 					B->ptr[i_offset*(index_t)ldb+(index_t)(nonpiv_size+k-max_col)] = *d ; /* XXX */
-					B->nnz += 1 ;
 				}
 				++d;
 			}
 			assert(here <= nonpiv_size);
-			here = 0 ;
 		}
+
+		free(b_there);
+
 		for ( i = 1 ; i < Ad->row ; ++i) {
 			Ad->start[i+1] += Ad->start[i] ;
 		}
 		Ad->nnz = Ad->start[Ad->row] ;
 		A->nnz += Ad->nnz ;
 		assert(A->nnz);
-		assert(Ad->nnz == there);
 		/* realloc to smaller */
 		SAFE_REALLOC(Ad->colid,Ad->nnz,dimen_t);
 		SAFE_REALLOC(Ad->data ,Ad->nnz,elemt_t);
@@ -403,16 +405,18 @@ void splitVerticalUnitSparse(
 
 	/* Init sparse */
 
+	A->sub_nb = B->sub_nb = A_init->sub_nb ;
+
+	SAFE_MALLOC(A->sub,A->sub_nb,CSR);
+	SAFE_MALLOC(B->sub,B->sub_nb,CSR);
 	dimen_t j ;
 	for ( j = 0 ; j < A_init->sub_nb ; ++j) {
-		const CSR * A_k = &(A_init->sub[j]) ;
+		const CSR * A_k = A_init->sub + j ;
 #ifndef NDEBUG
 		checkMatUnit(A_k);
 #endif
-		appendMatrix(A);
-		appendMatrix(B);
-		CSR * Ad = getLastMatrix(A);
-		CSR * Bd = getLastMatrix(B);
+		CSR * Ad = A->sub+j;
+		CSR * Bd = B->sub+j;
 		Ad->row = A_k->row ;
 		Bd->row = A_k->row ;
 		Ad->col = A->col ;
@@ -423,20 +427,15 @@ void splitVerticalUnitSparse(
 		assert(A->col == Ad->col);
 		assert(B->col == Bd->col);
 
-		SAFE_REALLOC(Ad->start,Ad->row+1,index_t);
-		SAFE_REALLOC(Bd->start,Bd->row+1,index_t);
-		assert(Ad->map_zo_pol==NULL);
+		SAFE_CALLOC(Ad->start,(Ad->row+1),index_t);
+		SAFE_CALLOC(Bd->start,(Bd->row+1),index_t);
+		Ad->map_zo_pol=NULL;
+		Bd->map_zo_pol=NULL;
 
 
 		/* index_t there = 0; */
 		dimen_t i ;
 		index_t jz ;
-		for (i = 0 ; i <= Ad->row ; ++i) {
-			Ad->start[i] = 0 ;
-		}
-		for (i = 0 ; i <= Bd->row ; ++i) {
-			Bd->start[i] = 0 ;
-		}
 
 		SAFE_CALLOC_DECL(b_row_off,Bd->row,dimen_t);
 		SAFE_CALLOC_DECL(b_there,(Bd->row+1),index_t);
@@ -486,11 +485,11 @@ void splitVerticalUnitSparse(
 			b_la[i+1] +=  b_la[i]  ;
 		}
 
+		/* dimen_t la = 0 ; */
+		/* there = 0; */
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif
-		/* dimen_t la = 0 ; */
-		/* there = 0; */
 		for (i = 0 ; i < A_k->row ; ++i) {
 			dimen_t here  = 0; /* shift */
 			index_t there = b_there[i] ;
@@ -498,6 +497,7 @@ void splitVerticalUnitSparse(
 			index_t la  =  ici + b_row_off[i] ;
 			dimen_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
 			elemt_t * d = polys->data_pol+start_p ;
+			index_t jz ;
 			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
 				dimen_t k = A_k->colid[jz]  ;
 				assert(k < A_k->col);
@@ -531,6 +531,7 @@ void splitVerticalUnitSparse(
 			}
 			assert(here <= nonpiv_size);
 		}
+
 		assert(Ad->nnz == b_there[Ad->row]);
 
 		free(b_row_off);
@@ -574,7 +575,6 @@ void splitVertical(
 	A->col = C->col = A_init->row ;
 	B->col = D->col = A_init->col - A_init->row ;
 	D->ld  = ALIGN(D->col);
-
 
 	assert(A->row);
 	assert(C->row);
@@ -740,6 +740,10 @@ dimen_t * readFileSplit(
 	assert(k_dim >= pivots_size);
 	assert(n-k_dim >= nonpiv_size);
 
+	A_init->row = k_dim;
+	C_init->row = m - k_dim;
+
+
 	SAFE_REALLOC(pivots,pivots_size,dimen_t);
 	SAFE_REALLOC(nonpiv,nonpiv_size,dimen_t);
 
@@ -766,9 +770,6 @@ dimen_t * readFileSplit(
 	free(start);
 	free(map_zo_pol);
 	free(colid);
-
-	A_init->row = k_dim;
-	C_init->row = m - k_dim;
 
 	assert(nnz == A_init->nnz + C_init->nnz);
 
@@ -889,12 +890,12 @@ void reduce(
 	}
 
 	for ( k = 0 ; k < C->sub_nb  ; ++k ) {
-		CSR * Cd = &(C->sub[k]);
+		CSR * Cd = C->sub + k ;
 		dimen_t ldd = D->ld ;
 		/* D = D - C . B */
 		assert( (elemt_t)-1<1); /* unsigned will fail */
 #ifdef _OPENMP
-#pragma omp parallel for /* schedule (static,8) */
+#pragma omp parallel for
 #endif
 		for ( i = 0 ; i < Cd->row ;  ++i) {
 			index_t i_offset = k * MAT_ROW_BLK + i;
@@ -1206,7 +1207,7 @@ void reduce_chunk_1(
 				/* temp_C -= temp_C[j] * A[j] */
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k = A->sub+ kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 				spaxpy(tc,A_k->data+A_k->start[jj],
@@ -1217,7 +1218,7 @@ void reduce_chunk_1(
 				/* temp_D -= temp_C[j] * B[j] */
 
 				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-				CSR * B_k = &(B->sub[kk]);
+				CSR * B_k = B->sub + kk;
 				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 				spaxpy(tc,B_k->data+B_k->start[jj],
 						sz,
@@ -1249,7 +1250,7 @@ void reduce_chunk_1_block(
 				/* temp_C -= temp_C[j] * A[j] */
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k = A->sub + kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 #ifdef CONV_A
@@ -1268,7 +1269,7 @@ void reduce_chunk_1_block(
 				/* temp_D -= temp_C[j] * B[j] */
 
 				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-				CSR * B_k = &(B->sub[kk]);
+				CSR * B_k = B->sub + kk;
 				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 				/* assert(sz); */
 				spaxpy_block(tc,B_k->data+B_k->start[jj]*UNRL,
@@ -1302,7 +1303,7 @@ void reduce_chunk_dense_1(
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
 				assert(kk*MAT_ROW_BLK+jj == j);
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k =  A->sub + kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				spaxpy(tc,A_k->data+A_k->start[jj],
 						sz,
@@ -1345,7 +1346,7 @@ void reduce_chunk_2(
 				if (td != 0.) {
 					dimen_t jj = j%MAT_ROW_BLK ;
 					dimen_t kk = j/MAT_ROW_BLK ;
-					CSR * A_k = &(A->sub[kk]);
+					CSR * A_k = A->sub + kk ;
 					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 					assert(kk*MAT_ROW_BLK+jj == j);
 					spaxpy2(tc,td,A_k->data+A_k->start[jj],
@@ -1356,7 +1357,7 @@ void reduce_chunk_2(
 					/* temp_D -= temp_C[j] * B[j] */
 
 					/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-					CSR * B_k = &(B->sub[kk]);
+					CSR * B_k = B->sub + kk ;
 					sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 					spaxpy2(tc,td,B_k->data+B_k->start[jj],
 							sz,
@@ -1367,7 +1368,7 @@ void reduce_chunk_2(
 					/* temp_C -= temp_C[j] * A[j] */
 					dimen_t jj = j%MAT_ROW_BLK ;
 					dimen_t kk = j/MAT_ROW_BLK ;
-					CSR * A_k = &(A->sub[kk]);
+					CSR * A_k = A->sub + kk ;
 					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 					assert(kk*MAT_ROW_BLK+jj == j);
 					spaxpy(tc,A_k->data+A_k->start[jj],
@@ -1378,7 +1379,7 @@ void reduce_chunk_2(
 					/* temp_D -= temp_C[j] * B[j] */
 
 					/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-					CSR * B_k = &(B->sub[kk]);
+					CSR * B_k = B->sub+kk;
 					sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 					spaxpy(tc,B_k->data+B_k->start[jj],
 							sz,
@@ -1391,7 +1392,7 @@ void reduce_chunk_2(
 				/* temp_C -= temp_C[j] * A[j] */
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k =  A->sub + kk;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 				spaxpy(td,A_k->data+A_k->start[jj],
@@ -1402,7 +1403,7 @@ void reduce_chunk_2(
 				/* temp_D -= temp_C[j] * B[j] */
 
 				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-				CSR * B_k = &(B->sub[kk]);
+				CSR * B_k =  B->sub + kk;
 				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 				spaxpy(td,B_k->data+B_k->start[jj],
 						sz,
@@ -1418,7 +1419,7 @@ void reduce_chunk_2(
 				/* temp_C -= temp_C[j] * A[j] */
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k =  A->sub + kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 				spaxpy(tc,A_k->data+A_k->start[jj],
@@ -1429,7 +1430,7 @@ void reduce_chunk_2(
 				/* temp_D -= temp_C[j] * B[j] */
 
 				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-				CSR * B_k = &(B->sub[kk]);
+				CSR * B_k = B->sub + kk ;
 				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 				spaxpy(tc,B_k->data+B_k->start[jj],
 						sz,
@@ -1469,7 +1470,7 @@ void reduce_chunk_2_block(
 				if (td != 0.) {
 					dimen_t jj = j%MAT_ROW_BLK ;
 					dimen_t kk = j/MAT_ROW_BLK ;
-					CSR * A_k = &(A->sub[kk]);
+					CSR * A_k = A->sub + kk ;
 					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 					assert(kk*MAT_ROW_BLK+jj == j);
 #ifdef CONV_A
@@ -1488,7 +1489,7 @@ void reduce_chunk_2_block(
 					/* temp_D -= temp_C[j] * B[j] */
 
 					/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-					CSR * B_k = &(B->sub[kk]);
+					CSR * B_k = B->sub + kk ;
 					sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 					spaxpy2_block(tc,td,B_k->data+B_k->start[jj]*UNRL,
 							sz,
@@ -1499,7 +1500,7 @@ void reduce_chunk_2_block(
 					/* temp_C -= temp_C[j] * A[j] */
 					dimen_t jj = j%MAT_ROW_BLK ;
 					dimen_t kk = j/MAT_ROW_BLK ;
-					CSR * A_k = &(A->sub[kk]);
+					CSR * A_k = A->sub + kk ;
 					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 					assert(kk*MAT_ROW_BLK+jj == j);
 #ifdef CONV_A
@@ -1517,7 +1518,7 @@ void reduce_chunk_2_block(
 					/* temp_D -= temp_C[j] * B[j] */
 
 					/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-					CSR * B_k = &(B->sub[kk]);
+					CSR * B_k =  B->sub + kk ;
 					sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 					spaxpy_block(tc,B_k->data+B_k->start[jj]*UNRL,
 							sz,
@@ -1530,7 +1531,7 @@ void reduce_chunk_2_block(
 				/* temp_C -= temp_C[j] * A[j] */
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k = A->sub + kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 #ifdef CONV_A
@@ -1548,7 +1549,7 @@ void reduce_chunk_2_block(
 				/* temp_D -= temp_C[j] * B[j] */
 
 				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-				CSR * B_k = &(B->sub[kk]);
+				CSR * B_k = B->sub + kk;
 				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 				spaxpy_block(td,B_k->data+B_k->start[jj]*UNRL,
 						sz,
@@ -1564,7 +1565,7 @@ void reduce_chunk_2_block(
 					/* temp_C -= temp_C[j] * A[j] */
 					dimen_t jj = j%MAT_ROW_BLK ;
 					dimen_t kk = j/MAT_ROW_BLK ;
-					CSR * A_k = &(A->sub[kk]);
+					CSR * A_k = A->sub + kk;
 					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 					assert(kk*MAT_ROW_BLK+jj == j);
 #ifdef CONV_A
@@ -1582,7 +1583,7 @@ void reduce_chunk_2_block(
 					/* temp_D -= temp_C[j] * B[j] */
 
 					/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-					CSR * B_k = &(B->sub[kk]);
+					CSR * B_k = B->sub + kk ;
 					sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 					spaxpy_block(tc,B_k->data+B_k->start[jj]*UNRL,
 							sz,
@@ -1627,7 +1628,7 @@ void reduce_chunk_dense_2(
 					dimen_t jj = j%MAT_ROW_BLK ;
 					dimen_t kk = j/MAT_ROW_BLK ;
 					assert(kk*MAT_ROW_BLK+jj == j);
-					CSR * A_k = &(A->sub[kk]);
+					CSR * A_k = A->sub + kk ;
 					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 					assert(kk*MAT_ROW_BLK+jj == j);
 					spaxpy2(tc,td,A_k->data+A_k->start[jj],
@@ -1645,7 +1646,7 @@ void reduce_chunk_dense_2(
 					dimen_t jj = j%MAT_ROW_BLK ;
 					dimen_t kk = j/MAT_ROW_BLK ;
 					assert(kk*MAT_ROW_BLK+jj == j);
-					CSR * A_k = &(A->sub[kk]);
+					CSR * A_k = A->sub + kk ;
 					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 					assert(kk*MAT_ROW_BLK+jj == j);
 					spaxpy(tc,A_k->data+A_k->start[jj],
@@ -1663,7 +1664,7 @@ void reduce_chunk_dense_2(
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
 				assert(kk*MAT_ROW_BLK+jj == j);
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k = A->sub + kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 				spaxpy(td,A_k->data+A_k->start[jj],
@@ -1683,7 +1684,7 @@ void reduce_chunk_dense_2(
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
 				assert(kk*MAT_ROW_BLK+jj == j);
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k = A->sub + kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 				spaxpy(tc,A_k->data+A_k->start[jj],
@@ -1724,7 +1725,7 @@ void reduce_chunk_n(
 				}
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
-				CSR * A_k = &(A->sub[kk]);
+				CSR * A_k = A->sub + kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 				spaxpyn(diag,A_k->data+A_k->start[jj],
@@ -1735,7 +1736,7 @@ void reduce_chunk_n(
 				/* temp_D -= temp_C[j] * B[j] */
 
 				/* cblas_daxpy(D->col, tc,Bd+j*ldb,1,temp_D,1); */
-				CSR * B_k = &(B->sub[kk]);
+				CSR * B_k =  B->sub + kk ;
 				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 				spaxpyn(diag,B_k->data+B_k->start[jj],
 						sz,
@@ -1773,11 +1774,10 @@ void reduce_fast(
 
 
 	for (k = 0 ; k < C->sub_nb ; ++k) {
-		CSR * C_k = &(C->sub[k]) ;
+		CSR * C_k = C->sub + k  ;
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif
-
 		for ( i = 0 ; i < C_k->row ; i += blk ) {
 			dimen_t blk_i = min(blk,C_k->row - i);
 #ifdef _OPENMP
@@ -1890,7 +1890,7 @@ void reduce_fast_block(
 
 
 	for (k = 0 ; k < C->sub_nb ; ++k) {
-		CSR * C_k = &(CH->sub[k]) ;
+		CSR * C_k = CH->sub + k  ;
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif
@@ -1966,97 +1966,6 @@ reduce_chunk_n_block(blk_i,A,B,temp_C,ldc,temp_D,ldd,p);
 #endif
 
 
-void reduce_fast_dense(
-		GBMatrix_t      * A
-		, DNS * B
-		, GBMatrix_t    * C
-		, DNS * D )
-{
-	dimen_t ldd = D->ld ;
-	dimen_t ldb = B->ld ;
-	dimen_t ldc = ALIGN(C->col) ;
-
-	SAFE_CALLOC_DECL(row_beg,B->row,dimen_t);
-	dimen_t i ;
-	for ( i = 0 ; i < B->row ; ++i) {
-		dimen_t ii = 0 ;
-		while ( *(B->ptr+i*ldb+ii) == 0) {
-			row_beg[i] += 1 ;
-			++ii ;
-		}
-	}
-
-
-	elemt_t p = A->mod ;
-	elemt_t * Dd = D->ptr;
-
-
-	dimen_t blk = MAT_SUB_BLK ;
-
-#ifndef _OPENMP
-	SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk,elemt_t);
-	SAFE_MALLOC_DECL(temp_C,(index_t)ldc*(index_t)blk,elemt_t);
-#endif
-
-	dimen_t k ;
-	assert(D->col == B->col);
-
-
-	for (k = 0 ; k < C->sub_nb ; ++k) {
-		CSR * C_k = &(C->sub[k]) ;
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
-
-		for ( i = 0 ; i < C_k->row ; i += blk ) {
-			dimen_t blk_i = min(blk,C_k->row - i);
-#ifdef _OPENMP
-			SAFE_MALLOC_DECL(temp_D,(index_t)ldd*(index_t)blk_i,elemt_t);
-			SAFE_CALLOC_DECL(temp_C,((index_t)ldc*(index_t)blk_i),elemt_t);
-#endif
-
-			index_t i_offset = k*MAT_ROW_BLK + i ;
-#ifndef _OPENMP
-			/* cblas_dscal(ldc*blk_i,0.,temp_C,1); |+ XXX blk * col < 2^32 +| */
-			memset(temp_C,0,(index_t)ldc*(index_t)blk_i*sizeof(elemt_t));
-#endif
-			sparse_dcopy( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
-
-			cblas_dcopy(ldd*blk_i,Dd+i_offset*(index_t)ldd,1,temp_D,1);
-
-
-#ifdef USE_SAXPY
-#if defined(USE_SAXPY2) || defined(USE_SAXPYn)
-#error "make a choice"
-#endif
-			reduce_chunk_dense_1(blk_i,A,B,temp_C,ldc,temp_D,ldd,p,row_beg);
-#endif /* USE_SAXPY */
-
-#ifdef USE_SAXPY2
-#if defined(USE_SAXPY) || defined(USE_SAXPYn)
-#error "make a choice"
-#endif
-			reduce_chunk_dense_2(blk_i,A,B,temp_C,ldc,temp_D,ldd,p,row_beg);
-#endif /* USE_SAXPY2 */
-
-			/* Mjoin(Finit,elemt_t)(p, temp_D, Dd+i*ldd, D->col) ; */
-			cblas_dcopy(D->col*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
-
-#ifdef _OPENMP
-			free(temp_D);
-			free(temp_C);
-#endif /* _OPENMP */
-		}
-
-	}
-	free(row_beg);
-
-#ifndef _OPENMP
-	free(temp_D);
-	free(temp_C);
-#endif /* _OPENMP */
-	Mjoin(Freduce,elemt_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
-}
 
 
 

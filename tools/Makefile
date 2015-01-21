@@ -23,23 +23,23 @@ opt=_opt
 dbg=_dbg
 
 all:
-	make $(DMP)_new$(opt)
-	make $(DMP)_old$(opt)
-	make $(CVT)_new$(opt)
+	make $(DMP)_new
+	make $(DMP)_old
+	make $(CVT)_new
 
 
 ### dump matrix (to sms...)
 $(DMP)_old$(dbg): $(DMP).c $(DMP).h 
 	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)_old$(dbg)
 
-$(DMP)_old$(opt): $(DMP).c $(DMP).h 
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)_old$(opt)
+$(DMP)_old: $(DMP).c $(DMP).h 
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)_old
 
 $(DMP)_new$(dbg): $(DMP).c $(DMP).h
 	$(CC) $(DBG) $(PRF) $(NEW) $(WAR) $(STA) $(DMP).c -o $(DMP)_new$(dbg)
 
-$(DMP)_new$(opt): $(DMP).c $(DMP).h 
-	$(CC) $(OPT) $(PRF) $(NEW) $(WAR) $(STA) $(DMP).c -o $(DMP)_new$(opt)
+$(DMP)_new: $(DMP).c $(DMP).h 
+	$(CC) $(OPT) $(PRF) $(NEW) $(WAR) $(STA) $(DMP).c -o $(DMP)_new
 
 ### convert (old binary to new binary)
 $(CVT)_rev$(dbg): $(CVT).c
@@ -60,8 +60,8 @@ $(CVT)_new$(dbg): $(CVT).c
 $(CVT)_sor$(dbg): $(CVT).c
 	$(CC) $(DBG) $(PRF) $(WAR) $(STA) -UREVERT -DSORT $(CVT).c -o $(CVT)_sor$(dbg)
 
-$(CVT)_new$(opt): $(CVT).c
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -DREVERT -DSORT $(CVT).c -o $(CVT)_new$(opt)
+$(CVT)_new: $(CVT).c
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -DREVERT -DSORT $(CVT).c -o $(CVT)_new
 
 $(CVT)_sor$(opt): $(CVT).c
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -UREVERT -DSORT $(CVT).c -o $(CVT)_sor$(opt)
