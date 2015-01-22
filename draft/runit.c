@@ -93,12 +93,11 @@ int main(int ac, char **av) {
 
 	FILE * fh = ouvrir(fic,"r");
 
-	struct timeval tic,tac ;
-	struct timeval aa ;
+	struct timeval tic,tac,toc,tuc ;
 
 	/* READ and SPLIT  */
 	gettimeofday(&tic,NULL);
-	gettimeofday(&aa,NULL);
+	gettimeofday(&tuc,NULL);
 
 	dimen_t * col_perm;
 
@@ -114,7 +113,8 @@ int main(int ac, char **av) {
 	initSparse(C);
 	initDenseUnit(D);
 
-	col_perm = readFileSplit(A,B,C,D,fh);
+
+	col_perm = readFileSplit(A,B,C,D,fh,&toc);
 
 	fclose(fh);
 	gettimeofday(&tac,NULL);
@@ -162,8 +162,10 @@ int main(int ac, char **av) {
 
 	fprintf(stderr,"  -- result           : %u\n",r);
 
-	fprintf(stderr," TOTAL   time         : %.3f s\n", ((double)(tac.tv_sec - aa.tv_sec)
-				+(double)(tac.tv_usec - aa.tv_usec)/1e6));
+	tuc.tv_sec  += toc.tv_sec ;
+	tuc.tv_usec += toc.tv_usec ;
+	fprintf(stderr," TOTAL   time         : %.3f s\n", ((double)(tac.tv_sec - tuc.tv_sec)
+				+(double)(tac.tv_usec - tuc.tv_usec)/1e6));
 
 	free(col_perm);
 	freeMat(A);
