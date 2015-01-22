@@ -7,7 +7,6 @@ WAR=-Wall -Wextra -ansi
 STA=
 #  STA=-static
 OPT=-march=native -O3 -DNDEBUG -UDEBUG  -flto
-NEW=-D_PROPOSED_FORMAT
 LIB=-lm
 #  PRF=-pg
 PRF=
@@ -15,7 +14,6 @@ PRF=
 par=_par
 PAR=-fopenmp
 
-TST=dumb_write
 DMP=dump_matrix
 CVT=converter
 RUN=runit
@@ -23,23 +21,18 @@ opt=_opt
 dbg=_dbg
 
 all:
-	make $(DMP)_new
-	make $(DMP)_old
-	make $(CVT)_new
+	make $(DMP)
+	make $(CVT)
 
 
 ### dump matrix (to sms...)
-$(DMP)_old$(dbg): $(DMP).c $(DMP).h 
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)_old$(dbg)
 
-$(DMP)_old: $(DMP).c $(DMP).h 
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)_old
+$(DMP)$(dbg): $(DMP).c $(DMP).h
+	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)$(dbg)
 
-$(DMP)_new$(dbg): $(DMP).c $(DMP).h
-	$(CC) $(DBG) $(PRF) $(NEW) $(WAR) $(STA) $(DMP).c -o $(DMP)_new$(dbg)
+$(DMP): $(DMP).c $(DMP).h
+	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)
 
-$(DMP)_new: $(DMP).c $(DMP).h 
-	$(CC) $(OPT) $(PRF) $(NEW) $(WAR) $(STA) $(DMP).c -o $(DMP)_new
 
 ### convert (old binary to new binary)
 $(CVT)_rev$(dbg): $(CVT).c
@@ -60,8 +53,8 @@ $(CVT)_new$(dbg): $(CVT).c
 $(CVT)_sor$(dbg): $(CVT).c
 	$(CC) $(DBG) $(PRF) $(WAR) $(STA) -UREVERT -DSORT $(CVT).c -o $(CVT)_sor$(dbg)
 
-$(CVT)_new: $(CVT).c
-	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -DREVERT -DSORT $(CVT).c -o $(CVT)_new
+$(CVT): $(CVT).c
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -DREVERT -DSORT $(CVT).c -o $(CVT)
 
 $(CVT)_sor$(opt): $(CVT).c
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) -UREVERT -DSORT $(CVT).c -o $(CVT)_sor$(opt)

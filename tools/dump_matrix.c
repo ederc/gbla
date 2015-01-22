@@ -75,86 +75,83 @@ typedef void* Any;
 #include "ouvrir.h"
 
 
-#ifndef _PROPOSED_FORMAT
-static void dump_matrix(char *fic,int all,int strict,int magma)
+static void dump_matrix_old(char *fic,int all,int strict,int magma)
 {
-  FILE* f=ouvrir(fic,"r");
-  unsigned short int *nz;
-  unsigned int       *pos;
-  /* unsigned int       *row; */
-  unsigned int        *sz;
-  unsigned int n;
-  unsigned int m;
-  unsigned int  mod;
-  unsigned long long  nb;
-  fprintf(stderr,"current format printing\n");
+	FILE* f=ouvrir(fic,"r");
+	unsigned short int *nz;
+	unsigned int       *pos;
+	/* unsigned int       *row; */
+	unsigned int        *sz;
+	unsigned int n;
+	unsigned int m;
+	unsigned int  mod;
+	unsigned long long  nb;
+	fprintf(stderr,"current format printing\n");
 
-  SAFE_READ_V(n,unsigned int,f);
-  SAFE_READ_V(m,unsigned int,f);
-  SAFE_READ_V(mod,unsigned int,f);
-  SAFE_READ_V(nb,unsigned long long,f);
+	SAFE_READ_V(n,unsigned int,f);
+	SAFE_READ_V(m,unsigned int,f);
+	SAFE_READ_V(mod,unsigned int,f);
+	SAFE_READ_V(nb,unsigned long long,f);
 
 
-  fprintf(stderr,"%u x %u matrix\n",n,m);
-  fprintf(stderr,"mod %u\n",mod);
-  {
-    double Nz=(double)(n)*(double)(m);
-    Nz=(double)(nb)/Nz;
-    Nz*=100.0;
-    fprintf(stderr,"Nb of Nz elements %Lu (density %.2f)\n",nb,Nz);
-  }
-
-  if (all)
-    {
-      unsigned int i;
-      nz  = malloc(nb*sizeof(short    int));
-      pos = malloc(nb*sizeof(unsigned int));
-      sz  = malloc(n *sizeof(unsigned int));
-      assert(fread(nz, sizeof(short int),   nb,f)==nb);
-      assert(fread(pos,sizeof(unsigned int),nb,f)==nb);
-      assert(fread(sz, sizeof(unsigned int),n, f)==n );
-      if (magma)
+	fprintf(stderr,"%u x %u matrix\n",n,m);
+	fprintf(stderr,"mod %u\n",mod);
 	{
+		double Nz=(double)(n)*(double)(m);
+		Nz=(double)(nb)/Nz;
+		Nz*=100.0;
+		fprintf(stderr,"Nb of Nz elements %Lu (density %.2f)\n",nb,Nz);
+	}
+
+	if (all)
+	{
+		unsigned int i;
+		nz  = malloc(nb*sizeof(short    int));
+		pos = malloc(nb*sizeof(unsigned int));
+		sz  = malloc(n *sizeof(unsigned int));
+		assert(fread(nz, sizeof(short int),   nb,f)==nb);
+		assert(fread(pos,sizeof(unsigned int),nb,f)==nb);
+		assert(fread(sz, sizeof(unsigned int),n, f)==n );
+		if (magma)
+		{
 #if 1
-	  printf("K:=GF(%d);\n",mod);
-	  printf("sz:=[0 : i in [1..%u*%u]];\n",n,m);
-	  printf("A:=Matrix(K,%u,%u,sz);\n",n,m);
+			printf("K:=GF(%d);\n",mod);
+			printf("sz:=[0 : i in [1..%u*%u]];\n",n,m);
+			printf("A:=Matrix(K,%u,%u,sz);\n",n,m);
 #else
-	  printf("A:=matrix(%u,%u):\n",n,m);
+			printf("A:=matrix(%u,%u):\n",n,m);
 #endif /*  1 */
+		}
+		else
+			if (strict)
+				printf("%u %u M\n",n,m);
+			else
+				printf("%u\n%u\n",n,m);
+
+		for(i=0;i<n;i++)
+		{
+			const unsigned int szi=sz[i];
+			unsigned int j;
+			/* fprintf(stderr,"<%u>",szi); */
+			if (magma)
+				for(j=0;j<szi;j++)
+					printf("A[%u,%u]:=%u;\n",i+1,pos[j]+1,(unsigned int)(nz[j]));
+			else
+				for(j=0;j<szi;j++)
+					printf("%u %u %u\n",i+1,pos[j]+1,(unsigned int)(nz[j]));
+			nz+=szi;
+			pos+=szi;
+		}
+		fprintf(stderr,"\n");
 	}
-      else
-	if (strict)
-	  printf("%u %u M\n",n,m);
+
+	if (magma)
+		printf("// ----------------------------------------\n");
 	else
-	  printf("%u\n%u\n",n,m);
-
-      for(i=0;i<n;i++)
-	{
-	  const unsigned int szi=sz[i];
-	  unsigned int j;
-	  /* fprintf(stderr,"<%u>",szi); */
-	  if (magma)
-	    for(j=0;j<szi;j++)
-	      printf("A[%u,%u]:=%u;\n",i+1,pos[j]+1,(unsigned int)(nz[j]));
-	  else
-	    for(j=0;j<szi;j++)
-	      printf("%u %u %u\n",i+1,pos[j]+1,(unsigned int)(nz[j]));
-	  nz+=szi;
-	  pos+=szi;
-	}
-      fprintf(stderr,"\n");
-    }
-
-  if (magma)
-    printf("// ----------------------------------------\n");
-  else
-    if (strict)
-      printf("0 0 0\n");
-  fclose(f);
+		if (strict)
+			printf("0 0 0\n");
+	fclose(f);
 }
-#else
-
 
 #include "print_helper.h"
 
@@ -201,7 +198,7 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
  * idx_pol : indexation for polyomials (size size_pol) ie. unique id for each pol.
  */
 
-static void dump_matrix(char *fic,int all,int strict,int magma)
+static void dump_matrix_new(char *fic,int all,int strict,int magma)
 {
 	FILE* fh=ouvrir(fic,"r");
 
@@ -264,58 +261,96 @@ static void dump_matrix(char *fic,int all,int strict,int magma)
 	fclose(fh);
 }
 
-#endif
-
 void help(char * prog) {
-	printf("usage  : %s [options] filename in correct format\n",prog);
-	printf("default: print the header\n");
-	printf(" -h    : print this help\n");
-	printf(" -l    : dump the whole matrix in SMS format\n");
-	printf(" -m    : dump the whole matrix in magma format\n");
-	printf(" -s    : dump the whole matrix in strict SMS format\n");
+	printf("usage : %s [options] mat \n",prog);
+	printf("usage : %s [options] -\n\n",prog);
+
+	printf(" [default] prints the header of the matrix if no option is given\n");
+	printf(" options can be one of :\n");
+	printf("     -h : print this help\n");
+	printf("     -l : dump the whole matrix in SMS format\n");
+	printf("     -m : dump the whole matrix in magma format\n");
+	printf("     -s : dump the whole matrix in strict SMS format\n");
+	printf(" options can be additionally:\n");
+	printf("     -n : uses new format [default : old format]\n");
+	printf(" filename argument: \n");
+	printf("    mat : represents the matrix is the correct format.\n");
+	printf("    -   : matrix read from stdin as in zcat mat.gz | %s -\n",prog);
+	printf("warning: filename has to be in the correct format\n");
 }
 
 int main(int nargs,char** argv)
 {
-  int all=0;
-  int strict=0;
-  int magma=0;
-  if (nargs>1 and (strcmp(argv[1],"-h") EQ 0))
-  {
-	  help(argv[0]);
-	  return 0;
-  }
+	int all   =0;
+	int strict=0;
+	int magma =0;
+	int new   =0;
 
-  if (nargs>1 and (strcmp(argv[1],"-l") EQ 0))
-    {
-      all=1;
-      strict=0;
-      nargs--;
-      argv++;
-    }
+	if (nargs < 2 || nargs > 4) {
+		fprintf(stderr,"erreur : wrong number of arguments\n");
+		help(argv[0]);
+		exit(-1);
+	}
 
-  if (nargs>1 and (strcmp(argv[1],"-m") EQ 0))
-    {
-      all=1;
-      strict=0;
-      magma=1;
-      nargs--;
-      argv++;
-    }
+	while (nargs > 2) {
 
-  /* SMS format */
-  if (nargs>1 and (strcmp(argv[1],"-s") EQ 0))
-    {
-      all=1;
-      strict=1;
-      nargs--;
-      argv++;
-    }
+		if ( (strcmp(argv[1],"-h") EQ 0) or (strcmp(argv[1],"-?") EQ 0) or (strcmp(argv[1],"--help") EQ 0) )
+		{
+			help(argv[0]);
+			return 0;
+		}
 
-  {
-    char* fic=(nargs>1 ? argv[1] : "mat1");
-    dump_matrix(fic,all,strict,magma);
-  }
+		else if (strcmp(argv[1],"-l") EQ 0)
+		{
+			all=1;
+			strict=0;
+			nargs--;
+			argv++;
+		}
 
-  return 0;
+		else if (strcmp(argv[1],"-n") EQ 0)
+		{
+			new=1;
+			nargs--;
+			argv++;
+		}
+
+		else if (strcmp(argv[1],"-m") EQ 0)
+		{
+			all=1;
+			strict=0;
+			magma=1;
+			nargs--;
+			argv++;
+		}
+
+		/* SMS format */
+		else if (strcmp(argv[1],"-s") EQ 0)
+		{
+			all=1;
+			strict=1;
+			nargs--;
+			argv++;
+		}
+
+		else {
+			fprintf(stderr,"erreur : bad argument %s\n",argv[1]);
+			help(argv[0]);
+			exit(-1);
+		}
+	}
+
+	if ( (strcmp(argv[1],"-h") EQ 0) or (strcmp(argv[1],"-?") EQ 0) or (strcmp(argv[1],"--help") EQ 0) )
+	{
+		help(argv[0]);
+		return 0;
+	}
+
+	char* fic= argv[1] ;
+	if (new == 1)
+		dump_matrix_new(fic,all,strict,magma);
+	else
+		dump_matrix_old(fic,all,strict,magma);
+
+	return 0;
 }

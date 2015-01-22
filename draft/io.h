@@ -59,7 +59,19 @@ dimen_t getSparsestRows_fast(
 		, dimen_t * pivots_data /* pivots_data[j] is the sparsest row with j as pivot */
 		)
 {
+
+
 	dimen_t i = 0;
+
+	dimen_t cnt = 0 ;
+for ( i = 0 ; i< row ; ++i) {
+	dimen_t j =  nextcol(colid,start,i) ;
+	if ( j == 0 ||  (j-i) > (4))
+		cnt ++ ;
+}
+printf("%u %u\n",cnt,row);
+
+
 	dimen_t k_dim = 0;
 
 	SAFE_MALLOC_DECL(creux_v,row,dimen_t);

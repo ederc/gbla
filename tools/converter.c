@@ -30,23 +30,57 @@
 #include "selecter.h"
 
 
-#ifdef REVERT
-#warning "reverting rows"
+#ifndef REVERT
+#warning "not reverting rows"
 #endif /* REVERT */
-#ifdef SORT
-#warning "sorting rows"
+#ifndef SORT
+#warning "not sorting rows"
 #endif /* SORT */
 
+
+void usage(char * av) {
+	printf(" usage : \n");
+	printf(" (1)   %s mat\n",av);
+	printf(" (2)   %s mat_name - \n\n",av);
+
+	printf(" (1) will produce a file named mat.gbm in the new format from matrix mat\n");
+	printf(" (2) will produce a file named mat_name.gbm in the new format from  stdin \n");
+	printf(" this would happen like : zcat mat.gz | %s mat - \n",av);
+	printf(" Warning : the input matrix has to be a file in the old format\n");
+	printf(" Warning : %s will sort the matrix by denser to sparser rows\n",av);
+	printf("           compile without -DREVERT or -DSORT to change that (see Makefile).\n");
+}
 
 
 /* ./convert toto.gb */
 int main( int ac, char ** av)
 {
-	if (ac != 2) {
-		printf(" erreur ! usage %s nom_fichier\n",av[0]);
+	if (ac < 2 || ac > 3) {
+		usage(av[0]);
+		exit(-1);
 	}
-	FILE * titi =fopen(av[1],"r"); /* in */
+	if (ac == 3) {
+		if ( strcmp(av[2],"-") != 0)  {
+		usage(av[0]);
+		exit(-1);
+		}
+	}
+	if ( (strcmp(av[1],"-h") == 0) || (strcmp(av[1],"-?") == 0) || (strcmp(av[1],"--help") == 0) ) {
+		usage(av[0]);
+		return(0);
+	}
+	FILE * titi ;
 	char out[1024]; /* not too large the path... */
+	if (ac == 2) {
+		titi = fopen(av[1],"r"); /* in */
+		if (!titi) {
+			fprintf(stderr," erreur ! can't read file %s \n",av[1]);
+			exit(-1);
+		}
+	}
+	if (ac == 3) {
+		titi = stdin ;
+	}
 	strcpy(out,av[1]);
 #if defined(REVERT) && defined(SORT)
 	strcat(out,".gbm");
@@ -306,6 +340,7 @@ int main( int ac, char ** av)
 
 	fclose(toto);
 
+	printf("created file %s\n",out);
 	return 0;
 }
 
