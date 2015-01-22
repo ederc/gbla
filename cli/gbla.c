@@ -829,32 +829,25 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
 
   ri_t rank_M = map->npiv + rank_D;
 
-  if (reduce_completely == 0) {
-    if (verbose > 1) {
-      gettimeofday(&t_load_start, NULL);
-      printf("---------------------------------------------------------------------\n");
-      printf(">>>>\tSTART reconstructing output matrix ...\n");
-    }
-    process_matrix(D_red, map_D, block_dimension);
-    combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
-    reconstruct_matrix_ml(M, A, B, D_red, map, M->ncols, 1, 1, 0, 0, nthreads);
-    if (verbose > 1) {
-      printf("<<<<\tDONE  reconstructing output matrix.\n");
-      printf("TIME\t%.3f sec\n",
-          walltime(t_load_start) / (1000000));
-      print_mem_usage();
-      printf("---------------------------------------------------------------------\n");
-      printf("---------------------------------------------------------------------\n");
-      printf("Rank of M:\t%u\n", rank_M);
-      printf("---------------------------------------------------------------------\n");
-      printf("\n");
-    }
-  } else { // compute reduced row echelon form of input matrix
-    if (verbose > 1) {
-      printf("---------------------------------------------------------------------\n");
-      printf(">>>>\tSTART of RREF computation...\n");
-      printf("---------------------------------------------------------------------\n");
-    }
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reconstructing output matrix ...\n");
+  }
+  process_matrix(D_red, map_D, block_dimension);
+  combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
+  reconstruct_matrix_ml(M, A, B, D_red, map, M->ncols, 1, 1, 0, 0, nthreads);
+
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reconstructing output matrix.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("---------------------------------------------------------------------\n");
+    printf("Rank of M:\t%u\n", rank_M);
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
   }
   return 0;
 }

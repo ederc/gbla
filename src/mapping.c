@@ -589,9 +589,14 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
         for (j=0; j<clB; ++j) {
           if (B->blocks[block_row_idx][j] == NULL)
             continue;
-          if ((B->blocks[block_row_idx][j][row_idx_block].val == NULL) ||
-              (B->blocks[block_row_idx][j][row_idx_block].sz == 0))
+          if (B->blocks[block_row_idx][j][row_idx_block].val == NULL)
             continue;
+          if (B->blocks[block_row_idx][j][row_idx_block].sz == 0) {
+            free(B->blocks[block_row_idx][j][row_idx_block].val);
+            B->blocks[block_row_idx][j][row_idx_block].val  = NULL;
+            free(B->blocks[block_row_idx][j][row_idx_block].idx);
+            B->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
+          }
 
           block_start_idx = B->bwidth * j;
 
@@ -646,6 +651,56 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     }
   }
   if (free_matrices == 1) {
+  /*
+  // column loops
+  const uint32_t clA  = (uint32_t) ceil((float)(M->ncols-B->ncols) / B->bwidth);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  // row loops
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / __GB_NROWS_MULTILINE);
+
+  int ii,jj,kk,ll;
+  printf("=============== A ========================\n");
+  for (ii=0; ii<rlA; ++ii) {
+    for (jj=0; jj<clA; ++jj) {
+      for (kk=0; kk<B->bheight/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        if (A->blocks != NULL)
+          if (A->blocks[ii] != NULL)
+            if (A->blocks[ii][jj] != NULL) {
+              printf("%p -- %p\n",A->blocks[ii][jj][kk].val, A->blocks[ii][jj][kk].idx);
+              if (A->blocks[ii][jj][kk].val != NULL)
+                printf("%d\n",A->blocks[ii][jj][kk].val[0]);
+              printf("sz: %d\n",A->blocks[ii][jj][kk].sz);
+              printf("\n");
+            }
+      }
+    }
+  }
+  
+  printf("=============== B ========================\n");
+  for (ii=0; ii<rlB; ++ii) {
+    for (jj=0; jj<clB; ++jj) {
+      for (kk=0; kk<B->bheight/2; ++kk) {
+        printf("%d .. %d .. %d\n",ii,jj,kk);
+        if (B->blocks[ii][jj] != NULL) {
+          printf("%p -- %p\n",B->blocks[ii][jj][kk].val, B->blocks[ii][jj][kk].idx);
+          if (B->blocks[ii][jj][kk].val != NULL)
+            printf("%d\n",B->blocks[ii][jj][kk].val[0]);
+          printf("sz: %d\n",B->blocks[ii][jj][kk].sz);
+          printf("\n");
+        }
+      }
+    }
+  }
+  printf("=============== D ========================\n");
+  for (ii=0; ii<rlD; ++ii) {
+    printf("%d .. \n",ii);
+        printf("%p -- %p", D->ml[ii].val,D->ml[ii].idx);
+      printf("\n");
+  }
+  */
     free (vec_free_AB);
     free (vec_free_D);
     free (D->ml);
@@ -706,8 +761,10 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   }
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  
+  M->nnz  = 0;
 
-#pragma omp parallel num_threads(nthrds)
+#pragma omp parallel num_threads(1)
   {
     ml_t *row_A, *row_D;
     re_t **row_M;
@@ -723,26 +780,13 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
 
       local_piv = new_piv_to_row[i];
 
-      // if M was freed on the go, allocate memory again
-      if (M_freed == 1) {
-        // clear data first
-        //printf("realloc %d memory blocks\n",buffer);
-      }
-      M->nnz  = 0;
-      // clear old data
-      //memset(*row_M, 0, tmp_width * sizeof(re_t));
-      //memset(*pos_M, 0, tmp_width * sizeof(ci_t));
-
       if (map->pri[i] >= map->npiv) { // we are in D
         // we need at most D->ncols = B->ncols elements
         // ==> no reallocations!
-        M->rows[local_piv]  = realloc(M->rows[local_piv], D->ncols * sizeof(re_t));
-        M->pos[local_piv]   = realloc(M->pos[local_piv], D->ncols * sizeof(ci_t));
-        // clear data first
-        row_M       = &(M->rows[local_piv]);
-        pos_M       = &(M->pos[local_piv]);
-        tmp_width   = D->ncols;
-        row_M_width = 0;
+        M->rows[local_piv]    = realloc(M->rows[local_piv], D->ncols * sizeof(re_t));
+        M->pos[local_piv]     = realloc(M->pos[local_piv], D->ncols * sizeof(ci_t));
+        M->rwidth[local_piv]  = 0;
+
         row_D = &(D->ml[(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE]);
         line  = (map->pri[i]-map->npiv)%__GB_NROWS_MULTILINE;
 
@@ -752,11 +796,10 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
             if (row_D->val[2*j+line] == 0)
               continue;
 
-            (*row_M)[row_M_width] = row_D->val[2*j+line];
-            (*pos_M)[row_M_width] = map->npc_rev[j];
+            M->rows[local_piv][M->rwidth[local_piv]]  = row_D->val[2*j+line];
+            M->pos[local_piv][M->rwidth[local_piv]]   = map->npc_rev[j];
             //printf("1 %d -- %u\n",map->npc_rev[j],row_D->val[2*j+line]);
-            row_M_width++;
-            M->nnz++;
+            M->rwidth[local_piv]++;
           }
           if (free_matrices == 1) {
             if (vec_free_D[(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE] == 0) {
@@ -765,6 +808,8 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
               //printf("frees multiline %d\n",(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE);
               free(row_D->val);
               row_D->val  = NULL;
+              free(row_D->idx);
+              row_D->idx  = NULL;
             }
           }
         }
@@ -772,13 +817,9 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
         // we need size of A->ml and otherwise at most D->ncols = B->ncols elements
         // ==> no reallocations!
         row_A = &(A->ml[(A->nrows - 1 - (map->pri[i]))/__GB_NROWS_MULTILINE]);
-        M->rows[local_piv]  = realloc(M->rows[local_piv], (row_A->sz+B->ncols) * sizeof(re_t));
-        M->pos[local_piv]   = realloc(M->pos[local_piv], (row_A->sz+B->ncols) * sizeof(ci_t));
-        // clear data first
-        row_M       = &(M->rows[local_piv]);
-        pos_M       = &(M->pos[local_piv]);
-        tmp_width   = row_A->sz+D->ncols;
-        row_M_width = 0;
+        M->rows[local_piv]    = realloc(M->rows[local_piv], (row_A->sz+B->ncols) * sizeof(re_t));
+        M->pos[local_piv]     = realloc(M->pos[local_piv], (row_A->sz+B->ncols) * sizeof(ci_t));
+        M->rwidth[local_piv]  = 0;
         ci_t block_row_idx, row_idx_block, block_start_idx, idx;
         re_t val;
         block_row_idx = (B->nrows - 1 - map->pri[i]) / B->bheight;
@@ -788,26 +829,29 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
 
         if (row_A->dense == 0) {
           for (j=0; j<row_A->sz; ++j) {
-            (*row_M)[row_M_width]  = row_A->val[2*j+line];
-            (*pos_M)[row_M_width]  = row_A->idx[j];
-            row_M_width++;
-            M->nnz++;
+            M->rows[local_piv][M->rwidth[local_piv]]  = row_A->val[2*j+line];
+            M->pos[local_piv][M->rwidth[local_piv]]   = row_A->idx[j];
+            M->rwidth[local_piv]++;
           }
         } else {
           for (j=0; j<row_A->sz; ++j) {
-            (*row_M)[row_M_width]  = row_A->val[2*j+line];
-            (*pos_M)[row_M_width]  = j;
-            row_M_width++;
-            M->nnz++;
+            M->rows[local_piv][M->rwidth[local_piv]]  = row_A->val[2*j+line];
+            M->pos[local_piv][M->rwidth[local_piv]]   = j;
+            M->rwidth[local_piv]++;
           }
         }
         // add B part to row in M
         for (j=0; j<clB; ++j) {
           if (B->blocks[block_row_idx][j] == NULL)
             continue;
-          if ((B->blocks[block_row_idx][j][row_idx_block].val == NULL) ||
-              (B->blocks[block_row_idx][j][row_idx_block].sz == 0))
+          if (B->blocks[block_row_idx][j][row_idx_block].val == NULL)
             continue;
+          if (B->blocks[block_row_idx][j][row_idx_block].sz == 0) {
+            free(B->blocks[block_row_idx][j][row_idx_block].val);
+            B->blocks[block_row_idx][j][row_idx_block].val  = NULL;
+            free(B->blocks[block_row_idx][j][row_idx_block].idx);
+            B->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
+          }
 
           block_start_idx = B->bwidth * j;
 
@@ -816,22 +860,18 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
               idx = B->blocks[block_row_idx][j][row_idx_block].idx[k];
               val = B->blocks[block_row_idx][j][row_idx_block].val[2*k+line];
               if (val != 0) {
-                (*row_M)[row_M_width]  = val;
-                (*pos_M)[row_M_width]  = block_start_idx + idx;
-                //printf("3 %d -- %u\n",block_start_idx+idx,val);
-                row_M_width++;
-                M->nnz++;
+                M->rows[local_piv][M->rwidth[local_piv]]  = val;
+                M->pos[local_piv][M->rwidth[local_piv]]   = block_start_idx + idx;
+                M->rwidth[local_piv]++;
               }
             }
           } else { // B block multiline is dense
             for (k=0; k<B->blocks[block_row_idx][j][row_idx_block].sz; ++k) {
               val = B->blocks[block_row_idx][j][row_idx_block].val[2*k+line];
               if (val != 0) {
-                (*row_M)[row_M_width]  = val;
-                (*pos_M)[row_M_width]  = block_start_idx + k;
-                //printf("4 %d -- %u\n",block_start_idx+k,val);
-                row_M_width++;
-                M->nnz++;
+                M->rows[local_piv][M->rwidth[local_piv]]  = val;
+                M->pos[local_piv][M->rwidth[local_piv]]   = block_start_idx + k;
+                M->rwidth[local_piv]++;
               }
             }
           }
@@ -841,13 +881,18 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
                 free (B->blocks[block_row_idx][j][row_idx_block].idx);
                 B->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
               }
-              //printf("frees block [%d][%d][%d]\n", block_row_idx,j,row_idx_block);
               free (B->blocks[block_row_idx][j][row_idx_block].val);
               B->blocks[block_row_idx][j][row_idx_block].val  = NULL;
             }
           }
         }
         if (free_matrices == 1) {
+          if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 1) {
+            free(row_A->val);
+            row_A->val  = NULL;
+            free(row_A->idx);
+            row_A->idx  = NULL;
+          }
           if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 0) {
             vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE]  = 1;
           }
@@ -855,9 +900,11 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
       }
       // adjust memory, rows in M are done
       //printf("final row width: %d for %d\n",row_M_width, local_piv);
-      *row_M = realloc(*row_M, (row_M_width) * sizeof(re_t));
-      *pos_M = realloc(*pos_M, (row_M_width) * sizeof(ci_t));
-      M->rwidth[local_piv]  = row_M_width;
+      M->rows[local_piv]  = realloc(M->rows[local_piv],
+          M->rwidth[local_piv] * sizeof(re_t));
+      M->pos[local_piv]   = realloc(M->pos[local_piv],
+          M->rwidth[local_piv] * sizeof(ci_t));
+      M->nnz  = M->nnz + M->rwidth[local_piv];
       // next pivot row
     }
   }
@@ -867,6 +914,9 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     free (D->ml);
     free (D);
     D = NULL;
+    free (A->ml);
+    free (A);
+    A = NULL;
     for (i=0; i<rlB; ++i) {
       for (j=0; j<clB; ++j) {
         free(B->blocks[i][j]);
@@ -879,6 +929,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     free (B);
     B = NULL;
   }
+
 
   // free memory for map
   free(map->pc);
