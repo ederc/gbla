@@ -116,6 +116,23 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
       }
     }
   }
+  if (deleteIn == 1) {
+    // free memory for input matrix
+#pragma omp parallel num_threads(nthrds)
+    {
+#pragma omp for private(i,j,k) nowait
+      for (i=0; i<rlin_ml; ++i) {
+        free(in_ml->ml[i].idx);
+        in_ml->ml[i].idx = NULL;
+        free(in_ml->ml[i].val);
+        in_ml->ml[i].val = NULL;
+      }
+    }
+    free(in_ml->ml);
+    in_ml->ml  = NULL;
+    free(in_ml);
+    in_ml  = NULL;
+  }
   if (out->rwidth[sparse_idx] > 0)
     sparse_idx++;
   if (out->rwidth[sparse_idx] > 0)
@@ -187,7 +204,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     }
   }
 
-  if (deleteIn) {
+  if (deleteIn == 1) {
     // free memory for input matrix
 #pragma omp parallel num_threads(nthrds)
     {
@@ -215,20 +232,6 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     free(in_bl);
     in_bl  = NULL;
     // free memory for input matrix
-#pragma omp parallel num_threads(nthrds)
-    {
-#pragma omp for private(i,j,k) nowait
-      for (i=0; i<rlin_ml; ++i) {
-        free(in_ml->ml[i].idx);
-        in_ml->ml[i].idx = NULL;
-        free(in_ml->ml[i].val);
-        in_ml->ml[i].val = NULL;
-      }
-    }
-    free(in_ml->ml);
-    in_ml->ml  = NULL;
-    free(in_ml);
-    in_ml  = NULL;
   }
   *input_bl = in_bl;
   *input_ml = in_ml;
