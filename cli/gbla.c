@@ -626,34 +626,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     }
     printf("---------------------------------------------------------------------\n");
   }
-  /*
-  int ii,jj,kk,ll;
-  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops
-  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
-  printf("D after splicing\n");
-  for (ii=0; ii<rlD; ++ii) {
-    for (jj=0; jj<clD; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (D->blocks[ii][jj] != NULL) {
-          if (D->blocks[ii][jj][kk].dense == 1) {
-            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
-              printf("%d -- ", ll);
-              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
-            }
-          } else {
-            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
-              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
-              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
-            }
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
-  */
 #if __GB_CLI_DEBUG
 
   // column loops
@@ -775,30 +747,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("\n");
   }
 
-  /*
-  printf("D after eliminating C\n");
-  for (ii=0; ii<rlD; ++ii) {
-    for (jj=0; jj<clD; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (D->blocks[ii][jj] != NULL) {
-          if (D->blocks[ii][jj][kk].dense == 1) {
-            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
-              printf("%d -- ", ll);
-              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
-            }
-          } else {
-            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
-              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
-              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
-            }
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
-  */
 
   // echelonize D using methods of Faugère & Lachartre
 

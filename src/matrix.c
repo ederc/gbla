@@ -25,7 +25,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   sm_fl_ml_t *in_ml = *input_ml;
   sm_t *out         = *output;
 
-  ri_t i, ii;
+  ri_t i;
   ci_t j;
   bi_t k;
   bi_t l;
@@ -43,16 +43,6 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   out->pos    = (ci_t **)malloc(rl * sizeof(ci_t *));
   out->rwidth = (ci_t *)malloc(rl * sizeof(ci_t));
   memset(out->rwidth, 0, rl * sizeof(ci_t));
-#pragma omp parallel num_threads(nthrds)
-  {
-#pragma omp for private(i) nowait
-    for (i=0; i<rl; ++i) {
-      out->rows[i]  = (re_t *)malloc(out->ncols * sizeof(re_t));
-      memset(out->rows[i], 0, out->ncols * sizeof(re_t));
-      out->pos[i]   = (ci_t *)malloc(out->ncols * sizeof(ci_t));
-      memset(out->pos[i], 0, out->ncols * sizeof(ci_t));
-    }
-  }
   const ri_t rlin_bl = (ri_t) ceil((float) in_bl->nrows / in_bl->bheight);
   const ci_t clin_bl = (ci_t) ceil((float) in_bl->ncols / in_bl->bwidth);
   // we need buffers for all multiline entries since the copying process
@@ -84,6 +74,10 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     if (in_ml->ml[i].val == NULL || in_ml->ml[i].sz == 0) {
       continue;
     }
+    out->rows[sparse_idx]   = (re_t *)malloc(out->ncols * sizeof(re_t));
+    out->pos[sparse_idx]    = (ci_t *)malloc(out->ncols * sizeof(ci_t));
+    out->rows[sparse_idx+1] = (re_t *)malloc(out->ncols * sizeof(re_t));
+    out->pos[sparse_idx+1]  = (ci_t *)malloc(out->ncols * sizeof(ci_t));
     if (in_ml->ml[i].dense == 0) {
       for (j=0; j<clin_ml; ++j) {
         v1  = in_ml->ml[i].val[2*j];
@@ -115,6 +109,28 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
         }
       }
     }
+    out->rows[sparse_idx] = realloc(out->rows[sparse_idx],
+        out->rwidth[sparse_idx]*sizeof(re_t));
+    out->pos[sparse_idx]  = realloc(out->pos[sparse_idx],
+        out->rwidth[sparse_idx]*sizeof(ci_t));
+    out->rows[sparse_idx+1] = realloc(out->rows[sparse_idx+1],
+        out->rwidth[sparse_idx+1]*sizeof(re_t));
+    out->pos[sparse_idx+1]  = realloc(out->pos[sparse_idx+1],
+        out->rwidth[sparse_idx+1]*sizeof(ci_t));
+  }
+  if (deleteIn == 1) {
+    // free memory for input matrix
+#pragma omp parallel for num_threads(nthrds)
+    for (i=0; i<rlin_ml; ++i) {
+      free(in_ml->ml[i].idx);
+      in_ml->ml[i].idx = NULL;
+      free(in_ml->ml[i].val);
+      in_ml->ml[i].val = NULL;
+    }
+    free(in_ml->ml);
+    in_ml->ml  = NULL;
+    free(in_ml);
+    in_ml  = NULL;
   }
   if (out->rwidth[sparse_idx] > 0)
     sparse_idx++;
@@ -124,111 +140,97 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   const ri_t offset = sparse_idx;
   // write B second into output matrix
 
-#pragma omp parallel num_threads(nthrds)
-  {
-#pragma omp for private(sparse_idx,i,ii,j,k,l,block_idx,block_vert,v1,v2) nowait
-    for (i=0; i<rlin_bl; ++i) { // loop over multilines
-      block_vert = i * in_bl->bheight;
-      for (j=0; j<clin_bl; ++j) {
-        block_idx = j * in_bl->bwidth;
-        if (in_bl->blocks[i][j] == NULL) {
+  for (i=0; i<rlin_bl; ++i) { // loop over multilines
+    if (in_bl->blocks[i] == NULL) {
+      continue;
+    }
+    block_vert  = i * in_bl->bheight;
+    sparse_idx  = block_vert + offset;
+    k = 0;
+    while (sparse_idx+k < out->nrows && k<in_bl->bheight) {
+      out->rows[sparse_idx+k] = (re_t *)malloc(out->ncols * sizeof(re_t));
+      out->pos[sparse_idx+k]  = (ci_t *)malloc(out->ncols * sizeof(ci_t));
+      ++k;
+    }
+    for (j=0; j<clin_bl; ++j) {
+      block_idx = j * in_bl->bwidth;
+      if (in_bl->blocks[i][j] == NULL) {
+        continue;
+      }
+      for (k=0;k<ml_bheight; ++k) {
+        if (in_bl->blocks[i][j][k].sz == 0) {
           continue;
         }
-        for (k=0;k<ml_bheight; ++k) {
-          if (in_bl->blocks[i][j][k].sz == 0) {
-            continue;
-          }
-          sparse_idx  = block_vert+2*k + offset;
-          if (in_bl->blocks[i][j][k].dense == 0) {
-            for (l=0; l<in_bl->blocks[i][j][k].sz; ++l) {
-              // fill in data
-              v1  = in_bl->blocks[i][j][k].val[2*l];
-              v2  = in_bl->blocks[i][j][k].val[2*l+1];
-              if (v1 != 0) {
-                out->rows[sparse_idx][out->rwidth[sparse_idx]]  = v1;
-                out->pos[sparse_idx][out->rwidth[sparse_idx]]   = block_idx + in_bl->blocks[i][j][k].idx[l];
-                out->rwidth[sparse_idx]++;
-              }
-              if (v2 != 0) {
-                out->rows[sparse_idx+1][out->rwidth[sparse_idx+1]]  = v2;
-                out->pos[sparse_idx+1][out->rwidth[sparse_idx+1]]   = block_idx + in_bl->blocks[i][j][k].idx[l];
-                out->rwidth[sparse_idx+1]++;
-              }
+        if (in_bl->blocks[i][j][k].dense == 0) {
+          for (l=0; l<in_bl->blocks[i][j][k].sz; ++l) {
+            // fill in data
+            v1  = in_bl->blocks[i][j][k].val[2*l];
+            v2  = in_bl->blocks[i][j][k].val[2*l+1];
+            if (v1 != 0) {
+              out->rows[sparse_idx+(2*k)][out->rwidth[sparse_idx+(2*k)]]  = v1;
+              out->pos[sparse_idx+(2*k)][out->rwidth[sparse_idx+(2*k)]]   = block_idx + in_bl->blocks[i][j][k].idx[l];
+              out->rwidth[sparse_idx+(2*k)]++;
             }
-          } else {
-            for (l=0; l<in_bl->blocks[i][j][k].sz; ++l) {
-              // fill in data
-              v1  = in_bl->blocks[i][j][k].val[2*l];
-              v2  = in_bl->blocks[i][j][k].val[2*l+1];
-              if (v1 != 0) {
-                out->rows[sparse_idx][out->rwidth[sparse_idx]]  = v1;
-                out->pos[sparse_idx][out->rwidth[sparse_idx]]   = block_idx + l;
-                out->rwidth[sparse_idx]++;
-              }
-              if (v2 != 0) {
-                out->rows[sparse_idx+1][out->rwidth[sparse_idx+1]]  = v2;
-                out->pos[sparse_idx+1][out->rwidth[sparse_idx+1]]   = block_idx + l;
-                out->rwidth[sparse_idx+1]++;
-              }
+            if (v2 != 0) {
+              out->rows[sparse_idx+(2*k+1)][out->rwidth[sparse_idx+(2*k+1)]]  = v2;
+              out->pos[sparse_idx+(2*k+1)][out->rwidth[sparse_idx+(2*k+1)]]   = block_idx + in_bl->blocks[i][j][k].idx[l];
+              out->rwidth[sparse_idx+(2*k+1)]++;
+            }
+          }
+        } else {
+          for (l=0; l<in_bl->blocks[i][j][k].sz; ++l) {
+            // fill in data
+            v1  = in_bl->blocks[i][j][k].val[2*l];
+            v2  = in_bl->blocks[i][j][k].val[2*l+1];
+            if (v1 != 0) {
+              out->rows[sparse_idx+(2*k)][out->rwidth[sparse_idx+(2*k)]]  = v1;
+              out->pos[sparse_idx+(2*k)][out->rwidth[sparse_idx+(2*k)]]   = block_idx + l;
+              out->rwidth[sparse_idx+(2*k)]++;
+            }
+            if (v2 != 0) {
+              out->rows[sparse_idx+(2*k+1)][out->rwidth[sparse_idx+(2*k+1)]]  = v2;
+              out->pos[sparse_idx+(2*k+1)][out->rwidth[sparse_idx+(2*k+1)]]   = block_idx + l;
+              out->rwidth[sparse_idx+(2*k+1)]++;
             }
           }
         }
       }
     }
-  }
-
-  // realloc memory
-#pragma omp parallel num_threads(nthrds)
-  {
-#pragma omp for private(i) nowait
-    for (i=0; i<out->nrows; ++i) {
-      out->rows[i]  = realloc(out->rows[i],out->rwidth[i]*sizeof(re_t));
-      out->pos[i]   = realloc(out->pos[i],out->rwidth[i]*sizeof(ci_t));
+    k = 0;
+    while (sparse_idx+k < out->nrows && k<in_bl->bheight) {
+      out->rows[sparse_idx+k] = realloc(out->rows[sparse_idx+k],
+          out->rwidth[sparse_idx+k]*sizeof(re_t));
+      out->pos[sparse_idx+k]  = realloc(out->pos[sparse_idx+k],
+          out->rwidth[sparse_idx+k]*sizeof(ci_t));
+      ++k;
     }
   }
 
-  if (deleteIn) {
+  if (deleteIn == 1) {
     // free memory for input matrix
-#pragma omp parallel num_threads(nthrds)
-    {
-#pragma omp for private(i,j,k) nowait
-      for (i=0; i<rlin_bl; ++i) {
-        for (j=0; j<clin_bl; ++j) {
-          if (in_bl->blocks[i][j] != NULL) {
-            for (k=0; k<ml_bheight; ++k) {
-              free(in_bl->blocks[i][j][k].idx);
-              in_bl->blocks[i][j][k].idx = NULL;
+#pragma omp parallel for private(i,j,k) num_threads(nthrds)
+    for (i=0; i<rlin_bl; ++i) {
+      for (j=0; j<clin_bl; ++j) {
+        if (in_bl->blocks[i][j] != NULL) {
+          for (k=0; k<ml_bheight; ++k) {
+            free(in_bl->blocks[i][j][k].idx);
+            in_bl->blocks[i][j][k].idx = NULL;
 
-              free(in_bl->blocks[i][j][k].val);
-              in_bl->blocks[i][j][k].val = NULL;
-            }
-            free(in_bl->blocks[i][j]);
-            in_bl->blocks[i][j] = NULL;
+            free(in_bl->blocks[i][j][k].val);
+            in_bl->blocks[i][j][k].val = NULL;
           }
+          free(in_bl->blocks[i][j]);
+          in_bl->blocks[i][j] = NULL;
         }
-        free(in_bl->blocks[i]);
-        in_bl->blocks[i] = NULL;
       }
+      free(in_bl->blocks[i]);
+      in_bl->blocks[i] = NULL;
     }
     free(in_bl->blocks);
     in_bl->blocks  = NULL;
     free(in_bl);
     in_bl  = NULL;
     // free memory for input matrix
-#pragma omp parallel num_threads(nthrds)
-    {
-#pragma omp for private(i,j,k) nowait
-      for (i=0; i<rlin_ml; ++i) {
-        free(in_ml->ml[i].idx);
-        in_ml->ml[i].idx = NULL;
-        free(in_ml->ml[i].val);
-        in_ml->ml[i].val = NULL;
-      }
-    }
-    free(in_ml->ml);
-    in_ml->ml  = NULL;
-    free(in_ml);
-    in_ml  = NULL;
   }
   *input_bl = in_bl;
   *input_ml = in_ml;
