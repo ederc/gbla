@@ -35,6 +35,7 @@
 	b = t
 
 #define DIVIDE_INTO(x,y) (((x) + (y) - 1)/(y))
+#define ALIGN(x) DIVIDE_INTO(x,UNRL)*UNRL
 
 
 #ifndef NDEBUG

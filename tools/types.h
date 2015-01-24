@@ -19,7 +19,7 @@
 
 
 #ifndef TYPE
-#define elemt_s uint16_t /* field element storage */
+#define elemt_s  int16_t /* field element storage */
 #define elemt_t double   /* field element type    */
 #endif
 

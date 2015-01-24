@@ -51,6 +51,8 @@ void Mjoin(dump,TEMPL_TYPE)(FILE * fh,int all,int strict,int magma)
 		/* if compressed, we need to know the size of colid */
 		SAFE_READ_DECL_V(colid_size,uint64_t,fh); /* the size may be large (but < nnz/2) */
 
+		fprintf(stderr,"%lu\n",colid_size);
+
 		/* colid */
 		SAFE_READ_DECL_P(colid,colid_size,uint32_t,fh); /*   columns are numbered on 32 bits */
 

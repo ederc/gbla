@@ -68,7 +68,7 @@
 #undef USE_SAXPY
 #define USE_SAXPY2
 #undef USE_SAXPYn
-#undef STATS
+#define STATS
 
 #ifndef SIMD
 #warning "you should enable simd operations"

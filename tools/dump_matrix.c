@@ -78,10 +78,10 @@ typedef void* Any;
 static void dump_matrix_old(char *fic,int all,int strict,int magma)
 {
 	FILE* f=ouvrir(fic,"r");
-	unsigned short int *nz;
-	unsigned int       *pos;
+	/* short int *nz; */
+	/* unsigned int       *pos; */
 	/* unsigned int       *row; */
-	unsigned int        *sz;
+	/* unsigned int        *sz; */
 	unsigned int n;
 	unsigned int m;
 	unsigned int  mod;
@@ -106,12 +106,9 @@ static void dump_matrix_old(char *fic,int all,int strict,int magma)
 	if (all)
 	{
 		unsigned int i;
-		nz  = malloc(nb*sizeof(short    int));
-		pos = malloc(nb*sizeof(unsigned int));
-		sz  = malloc(n *sizeof(unsigned int));
-		assert(fread(nz, sizeof(short int),   nb,f)==nb);
-		assert(fread(pos,sizeof(unsigned int),nb,f)==nb);
-		assert(fread(sz, sizeof(unsigned int),n, f)==n );
+		SAFE_READ_DECL_P(nz,  nb, short int, f);
+		SAFE_READ_DECL_P(pos, nb, unsigned int, f);
+		SAFE_READ_DECL_P(sz,  n,  unsigned int, f);
 		if (magma)
 		{
 #if 1
@@ -135,10 +132,10 @@ static void dump_matrix_old(char *fic,int all,int strict,int magma)
 			/* fprintf(stderr,"<%u>",szi); */
 			if (magma)
 				for(j=0;j<szi;j++)
-					printf("A[%u,%u]:=%u;\n",i+1,pos[j]+1,(unsigned int)(nz[j]));
+					printf("A[%u,%u]:=%d;\n",i+1,pos[j]+1,(int)(nz[j]));
 			else
 				for(j=0;j<szi;j++)
-					printf("%u %u %u\n",i+1,pos[j]+1,(unsigned int)(nz[j]));
+					printf("%u %u %d\n",i+1,pos[j]+1,(int)(nz[j]));
 			nz+=szi;
 			pos+=szi;
 		}
@@ -207,7 +204,7 @@ static void dump_matrix_new(char *fic,int all,int strict,int magma)
 	SAFE_READ_DECL_V(b,  uint32_t,fh);
 
 	if ((b & VERMASK) != VERMASK)  {
-		fprintf(stderr,"error : file has bad version number \n");
+		fprintf(stderr,"error : file %s has bad version number \n",fic);
 	}
 
 	b = b ^ VERMASK ;
@@ -237,16 +234,16 @@ static void dump_matrix_new(char *fic,int all,int strict,int magma)
 			switch (b>>1)
 		{
 			case  0 :
-				dump_uint8_t(fh,all,strict,magma);
+				dump_int8_t(fh,all,strict,magma);
 				break;
 			case  1 :
-				dump_uint16_t(fh,all,strict,magma);
+				dump_int16_t(fh,all,strict,magma);
 				break;
 			case  2 :
-				dump_uint32_t(fh,all,strict,magma);
+				dump_int32_t(fh,all,strict,magma);
 				break;
 			case  3 :
-				dump_uint64_t(fh,all,strict,magma);
+				dump_int64_t(fh,all,strict,magma);
 				break;
 			default :
 				exit(-2);
@@ -349,8 +346,10 @@ int main(int nargs,char** argv)
 	char* fic= argv[1] ;
 	if (new == 1)
 		dump_matrix_new(fic,all,strict,magma);
-	else
+	else {
+		printf("old, %u %u %u\n",all,strict,magma);
 		dump_matrix_old(fic,all,strict,magma);
+	}
 
 	return 0;
 }

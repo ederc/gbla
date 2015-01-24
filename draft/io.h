@@ -62,14 +62,15 @@ dimen_t getSparsestRows_fast(
 
 
 	dimen_t i = 0;
-
+#ifdef STATS
 	dimen_t cnt = 0 ;
-for ( i = 0 ; i< row ; ++i) {
-	dimen_t j =  nextcol(colid,start,i) ;
-	if ( j == 0 ||  (j-i) > (4))
-		cnt ++ ;
-}
-printf("%u %u\n",cnt,row);
+	for ( i = 0 ; i< row ; ++i) {
+		dimen_t j =  nextcol(colid,start,i) ;
+		if ( j == 0 ||  (j-i) >= (4))
+			cnt ++ ;
+	}
+	printf("%u %u\n",cnt,row);
+#endif
 
 
 	dimen_t k_dim = 0;
@@ -827,6 +828,22 @@ dimen_t * readFileSplit(
 	fprintf(stderr,"  >> split vertical   : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
 				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
+#ifdef STATS
+	dimen_t cnt = 0 ;
+	for ( i = 0 ; i< A->sub_nb ; ++i) {
+		CSR * Ai = A->sub + i ;
+		dimen_t i_off = i*MAT_ROW_BLK ;
+		dimen_t ii = 0 ;
+		for ( ii = 0 ; ii < Ai->row ; ++ii) {
+			dimen_t j =  nextcol(Ai->colid,Ai->start,ii) ;
+			if ( j == 0 ||  (j-ii-i_off*MAT_ROW_BLK) >= (4))
+			cnt ++ ;
+		}
+	}
+	printf("%u %u\n",cnt,A->row);
+#endif
+
+
 
 #ifdef STATS
 	{
@@ -1244,7 +1261,7 @@ void reduce_chunk_1(
 				/* temp_C -= temp_C[j] * A[j] */
 				dimen_t jj = j%MAT_ROW_BLK ;
 				dimen_t kk = j/MAT_ROW_BLK ;
-				CSR * A_k = A->sub+ kk ;
+				CSR * A_k = A->sub + kk ;
 				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
 				assert(kk*MAT_ROW_BLK+jj == j);
 				spaxpy(tc,A_k->data+A_k->start[jj],

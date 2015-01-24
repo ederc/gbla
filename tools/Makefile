@@ -31,7 +31,7 @@ $(DMP)$(dbg): $(DMP).c $(DMP).h
 	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)$(dbg)
 
 $(DMP): $(DMP).c $(DMP).h
-	$(CC) $(DBG) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)
+	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(DMP).c -o $(DMP)
 
 
 ### convert (old binary to new binary)
