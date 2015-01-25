@@ -20,34 +20,40 @@
 
 #include "macros.h"
 
-uint64_t JOAAT_hash(char *key, size_t len)
-{
-	uint64_t hash, i;
-	for(hash = i = 0; i < len; ++i)
-	{
-		hash += key[i];
-		hash += (hash << 10);
-		hash ^= (hash >> 6);
-	}
-	hash += (hash << 3);
-	hash ^= (hash >> 11);
-	hash += (hash << 15);
-	return hash;
-}
 
-
-void insert_sort_duo_rev(uint32_t * liste, uint32_t  size, uint32_t * copain)
+void expandColid(
+	       	const dimen_t * compress
+		, index_t          size_compressed
+		, dimen_t       * expand
+#ifndef NDEBUG
+		, index_t          size_expand
+		, dimen_t         n
+#endif
+		)
 {
-	uint32_t d , c = 1 , t ;
-	for ( ; c < size ; ++c) {
-		d = c;
-		while ( d > 0 && (liste)[d] > (liste)[d-1]) {
-			SWAP((liste)[d],(liste)[d-1]);
-			SWAP((copain)[d],(copain)[d-1]);
-			d--;
+	index_t i = 0 ;
+	index_t j = 0 ;
+	dimen_t col ;
+	for ( ; i < size_compressed ;) {
+		col = compress[i++] ;
+		if ((col & NEGMASK) == NEGMASK) {
+			expand[j++] = col ^ NEGMASK ;
+		}
+		else {
+			dimen_t k = 0 ;
+			for (; k < compress[i] ;++k) {
+				expand[j++] = col + k;
+			}
+			++i;
 		}
 	}
+	assert(j == size_expand);
+	assert(i == size_compressed);
+#ifndef NDEBUG
+	for ( i = 0 ; i < size_expand ; ++i) {
+		assert(expand[i] < n);
+	}
+#endif
 }
-
 
 #endif /* __GB_tools_H */

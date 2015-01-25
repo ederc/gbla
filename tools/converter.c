@@ -55,6 +55,35 @@ void usage(char * av) {
 	printf(" Warning : new matrix format is suffixed by .gbm\n");
 }
 
+uint64_t JOAAT_hash(char *key, size_t len)
+{
+	uint64_t hash, i;
+	for(hash = i = 0; i < len; ++i)
+	{
+		hash += key[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+	}
+	hash += (hash << 3);
+	hash ^= (hash >> 11);
+	hash += (hash << 15);
+	return hash;
+}
+
+
+void insert_sort_duo_rev(uint32_t * liste, uint32_t  size, uint32_t * copain)
+{
+	uint32_t d , c = 1 , t ;
+	for ( ; c < size ; ++c) {
+		d = c;
+		while ( d > 0 && (liste)[d] > (liste)[d-1]) {
+			SWAP((liste)[d],(liste)[d-1]);
+			SWAP((copain)[d],(copain)[d-1]);
+			d--;
+		}
+	}
+}
+
 
 void convert_old2new(char * out, FILE * titi) {
 #if defined(REVERT) && defined(SORT)
@@ -72,7 +101,6 @@ void convert_old2new(char * out, FILE * titi) {
 
 	FILE * toto = fopen(out,"wb"); /* out */
 	uint32_t un = Mjoin(select,elemt_s)();
-	printf("un : %u\n",un);
 	un = un | VERMASK ;
 	fwrite(&un,sizeof(uint32_t),1,toto);
 
@@ -84,7 +112,6 @@ void convert_old2new(char * out, FILE * titi) {
 	fwrite(&m,sizeof(uint32_t),1,toto);
 	fwrite(&n,sizeof(uint32_t),1,toto);
 	fwrite(&mod,sizeof(elemt_s),1,toto);
-	/* XXX we don't need to write this */
 	fwrite(&nnz,sizeof(uint64_t),1,toto);
 
 	SAFE_READ_DECL_P(data,nnz,OLD_TYPE,titi);
@@ -122,67 +149,6 @@ void convert_old2new(char * out, FILE * titi) {
 	free(pivots);
 #endif /* SORT */
 
-#if 0
-	SAFE_MALLOC_DECL(colid,nnz,uint32_t);
-	uint64_t here = 0 ;
-
-#ifndef REVERT
-        for ( i=0 ; i < m ; ++i)
-#else
-        for ( i = m ; i-- ; )
-#endif /* REVERT */
-        {
-#ifdef SORT
-                uint64_t k = permut[i] ;
-#else
-                uint64_t k = i ;
-#endif
-                uint64_t j = start[k] ;
-                if ( j == start[k+1] ) {  /* zero element */
-                        exit(-15);
-                }
-                /* saving element. will either be masked or next one is number
-                 * of consecutive column indexes (>=2 then) */
-                colid[here] = cols[j] ;
-                assert(colid[here] < n);
-                if ( j + 1 == start[k+1] ) { /* just one element */
-                        colid[here++] |= NEGMASK ;
-                        continue ;
-                }
-                ++ j ;
-                uint64_t cons = 0 ;
-                for ( ; j < start[k+1] ; ++j) { /* at least 2 elements */
-                        if (cols[j] == cols[j-1]+1) {
-                                cons += 1 ;
-                        }
-                        else { /* not consecutive */
-                                if (cons == 0) { /* last element was unit */
-                                        colid[here] |= NEGMASK;
-                                }
-                                else { /* last element was last of sequence */
-                                        colid[++here] = cons+1 ;
-                                }
-                                /* next element to consider */
-                                cons = 0 ;
-                                colid[++here] = cols[j];
-                                assert(colid[here] < n);
-                        }
-                        if (j + 1 == start[k+1]) { /* last element in row */
-                                if (cons == 0) {
-                                        colid[here] |= NEGMASK;
-                                }
-                                else {
-                                        colid[++here] = cons+1 ;
-                                }
-                                ++ here ; /* prepare to write the next element */
-                                break;
-                        }
-                }
-
-        }
-        free(cols);
-
-#else
 	uint32_t * cols_reord;
 	uint64_t here = 0 ;
 #if defined(REVERT) ||  defined(SORT)
@@ -216,57 +182,45 @@ SAFE_MALLOC(cols_reord,nnz,uint32_t);
 	/* compress colid */
 	/* uint64_t cons = 0 ; */
 	here = 0 ;
-	for ( i=0 ; i < m ; ++i) {
-		uint64_t j = start[i] ;
-		if ( j == start[i+1] ) {  /* zero element */
-			exit(-15);
+	uint64_t j = 0 ;
+	colid[here] = cols_reord[j++] ;
+	int cons = 0;
+	assert(nnz > 1);
+	for ( ; j < nnz-1 ; ++ j) {
+		if (cols_reord[j] == cols_reord[j-1]+1) {
+			++cons;
 		}
-		/* saving element. will either be masked or next one is number
-		 * of consecutive column indexes (>=2 then) */
-		colid[here] = cols_reord[j] ;
-		assert(colid[here] < n);
-		if ( j + 1 == start[i+1] ) { /* just one element */
-			colid[here++] |= NEGMASK ;
-			continue ;
+		else {
+			if (cons == 0) {
+				colid[here] |= NEGMASK ;
+			}
+			else {
+				colid[++here] = cons+1 ;
+			}
+			cons = 0 ;
+			colid[++here] = cols_reord[j];
 		}
-		++ j ;
-		uint64_t cons = 0 ;
-		for ( ; j < start[i+1] ; ++j) { /* at least 2 elements */
-			if (cols_reord[j] == cols_reord[j-1]+1) {
-				cons += 1 ;
-			}
-			else { /* not consecutive */
-				if (cons == 0) { /* last element was unit */
-					colid[here] |= NEGMASK;
-				}
-				else { /* last element was last of sequence */
-					colid[++here] = cons+1 ;
-				}
-				/* next element to consider */
-				cons = 0 ;
-				colid[++here] = cols_reord[j];
-				assert(colid[here] < n);
-			}
-			if (j + 1 == start[i+1]) { /* last element in row */
-				if (cons == 0) {
-					colid[here] |= NEGMASK;
-				}
-				else {
-					colid[++here] = cons+1 ;
-				}
-				++ here ; /* prepare to write the next element */
-				break;
-			}
+	}
+	if (cols_reord[j] != cols_reord[j-1]+1) { /* last one */
+		if (cons == 0) {
+			colid[here] |= NEGMASK;
 		}
+		else {
+			colid[++here] = cons+1 ;
+		}
+		colid[++here] = cols_reord[j] | NEGMASK;
 
 	}
+	else {
+		colid[++here] = cons+2 ;
+	}
+	++here;
 
 #if !defined(SORT) && !defined(REVERT)
 	free(cols);
 #endif
-#endif
 
-	fprintf(stderr,"saved %lu / %llu\n",here,nnz);
+	fprintf(stderr,"saved %lu / %lu\n",here,(uint64_t)nnz);
 	SAFE_REALLOC(colid,here,uint32_t);
 
 
@@ -401,41 +355,6 @@ SAFE_MALLOC(cols_reord,nnz,uint32_t);
 }
 
 
-void expandColid(
-	       	const dimen_t * compress
-		, index_t          size_compressed
-		, dimen_t       * expand
-#ifndef NDEBUG
-		, index_t          size_expand
-		, dimen_t         n
-#endif
-		)
-{
-	uint32_t mask = (1<<31);
-	index_t i = 0 ;
-	index_t j = 0 ;
-	dimen_t col ;
-	for ( ; i < size_compressed ;) {
-		col = compress[i++] ;
-		if (col & mask) {
-			expand[j++] = col ^ mask ;
-		}
-		else {
-			dimen_t k = 0 ;
-			for (; k < compress[i] ;++k) {
-				expand[j++] = col + k;
-			}
-			++i;
-		}
-	}
-	assert(j == size_expand);
-	assert(i == size_compressed);
-#ifndef NDEBUG
-	for ( i = 0 ; i < size_expand ; ++i) {
-		assert(expand[i] < n);
-	}
-#endif
-}
 
 
 void convert_new2old(char * out, FILE * fh) {

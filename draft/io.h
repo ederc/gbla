@@ -26,6 +26,7 @@
 #include "matrix.h"
 #include "field_ops.h"
 #include "selecter.h"
+#include "tools.h"
 
 /**
  * The matrix we have as input is "almost upper triangular", ie below every first
@@ -264,41 +265,6 @@ void splitHorizontal(
 }
 
 
-void expandColid(
-	       	const dimen_t * compress
-		, index_t          size_compressed
-		, dimen_t       * expand
-#ifndef NDEBUG
-		, index_t          size_expand
-		, dimen_t         n
-#endif
-		)
-{
-	uint32_t mask = (1<<31);
-	index_t i = 0 ;
-	index_t j = 0 ;
-	dimen_t col ;
-	for ( ; i < size_compressed ;) {
-		col = compress[i++] ;
-		if (col & mask) {
-			expand[j++] = col ^ mask ;
-		}
-		else {
-			dimen_t k = 0 ;
-			for (; k < compress[i] ;++k) {
-				expand[j++] = col + k;
-			}
-			++i;
-		}
-	}
-	assert(j == size_expand);
-	assert(i == size_compressed);
-#ifndef NDEBUG
-	for ( i = 0 ; i < size_expand ; ++i) {
-		assert(expand[i] < n);
-	}
-#endif
-}
 
 
 void splitVerticalUnit(
