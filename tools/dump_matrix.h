@@ -66,7 +66,7 @@ void Mjoin(dump,DAT_TYPE)(FILE * fh,int all,int strict,int magma)
 		/* pol_start */
 		SAFE_READ_DECL_P(pol_rows,pol_nb,dimen_t,fh); /* length of each polynomial. less than number of rows */
 
-		SAFE_MALLOC_DECL(pol_start,pol_nb+1,index_t);
+		SAFE_MALLOC_DECL(pol_start,(pol_nb+1),index_t);
 		pol_start[0]=0;
 
 		for ( i = 0 ; i < pol_nb ; ++i) {

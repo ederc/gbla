@@ -29,27 +29,23 @@
 
 #include "ouvrir.h"
 
-#ifndef REVERT
-#warning "not reverting rows"
-#endif /* REVERT */
-#ifndef SORT
-#warning "not sorting rows"
-#endif /* SORT */
 
-
-void usage(char * av) {
+void usage(char * av)
+{
 	printf(" usage : \n");
 	printf(" (1)   %s [option] mat\n",av);
 	printf(" (2)   %s [option] mat_name - \n\n",av);
 
-	printf(" option can be:\n");
-	printf("   -n : convert from new format to old format. Default: old to new\n");
+	printf(" options can be:\n");
+	printf("   -n : convert from new format to old format. [default: old to new]\n");
+	printf("   -s : sorts the row by weight (smallest first) [default : enabled, new format only]\n");
+	printf("   -S : don't sort the rows by weight (smallest first) \n");
+	printf("   -r : reverts order [default : enabled, new format only] \n");
+	printf("   -R : don't revert order \n");
 	printf(" (1) will produce a file named mat.gbm in the new format from matrix mat\n");
 	printf(" (2) will produce a file named mat_name.gbm in the new format from  stdin \n");
 	printf(" this would happen like : zcat mat.gz | %s mat - \n",av);
 	printf(" Warning : the input matrix has to be a file in the old format\n");
-	printf(" Warning : %s will sort the matrix by denser to sparser rows\n",av);
-	printf("           compile without -DREVERT or -DSORT to change that (see Makefile).\n");
 	printf(" Warning : new matrix format is suffixed by .gbm\n");
 }
 
@@ -83,19 +79,9 @@ void insert_sort_duo_rev(dimen_t * liste, dimen_t size, dimen_t * copain)
 }
 
 
-void convert_old2new(char * out, FILE * titi) {
-#if defined(REVERT) && defined(SORT)
+void convert_old2new(char * out, FILE * titi, int rev, int sor)
+{
 	strcat(out,".gbm");
-#else
-	strcat(out,"_new");
-#ifdef REVERT
-	strcat(out,"_rev");
-#endif
-
-#ifdef SORT
-	strcat(out,"_srt");
-#endif
-#endif
 
 	FILE * toto = fopen(out,"wb"); /* out */
 	dimen_t un = Mjoin(select,elemt_s)();
@@ -134,44 +120,56 @@ void convert_old2new(char * out, FILE * titi) {
 	SAFE_MALLOC_DECL(hash_row_pol,m,index_t);
 
 
+	dimen_t * pivots = NULL ;
+	dimen_t * permut = NULL ;
 
-#ifdef SORT
-	SAFE_MALLOC_DECL(pivots,m,dimen_t);
-	SAFE_MALLOC_DECL(permut,m,dimen_t);
-	for ( i=0 ; i < m ;++i) {
-		pivots[i] = cols[start[i]] ;
-		permut[i] = i ;
-	}
-	insert_sort_duo_rev(pivots,m,permut);
-	free(pivots);
-#endif /* SORT */
+	if (sor) {
+		SAFE_MALLOC(pivots,m,dimen_t);
+		SAFE_MALLOC(permut,m,dimen_t);
+		for ( i=0 ; i < m ;++i) {
+			pivots[i] = cols[start[i]] ;
+			permut[i] = i ;
+		}
+		insert_sort_duo_rev(pivots,m,permut);
+		free(pivots);
+	} /* SORT */
 
 	dimen_t * cols_reord;
 	index_t here = 0 ;
-#if defined(REVERT) ||  defined(SORT)
-	SAFE_MALLOC(cols_reord,nnz,dimen_t);
-	for (
-#ifndef REVERT
-			i=0 ; i < m ; ++i
-#else
-			i = m ; i-- ;
-#endif /* REVERT */
-	    )
-	{
-#ifdef SORT
-		dimen_t k = permut[i] ;
-#else
-		dimen_t k = i ;
-#endif
-		index_t j  ;
-		for ( j = start[k] ; j < start[k+1] ; ++j) {
-			cols_reord[here++] = cols[j];
+	if (rev || sor) {
+		SAFE_MALLOC(cols_reord,nnz,dimen_t);
+		if (rev) {
+			for ( i = m ; i-- ;)
+			{
+				dimen_t k ;
+				if (sor)
+					k = permut[i] ;
+				else
+					k = i ;
+				index_t j  ;
+				for ( j = start[k] ; j < start[k+1] ; ++j) {
+					cols_reord[here++] = cols[j];
+				}
+			}
 		}
+		else {
+			for ( i=0 ; i < m ; ++i)
+			{
+				dimen_t k ;
+				if (sor)
+					k = permut[i] ;
+				else
+					k = i ;
+				index_t j  ;
+				for ( j = start[k] ; j < start[k+1] ; ++j) {
+					cols_reord[here++] = cols[j];
+				}
+			}
+		}
+		free(cols);
 	}
-	free(cols);
-#else
-	cols_reord = cols ;
-#endif
+	else
+		cols_reord = cols ;
 
 	SAFE_MALLOC_DECL(colid,nnz,dimen_t);
 
@@ -212,9 +210,8 @@ void convert_old2new(char * out, FILE * titi) {
 	}
 	++here;
 
-#if !defined(SORT) && !defined(REVERT)
-	free(cols);
-#endif
+	if (! sor && ! rev)
+		free(cols);
 
 	fprintf(stderr,"saved %lu / %lu\n",here,(uint64_t)nnz);
 	SAFE_REALLOC(colid,here,dimen_t);
@@ -230,11 +227,11 @@ void convert_old2new(char * out, FILE * titi) {
 	/* map_zo_pol */
 	dimen_t pol_nb = 0 ;
 	for ( i = 0 ; i < m ; ++i) {
-#ifdef SORT
-		dimen_t k = permut[i];
-#else
-		dimen_t k = i ;
-#endif
+		dimen_t k;
+		if (sor)
+			k = permut[i];
+		else
+			k = i ;
 
 		index_t j0 = start[k] ;
 		index_t j1 = start[k+1] ;
@@ -297,21 +294,21 @@ void convert_old2new(char * out, FILE * titi) {
 	free(data);
 	free(hash_row_pol);
 
-#ifdef SORT
-	for ( i=0 ; i < m ; ++i) {
-		dimen_t k = permut[i];
-		start[i+1] = start[i] + rows[k] ;
-	}
+	if (sor) {
+		for ( i=0 ; i < m ; ++i) {
+			dimen_t k = permut[i];
+			start[i+1] = start[i] + rows[k] ;
+		}
 
-	free(permut);
+		free(permut);
 
-#endif /* SORT */
+	} /* SORT */
 
-#ifdef REVERT
-	for (i=0 ; i < m ; ++i) {
-		start[i+1] = start[i] + rows[m-i-1] ;
-	}
-#endif /* REVERT */
+	if (rev) {
+		for (i=0 ; i < m ; ++i) {
+			start[i+1] = start[i] + rows[m-i-1] ;
+		}
+	} /* REVERT */
 
 	/* XXX we don't need to write this, we could write rows */
 	for ( i = 0 ; i < m ; ++i)
@@ -350,10 +347,8 @@ void convert_old2new(char * out, FILE * titi) {
 	printf("created file %s\n",out);
 }
 
-
-
-
-void convert_new2old(char * out, FILE * fh) {
+void convert_new2old(char * out, FILE * fh)
+{
 
 	uint32_t lout = strlen(out);
 	char nouv [1024];
@@ -490,27 +485,50 @@ void convert_new2old(char * out, FILE * fh) {
 int main( int ac, char ** av)
 {
 	int new = 0 ;
+	int sor = 1 ;
+	int rev = 1 ;
 
-	if (ac < 2 || ac > 5) {
+	if (ac < 2 || ac > 7) {
 		usage(av[0]);
 		exit(-1);
 	}
 
-	if ( (strcmp(av[1],"-h") == 0) || (strcmp(av[1],"-?") == 0) || (strcmp(av[1],"--help") == 0) ) {
-		usage(av[0]);
-		return(0);
+	int options = 1 ;
+	while ( options ) {
+		if ( (strcmp(av[1],"-h") == 0) || (strcmp(av[1],"-?") == 0) || (strcmp(av[1],"--help") == 0) ) {
+			usage(av[0]);
+			return(0);
+		}
+
+		if (strcmp(av[1],"-n") == 0) {
+			new = 1 ;
+			av ++ ; ac -- ;
+		}
+		else if (strcmp(av[1],"-s") == 0) {
+			sor = 1 ;
+			av ++ ; ac -- ;
+		} else if (strcmp(av[1],"-S") == 0) {
+			sor = 0 ;
+			av ++ ; ac -- ;
+		} else if (strcmp(av[1],"-r") == 0) {
+			rev = 1 ;
+			av ++ ; ac -- ;
+		} else if (strcmp(av[1],"-R") == 0) {
+			rev = 0 ;
+			av ++ ; ac -- ;
+		} else
+			options = 0 ;
 	}
 
-	if (strcmp(av[1],"-n") == 0) {
-		new = 1 ;
+	if (! rev || ! sor) {
+		fprintf(stderr, " warning : not sorting (%d) or not reverting (%d) rows !\n",sor,rev);
 	}
-
 	FILE * titi ;
 	char out[1024]; /* not too large the path... */
+	/* out[0] = '\0'; */
 
-
-	if (ac-new == 3) {
-		if ( strcmp(av[new+2],"-") != 0)  {
+	if (ac == 3) {
+		if ( strcmp(av[2],"-") != 0)  {
 			usage(av[0]);
 			exit(-1);
 		}
@@ -518,11 +536,11 @@ int main( int ac, char ** av)
 
 	titi = ouvrir(av[ac-1],"r"); /* in */
 
-	strcpy(out,av[new+1]);
+	strcpy(out,av[1]);
 
 	if (new ==0) {
 		printf("converting from old to new\n");
-		convert_old2new(out,titi);
+		convert_old2new(out,titi,rev,sor);
 	}
 	else {
 		printf("converting from new to old\n");

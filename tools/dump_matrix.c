@@ -270,7 +270,8 @@ static void dump_matrix_new(char *fic,int all,int strict,int magma)
 	fclose(fh);
 }
 
-void help(char * prog) {
+void help(char * prog)
+{
 	printf("usage : %s [options] mat \n",prog);
 	printf("usage : %s [options] -\n\n",prog);
 

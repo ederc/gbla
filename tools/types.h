@@ -18,7 +18,6 @@
 #define __GB_types_H
 
 
-#ifndef TYPE
 /* OLD FORMAT */
 #define elem_o       int16_t
 #define stor_t       uint32_t  /* Element representation mod p on file */
@@ -27,7 +26,6 @@
 #define elemt_s  int16_t /* field element storage */
 #define elemt_m  uint16_t /* modulo storage */
 #define elemt_t  double   /* field element type in computations  */
-#endif
 
 #define index_t       uint64_t  /* indexing elements */
 #define dimen_t       uint32_t /* size_t */
