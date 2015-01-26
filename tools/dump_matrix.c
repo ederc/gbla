@@ -78,20 +78,16 @@ typedef void* Any;
 static void dump_matrix_old(char *fic,int all,int strict,int magma)
 {
 	FILE* f=ouvrir(fic,"r");
-	/* short int *nz; */
-	/* unsigned int       *pos; */
-	/* unsigned int       *row; */
-	/* unsigned int        *sz; */
-	unsigned int n;
-	unsigned int m;
-	unsigned int  mod;
-	unsigned long long  nb;
+	stor_t n;
+	stor_t m;
+	stor_t mod;
+	larg_t nb;
 	fprintf(stderr,"current format printing\n");
 
-	SAFE_READ_V(n,unsigned int,f);
-	SAFE_READ_V(m,unsigned int,f);
-	SAFE_READ_V(mod,unsigned int,f);
-	SAFE_READ_V(nb,unsigned long long,f);
+	SAFE_READ_V(n,  stor_t,f);
+	SAFE_READ_V(m,  stor_t,f);
+	SAFE_READ_V(mod,stor_t,f);
+	SAFE_READ_V(nb, larg_t,f);
 
 
 	fprintf(stderr,"%u x %u matrix\n",n,m);
@@ -100,15 +96,15 @@ static void dump_matrix_old(char *fic,int all,int strict,int magma)
 		double Nz=(double)(n)*(double)(m);
 		Nz=(double)(nb)/Nz;
 		Nz*=100.0;
-		fprintf(stderr,"Nb of Nz elements %Lu (density %.2f)\n",nb,Nz);
+		fprintf(stderr,"Nb of Nz elements %lu (density %.2f)\n",nb,Nz);
 	}
 
 	if (all)
 	{
-		unsigned int i;
-		SAFE_READ_DECL_P(nz,  nb, short int, f);
-		SAFE_READ_DECL_P(pos, nb, unsigned int, f);
-		SAFE_READ_DECL_P(sz,  n,  unsigned int, f);
+		stor_t i;
+		SAFE_READ_DECL_P(nz,  nb, elem_o, f);
+		SAFE_READ_DECL_P(pos, nb, stor_t, f);
+		SAFE_READ_DECL_P(sz,  n,  stor_t, f);
 		if (magma)
 		{
 #if 1
@@ -127,8 +123,8 @@ static void dump_matrix_old(char *fic,int all,int strict,int magma)
 
 		for(i=0;i<n;i++)
 		{
-			const unsigned int szi=sz[i];
-			unsigned int j;
+			const stor_t szi=sz[i];
+			stor_t j;
 			/* fprintf(stderr,"<%u>",szi); */
 			if (magma)
 				for(j=0;j<szi;j++)
@@ -154,30 +150,46 @@ static void dump_matrix_old(char *fic,int all,int strict,int magma)
 
 #include "tools.h"
 
-#define TEMPL_TYPE int8_t
+#define DAT_TYPE int8_t
+#define MOD_TYPE uint8_t
 #include "dump_matrix.h"
-#undef TEMPL_TYPE
-#define TEMPL_TYPE int16_t
+#undef DAT_TYPE
+#undef MOD_TYPE
+#define DAT_TYPE int16_t
+#define MOD_TYPE uint16_t
 #include "dump_matrix.h"
-#undef TEMPL_TYPE
-#define TEMPL_TYPE int32_t
+#undef DAT_TYPE
+#undef MOD_TYPE
+#define DAT_TYPE int32_t
+#define MOD_TYPE uint32_t
 #include "dump_matrix.h"
-#undef TEMPL_TYPE
-#define TEMPL_TYPE int64_t
+#undef DAT_TYPE
+#undef MOD_TYPE
+#define DAT_TYPE int64_t
+#define MOD_TYPE uint64_t
 #include "dump_matrix.h"
-#undef TEMPL_TYPE
-#define TEMPL_TYPE uint8_t
+#undef DAT_TYPE
+#undef MOD_TYPE
+#define DAT_TYPE uint8_t
+#define MOD_TYPE uint8_t
 #include "dump_matrix.h"
-#undef TEMPL_TYPE
-#define TEMPL_TYPE uint16_t
+#undef DAT_TYPE
+#undef MOD_TYPE
+#define DAT_TYPE uint16_t
+#define MOD_TYPE uint16_t
 #include "dump_matrix.h"
-#undef TEMPL_TYPE
-#define TEMPL_TYPE uint32_t
+#undef DAT_TYPE
+#undef MOD_TYPE
+#define DAT_TYPE uint32_t
+#define MOD_TYPE uint32_t
 #include "dump_matrix.h"
-#undef TEMPL_TYPE
-#define TEMPL_TYPE uint64_t
+#undef DAT_TYPE
+#undef MOD_TYPE
+#define DAT_TYPE uint64_t
+#define MOD_TYPE uint64_t
 #include "dump_matrix.h"
-#undef TEMPL_TYPE
+#undef DAT_TYPE
+#undef MOD_TYPE
 
 /* matrix file is :
  * (everything in uint32_t unless specified)

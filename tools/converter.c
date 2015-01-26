@@ -23,8 +23,6 @@
 
 #include "types.h"
 
-#define OLD_TYPE short int
-
 #include "tools.h"
 
 #include "selecter.h"
@@ -71,9 +69,9 @@ uint64_t JOAAT_hash(char *key, size_t len)
 }
 
 
-void insert_sort_duo_rev(uint32_t * liste, uint32_t  size, uint32_t * copain)
+void insert_sort_duo_rev(dimen_t * liste, dimen_t size, dimen_t * copain)
 {
-	uint32_t d , c = 1 , t ;
+	dimen_t d , c = 1 , t ;
 	for ( ; c < size ; ++c) {
 		d = c;
 		while ( d > 0 && (liste)[d] > (liste)[d-1]) {
@@ -100,30 +98,30 @@ void convert_old2new(char * out, FILE * titi) {
 #endif
 
 	FILE * toto = fopen(out,"wb"); /* out */
-	uint32_t un = Mjoin(select,elemt_s)();
+	dimen_t un = Mjoin(select,elemt_s)();
 	un = un | VERMASK ;
-	fwrite(&un,sizeof(uint32_t),1,toto);
+	fwrite(&un,sizeof(dimen_t),1,toto);
 
-	SAFE_READ_DECL_V(m,unsigned int,titi);
-	SAFE_READ_DECL_V(n,unsigned int,titi);
-	SAFE_READ_DECL_V(mod,unsigned int,titi);
-	SAFE_READ_DECL_V(nnz,unsigned long long int,titi);
+	SAFE_READ_DECL_V(m,  stor_t,titi);
+	SAFE_READ_DECL_V(n,  stor_t,titi);
+	SAFE_READ_DECL_V(mod,stor_t,titi);
+	SAFE_READ_DECL_V(nnz,larg_t,titi);
 
-	fwrite(&m,sizeof(uint32_t),1,toto);
-	fwrite(&n,sizeof(uint32_t),1,toto);
-	fwrite(&mod,sizeof(elemt_s),1,toto);
-	fwrite(&nnz,sizeof(uint64_t),1,toto);
+	fwrite(&m,  sizeof(dimen_t),1,toto);
+	fwrite(&n,  sizeof(dimen_t),1,toto);
+	fwrite(&mod,sizeof(elemt_m),1,toto);
+	fwrite(&nnz,sizeof(index_t),1,toto);
 
-	SAFE_READ_DECL_P(data,nnz,OLD_TYPE,titi);
-	SAFE_READ_DECL_P(cols,nnz,unsigned int,titi);
-	SAFE_READ_DECL_P(rows,m  ,unsigned int,titi);
+	SAFE_READ_DECL_P(data,nnz,elem_o,titi);
+	SAFE_READ_DECL_P(cols,nnz,stor_t,titi);
+	SAFE_READ_DECL_P(rows,m  ,stor_t,titi);
 
 	fclose(titi);
 
 	/* start */
-	SAFE_MALLOC_DECL(start,(m+1),uint64_t);
+	SAFE_MALLOC_DECL(start,(m+1),index_t);
 	start[0] =  0 ;
-	uint32_t i  ;
+	dimen_t i  ;
 	for ( i=0; i<m ; ++i)
 	{
 		start[i+1] = start[i] + rows[i] ;
@@ -131,16 +129,15 @@ void convert_old2new(char * out, FILE * titi) {
 
 	assert(start[m] == nnz);
 
-	SAFE_MALLOC_DECL(map_zo_pol,m,uint32_t);
+	SAFE_MALLOC_DECL(map_zo_pol,m,dimen_t);
 
-	SAFE_MALLOC_DECL(hash_row_pol,m,uint64_t);
+	SAFE_MALLOC_DECL(hash_row_pol,m,index_t);
 
-	/* uint64_t comp = 0 ; */
 
 
 #ifdef SORT
-	SAFE_MALLOC_DECL(pivots,m,uint32_t);
-	SAFE_MALLOC_DECL(permut,m,uint32_t);
+	SAFE_MALLOC_DECL(pivots,m,dimen_t);
+	SAFE_MALLOC_DECL(permut,m,dimen_t);
 	for ( i=0 ; i < m ;++i) {
 		pivots[i] = cols[start[i]] ;
 		permut[i] = i ;
@@ -149,10 +146,10 @@ void convert_old2new(char * out, FILE * titi) {
 	free(pivots);
 #endif /* SORT */
 
-	uint32_t * cols_reord;
-	uint64_t here = 0 ;
+	dimen_t * cols_reord;
+	index_t here = 0 ;
 #if defined(REVERT) ||  defined(SORT)
-SAFE_MALLOC(cols_reord,nnz,uint32_t);
+	SAFE_MALLOC(cols_reord,nnz,dimen_t);
 	for (
 #ifndef REVERT
 			i=0 ; i < m ; ++i
@@ -162,11 +159,11 @@ SAFE_MALLOC(cols_reord,nnz,uint32_t);
 	    )
 	{
 #ifdef SORT
-		uint64_t k = permut[i] ;
+		dimen_t k = permut[i] ;
 #else
-		uint64_t k = i ;
+		dimen_t k = i ;
 #endif
-		uint64_t j  ;
+		index_t j  ;
 		for ( j = start[k] ; j < start[k+1] ; ++j) {
 			cols_reord[here++] = cols[j];
 		}
@@ -176,13 +173,12 @@ SAFE_MALLOC(cols_reord,nnz,uint32_t);
 	cols_reord = cols ;
 #endif
 
-	SAFE_MALLOC_DECL(colid,nnz,uint32_t);
+	SAFE_MALLOC_DECL(colid,nnz,dimen_t);
 
 
 	/* compress colid */
-	/* uint64_t cons = 0 ; */
 	here = 0 ;
-	uint64_t j = 0 ;
+	index_t j = 0 ;
 	colid[here] = cols_reord[j++] ;
 	int cons = 0;
 	assert(nnz > 1);
@@ -221,29 +217,29 @@ SAFE_MALLOC(cols_reord,nnz,uint32_t);
 #endif
 
 	fprintf(stderr,"saved %lu / %lu\n",here,(uint64_t)nnz);
-	SAFE_REALLOC(colid,here,uint32_t);
+	SAFE_REALLOC(colid,here,dimen_t);
 
 
 	ENTRY item;
 	ENTRY *result;
 	hcreate(m);
 
-	typedef struct row { uint32_t i ; } row ;
+	typedef struct row { dimen_t i ; } row ;
 
 	row * d ;
 	/* map_zo_pol */
-	uint32_t pol_nb = 0 ;
+	dimen_t pol_nb = 0 ;
 	for ( i = 0 ; i < m ; ++i) {
 #ifdef SORT
-		uint64_t k = permut[i];
+		dimen_t k = permut[i];
 #else
-		uint64_t k = i ;
+		dimen_t k = i ;
 #endif
 
-		uint64_t j0 = start[k] ;
-		uint64_t j1 = start[k+1] ;
+		index_t j0 = start[k] ;
+		index_t j1 = start[k+1] ;
 		char * seq = (char*) (data+j0);
-		uint64_t length = (j1-j0)*sizeof(OLD_TYPE)/sizeof(char) ;
+		index_t length = (j1-j0)*sizeof(elem_o)/sizeof(char) ;
 
 		uint64_t key = JOAAT_hash(seq,length);
 		char key_char[64] ;
@@ -277,23 +273,23 @@ SAFE_MALLOC(cols_reord,nnz,uint32_t);
 	}
 	hdestroy();
 
-	SAFE_MALLOC_DECL(pol_start,(pol_nb+1),uint32_t);
+	SAFE_MALLOC_DECL(pol_start,(pol_nb+1),dimen_t);
 	/* pol_start  */
 	pol_start[0] = 0 ;
 	for ( i=0 ; i < pol_nb ; ++i) {
-		uint64_t j0 = start[hash_row_pol[i]] ;
-		uint64_t j1 = start[hash_row_pol[i]+1] ;
+		index_t j0 = start[hash_row_pol[i]] ;
+		index_t j1 = start[hash_row_pol[i]+1] ;
 		pol_start[i+1] = pol_start[i]+(j1-j0);
 	}
 
-	uint64_t pol_nnz = pol_start[pol_nb];
+	index_t pol_nnz = pol_start[pol_nb];
 	SAFE_MALLOC_DECL(pol_data,pol_nnz,elemt_s);
 
 	/* pol_data */
 	for ( i=0 ; i < pol_nb ; ++i) {
-		uint64_t j0 = start[hash_row_pol[i]] ;
-		uint64_t j1 = start[hash_row_pol[i]+1] ;
-		uint32_t k  ;
+		index_t j0 = start[hash_row_pol[i]] ;
+		index_t j1 = start[hash_row_pol[i]+1] ;
+		dimen_t k  ;
 		for ( k=0; k< j1-j0 ; ++k)
 			pol_data[pol_start[i]+k]=data[j0+k];
 	}
@@ -303,7 +299,7 @@ SAFE_MALLOC(cols_reord,nnz,uint32_t);
 
 #ifdef SORT
 	for ( i=0 ; i < m ; ++i) {
-		uint64_t k = permut[i];
+		dimen_t k = permut[i];
 		start[i+1] = start[i] + rows[k] ;
 	}
 
@@ -321,25 +317,25 @@ SAFE_MALLOC(cols_reord,nnz,uint32_t);
 	for ( i = 0 ; i < m ; ++i)
 		rows[i] = start[i+1]-start[i] ;
 
-	fwrite(rows,sizeof(uint32_t),m,toto);
+	fwrite(rows,sizeof(dimen_t),m,toto);
 	free(rows);
 	free(start);
 
-	fwrite(map_zo_pol,sizeof(uint32_t),m,toto);
+	fwrite(map_zo_pol,sizeof(dimen_t),m,toto);
 	free(map_zo_pol);
 
-	fwrite(&here,sizeof(uint64_t),1,toto);
-	fwrite(colid,sizeof(uint32_t),here,toto);
+	fwrite(&here,sizeof(index_t),1,toto);
+	fwrite(colid,sizeof(dimen_t),here,toto);
 	free(colid);
 
-	fwrite(&pol_nb,sizeof(uint32_t),1,toto);
-	fwrite(&pol_nnz,sizeof(uint64_t),1,toto);
+	fwrite(&pol_nb,sizeof(dimen_t),1,toto);
+	fwrite(&pol_nnz,sizeof(index_t),1,toto);
 
-	SAFE_MALLOC_DECL(pol_rows,pol_nb,uint32_t);
+	SAFE_MALLOC_DECL(pol_rows,pol_nb,dimen_t);
 	for ( i = 0 ; i < pol_nb ; ++i)
 		pol_rows[i] = pol_start[i+1]-pol_start[i] ;
 
-	fwrite(pol_rows,sizeof(uint32_t),pol_nb,toto);
+	fwrite(pol_rows,sizeof(dimen_t),pol_nb,toto);
 
 	free(pol_rows);
 	free(pol_start);
@@ -371,47 +367,43 @@ void convert_new2old(char * out, FILE * fh) {
 	nouv[lout-4]='\0';
 
 	/* format */
-	SAFE_READ_DECL_V(b,uint32_t,fh);
+	SAFE_READ_DECL_V(b,dimen_t,fh);
 	/* XXX set elemt_s here and C++-ise*/
 	if((b ^ VERMASK) != Mjoin(select,elemt_s)()) {
-		fprintf(stderr,"bad format for %s\n",out);
+		fprintf(stderr,"bad format for %s. Expected %u, got %u\n",out,Mjoin(select,elemt_s)(),(b ^ VERMASK));
 		exit(-1);
 	}
-
-	assert( sizeof( short int ) == sizeof( int16_t ) );
-	assert( sizeof( unsigned int ) == sizeof( uint32_t ) );
-	assert( sizeof( unsigned long long int ) == sizeof( uint64_t ) );
 
 
 
 	/* READ in row col nnz mod */
-	SAFE_READ_DECL_V(m,uint32_t,fh);
+	SAFE_READ_DECL_V(m,dimen_t,fh);
 	/* assert(m < MAT_ROW_BLK); */
-	SAFE_READ_DECL_V(n,uint32_t,fh);
-	SAFE_READ_DECL_V(mod,elemt_s,fh);
+	SAFE_READ_DECL_V(n,dimen_t,fh);
+	SAFE_READ_DECL_V(mod,elemt_m,fh);
 	assert(mod > 1);
-	SAFE_READ_DECL_V(nnz,uint64_t,fh);
+	SAFE_READ_DECL_V(nnz,index_t,fh);
 
 	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
 
 	/* READ in ZO start */
-	SAFE_READ_DECL_P(rows,m,uint32_t,fh);
+	SAFE_READ_DECL_P(rows,m,dimen_t,fh);
 
 	/* pol/zo correspondance */
-	SAFE_READ_DECL_P(map_zo_pol,m,uint32_t,fh);
+	SAFE_READ_DECL_P(map_zo_pol,m,dimen_t,fh);
 
 
 	/* colid in ZO */
-	SAFE_READ_DECL_V(colid_size,uint64_t,fh);
-	SAFE_READ_DECL_P(buffer,colid_size,uint32_t,fh); /* buffer has the matrix */
+	SAFE_READ_DECL_V(colid_size,index_t,fh);
+	SAFE_READ_DECL_P(buffer,colid_size,dimen_t,fh); /* buffer has the matrix */
 
 	/* size of nnz for pols: */
-	SAFE_READ_DECL_V(pol_nb,uint32_t,fh);
+	SAFE_READ_DECL_V(pol_nb,dimen_t,fh);
 
-	SAFE_READ_DECL_V(pol_nnz,uint64_t,fh);
+	SAFE_READ_DECL_V(pol_nnz,index_t,fh);
 
 	/* create GBpolynomials shared by A_init and B_init */
-	SAFE_READ_DECL_P(pol_rows,pol_nb,uint32_t,fh);
+	SAFE_READ_DECL_P(pol_rows,pol_nb,dimen_t,fh);
 
 	/* XXX what if elemt_s == elemt_t ??? */
 	SAFE_READ_DECL_P(data_pol,pol_nnz,elemt_s,fh);
@@ -421,22 +413,22 @@ void convert_new2old(char * out, FILE * fh) {
 
 	FILE * toto =fopen(nouv,"wb"); /* out */
 
-	unsigned int m_ = m ;
-	unsigned int n_ = n ;
-	unsigned int p_ = mod;
-	unsigned long long z_ = nnz ;
-	fwrite(&m_,sizeof(unsigned int),1,toto);
-	fwrite(&n_,sizeof(unsigned int),1,toto);
-	fwrite(&p_,sizeof(unsigned int),1,toto);
-	fwrite(&z_,sizeof(unsigned long long int),1,toto);
+	stor_t m_ = m ;
+	stor_t n_ = n ;
+	stor_t p_ = mod;
+	larg_t z_ = nnz ;
+	fwrite(&m_,sizeof(stor_t),1,toto);
+	fwrite(&n_,sizeof(stor_t),1,toto);
+	fwrite(&p_,sizeof(stor_t),1,toto);
+	fwrite(&z_,sizeof(larg_t),1,toto);
 
-	SAFE_MALLOC_DECL(start,m+1,uint64_t);
+	SAFE_MALLOC_DECL(start,m+1,index_t);
 	start[0] = 0 ;
 	dimen_t i ;
 	for ( i = 0 ; i < m ; ++i)
 		start[i+1] = start[i] + rows[i];
 
-	SAFE_MALLOC_DECL(start_pol,pol_nb+1,uint32_t);
+	SAFE_MALLOC_DECL(start_pol,pol_nb+1,dimen_t);
 	start_pol[0] = 0 ;
 	for ( i = 0 ; i < pol_nb ; ++i)
 		start_pol[i+1] = start_pol[i]+pol_rows[i];
@@ -444,7 +436,7 @@ void convert_new2old(char * out, FILE * fh) {
 
 	assert(start_pol[pol_nb] == pol_nnz);
 
-	SAFE_MALLOC_DECL(colid,nnz,unsigned int); /* colid expands buffer */
+	SAFE_MALLOC_DECL(colid,nnz,dimen_t); /* colid expands buffer */
 
 
 	expandColid(buffer,colid_size,colid
@@ -454,31 +446,31 @@ void convert_new2old(char * out, FILE * fh) {
 		   );
 	free(buffer);
 
-	SAFE_MALLOC_DECL(data,nnz,short int);
+	SAFE_MALLOC_DECL(data,nnz,elem_o);
 
 	for (i = 0 ; i < m ; ++i) {
 		dimen_t start_p = start_pol[ map_zo_pol[i] ] ;
 		elemt_s * d = data_pol+start_p ;
 		index_t jz ;
 		for (jz = start[i] ; jz < start[i+1] ; ++jz) {
-			data[jz] = (int16_t) *d ;
+			data[jz] = (elem_o) *d ;
 			++d ;
 		}
 	}
 
 	free(map_zo_pol);
 
-	SAFE_MALLOC_DECL(sz,m_,unsigned int);
-	SAFE_MALLOC_DECL(pos,z_,unsigned int);
-	SAFE_MALLOC_DECL(nz,z_,short int);
+	SAFE_MALLOC_DECL(sz, m_,stor_t);
+	SAFE_MALLOC_DECL(pos,z_,stor_t);
+	SAFE_MALLOC_DECL(nz, z_,elem_o);
 
 	for (i = 0 ; i < m_ ; ++i) sz[i] = rows[i] ;
 	for (i = 0 ; i < z_ ; ++i) pos[i] = colid[i] ;
 	for (i = 0 ; i < z_ ; ++i) nz[i] = data[i] ;
 
-	fwrite(nz,sizeof(short int),z_,toto);
-	fwrite(pos,sizeof(unsigned int),z_,toto);
-	fwrite(sz,sizeof(unsigned int),m_,toto);
+	fwrite(nz, sizeof(elem_o),z_,toto);
+	fwrite(pos,sizeof(stor_t),z_,toto);
+	fwrite(sz, sizeof(stor_t),m_,toto);
 
 	fclose(toto);
 

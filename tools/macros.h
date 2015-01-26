@@ -19,6 +19,7 @@
 #define Mjoin(pre,nam) my_join(pre , nam)
 #define my_join(pre, nam) pre ## _ ## nam
 
+
 #define max(a,b) \
 	({ __typeof__ (a) _a = (a); \
 	 __typeof__ (b) _b = (b); \
