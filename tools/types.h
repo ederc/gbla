@@ -19,7 +19,7 @@
 
 
 /* OLD FORMAT */
-#define elem_o       int16_t
+#define elem_o       uint16_t
 #define stor_t       uint32_t  /* Element representation mod p on file */
 #define larg_t       uint64_t  /* Element representation mod p on file */
 /* NEW FORMAT */

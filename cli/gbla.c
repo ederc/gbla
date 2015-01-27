@@ -173,10 +173,6 @@ int main(int argc, char *argv[]) {
     printf("---------------------------------------------------------------------\n");
   }
 
-  // track time for the complete reduction process
-  if (verbose > 1)
-    gettimeofday(&t_complete, NULL);
-
 
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
@@ -226,6 +222,11 @@ int main(int argc, char *argv[]) {
       printf("\n");
     }
   }
+
+  // track time for the complete reduction process (excluding load)
+  if (verbose > 1)
+    gettimeofday(&t_complete, NULL);
+
 
   switch (splicing) {
     // all submatrices are of block type
@@ -502,7 +503,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     // copy block matrix B back to a sparse matrix in order to use
     // splice_fl_matrix() procedure again
     copy_block_ml_matrices_to_sparse_matrix(&B, &D_red, rank_D, &BD, 1, nthreads);
-    
+
     map_fl_t *map2  = (map_fl_t *)malloc(sizeof(map_fl_t));
     construct_fl_map_reduced(map2, map_D, BD->nrows, rank_D, BD->ncols, nthreads);
     sbm_fl_t *B1    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
