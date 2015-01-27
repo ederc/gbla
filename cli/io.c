@@ -115,6 +115,8 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		fclose(fh);
 		return NULL;
 	}
+	fl += sizeof(uint32_t);
+
 	// get rows
 	if (fread(&n, sizeof(uint32_t), 1, fh) != 1) {
 		if (verbose > 0)
@@ -122,16 +124,19 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		fclose(fh);
 		return NULL;
 	}
+	fl += sizeof(uint32_t);
+
 	// get modulus
 	if (new_format == 1) {
-		re_t mode;
-		if ((fread(&mode, sizeof(re_t), 1, fh) != 1) || (mode == 1)) {
+		elemt_m mode;
+		if ((fread(&mode, sizeof(elemt_m), 1, fh) != 1) || (mode == 1)) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (modulo)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
-		mod = (uint32_t) mode ; /* this is wrong in general */
+		mod = (mod_t) mode ; /* this is wrong in general */
+		fl += sizeof(elemt_m);
 	}
 	else {
 		if ((fread(&mod, sizeof(uint32_t), 1, fh) != 1) || (mod == 1)) {
@@ -140,7 +145,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fclose(fh);
 			return NULL;
 		}
-
+		fl += sizeof(uint32_t);
 	}
 	// get number of nonzero elements
 	if (fread(&nnz, sizeof(uint64_t), 1, fh) != 1) {
@@ -149,10 +154,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		fclose(fh);
 		return NULL;
 	}
-
-#ifndef USE_SEEK
-	fl += 3*sizeof(uint32_t)+sizeof(uint64_t);
-#endif
+	fl += sizeof(uint64_t);
 
 	// density of matrix
 	density =   (double) n * (double) m;
@@ -287,75 +289,76 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		free(nze);
 		free(pos);
-	} else { /* new_format == 1 */
+	}
+	else { /* new_format == 1 */
 
 		if ((sizeof(ci_t) != sizeof(uint32_t)) ||  ((ci_t)-1 < 0))
 			exit(-1);
 
-		uint32_t *row = (uint32_t *)malloc((m) * sizeof(uint32_t));
-		if (fread(row, sizeof(uint32_t), m , fh) != m) {
+		dimen_t *row = (dimen_t *)malloc((m) * sizeof(dimen_t));
+		if (fread(row, sizeof(dimen_t), m , fh) != m) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (rows)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
 
-		uint32_t *mzp = (uint32_t*)malloc(m * sizeof(uint32_t));
-		if (fread(mzp, sizeof(uint32_t), m , fh) != m) {
+		dimen_t *mzp = (dimen_t*)malloc(m * sizeof(dimen_t));
+		if (fread(mzp, sizeof(dimen_t), m , fh) != m) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (mat_zo_pol)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
 
-		fl +=  2*m*sizeof(uint32_t) ;
+		fl +=  2*m*sizeof(dimen_t) ;
 
-		uint64_t czs;
-		if (fread(&czs, sizeof(uint64_t), 1, fh) != 1) {
+		index_t czs;
+		if (fread(&czs, sizeof(index_t), 1, fh) != 1) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (col size))\n",fn);
 			fclose(fh);
 			return NULL;
 		}
 
-		uint32_t * cz = (uint32_t*)malloc(czs * sizeof(uint32_t));
-		if (fread(cz, sizeof(uint32_t), czs, fh) != czs) {
+		dimen_t * cz = (dimen_t*)malloc(czs * sizeof(dimen_t));
+		if (fread(cz, sizeof(dimen_t), czs, fh) != czs) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (cols)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
 
-		fl += sizeof(uint64_t) + sizeof(uint32_t)*(czs);
+		fl += sizeof(index_t) + sizeof(dimen_t)*(czs);
 
-		uint32_t np;
-		if (fread(&np, sizeof(uint32_t), 1, fh) != 1) {
+		dimen_t np;
+		if (fread(&np, sizeof(dimen_t), 1, fh) != 1) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (nb pols)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
 
-		uint64_t zp;
-		if (fread(&zp, sizeof(uint64_t), 1, fh) != 1) {
+		index_t zp;
+		if (fread(&zp, sizeof(index_t), 1, fh) != 1) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (nb pol data)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
-		fl += sizeof(uint64_t);
+		fl += sizeof(index_t);
 
-		uint32_t * rp = (uint32_t*)malloc((np) * sizeof(uint32_t)); /* row length */
-		if (fread(rp, sizeof(uint32_t), np, fh) != (np)) {
+		dimen_t * rp = (dimen_t*)malloc((np) * sizeof(dimen_t)); /* row length */
+		if (fread(rp, sizeof(dimen_t), np, fh) != (np)) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (pol rows)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
-		fl += sizeof(uint32_t)*(np);
+		fl += sizeof(dimen_t)*(np);
 
 		ri_t i;
-		uint64_t * sp = (uint64_t*)malloc((np+1) * sizeof(uint64_t)); /* row pointers */
+		index_t * sp = (index_t*)malloc((np+1) * sizeof(index_t)); /* row pointers */
 		sp[0] = 0 ;
 		for ( i = 0 ; i < np ; ++i) {
 			sp[i+1] = sp[i] + rp[i] ;
@@ -372,22 +375,22 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL;
 		}
 
-		fl += sizeof(uint32_t)*(zp);
+		fl += sizeof(dimen_t)*(zp);
 
-		uint32_t * pos = (uint32_t*)malloc(nnz * sizeof(uint32_t));
+		dimen_t * pos = (dimen_t*)malloc(nnz * sizeof(dimen_t));
 
 		{ /* expand */
-			uint32_t mask = (1<<31);
-			uint64_t i = 0 ;
-			uint64_t j = 0 ;
-			uint32_t col ;
+			uint32_t mask = (1U<<31);
+			index_t i = 0 ;
+			index_t j = 0 ;
+			dimen_t col ;
 			for ( ; i < czs ;) {
 				col = cz[i++] ;
-				if (col & mask) {
+				if ( (col & mask) == mask ) {
 					pos[j++] = col ^ mask ;
 				}
 				else {
-					uint32_t k = 0 ;
+					dimen_t k = 0 ;
 					for (; k < cz[i] ;++k) {
 						pos[j++] = col + k;
 					}
