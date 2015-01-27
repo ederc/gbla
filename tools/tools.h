@@ -56,4 +56,48 @@ void expandColid(
 #endif
 }
 
+dimen_t compressColid(
+		const dimen_t * cols_reord
+		, const index_t nnz
+		, dimen_t * colid
+		)
+{
+	dimen_t here = 0 ;
+	index_t j = 0 ;
+	colid[here] = cols_reord[j++] ;
+	int cons = 0;
+	assert(nnz > 1);
+	for ( ; j < nnz-1 ; ++ j) {
+		if (cols_reord[j] == cols_reord[j-1]+1) {
+			++cons;
+		}
+		else {
+			if (cons == 0) {
+				colid[here] |= NEGMASK ;
+			}
+			else {
+				colid[++here] = cons+1 ;
+			}
+			cons = 0 ;
+			colid[++here] = cols_reord[j];
+		}
+	}
+	if (cols_reord[j] != cols_reord[j-1]+1) { /* last one */
+		if (cons == 0) {
+			colid[here] |= NEGMASK;
+		}
+		else {
+			colid[++here] = cons+1 ;
+		}
+		colid[++here] = cols_reord[j] | NEGMASK;
+
+	}
+	else {
+		colid[++here] = cons+2 ;
+	}
+	++here;
+
+	return here ;
+}
+
 #endif /* __GB_tools_H */

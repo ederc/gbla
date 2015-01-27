@@ -22,6 +22,7 @@
 #include "tools/types.h"
 #include "tools/macros.h"
 #include "tools/ouvrir.h"
+#include "tools/tools.h"
 
 
 // ========== TIMINGS ==========
@@ -374,25 +375,12 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		dimen_t * pos = (dimen_t*)malloc(nnz * sizeof(dimen_t));
 
-		{ /* expand */
-			uint32_t mask = (1U<<31);
-			index_t i = 0 ;
-			index_t j = 0 ;
-			dimen_t col ;
-			for ( ; i < czs ;) {
-				col = cz[i++] ;
-				if ( (col & mask) == mask ) {
-					pos[j++] = col ^ mask ;
-				}
-				else {
-					dimen_t k = 0 ;
-					for (; k < cz[i] ;++k) {
-						pos[j++] = col + k;
-					}
-					++i;
-				}
-			}
-		}
+		expandColid( cz , czs , pos
+#ifndef NDEBUG
+		 , nnz, n
+#endif
+		);
+
 
 		ci_t j;
 		ci_t here = 0 ;

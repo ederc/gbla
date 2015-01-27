@@ -64,7 +64,6 @@ uint64_t JOAAT_hash(char *key, size_t len)
 	return hash;
 }
 
-
 void insert_sort_duo_rev(dimen_t * liste, dimen_t size, dimen_t * copain)
 {
 	dimen_t d , c = 1 , t ;
@@ -77,7 +76,6 @@ void insert_sort_duo_rev(dimen_t * liste, dimen_t size, dimen_t * copain)
 		}
 	}
 }
-
 
 void convert_old2new(char * out, FILE * titi, int rev, int sor)
 {
@@ -175,40 +173,7 @@ void convert_old2new(char * out, FILE * titi, int rev, int sor)
 
 
 	/* compress colid */
-	here = 0 ;
-	index_t j = 0 ;
-	colid[here] = cols_reord[j++] ;
-	int cons = 0;
-	assert(nnz > 1);
-	for ( ; j < nnz-1 ; ++ j) {
-		if (cols_reord[j] == cols_reord[j-1]+1) {
-			++cons;
-		}
-		else {
-			if (cons == 0) {
-				colid[here] |= NEGMASK ;
-			}
-			else {
-				colid[++here] = cons+1 ;
-			}
-			cons = 0 ;
-			colid[++here] = cols_reord[j];
-		}
-	}
-	if (cols_reord[j] != cols_reord[j-1]+1) { /* last one */
-		if (cons == 0) {
-			colid[here] |= NEGMASK;
-		}
-		else {
-			colid[++here] = cons+1 ;
-		}
-		colid[++here] = cols_reord[j] | NEGMASK;
-
-	}
-	else {
-		colid[++here] = cons+2 ;
-	}
-	++here;
+	here = compressColid(cols_reord,nnz,colid);
 
 	if (! sor && ! rev)
 		free(cols);
