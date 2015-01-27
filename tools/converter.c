@@ -324,7 +324,8 @@ void convert_new2old(char * out, FILE * fh)
 	char nouv [1024];
 	strncpy(nouv,out,lout-4);
 
-	if (strcmp(strrchr(out,'.'),".gbm") != 0) {
+	char * found = strrchr(out,'.');
+	if (!found || strcmp(found,".gbm") != 0) {
 		fprintf(stderr,"erreur : file %s has incorrect extension. Expects .gbm\n",out);
 		fclose(fh);
 		exit(-1);
