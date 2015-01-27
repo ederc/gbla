@@ -23,7 +23,7 @@
 #define stor_t       uint32_t  /* Element representation mod p on file */
 #define larg_t       uint64_t  /* Element representation mod p on file */
 /* NEW FORMAT */
-#define elemt_s  int16_t /* field element storage */
+#define elemt_s  uint16_t /* field element storage */
 #define elemt_m  uint16_t /* modulo storage */
 #define elemt_t  double   /* field element type in computations  */
 
