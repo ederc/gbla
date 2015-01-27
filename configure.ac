@@ -1,4 +1,4 @@
-AC_INIT([gbla],[0.0.1])
+AC_INIT([gbla],[0.0.2])
 
 AC_CANONICAL_HOST
 
@@ -257,7 +257,7 @@ fi
 
 if test -z "$GB_config_papi"; then
    AC_CHECK_LIB(papi, PAPI_start_counters,
-   [ 
+   [
     AX_GUESS_PATH_LIB(papi)
     AX_GUESS_PATH_HEADER(papi.h)
     if test -n "$LIBPAPI_PATH"; then
@@ -273,7 +273,7 @@ if test -z "$GB_config_papi"; then
        PAPI_CFLAGS="-I$PAPI_H_PATH"
        AC_DEFINE_UNQUOTED([HAVE_LIBPAPI], 1, [Define when libpapi is available.])
     else
-      AC_MSG_WARN([Could not find papi.h; Use --with-papi=<install_prefix> or add -I<install_prefix>/include to either CPPFLAGS 
+      AC_MSG_WARN([Could not find papi.h; Use --with-papi=<install_prefix> or add -I<install_prefix>/include to either CPPFLAGS
                     or CFLAGS, or turn off papi all together by configuring with --without-papi.])
     fi
 ])
@@ -292,7 +292,7 @@ AC_SUBST(PAPI_LIBS)
 AC_SUBST(PAPI_LDFLAGS)
 AC_SUBST(PAPI_CFLAGS)
 
-AC_ARG_ENABLE([cachetune], 
+AC_ARG_ENABLE([cachetune],
      AS_HELP_STRING([--enable-cachetune],[calculate cache size from timing information (deprecated).]))
 
 # Cache Sizes
