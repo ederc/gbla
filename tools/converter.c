@@ -304,15 +304,20 @@ void convert_old2new(char * out, FILE * titi, int rev, int sor)
 		free(permut);
 
 	}
-	else if (rev) {
-		for (i=0 ; i < m ; ++i) {
-			start[i+1] = start[i] + rows[m-i-1] ;
+	else {
+		if (rev) {
+			for (i=0 ; i < m ; ++i) {
+				start[i+1] = start[i] + rows[m-i-1] ;
+			}
+		}
+		else {
+			/* nothing */
 		}
 	}
 
 	/* XXX we don't need to write this, we could write rows */
 	for ( i = 0 ; i < m ; ++i)
-		rows[i] = start[i+1]-start[i] ;
+		rows[i] = start[i+1]-start[i] ; /* odd :) */
 
 	fwrite(rows,sizeof(dimen_t),m,toto);
 	free(rows);

@@ -18,7 +18,7 @@
 #ifndef __GB_ouvrir_H
 #define __GB_ouvrir_H
 
-FILE* ouvrir(char* a,char* b)
+FILE* ouvrir(const char* a,char* b)
 {
 	if ( (strcmp(a,"-") == 0) && (strcmp(b,"r") == 0) )
 		return stdin;

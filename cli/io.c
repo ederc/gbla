@@ -21,6 +21,7 @@
 #include "tools/selecter.h"
 #include "tools/types.h"
 #include "tools/macros.h"
+#include "tools/ouvrir.h"
 
 
 // ========== TIMINGS ==========
@@ -72,13 +73,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 #endif /* USE_SEEK */
 
 	// now read data from file
-	FILE* fh;
-	if (strcmp(fn,"-")==0)
-	  {
-	    fh=stdin;
-	  }
-	else
-	  fh= fopen(fn,"r");
+	FILE* fh = ouvrir(fn,"r");
 
 	if (new_format == 1) {
 		uint32_t b;
