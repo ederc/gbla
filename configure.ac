@@ -52,10 +52,10 @@ if test "$ac_cv_prog_cc_c99" = "no"; then
   AC_MSG_ERROR([C99 support is required but not found.])
 fi
 
-LB_CHECK_BLAS
-LB_CHECK_ATLAS
-LB_CHECK_GMP
-LB_CHECK_NTL
+# LB_CHECK_BLAS
+# LB_CHECK_ATLAS
+# LB_CHECK_GMP
+# LB_CHECK_NTL
 
 # SSE2 support
 AC_ARG_ENABLE([sse2],
