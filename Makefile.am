@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = gnu subdir-objects parallel-tests
 ACLOCAL_AMFLAGS = -I m4
 
-AM_CFLAGS=${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS} -lm
+AM_CFLAGS=${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS}
 
 lib_LTLIBRARIES = libgbla.la
 
@@ -34,7 +34,7 @@ EXTRA_DIST=autogen.sh tools/Makefile tools/converter.c tools/dump_matrix.c
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = gbla.pc
 
-libgbla_la_LDFLAGS = -release $(RELEASE) -no-undefined
+libgbla_la_LDFLAGS = $(LDFLAGS) -release $(RELEASE) -no-undefined
 libgbla_la_LIBADD = $(LIBPNG_LIBADD)
 
 bin_PROGRAMS = gbla
@@ -45,7 +45,7 @@ gbla_SOURCES = \
 	cli/gbla.h	cli/gbla.c	\
 	cli/io.h	cli/io.c
 
-gbla_LDADD = $(top_builddir)/libgbla.la $(DEPS_LIBS)
+gbla_LDADD = $(top_builddir)/libgbla.la $(DEPS_LIBS) -lm
 
 SUBDIRS = test
 

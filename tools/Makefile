@@ -4,9 +4,9 @@
 #  CXX=clang++
 DBG=-O0 -g
 WAR=-Wall -Wextra -ansi
-STA=
-#  STA=-static
 OPT=-march=native -O3 -DNDEBUG -UDEBUG  -flto
+#  STA=-static -O2 -DNDEBUG -UDEBUG  -flto
+#  OPT=
 LIB=-lm
 #  PRF=-pg
 PRF=
