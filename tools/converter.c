@@ -252,20 +252,18 @@ void convert_old2new(char * out, FILE * titi, int rev, int sor)
 		result = hsearch(item, FIND);
 		if (result == NULL) {
 			hsearch(item,ENTER);
-#ifndef REVERT
-			map_zo_pol[k] = pol_nb;
-#else
-			map_zo_pol[m-k-1] = pol_nb;
-#endif
+			if (!rev)
+				map_zo_pol[k] = pol_nb;
+			else
+				map_zo_pol[m-k-1] = pol_nb;
 			hash_row_pol[pol_nb] = k ;
 			pol_nb++;
 		}
 		else {
-#ifndef REVERT
-			map_zo_pol[k] = ((row*)result->data)->i;
-#else
-			map_zo_pol[m-k-1] = ((row*)result->data)->i;
-#endif
+			if (!rev)
+				map_zo_pol[k] = ((row*)result->data)->i;
+			else
+				map_zo_pol[m-k-1] = ((row*)result->data)->i;
 		}
 	}
 	hdestroy();
@@ -297,18 +295,20 @@ void convert_old2new(char * out, FILE * titi, int rev, int sor)
 	if (sor) {
 		for ( i=0 ; i < m ; ++i) {
 			dimen_t k = permut[i];
-			start[i+1] = start[i] + rows[k] ;
+			if (rev)
+				start[i+1] = start[i] + rows[m-k-1] ;
+			else
+				start[i+1] = start[i] + rows[k] ;
 		}
 
 		free(permut);
 
-	} /* SORT */
-
-	if (rev) {
+	}
+	else if (rev) {
 		for (i=0 ; i < m ; ++i) {
 			start[i+1] = start[i] + rows[m-i-1] ;
 		}
-	} /* REVERT */
+	}
 
 	/* XXX we don't need to write this, we could write rows */
 	for ( i = 0 ; i < m ; ++i)
