@@ -90,7 +90,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	SAFE_READ_DECL_V(nnz,larg_t,titi);
 
 
-	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
+	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n Reading...\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
 
 	fwrite(&m,  sizeof(dimen_t),1,toto);
 	fwrite(&n,  sizeof(dimen_t),1,toto);
@@ -102,6 +102,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	SAFE_READ_DECL_P(rows,m  ,stor_t,titi);
 
 	fclose(titi);
+	fprintf(stderr," ...Finished reading\n");
 
 	/* start */
 	SAFE_MALLOC_DECL(start,(m+1),index_t);
@@ -122,8 +123,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	dimen_t * permut = NULL ;
 
 	if (sor) {
-		dimen_t * pivots = NULL ;
-		SAFE_MALLOC(pivots,m,dimen_t);
+		SAFE_MALLOC_DECL(pivots,m,dimen_t);
 		SAFE_MALLOC(permut,m,dimen_t);
 		for ( i=0 ; i < m ;++i) {
 			pivots[i] = cols[start[i]] ;
@@ -225,7 +225,45 @@ void convert_old2new( FILE * titi, int rev, int sor)
 			hash_row_pol[pol_nb] = k ;
 			pol_nb++;
 		}
-		else {
+		else { /* found */
+			{ /* check hash a little */
+
+				dimen_t o = hash_row_pol[((row*)result->data)->id];
+				index_t k0 = start[o];
+				index_t k1 = start[o+1];
+				int vrai = 1 ;
+				if ( (k1-k0) != (j1-j0) ) {
+					vrai = 0 ;
+				}
+
+				if (vrai) {
+					index_t kk  ; /* first is suppose to be 1 */
+					for (kk = 0 ; vrai && kk < (k1-k0)/10 ; ++kk)
+						if (data[k0+1+kk*10] != data[k0+1+kk*10]) {
+							vrai = 0;
+						}
+#if 0
+					index_t zz,yy ;
+					for (yy = j0, zz=k0 ; zz < k1 ; ++yy,++zz) {
+						if (data[yy] != data[zz]) {
+							fprintf(stderr,"bad hash %u %u\n",o,k);
+							exit(-3);
+						}
+					}
+#endif
+				}
+
+				if (!vrai) {
+					if (!rev)
+						map_zo_pol[k] = pol_nb;
+					else
+						map_zo_pol[m-k-1] = pol_nb;
+					hash_row_pol[pol_nb] = k ;
+					pol_nb++;
+					continue ;
+				}
+
+			}
 			if (!rev)
 				map_zo_pol[k] = ((row*)result->data)->id;
 			else
@@ -339,7 +377,7 @@ void convert_new2old( FILE * fh)
 	assert(mod > 1);
 	SAFE_READ_DECL_V(nnz,index_t,fh);
 
-	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
+	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n Reading...\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
 
 	/* READ in ZO start */
 	SAFE_READ_DECL_P(rows,m,dimen_t,fh);
@@ -365,6 +403,8 @@ void convert_new2old( FILE * fh)
 
 
 	fclose(fh);
+
+	fprintf(stderr," ...Finished reading\n");
 
 	FILE * toto = stdout ; /* out */
 
