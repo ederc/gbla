@@ -89,6 +89,9 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	SAFE_READ_DECL_V(mod,stor_t,titi);
 	SAFE_READ_DECL_V(nnz,larg_t,titi);
 
+
+	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
+
 	fwrite(&m,  sizeof(dimen_t),1,toto);
 	fwrite(&n,  sizeof(dimen_t),1,toto);
 	fwrite(&mod,sizeof(elemt_m),1,toto);
@@ -116,10 +119,10 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	SAFE_MALLOC_DECL(hash_row_pol,m,index_t);
 
 
-	dimen_t * pivots = NULL ;
 	dimen_t * permut = NULL ;
 
 	if (sor) {
+		dimen_t * pivots = NULL ;
 		SAFE_MALLOC(pivots,m,dimen_t);
 		SAFE_MALLOC(permut,m,dimen_t);
 		for ( i=0 ; i < m ;++i) {
@@ -184,7 +187,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	ENTRY *result;
 	hcreate(m);
 
-	typedef struct row { dimen_t i ; } row ;
+	typedef struct row { dimen_t id ; } row ;
 
 	row * d ;
 	/* map_zo_pol */
@@ -207,10 +210,10 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		key_char[63]='\0';
 		item.key =  key_char ;
 		SAFE_MALLOC(d,1,row); /* XXX this is a memory leak */
-		d->i = pol_nb ;
+		d->id = pol_nb ;
 		item.data = (char*) d;
 		/* row d ; */
-		/* d.i = pol_nb ; */
+		/* d.id = pol_nb ; */
 		/* item.data = (char*) &d; */
 		result = hsearch(item, FIND);
 		if (result == NULL) {
@@ -224,14 +227,14 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		}
 		else {
 			if (!rev)
-				map_zo_pol[k] = ((row*)result->data)->i;
+				map_zo_pol[k] = ((row*)result->data)->id;
 			else
-				map_zo_pol[m-k-1] = ((row*)result->data)->i;
+				map_zo_pol[m-k-1] = ((row*)result->data)->id;
 		}
 	}
 	hdestroy();
 
-	SAFE_MALLOC_DECL(pol_start,(pol_nb+1),dimen_t);
+	SAFE_MALLOC_DECL(pol_start,(pol_nb+1),index_t);
 	/* pol_start  */
 	pol_start[0] = 0 ;
 	for ( i=0 ; i < pol_nb ; ++i) {
@@ -248,8 +251,8 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		index_t j0 = start[hash_row_pol[i]] ;
 		index_t j1 = start[hash_row_pol[i]+1] ;
 		dimen_t k  ;
-		for ( k=0; k< j1-j0 ; ++k)
-			pol_data[pol_start[i]+k]=data[j0+k];
+		for ( k=0; k< (dimen_t)(j1-j0) ; ++k)
+			pol_data[pol_start[i]+(index_t)k]=data[j0+(index_t)k];
 	}
 
 	free(data);
@@ -298,7 +301,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 
 	SAFE_MALLOC_DECL(pol_rows,pol_nb,dimen_t);
 	for ( i = 0 ; i < pol_nb ; ++i)
-		pol_rows[i] = pol_start[i+1]-pol_start[i] ;
+		pol_rows[i] = (dimen_t)(pol_start[i+1]-pol_start[i]) ;
 
 	fwrite(pol_rows,sizeof(dimen_t),pol_nb,toto);
 
@@ -358,7 +361,7 @@ void convert_new2old( FILE * fh)
 	SAFE_READ_DECL_P(pol_rows,pol_nb,dimen_t,fh);
 
 	/* XXX what if elemt_s == elemt_t ??? */
-	SAFE_READ_DECL_P(data_pol,pol_nnz,elemt_s,fh);
+	SAFE_READ_DECL_P(pol_data,pol_nnz,elemt_s,fh);
 
 
 	fclose(fh);
@@ -374,19 +377,19 @@ void convert_new2old( FILE * fh)
 	fwrite(&p_,sizeof(stor_t),1,toto);
 	fwrite(&z_,sizeof(larg_t),1,toto);
 
-	SAFE_MALLOC_DECL(start,m+1,index_t);
+	SAFE_MALLOC_DECL(start,(m+1),index_t);
 	start[0] = 0 ;
 	dimen_t i ;
 	for ( i = 0 ; i < m ; ++i)
-		start[i+1] = start[i] + rows[i];
+		start[i+1] = start[i] + (index_t)rows[i];
 
-	SAFE_MALLOC_DECL(start_pol,pol_nb+1,dimen_t);
-	start_pol[0] = 0 ;
+	SAFE_MALLOC_DECL(pol_start,(pol_nb+1),index_t);
+	pol_start[0] = 0 ;
 	for ( i = 0 ; i < pol_nb ; ++i)
-		start_pol[i+1] = start_pol[i]+pol_rows[i];
+		pol_start[i+1] = pol_start[i]+(index_t)pol_rows[i];
 	free(pol_rows);
 
-	assert(start_pol[pol_nb] == pol_nnz);
+	assert(pol_start[pol_nb] == pol_nnz);
 
 	SAFE_MALLOC_DECL(colid,nnz,dimen_t); /* colid expands buffer */
 
@@ -401,8 +404,8 @@ void convert_new2old( FILE * fh)
 	SAFE_MALLOC_DECL(data,nnz,elem_o);
 
 	for (i = 0 ; i < m ; ++i) {
-		dimen_t start_p = start_pol[ map_zo_pol[i] ] ;
-		elemt_s * d = data_pol+start_p ;
+		index_t start_p = pol_start[ map_zo_pol[i] ] ;
+		elemt_s * d = pol_data+start_p ;
 		index_t jz ;
 		for (jz = start[i] ; jz < start[i+1] ; ++jz) {
 			data[jz] = (elem_o) *d ;
@@ -434,8 +437,8 @@ void convert_new2old( FILE * fh)
 	free(data);
 	free(colid);
 	free(start);
-	free(data_pol);
-	free(start_pol);
+	free(pol_data);
+	free(pol_start);
 }
 
 /* ./convert toto.gb */
@@ -498,15 +501,16 @@ int main( int ac, char ** av)
 	}
 	else {
 		fprintf(stderr," (from new to old)\n");
-		char * found = strrchr(in,'.');
-		if (!found || strcmp(found,".gbm") != 0) {
-			fprintf(stderr,"warning : file %s has incorrect extension. Expects .gbm\n",in);
+		if ( strcmp(in,"-") != 0) {
+			char * found = strrchr(in,'.');
+			if (!found || strcmp(found,".gbm") != 0) {
+				fprintf(stderr,"warning : file %s has incorrect extension. Expects .gbm\n",in);
+			}
 		}
-
 		convert_new2old(titi);
 	}
 
-	fprintf(stderr,"created file from %s\n",av[ac-1]);
+	fprintf(stderr,"created file from %s\n",in);
 	return 0;
 }
 

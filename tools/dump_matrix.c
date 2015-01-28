@@ -360,7 +360,6 @@ int main(int nargs,char** argv)
 	if (new == 1)
 		dump_matrix_new(fic,all,strict,magma);
 	else {
-		printf("old, %u %u %u\n",all,strict,magma);
 		dump_matrix_old(fic,all,strict,magma);
 	}
 

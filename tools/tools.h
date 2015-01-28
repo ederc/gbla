@@ -56,16 +56,16 @@ void expandColid(
 #endif
 }
 
-dimen_t compressColid(
+index_t compressColid(
 		const dimen_t * cols_reord
 		, const index_t nnz
 		, dimen_t * colid
 		)
 {
-	dimen_t here = 0 ;
+	index_t here = 0 ;
 	index_t j = 0 ;
 	colid[here] = cols_reord[j++] ;
-	int cons = 0;
+	dimen_t cons = 0;
 	assert(nnz > 1);
 	for ( ; j < nnz-1 ; ++ j) {
 		if (cols_reord[j] == cols_reord[j-1]+1) {
