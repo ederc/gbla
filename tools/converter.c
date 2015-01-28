@@ -34,7 +34,7 @@ void usage(char * av)
 {
 	printf(" usage : \n");
 	printf(" (1)   %s [option] mat\n",av);
-	printf(" (2)   %s [option] mat_name - \n\n",av);
+	printf(" (2)   %s [option] - \n\n",av);
 
 	printf(" options can be:\n");
 	printf("   -n : convert from new format to old format. [default: old to new]\n");
@@ -42,11 +42,11 @@ void usage(char * av)
 	printf("   -S : don't sort the rows by weight (smallest first) \n");
 	printf("   -r : reverts order [default : enabled, new format only] \n");
 	printf("   -R : don't revert order \n");
-	printf(" (1) will produce a file named mat.gbm in the new format from matrix mat\n");
-	printf(" (2) will produce a file named mat_name.gbm in the new format from  stdin \n");
-	printf(" this would happen like : zcat mat.gz | %s mat - \n",av);
-	printf(" Warning : the input matrix has to be a file in the old format\n");
-	printf(" Warning : new matrix format is suffixed by .gbm\n");
+	printf(" (1) will produce a file on stdout from matrix mat\n");
+	printf(" (2) will produce a file on stdout from  stdin \n");
+	printf(" this would happen like : zcat mat.gz | %s mat - > mat.gbm\n",av);
+	printf(" Warning : the input matrix has to be in the correct format\n");
+	printf(" Warning : new matrix format is suffixed by .gbm (but not necessary)\n");
 }
 
 uint64_t JOAAT_hash(char *key, size_t len)
@@ -77,11 +77,9 @@ void insert_sort_duo_rev(dimen_t * liste, dimen_t size, dimen_t * copain)
 	}
 }
 
-void convert_old2new(char * out, FILE * titi, int rev, int sor)
+void convert_old2new( FILE * titi, int rev, int sor)
 {
-	strcat(out,".gbm");
-
-	FILE * toto = fopen(out,"wb"); /* out */
+	FILE * toto = stdout; /* out */
 	dimen_t un = Mjoin(select,elemt_s)();
 	un = un | VERMASK ;
 	fwrite(&un,sizeof(dimen_t),1,toto);
@@ -314,29 +312,17 @@ void convert_old2new(char * out, FILE * titi, int rev, int sor)
 
 	fclose(toto);
 
-	printf("created file %s\n",out);
 }
 
-void convert_new2old(char * out, FILE * fh)
+void convert_new2old( FILE * fh)
 {
 
-	uint32_t lout = strlen(out);
-	char nouv [1024];
-	strncpy(nouv,out,lout-4);
-
-	char * found = strrchr(out,'.');
-	if (!found || strcmp(found,".gbm") != 0) {
-		fprintf(stderr,"erreur : file %s has incorrect extension. Expects .gbm\n",out);
-		fclose(fh);
-		exit(-1);
-	}
-	nouv[lout-4]='\0';
 
 	/* format */
 	SAFE_READ_DECL_V(b,dimen_t,fh);
 	/* XXX set elemt_s here and C++-ise*/
 	if((b ^ VERMASK) != Mjoin(select,elemt_s)()) {
-		fprintf(stderr,"bad format for %s. Expected %u, got %u\n",out,Mjoin(select,elemt_s)(),(b ^ VERMASK));
+		fprintf(stderr,"bad format. Expected %u, got %u\n",Mjoin(select,elemt_s)(),(b ^ VERMASK));
 		exit(-1);
 	}
 
@@ -377,7 +363,7 @@ void convert_new2old(char * out, FILE * fh)
 
 	fclose(fh);
 
-	FILE * toto =fopen(nouv,"wb"); /* out */
+	FILE * toto = stdout ; /* out */
 
 	stor_t m_ = m ;
 	stor_t n_ = n ;
@@ -459,7 +445,7 @@ int main( int ac, char ** av)
 	int sor = 1 ;
 	int rev = 1 ;
 
-	if (ac < 2 || ac > 7) {
+	if (ac < 2 || ac > 5) {
 		usage(av[0]);
 		exit(-1);
 	}
@@ -494,30 +480,33 @@ int main( int ac, char ** av)
 	if (! rev || ! sor) {
 		fprintf(stderr, " warning : not sorting (%d) or not reverting (%d) rows !\n",sor,rev);
 	}
-	FILE * titi ;
-	char out[1024]; /* not too large the path... */
-	/* out[0] = '\0'; */
 
-	if (ac == 3) {
-		if ( strcmp(av[2],"-") != 0)  {
-			usage(av[0]);
-			exit(-1);
-		}
+	FILE * titi ;
+
+	if (ac != 2) {
+		usage(av[0]);
+		exit(-1);
 	}
 
-	titi = ouvrir(av[ac-1],"r"); /* in */
+	char * in = av[ac-1];
+	titi = ouvrir(in,"r"); /* in */
 
-	strcpy(out,av[1]);
-
+	fprintf(stderr,"converting matrix %s",in);
 	if (new ==0) {
-		printf("converting from old to new\n");
-		convert_old2new(out,titi,rev,sor);
+		fprintf(stderr," (from old to new)\n");
+		convert_old2new(titi,rev,sor);
 	}
 	else {
-		printf("converting from new to old\n");
-		convert_new2old(out,titi);
+		fprintf(stderr," (from new to old)\n");
+		char * found = strrchr(in,'.');
+		if (!found || strcmp(found,".gbm") != 0) {
+			fprintf(stderr,"warning : file %s has incorrect extension. Expects .gbm\n",in);
+		}
+
+		convert_new2old(titi);
 	}
 
+	fprintf(stderr,"created file from %s\n",av[ac-1]);
 	return 0;
 }
 
