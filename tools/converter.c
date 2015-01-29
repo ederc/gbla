@@ -235,22 +235,19 @@ void convert_old2new( FILE * titi, int rev, int sor)
 				if ( (k1-k0) != (j1-j0) ) {
 					vrai = 0 ;
 				}
+				elemt_s * d1 = data + k0 ;
+				elemt_s * d2 = data + j0 ;
+				assert(*d1 == *d2);
+				++d1 ; ++d2;
 
 				if (vrai) {
 					index_t kk  ; /* first is suppose to be 1 */
-					for (kk = 0 ; vrai && kk < (k1-k0)/10 ; ++kk)
-						if (data[k0+1+kk*10] != data[k0+1+kk*10]) {
+					for (kk = 0 ; kk < (k1-k0) ; ++kk)
+						if (d1[kk] != d2[kk]) {
+							fprintf(stderr," ** oops ** hash was bad: but we are safe.\n");
 							vrai = 0;
+							break;
 						}
-#if 0
-					index_t zz,yy ;
-					for (yy = j0, zz=k0 ; zz < k1 ; ++yy,++zz) {
-						if (data[yy] != data[zz]) {
-							fprintf(stderr,"bad hash %u %u\n",o,k);
-							exit(-3);
-						}
-					}
-#endif
 				}
 
 				if (!vrai) {
