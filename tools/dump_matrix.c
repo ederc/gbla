@@ -83,11 +83,14 @@ static void dump_matrix_old(char *fic,int all,int strict,int magma)
 	stor_t mod;
 	larg_t nb;
 	fprintf(stderr,"current format printing\n");
+	if (all)
+	fprintf(stderr," Reading..\n");
 
 	SAFE_READ_V(n,  stor_t,f);
 	SAFE_READ_V(m,  stor_t,f);
 	SAFE_READ_V(mod,stor_t,f);
 	SAFE_READ_V(nb, larg_t,f);
+
 
 
 	fprintf(stderr,"%u x %u matrix\n",n,m);
@@ -105,6 +108,7 @@ static void dump_matrix_old(char *fic,int all,int strict,int magma)
 		SAFE_READ_DECL_P(nz,  nb, elem_o, f);
 		SAFE_READ_DECL_P(pos, nb, stor_t, f);
 		SAFE_READ_DECL_P(sz,  n,  stor_t, f);
+		fprintf(stderr," ..Done reading\n");
 		if (magma)
 		{
 #if 1
@@ -125,7 +129,6 @@ static void dump_matrix_old(char *fic,int all,int strict,int magma)
 		{
 			const stor_t szi=sz[i];
 			stor_t j;
-			/* fprintf(stderr,"<%u>",szi); */
 			if (magma)
 				for(j=0;j<szi;j++)
 					printf("A[%u,%u]:=%d;\n",i+1,pos[j]+1,(int)(nz[j]));

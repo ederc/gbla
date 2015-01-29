@@ -179,13 +179,13 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	if (! sor && ! rev)
 		free(cols);
 
-	fprintf(stderr,"saved %lu / %lu\n",here,(uint64_t)nnz);
+	fprintf(stderr,"colid saved %lu / %lu (%.2f%%)\n",here,(uint64_t)nnz,(double)(nnz-here)/(double)nnz*100.);
 	SAFE_REALLOC(colid,here,dimen_t);
 
 
 	ENTRY item;
 	ENTRY *result;
-	hcreate(m);
+	hcreate(3*m/2);
 
 	typedef struct row { dimen_t id ; } row ;
 
@@ -202,7 +202,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		index_t j0 = start[k] ;
 		index_t j1 = start[k+1] ;
 		char * seq = (char*) (data+j0);
-		index_t length = (j1-j0)*sizeof(elem_o)/sizeof(char) ;
+		index_t length = (j1-j0)*(index_t)sizeof(elem_o)/(index_t)sizeof(char) ;
 
 		uint64_t key = JOAAT_hash(seq,length);
 		char key_char[64] ;
@@ -227,6 +227,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		}
 		else { /* found */
 			{ /* check hash a little */
+				/* fprintf(stderr,"%d \n",k); */
 
 				dimen_t o = hash_row_pol[((row*)result->data)->id];
 				index_t k0 = start[o];
@@ -238,11 +239,10 @@ void convert_old2new( FILE * titi, int rev, int sor)
 				elemt_s * d1 = data + k0 ;
 				elemt_s * d2 = data + j0 ;
 				assert(*d1 == *d2);
-				++d1 ; ++d2;
 
 				if (vrai) {
 					index_t kk  ; /* first is suppose to be 1 */
-					for (kk = 0 ; kk < (k1-k0) ; ++kk)
+					for (kk = 1 ; kk < (k1-k0) ; ++kk)
 						if (d1[kk] != d2[kk]) {
 							fprintf(stderr," ** oops ** hash was bad: but we are safe.\n");
 							vrai = 0;
@@ -251,6 +251,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 				}
 
 				if (!vrai) {
+					fprintf(stderr," ** warning ** bad hash\n");
 					if (!rev)
 						map_zo_pol[k] = pol_nb;
 					else
@@ -268,6 +269,8 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		}
 	}
 	hdestroy();
+
+	fprintf(stderr,"pols  saved %u / %u (%.2f%%)\n",pol_nb,m,(double)(m-pol_nb)/(double)m*100.);
 
 	SAFE_MALLOC_DECL(pol_start,(pol_nb+1),index_t);
 	/* pol_start  */
