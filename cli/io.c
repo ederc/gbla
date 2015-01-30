@@ -209,16 +209,16 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		ri_t i;
 		ci_t j;
-		ci_t here = 0 ;
+		nnz_t here = 0 ;
 		for (i = 0 ; i < m ; ++i) {
 			M->rows[i] = (re_t *)malloc(sz[i] * sizeof(re_t));
 			M->pos[i]  = (ci_t *)malloc(sz[i] * sizeof(ci_t));
 			for (j = 0; j < sz[i]; ++j) {
-				M->rows[i][j] = nze[here+j];
-				M->pos[i][j]  = pos[here+j];
+				M->rows[i][j] = nze[here+(nnz_t)j];
+				M->pos[i][j]  = pos[here+(nnz_t)j];
 			}
 			M->rwidth[i]  = sz[i];
-			here += sz[i] ;
+			here += (nnz_t)sz[i] ;
 		}
 		free(sz);
 
