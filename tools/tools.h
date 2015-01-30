@@ -56,15 +56,16 @@ void expandColid(
 #endif
 }
 
-index_t compressColid(
+void compressColid(
 		const dimen_t * cols_reord
 		, const index_t nnz
 		, dimen_t * colid
+		, index_t * here
 		)
 {
-	index_t here = 0 ;
+	index_t xhere = 0 ;
 	index_t j = 0 ;
-	colid[here] = cols_reord[j++] ;
+	colid[xhere] = cols_reord[j++] ;
 	dimen_t cons = 0;
 	assert(nnz > 1);
 	for ( ; j < nnz-1 ; ++ j) {
@@ -73,31 +74,108 @@ index_t compressColid(
 		}
 		else {
 			if (cons == 0) {
-				colid[here] |= NEGMASK ;
+				colid[xhere] |= NEGMASK ;
 			}
 			else {
-				colid[++here] = cons+1 ;
+				colid[++xhere] = cons+1 ;
 			}
 			cons = 0 ;
-			colid[++here] = cols_reord[j];
+			colid[++xhere] = cols_reord[j];
 		}
 	}
 	if (cols_reord[j] != cols_reord[j-1]+1) { /* last one */
 		if (cons == 0) {
-			colid[here] |= NEGMASK;
+			colid[xhere] |= NEGMASK;
 		}
 		else {
-			colid[++here] = cons+1 ;
+			colid[++xhere] = cons+1 ;
 		}
-		colid[++here] = cols_reord[j] | NEGMASK;
+		colid[++xhere] = cols_reord[j] | NEGMASK;
 
 	}
 	else {
-		colid[++here] = cons+2 ;
+		colid[++xhere] = cons+2 ;
 	}
-	++here;
+	++xhere;
 
-	return here ;
+	*here = xhere;
 }
+
+void compressColid2(
+		const dimen_t * cols_reord
+		, const index_t nnz
+		, dimen_t * colid
+		, index_t * here
+		, uint8_t * colrep
+		, index_t * there
+		)
+{
+	index_t xhere = 0 ;
+	index_t xthere= 0 ;
+	index_t j = 0 ;
+	colid[xhere] = cols_reord[j++] ;
+	dimen_t cons = 0;
+	assert(nnz > 1);
+	for ( ; j < nnz-1 ; ++ j) {
+		if (cols_reord[j] == cols_reord[j-1]+1) {
+			++cons;
+		}
+		else {
+			if (cons == 0) {
+				colid[xhere] |= NEGMASK ;
+			}
+			else {
+				cons ++ ;
+				while (cons > MARKER08) {
+					colrep[++xthere] = MARKER08 ;
+					++xhere ;
+					colid[xhere]=colid[xhere-1]+MARKER08 ;
+					cons -= MARKER08 ;
+				}
+				assert(cons < MARKER08);
+				colrep[++xthere] = (uint8_t) cons ;
+			}
+			cons = 0 ;
+			colid[++xhere] = cols_reord[j];
+		}
+	}
+	if (cols_reord[j] != cols_reord[j-1]+1) { /* last one */
+		if (cons == 0) {
+			colid[xhere] |= NEGMASK;
+		}
+		else {
+			++cons ;
+			while (cons > MARKER08) {
+				colrep[++xthere] = MARKER08 ;
+				++xhere ;
+				colid[xhere]=colid[xhere-1]+MARKER08 ;
+				cons -= MARKER08 ;
+			}
+			assert(cons < MARKER08);
+			colrep[++xthere] = (uint8_t) cons ;
+		}
+		colid[++xhere] = cols_reord[j] | NEGMASK;
+
+	}
+	else {
+		cons += 2 ;
+		while (cons > MARKER08) {
+			colrep[++xthere] = MARKER08 ;
+			++xhere ;
+			colid[xhere]=colid[xhere-1]+MARKER08 ;
+			cons -= MARKER08 ;
+		}
+		assert(cons < MARKER08);
+		colrep[++xthere] = (uint8_t) cons ;
+	}
+	++xhere;
+	++xthere ;
+
+	* here = xhere  ;
+	*there = xthere ;
+
+	return ;
+}
+
 
 #endif /* __GB_tools_H */

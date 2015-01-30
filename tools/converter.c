@@ -26,6 +26,7 @@
 #include "selecter.h"
 #include "ouvrir.h"
 
+#define FMT2
 
 void usage(char * av)
 {
@@ -169,19 +170,27 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	else
 		cols_reord = cols ;
 
+	if (! sor && ! rev)
+		free(cols);
+
 	SAFE_MALLOC_DECL(colid,nnz,dimen_t);
 
 
 	/* compress colid */
-	here = compressColid(cols_reord,nnz,colid);
+#ifdef FMT2
+	compressColid(cols_reord,nnz,colid,&here);
+#else
+	index_t there = 0 ;
+	SAFE_MALLOC_DECL(colrep,nnz,uint8_t);
+	compressColid2(cols_reord,nnz,colid,&here,colrep,&there);
+	SAFE_REALLOC(colrep,there,uint8_t);
+#endif
+	SAFE_REALLOC(colid,here,dimen_t);
 
-	if (! sor && ! rev)
-		free(cols);
 
 	fprintf(stderr," ...Done\n");
 	fprintf(stderr,"colid saved %lu / %lu (%.2f%%)\n",here,(uint64_t)nnz,(double)(nnz-here)/(double)nnz*100.);
 	fprintf(stderr," Compressing data...\n");
-	SAFE_REALLOC(colid,here,dimen_t);
 
 
 	ENTRY item;
@@ -339,6 +348,10 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	fwrite(&here,sizeof(index_t),1,toto);
 	fwrite(colid,sizeof(dimen_t),here,toto);
 	free(colid);
+#ifndef FMT2
+	fwrite(&there,sizeof(index_t),1,toto);
+	fwrite(colrep,sizeof(uint8_t),there,toto);
+#endif
 
 	fwrite(&pol_nb,sizeof(dimen_t),1,toto);
 	fwrite(&pol_nnz,sizeof(index_t),1,toto);

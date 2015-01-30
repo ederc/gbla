@@ -33,6 +33,12 @@
 
 #define NEGMASK (1U<<31)
 #define VERMASK (1U<<31)
+/* #define MARKER32 UINT32_MAX */
+/* #define MARKER32 (~0) */
+/* #define MARKER32 ((uint32_t)-1)*/
+#define MARKER32 (0xFFFFFFFF)
+#define MARKER16 (0x0000FFFF)
+#define MARKER08 (0x000000FF)
 
 
 

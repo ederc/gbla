@@ -3,11 +3,11 @@
 #  CXX=g++
 #  CXX=clang++
 DBG=-O0 -g
-WAR=-Wall -Wextra -ansi
+WAR=-Wall -Wextra -ansi -Wno-unused-result
 #  STA=
 #  STA=-static
-OPT=-O2 $(STA) -DNDEBUG -UDEBUG  -flto
-#  OPT=-march=native -O3 $(STA) -DNDEBUG -UDEBUG  -flto
+#  OPT=-O2 $(STA) -DNDEBUG -UDEBUG  -flto
+OPT=-march=native -O3 $(STA) -DNDEBUG -UDEBUG  -flto
 LIB=-lm
 #  PRF=-pg
 PRF=

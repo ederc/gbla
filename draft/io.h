@@ -81,7 +81,7 @@ dimen_t getSparsestRows_fast(
 		creux_v[i] = (dimen_t)(start[i+1]-start[i]);
 
 	for ( i = 0 ; i < col ; ++i ) {
-		pivots_data[i] = (dimen_t)(-1);
+		pivots_data[i] = MARKER32 ;
 	}
 
 	dimen_t new_i ;
@@ -90,7 +90,7 @@ dimen_t getSparsestRows_fast(
 		dimen_t creux   = creux_v[new_i] ;          /* length of row new_i */
 		assert(pivot_j < col);
 		dimen_t old_i = pivots_data[pivot_j] ;      /* last row for pivot column */
-		if (old_i == (dimen_t)(-1)) {
+		if (old_i == MARKER32) {
 			pivots_data[pivot_j] = new_i ;
 			++k_dim;
 		}
