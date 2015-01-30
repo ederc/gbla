@@ -390,7 +390,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 
 		ci_t j;
-		ci_t here = 0 ;
+		nnz_t here = 0 ;
 		re_t *nze;
 		for (i = 0 ; i < m ; ++i) {
 			ci_t sz     = row[i];
@@ -399,10 +399,10 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			nze         = vp + sp[mzp[i]] ;
 			for (j = 0; j < sz; ++j) {
 				M->rows[i][j] = nze[j];
-				M->pos[i][j]  = pos[here+j];
+				M->pos[i][j]  = pos[here+(nnz_t)j];
 			}
 			M->rwidth[i]  = sz;
-			here += sz ;
+			here += (nnz_t)sz ;
 		}
 
 		// free data
