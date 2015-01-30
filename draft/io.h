@@ -618,17 +618,17 @@ dimen_t * readFileSplit(
 	assert(fh);
 
 	/* format */
-	SAFE_READ_DECL_V(b,uint32_t,fh);
+	SAFE_READ_DECL_V(b,dimen_t,fh);
 	/* XXX set elemt_s here and C++-ise*/
 	assert((b ^ VERMASK) == Mjoin(select,elemt_s)());
 
 	/* READ in row col nnz mod */
-	SAFE_READ_DECL_V(m,uint32_t,fh);
+	SAFE_READ_DECL_V(m,dimen_t,fh);
 	/* assert(m < MAT_ROW_BLK); */
-	SAFE_READ_DECL_V(n,uint32_t,fh);
-	SAFE_READ_DECL_V(mod,elemt_s,fh);
+	SAFE_READ_DECL_V(n,dimen_t,fh);
+	SAFE_READ_DECL_V(mod,elemt_m,fh);
 	assert(mod > 1);
-	SAFE_READ_DECL_V(nnz,uint64_t,fh);
+	SAFE_READ_DECL_V(nnz,index_t,fh);
 
 	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
 
@@ -636,23 +636,23 @@ dimen_t * readFileSplit(
 	A_init->mod = C_init->mod = mod ;
 
 	/* READ in ZO start */
-	SAFE_READ_DECL_P(rows,m,uint32_t,fh);
+	SAFE_READ_DECL_P(rows,m,dimen_t,fh);
 
 	/* pol/zo correspondance */
-	SAFE_READ_DECL_P(map_zo_pol,m,uint32_t,fh);
+	SAFE_READ_DECL_P(map_zo_pol,m,dimen_t,fh);
 
 
 	/* colid in ZO */
-	SAFE_READ_DECL_V(colid_size,uint64_t,fh);
-	SAFE_READ_DECL_P(buffer,colid_size,uint32_t,fh); /* buffer has the matrix */
+	SAFE_READ_DECL_V(colid_size,index_t,fh);
+	SAFE_READ_DECL_P(buffer,colid_size,dimen_t,fh); /* buffer has the matrix */
 
 	/* size of nnz for pols: */
-	SAFE_READ_V(polys->nb,uint32_t,fh);
+	SAFE_READ_V(polys->nb,dimen_t,fh);
 
-	SAFE_READ_DECL_V(pol_nnz,uint64_t,fh);
+	SAFE_READ_DECL_V(pol_nnz,index_t,fh);
 
 	/* create GBpolynomials shared by A_init and B_init */
-	SAFE_READ_DECL_P(pol_rows,polys->nb,uint32_t,fh);
+	SAFE_READ_DECL_P(pol_rows,polys->nb,dimen_t,fh);
 
 	/* XXX what if elemt_s == elemt_t ??? */
 	SAFE_READ_DECL_P(polys_data_pol,pol_nnz,elemt_s,fh);
@@ -670,14 +670,14 @@ dimen_t * readFileSplit(
 	gettimeofday(&tic,NULL);
 
 
-	SAFE_MALLOC_DECL(start,m+1,uint64_t);
+	SAFE_MALLOC_DECL(start,(m+1),index_t);
 	start[0] = 0 ;
 	dimen_t i ;
 	for ( i = 0 ; i < m ; ++i)
 		start[i+1] = start[i] + rows[i];
 	free(rows);
 
-	SAFE_MALLOC(polys->start_pol,polys->nb+1,uint32_t);
+	SAFE_MALLOC(polys->start_pol,(polys->nb+1),dimen_t);
 	polys->start_pol[0] = 0 ;
 	for ( i = 0 ; i < polys->nb ; ++i)
 		polys->start_pol[i+1] = polys->start_pol[i]+pol_rows[i];
