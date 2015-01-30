@@ -170,8 +170,6 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	else
 		cols_reord = cols ;
 
-	if (! sor && ! rev)
-		free(cols);
 
 	SAFE_MALLOC_DECL(colid,nnz,dimen_t);
 
@@ -185,6 +183,9 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	compressColid2(cols_reord,nnz,colid,&here,colrep,&there);
 	SAFE_REALLOC(colrep,there,uint8_t);
 #endif
+	if (! sor && ! rev)
+		free(cols);
+
 	SAFE_REALLOC(colid,here,dimen_t);
 
 
