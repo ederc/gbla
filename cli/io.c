@@ -185,6 +185,8 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL ;
 		}
 
+		fl +=  nnz * sizeof(re_t) ;
+
 		if (fread(pos,sizeof(ci_t),nnz,fh) != nnz) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (cols)\n",fn);
@@ -192,6 +194,8 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fclose(fh);
 			return NULL ;
 		}
+
+		fl +=   nnz *sizeof(ci_t);
 
 		if (fread(sz,sizeof(ci_t),m,fh) != m) {
 			if (verbose > 0)
@@ -201,7 +205,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL ;
 		}
 
-		fl +=  nnz * sizeof(re_t) + (nnz + m)*sizeof(ci_t);
+		fl +=  m *sizeof(ci_t);
 
 		ri_t i;
 		ci_t j;
@@ -298,6 +302,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fclose(fh);
 			return NULL;
 		}
+		fl +=  m*sizeof(dimen_t) ;
 
 		dimen_t *mzp = (dimen_t*)malloc(m * sizeof(dimen_t));
 		if (fread(mzp, sizeof(dimen_t), m , fh) != m) {
@@ -307,7 +312,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL;
 		}
 
-		fl +=  2*m*sizeof(dimen_t) ;
+		fl +=  m*sizeof(dimen_t) ;
 
 		index_t czs;
 		if (fread(&czs, sizeof(index_t), 1, fh) != 1) {
@@ -316,6 +321,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fclose(fh);
 			return NULL;
 		}
+		fl += sizeof(index_t) ;
 
 		dimen_t * cz = (dimen_t*)malloc(czs * sizeof(dimen_t));
 		if (fread(cz, sizeof(dimen_t), czs, fh) != czs) {
@@ -325,7 +331,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL;
 		}
 
-		fl += sizeof(index_t) + sizeof(dimen_t)*(czs);
+		fl +=  sizeof(dimen_t)*(czs);
 
 		dimen_t np;
 		if (fread(&np, sizeof(dimen_t), 1, fh) != 1) {
@@ -334,6 +340,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			fclose(fh);
 			return NULL;
 		}
+		fl += sizeof(dimen_t);
 
 		index_t zp;
 		if (fread(&zp, sizeof(index_t), 1, fh) != 1) {
@@ -371,7 +378,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			return NULL;
 		}
 
-		fl += sizeof(dimen_t)*(zp);
+		fl += sizeof(re_t)*(zp);
 
 		dimen_t * pos = (dimen_t*)malloc(nnz * sizeof(dimen_t));
 
