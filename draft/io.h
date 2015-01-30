@@ -78,7 +78,7 @@ dimen_t getSparsestRows_fast(
 
 	SAFE_MALLOC_DECL(creux_v,row,dimen_t);
 	for ( i = 0 ; i < row ; ++i)
-		creux_v[i] = start[i+1]-start[i];
+		creux_v[i] = (dimen_t)(start[i+1]-start[i]);
 
 	for ( i = 0 ; i < col ; ++i ) {
 		pivots_data[i] = (dimen_t)(-1);
@@ -87,16 +87,16 @@ dimen_t getSparsestRows_fast(
 	dimen_t new_i ;
 	for ( new_i = 0 ; new_i < row ; ++new_i ) {
 		dimen_t pivot_j = colid[start[new_i]] ;     /* first column row new_i */
-		dimen_t creux   = creux_v[new_i] ; /* length of row new_i */
+		dimen_t creux   = creux_v[new_i] ;          /* length of row new_i */
 		assert(pivot_j < col);
-		dimen_t old_i = pivots_data[pivot_j] ; /* last row for pivot column */
+		dimen_t old_i = pivots_data[pivot_j] ;      /* last row for pivot column */
 		if (old_i == (dimen_t)(-1)) {
 			pivots_data[pivot_j] = new_i ;
 			++k_dim;
 		}
 		else  {
 			dimen_t old_creux = creux_v[old_i];
-			if (old_creux == creux) { /* favour zeros after initial 1 */
+			if (old_creux == creux) {           /* favour zeros after initial 1 */
 				dimen_t old_j_next = nextcol(colid,start,old_i);
 				if (old_j_next > 0) {
 					dimen_t new_j_next = nextcol(colid,start,new_i);
@@ -104,7 +104,7 @@ dimen_t getSparsestRows_fast(
 						pivots_data[pivot_j] = new_i ;
 				}
 			}
-			if (old_creux > creux) { /* this row is sparser */
+			if (old_creux > creux) {            /* this row is sparser */
 				pivots_data[pivot_j] = new_i ;
 			}
 		}

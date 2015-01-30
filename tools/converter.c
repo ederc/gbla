@@ -22,11 +22,8 @@
 #include <search.h>
 
 #include "types.h"
-
 #include "tools.h"
-
 #include "selecter.h"
-
 #include "ouvrir.h"
 
 
@@ -117,7 +114,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 
 	SAFE_MALLOC_DECL(map_zo_pol,m,dimen_t);
 
-	SAFE_MALLOC_DECL(hash_row_pol,m,index_t);
+	SAFE_MALLOC_DECL(hash_row_pol,m,dimen_t);
 
 
 	dimen_t * permut = NULL ;
@@ -151,7 +148,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 				}
 			}
 		}
-		else {
+		else { /* not rev */
 			for ( i=0 ; i < m ; ++i)
 			{
 				dimen_t k ;
@@ -194,8 +191,10 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	dimen_t pol_nb = 0 ;
 	for ( i = 0 ; i < m ; ++i) {
 		dimen_t k;
-		if (sor)
+		if (sor) {
 			k = permut[i];
+			if (k != i) fprintf(stderr,"permutation %d <-> %d\n",k,i);
+		}
 		else
 			k = i ;
 
@@ -433,16 +432,19 @@ void convert_new2old( FILE * fh)
 
 	SAFE_MALLOC_DECL(colid,nnz,dimen_t); /* colid expands buffer */
 
+	fprintf(stderr," Expanding colids...\n");
 
 	expandColid(buffer,colid_size,colid
 #ifndef NDEBUG
 			,nnz,n
 #endif
 		   );
+	fprintf(stderr," ...Done\n");
 	free(buffer);
 
 	SAFE_MALLOC_DECL(data,nnz,elem_o);
 
+	fprintf(stderr," Expanding data...\n");
 	for (i = 0 ; i < m ; ++i) {
 		index_t start_p = pol_start[ map_zo_pol[i] ] ;
 		elemt_s * d = pol_data+start_p ;
@@ -452,26 +454,32 @@ void convert_new2old( FILE * fh)
 			++d ;
 		}
 	}
+	fprintf(stderr," ...Done\n");
 
 	free(map_zo_pol);
 
-	SAFE_MALLOC_DECL(sz, m_,stor_t);
-	SAFE_MALLOC_DECL(pos,z_,stor_t);
-	SAFE_MALLOC_DECL(nz, z_,elem_o);
+	/* SAFE_MALLOC_DECL(sz, m_,stor_t); */
+	/* SAFE_MALLOC_DECL(pos,z_,stor_t); */
+	/* SAFE_MALLOC_DECL(nz, z_,elem_o); */
 
-	for (i = 0 ; i < m_ ; ++i) sz[i] = rows[i] ;
-	for (i = 0 ; i < z_ ; ++i) pos[i] = colid[i] ;
-	for (i = 0 ; i < z_ ; ++i) nz[i] = data[i] ;
+	/* for (i = 0 ; i < m_ ; ++i) sz[i] = rows[i] ; */
+	/* for (i = 0 ; i < z_ ; ++i) pos[i] = colid[i] ; */
+	/* for (i = 0 ; i < z_ ; ++i) nz[i] = data[i] ; */
 
-	fwrite(nz, sizeof(elem_o),z_,toto);
-	fwrite(pos,sizeof(stor_t),z_,toto);
-	fwrite(sz, sizeof(stor_t),m_,toto);
+	fprintf(stderr," Writing matrix...\n");
+
+	fwrite(data, sizeof(elem_o),z_,toto);
+	fwrite(colid,sizeof(stor_t),z_,toto);
+	fwrite(rows, sizeof(stor_t),m_,toto);
 
 	fclose(toto);
 
-	free(sz);
-	free(pos);
-	free(nz);
+	fprintf(stderr," ...Done\n");
+
+
+	/* free(sz); */
+	/* free(pos); */
+	/* free(nz); */
 
 	free(rows);
 	free(data);
