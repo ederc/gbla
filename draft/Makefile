@@ -20,6 +20,7 @@ opt=_opt
 dbg=_dbg
 par=_par
 seq=_seq
+ffl=_ffl
 
 all:
 	make $(RUN)$(seq)$(opt)
@@ -71,21 +72,17 @@ $(RUN)$(seq)$(opt): $(RUN).c
 LIBS$(par)$(dbg): $(RED).cpp
 	$(CXX) $(DBG) $(PRF) $(PAR) $(FFLAS_CFLAGS)  $(STA) -c $(RED).cpp  -o $(RED)$(par)$(dbg).o
 
+LIBS$(par)$(opt): $(RED).cpp
+	$(CXX) $(OPT) $(PRF)  $(PAR) $(FFLAS_CFLAGS)  $(STA) -c $(RED).cpp  -o $(RED)$(par)$(opt).o
 
 OBJ$(par)$(dbg):
 	$(CC) $(DBG) $(PRF) $(PAR) $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(par)$(dbg).o
 
-
-
-LIBS$(par)$(opt): $(RED).cpp
-	$(CXX) $(OPT) $(PRF)  $(PAR) $(FFLAS_CFLAGS)  $(STA) -c $(RED).cpp  -o $(RED)$(par)$(opt).o
-
-
 OBJ$(par)$(opt):
 	$(CC) $(OPT) $(PRF) $(WAR) $(PAR) $(STA) -c $(RUN).c -o $(RUN)$(par)$(opt).o
 
-
-
+OBJ$(par)$(ffl):
+	$(CC) $(OPT) $(PRF) -DONLY_FFLAS $(WAR) $(PAR) $(STA) -c $(RUN).c -o $(RUN)$(par)$(ffl).o
 
 $(RUN)$(par)$(dbg): $(RUN).c
 	make LIBS$(par)$(dbg) ;
@@ -97,6 +94,12 @@ $(RUN)$(par)$(opt): $(RUN).c
 	make LIBS$(par)$(opt) ;
 	make OBJ$(par)$(opt)  ;
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(RED)$(par)$(opt).o $(PAR) $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(par)$(opt) -lm -lstdc++
+
+
+$(RUN)$(par)$(ffl): $(RUN).c
+	make LIBS$(par)$(opt) ;
+	make OBJ$(par)$(ffl)  ;
+	$(CC) $(OPT) $(PRF)  -DONLY_FFLAS $(WAR) $(STA) $(RED)$(par)$(opt).o $(PAR) $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(par)$(ffl) -lm -lstdc++
 
 
 clean:

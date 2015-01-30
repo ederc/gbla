@@ -18,7 +18,7 @@
 #ifndef __GB_config_H
 #define __GB_config_H
 
-#undef ONLY_FFLAS
+/* #undef ONLY_FFLAS */
 
 #define AVX
 #undef SSE
