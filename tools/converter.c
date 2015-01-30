@@ -101,6 +101,8 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	fclose(titi);
 	fprintf(stderr," ...Finished reading\n");
 
+
+	fprintf(stderr," Compressing cols...\n");
 	/* start */
 	SAFE_MALLOC_DECL(start,(m+1),index_t);
 	start[0] =  0 ;
@@ -176,7 +178,9 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	if (! sor && ! rev)
 		free(cols);
 
+	fprintf(stderr," ...Done\n");
 	fprintf(stderr,"colid saved %lu / %lu (%.2f%%)\n",here,(uint64_t)nnz,(double)(nnz-here)/(double)nnz*100.);
+	fprintf(stderr," Compressing data...\n");
 	SAFE_REALLOC(colid,here,dimen_t);
 
 
@@ -269,7 +273,6 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	}
 	hdestroy();
 
-	fprintf(stderr,"pols  saved %u / %u (%.2f%%)\n",pol_nb,m,(double)(m-pol_nb)/(double)m*100.);
 
 	SAFE_MALLOC_DECL(pol_start,(pol_nb+1),index_t);
 	/* pol_start  */
@@ -291,6 +294,10 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		for ( k=0; k< (dimen_t)(j1-j0) ; ++k)
 			pol_data[pol_start[i]+(index_t)k]=data[j0+(index_t)k];
 	}
+
+	fprintf(stderr," ...Done\n");
+	fprintf(stderr,"pols  saved %u / %u (%.2f%%)\n",pol_nb,m,(double)(m-pol_nb)/(double)m*100.);
+	fprintf(stderr," Writting to stdout...\n");
 
 	free(data);
 	free(hash_row_pol);
@@ -351,6 +358,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 
 
 	fclose(toto);
+	fprintf(stderr," ...Done\n");
 
 }
 

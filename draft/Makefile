@@ -21,6 +21,9 @@ dbg=_dbg
 par=_par
 seq=_seq
 
+all:
+	make $(RUN)$(seq)$(opt)
+	make $(RUN)$(par)$(opt)
 
 
 ### run the algo
