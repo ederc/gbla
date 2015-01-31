@@ -848,3 +848,204 @@ void reduce_fast_dense(
 	Mjoin(Freduce,elemt_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
 }
 
+void spaxpyn(
+		elemt_t         *  diag,
+		const elemt_t   * A,
+		const dimen_t   nb,
+		const dimen_t * colid,
+		elemt_t         * B,
+		const dimen_t * jump,
+		const dimen_t   js,
+		const dimen_t   ld
+		)
+{
+	dimen_t jz,ii ;
+	for (jz = 0 ; jz < nb ; ++jz) {
+		for ( ii = 0 ; ii < js ; ++ii)
+			B[colid[jz]+ld*jump[ii]] += diag[ii] * A[jz] ;
+	}
+}
+
+void reduce_chunk_dense_1(
+		dimen_t blk_i
+		, GBMatrix_t * A
+		, DNS * B
+		, elemt_t * temp_C
+		, dimen_t ldc
+		, elemt_t * temp_D
+		, dimen_t ldd
+		, elemt_t p
+		, dimen_t * row_beg
+	       	)
+{
+	dimen_t j, ii ;
+	for ( j = 0 ; j < A->col ; ++j) {
+		for ( ii = 0 ; ii < blk_i ; ii += 1 ) {
+			elemt_t tc = Mjoin(fmod,elemt_t)(-temp_C[ii*ldc+j],p) ;
+			if (tc != (elemt_t)0.) {
+				/* temp_C -= temp_C[j] * A[j] */
+				dimen_t jj = j%MAT_ROW_BLK ;
+				dimen_t kk = j/MAT_ROW_BLK ;
+				assert(kk*MAT_ROW_BLK+jj == j);
+				CSR * A_k =  A->sub + kk ;
+				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
+				spaxpy(tc,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+ii*ldc);
+
+				/* temp_D -= temp_C[j] * B[j] */
+				dimen_t rs = row_beg[j] ;
+				cblas_daxpy(B->col-rs, tc,B->ptr+(index_t)j*(index_t)B->ld+rs,1,temp_D+ii*ldd+rs,1);
+			}
+		}
+	}
+}
+
+void reduce_chunk_dense_2(
+		dimen_t blk_i
+		, GBMatrix_t * A
+		, DNS * B
+		, elemt_t * temp_C
+		, dimen_t ldc
+		, elemt_t * temp_D
+		, dimen_t ldd
+		, elemt_t p
+		, dimen_t * row_beg
+		)
+{
+	if (blk_i == 1) {
+		reduce_chunk_dense_1(blk_i,A,B,temp_C,ldc,temp_D,ldd,p,row_beg);
+		return ;
+	}
+
+	elemt_t * Bd = B->ptr ;
+	dimen_t ldb = B->ld ;
+
+	dimen_t j, ii ;
+	for ( j = 0 ; j < A->col ; ++j) {
+		for ( ii = 0 ; ii < blk_i/2*2 ; ii += 2 ) {
+			elemt_t tc = Mjoin(fmod,elemt_t)(-temp_C[ii*ldc+j],p) ;
+			elemt_t td = Mjoin(fmod,elemt_t)(-temp_C[(ii+1)*ldc+j],p) ;
+			if (tc != (elemt_t)0.) {
+				if (td != (elemt_t)0.) {
+					/* temp_C -= temp_C[j] * A[j] */
+					dimen_t jj = j%MAT_ROW_BLK ;
+					dimen_t kk = j/MAT_ROW_BLK ;
+					assert(kk*MAT_ROW_BLK+jj == j);
+					CSR * A_k = A->sub + kk ;
+					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
+					assert(kk*MAT_ROW_BLK+jj == j);
+					spaxpy2(tc,td,A_k->data+A_k->start[jj],
+							sz,
+							A_k->colid+A_k->start[jj]
+							,temp_C+ii*ldc,ldc);
+
+					/* temp_D -= temp_C[j] * B[j] */
+					dimen_t rs = row_beg[j] ;
+					cblas_daxpy(B->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*ldd+rs,1);
+					cblas_daxpy(B->col-rs, td,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+(ii+1)*ldd+rs,1);
+				}
+				else {
+					/* temp_C -= temp_C[j] * A[j] */
+					dimen_t jj = j%MAT_ROW_BLK ;
+					dimen_t kk = j/MAT_ROW_BLK ;
+					assert(kk*MAT_ROW_BLK+jj == j);
+					CSR * A_k = A->sub + kk ;
+					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
+					assert(kk*MAT_ROW_BLK+jj == j);
+					spaxpy(tc,A_k->data+A_k->start[jj],
+							sz,
+							A_k->colid+A_k->start[jj]
+							,temp_C+ii*ldc);
+
+					/* temp_D -= temp_C[j] * B[j] */
+					dimen_t rs = row_beg[j] ;
+					cblas_daxpy(B->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*ldd+rs,1);
+				}
+			}
+			else if (td != (elemt_t)0.) {
+				/* temp_C -= temp_C[j] * A[j] */
+				dimen_t jj = j%MAT_ROW_BLK ;
+				dimen_t kk = j/MAT_ROW_BLK ;
+				assert(kk*MAT_ROW_BLK+jj == j);
+				CSR * A_k = A->sub + kk ;
+				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
+				assert(kk*MAT_ROW_BLK+jj == j);
+				spaxpy(td,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+(ii+1)*ldc);
+
+				/* temp_D -= temp_C[j] * B[j] */
+				dimen_t rs = row_beg[j] ;
+				cblas_daxpy(B->col-rs, td,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+(ii+1)*ldd+rs,1);
+			}
+		}
+		for (  ; ii < blk_i ; ii += 1 ) {
+			elemt_t tc = Mjoin(fmod,elemt_t)(-temp_C[ii*ldc+j],p) ;
+			if (tc != (elemt_t)0.) {
+				/* temp_C -= temp_C[j] * A[j] */
+				dimen_t jj = j%MAT_ROW_BLK ;
+				dimen_t kk = j/MAT_ROW_BLK ;
+				assert(kk*MAT_ROW_BLK+jj == j);
+				CSR * A_k = A->sub + kk ;
+				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
+				assert(kk*MAT_ROW_BLK+jj == j);
+				spaxpy(tc,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+ii*ldc);
+
+				/* temp_D -= temp_C[j] * B[j] */
+				dimen_t rs = row_beg[j] ;
+				cblas_daxpy(B->col-rs, tc,Bd+(index_t)j*(index_t)ldb+rs,1,temp_D+ii*ldd+rs,1);
+			}
+		}
+	}
+}
+
+void reduce_chunk_n(
+		dimen_t blk_i
+		, GBMatrix_t * A
+		, GBMatrix_t * B
+		, elemt_t * temp_C
+		, dimen_t ldc
+		, elemt_t * temp_D
+		, dimen_t ldd
+		, elemt_t p)
+{
+	dimen_t blk = MAT_SUB_BLK ;
+	dimen_t j, ii ;
+	SAFE_MALLOC_DECL(jump,blk,dimen_t);
+	SAFE_MALLOC_DECL(diag,blk,elemt_t);
+			for ( j = 0 ; j < A->col ; ++j) {
+				dimen_t nbnz = 0;
+				for ( ii = 0 ; ii < blk_i ; ++ii) {
+					elemt_t tc = Mjoin(fmod,elemt_t)(-temp_C[ii*ldc+j],p) ;
+					if (tc != 0.) {
+						diag[nbnz]   = tc ;
+						jump[nbnz++] = ii ;
+					}
+				}
+				dimen_t jj = j%MAT_ROW_BLK ;
+				dimen_t kk = j/MAT_ROW_BLK ;
+				CSR * A_k = A->sub + kk ;
+				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
+				assert(kk*MAT_ROW_BLK+jj == j);
+				spaxpyn(diag,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C,jump,nbnz,ldc);
+
+				/* temp_D -= temp_C[j] * B[j] */
+
+				CSR * B_k =  B->sub + kk ;
+				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
+				spaxpyn(diag,B_k->data+B_k->start[jj],
+						sz,
+						B_k->colid+B_k->start[jj],
+						temp_D,jump,nbnz,ldd);
+			}
+}
+

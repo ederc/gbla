@@ -67,7 +67,6 @@
 #define DEROULE
 #undef USE_SAXPY
 #define USE_SAXPY2
-#undef USE_SAXPYn
 #undef STATS
 
 #ifndef SIMD

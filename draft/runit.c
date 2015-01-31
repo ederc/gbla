@@ -20,6 +20,10 @@
 #include <sys/time.h>
 #include <string.h>
 #include "io.h"
+#include "reduce_B.h"
+#include "reduce_C.h"
+#include "echelon.h"
+
 #include "ouvrir.h"
 #include <omp.h>
 
@@ -131,15 +135,11 @@ int main(int ac, char **av) {
 		SAFE_MALLOC_DECL(Bd,1,DNS);
 		initDenseUnit(Bd);
 		convert_CSR_2_DNS(Bd,B);
-		reduce(A,Bd,C,D);
+		reduce_B(A,Bd,C,D);
 		freeMatDense(Bd);
 	}
 	else {
-#ifndef BLOCK_CSR
-		reduce_fast(A,B,C,D);
-#else
-		reduce_fast_block(A,B,C,D);
-#endif
+		reduce_C(A,B,C,D);
 	}
 
 	gettimeofday(&tac,NULL);
