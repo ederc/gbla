@@ -26,6 +26,9 @@ all:
 	make $(RUN)$(seq)$(opt)
 	make $(RUN)$(par)$(opt)
 
+TETES=matrix.h field_ops.h selecter.h tools.h config.h types.h macros.h printer.h sparseops.h sparseops_block.h io.h reduce_B.h reduce_C.h echelon.h ouvrir.h 
+
+
 
 ### run the algo
 RED=fflas_reduce
@@ -39,7 +42,7 @@ LIBS$(seq)$(dbg): $(RED).cpp
 	$(CXX) $(DBG) $(PRF) $(FFLAS_CFLAGS)  $(STA)  -c $(RED).cpp  -o $(RED)$(seq)$(dbg).o
 
 
-OBJ$(seq)$(dbg):
+OBJ$(seq)$(dbg): $(TETE)
 	$(CC) $(DBG) $(PRF)  $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(seq)$(dbg).o
 
 
@@ -48,19 +51,19 @@ LIBS$(seq)$(opt): $(RED).cpp
 	$(CXX) $(OPT) $(PRF)  $(FFLAS_CFLAGS)  $(STA)  -c $(RED).cpp  -o $(RED)$(seq)$(opt).o
 
 
-OBJ$(seq)$(opt):
+OBJ$(seq)$(opt): $(TETE)
 	$(CC) $(OPT) $(PRF) $(WAR)  $(STA) -c $(RUN).c -o $(RUN)$(seq)$(opt).o
 
 
 
 
-$(RUN)$(seq)$(dbg): $(RUN).c
+$(RUN)$(seq)$(dbg): $(RUN).c $(TETE)
 	make LIBS$(seq)$(dbg) ;
 	make OBJ$(seq)$(dbg)  ;
 	$(CC) $(DBG) $(PRF) $(WAR) $(RED)$(seq)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(seq)$(dbg) -lm -lstdc++ $(STA) 
 
 
-$(RUN)$(seq)$(opt): $(RUN).c
+$(RUN)$(seq)$(opt): $(RUN).c $(TETE)
 	make LIBS$(seq)$(opt) ;
 	make OBJ$(seq)$(opt)  ;
 	$(CC) $(OPT) $(PRF) $(WAR) $(RED)$(seq)$(opt).o  $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(seq)$(opt) -lm -lstdc++ $(STA) 
@@ -75,28 +78,28 @@ LIBS$(par)$(dbg): $(RED).cpp
 LIBS$(par)$(opt): $(RED).cpp
 	$(CXX) $(OPT) $(PRF)  $(PAR) $(FFLAS_CFLAGS)  $(STA) -c $(RED).cpp  -o $(RED)$(par)$(opt).o
 
-OBJ$(par)$(dbg):
+OBJ$(par)$(dbg): $(TETE)
 	$(CC) $(DBG) $(PRF) $(PAR) $(WAR) $(STA) -c $(RUN).c -o $(RUN)$(par)$(dbg).o
 
-OBJ$(par)$(opt):
+OBJ$(par)$(opt): $(TETE)
 	$(CC) $(OPT) $(PRF) $(WAR) $(PAR) $(STA) -c $(RUN).c -o $(RUN)$(par)$(opt).o
 
 OBJ$(par)$(ffl):
 	$(CC) $(OPT) $(PRF) -DONLY_FFLAS $(WAR) $(PAR) $(STA) -c $(RUN).c -o $(RUN)$(par)$(ffl).o
 
-$(RUN)$(par)$(dbg): $(RUN).c
+$(RUN)$(par)$(dbg): $(RUN).c $(TETE)
 	make LIBS$(par)$(dbg) ;
 	make OBJ$(par)$(dbg)  ;
 	$(CC) $(DBG) $(PRF) $(WAR) $(PAR) $(STA)  $(RED)$(par)$(dbg).o $(FFLAS_LIBS)  $(RUN).c -o $(RUN)$(par)$(dbg) -lm -lstdc++
 
 
-$(RUN)$(par)$(opt): $(RUN).c
+$(RUN)$(par)$(opt): $(RUN).c $(TETE)
 	make LIBS$(par)$(opt) ;
 	make OBJ$(par)$(opt)  ;
 	$(CC) $(OPT) $(PRF) $(WAR) $(STA) $(RED)$(par)$(opt).o $(PAR) $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(par)$(opt) -lm -lstdc++
 
 
-$(RUN)$(par)$(ffl): $(RUN).c
+$(RUN)$(par)$(ffl): $(RUN).c $(TETE)
 	make LIBS$(par)$(opt) ;
 	make OBJ$(par)$(ffl)  ;
 	$(CC) $(OPT) $(PRF)  -DONLY_FFLAS $(WAR) $(STA) $(RED)$(par)$(opt).o $(PAR) $(FFLAS_LIBS) $(RUN).c -o $(RUN)$(par)$(ffl) -lm -lstdc++

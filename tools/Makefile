@@ -25,21 +25,21 @@ all:
 	make $(DMP)
 	make $(CVT)
 
-
 ### dump matrix (to sms...)
 
-$(DMP)$(dbg): $(DMP).c $(DMP).h
+$(DMP)$(dbg): $(DMP).c $(DMP).h types.h tools.h selecter.h ouvrir.h print_helper.h macros.h
 	$(CC) $(DBG) $(PRF) $(WAR)  $(DMP).c -o $(DMP)$(dbg)
 
-$(DMP): $(DMP).c $(DMP).h
+$(DMP): $(DMP).c $(DMP).h types.h tools.h selecter.h ouvrir.h print_helper.h macros.h
 	$(CC) $(OPT) $(PRF) $(WAR)  $(DMP).c -o $(DMP)
 
 
 ### convert (old binary to new binary)
-$(CVT)$(dbg): $(CVT).c
+$(CVT)$(dbg): $(CVT).c types.h tools.h selecter.h ouvrir.h macros.h
+
 	$(CC) $(DBG) $(PRF) $(WAR)  $(CVT).c -o $(CVT)$(dbg)
 
-$(CVT): $(CVT).c
+$(CVT): $(CVT).c types.h tools.h selecter.h ouvrir.h macros.h
 	$(CC) $(OPT) $(PRF) $(WAR)  $(CVT).c -o $(CVT)
 
 
