@@ -63,7 +63,7 @@ void reduce_chunk_1(
 						B_k->colid+B_k->start[jj],
 						temp_D+ii*ldd);
 #else
-	spaxpy(tc,B_k->data+B_k->start[jj],
+				spaxpy(tc,B_k->data+B_k->start[jj],
 						sz,
 						B_k->colid+B_k->start[jj],
 						temp_D+ii*ldd);
@@ -127,7 +127,7 @@ void reduce_chunk_2(
 							B_k->colid+B_k->start[jj],
 							temp_D+ii*ldd,ldd);
 #else
-	spaxpy2(tc,td,B_k->data+B_k->start[jj],
+					spaxpy2(tc,td,B_k->data+B_k->start[jj],
 							sz,
 							B_k->colid+B_k->start[jj],
 							temp_D+ii*ldd,ldd);
@@ -193,10 +193,18 @@ void reduce_chunk_2(
 
 				CSR * B_k = B->sub + kk;
 				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
+#ifdef CONV_B
 				spaxpy_block(td,B_k->data+B_k->start[jj]*UNRL,
 						sz,
 						B_k->colid+B_k->start[jj],
 						temp_D+(ii+1)*ldd);
+#else
+				spaxpy(td,B_k->data+B_k->start[jj],
+						sz,
+						B_k->colid+B_k->start[jj],
+						temp_D+(ii+1)*ldd);
+
+#endif
 
 			}
 		}
@@ -204,33 +212,33 @@ void reduce_chunk_2(
 			elemt_t tc = Mjoin(fmod,elemt_t)(-temp_C[ii*ldc+j],p) ;
 			/* temp_C -= temp_C[j] * A[j] */
 			if (tc != 0.) {
-					/* temp_C -= temp_C[j] * A[j] */
-					dimen_t jj = j%MAT_ROW_BLK ;
-					dimen_t kk = j/MAT_ROW_BLK ;
-					CSR * A_k = A->sub + kk ;
-					dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
-					assert(kk*MAT_ROW_BLK+jj == j);
+				/* temp_C -= temp_C[j] * A[j] */
+				dimen_t jj = j%MAT_ROW_BLK ;
+				dimen_t kk = j/MAT_ROW_BLK ;
+				CSR * A_k = A->sub + kk ;
+				dimen_t sz = (dimen_t)(A_k->start[jj+1]-A_k->start[jj]);
+				assert(kk*MAT_ROW_BLK+jj == j);
 #ifdef CONV_A
-					spaxpy_block(tc,A_k->data+A_k->start[jj]*UNRL,
-							sz,
-							A_k->colid+A_k->start[jj]
-							,temp_C+ii*ldc);
+				spaxpy_block(tc,A_k->data+A_k->start[jj]*UNRL,
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+ii*ldc);
 #else
-					spaxpy(tc,A_k->data+A_k->start[jj],
-							sz,
-							A_k->colid+A_k->start[jj]
-							,temp_C+ii*ldc);
+				spaxpy(tc,A_k->data+A_k->start[jj],
+						sz,
+						A_k->colid+A_k->start[jj]
+						,temp_C+ii*ldc);
 #endif
 
-					/* temp_D -= temp_C[j] * B[j] */
+				/* temp_D -= temp_C[j] * B[j] */
 
-					CSR * B_k = B->sub + kk ;
-					sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
+				CSR * B_k = B->sub + kk ;
+				sz = (dimen_t)(B_k->start[jj+1]-B_k->start[jj]) ;
 #ifdef CONV_B
-					spaxpy_block(tc,B_k->data+B_k->start[jj]*UNRL,
-							sz,
-							B_k->colid+B_k->start[jj],
-							temp_D+ii*ldd);
+				spaxpy_block(tc,B_k->data+B_k->start[jj]*UNRL,
+						sz,
+						B_k->colid+B_k->start[jj],
+						temp_D+ii*ldd);
 #else
 				spaxpy(tc,B_k->data+B_k->start[jj],
 						sz,
@@ -238,7 +246,7 @@ void reduce_chunk_2(
 						temp_D+ii*ldd);
 #endif
 
-				}
+			}
 		}
 	}
 }
@@ -363,8 +371,11 @@ void reduce_C(
 #endif /* _OPENMP */
 	Mjoin(Freduce,elemt_t)(p, Dd, (index_t)ldd*(index_t)D->row) ;
 
+#ifdef CONV_B
 	freeMat(BH);
 	free(BH);
+#endif
+
 #ifdef CONV_A
 	freeMat(AH);
 	free(AH);

@@ -400,8 +400,6 @@ void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
 
 }
 
-
-#ifdef BLOCK_CSR
 void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 {
 	B->row = S->row;
@@ -486,8 +484,6 @@ void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 	return;
 
 }
-#endif
-
 
 #endif /* __GB_matrix_H */
 /* vim: set ft=c: */

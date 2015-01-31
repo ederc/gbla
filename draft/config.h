@@ -31,6 +31,11 @@
 
 #define BLOCK_CSR
 
+#define CONV_A
+#define CONV_B
+#define CONV_C
+
+
 #ifndef _OPENMP
 #ifdef BLOCK_CSR
 #define MAT_SUB_BLK 8               /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
@@ -61,9 +66,6 @@
 #define UNRL 4
 #endif
 
-#define CONV_A
-#define CONV_C
-#define USE_B_SPARSE
 #define DEROULE
 #undef USE_SAXPY
 #define USE_SAXPY2

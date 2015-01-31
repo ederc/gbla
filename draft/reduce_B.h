@@ -29,16 +29,6 @@ void reduce_B(
 		, GBMatrix_t    * C
 		, DNS * D )
 {
-	/*
-	 * // y = U x
-	 * for i from n-1 to 0 do
-	 *   x[i] = y[i] ;
-	 *   for j from i+1 to n-1 do
-	 *     x[i,k] -= U[i,j] * x [j,k] ;
-	 *   x[i,k] /=  U[i,i] ;
-	 *
-	 *
-	 */
 	dimen_t k  ;
 	dimen_t ldb = B->ld ;
 	dimen_t N = B->col ;
@@ -47,7 +37,8 @@ void reduce_B(
 	SAFE_CALLOC_DECL(row_beg,B->row,dimen_t);
 	for ( k = 0 ; k < B->row ; ++k) {
 		dimen_t ii = 0 ;
-		while ( *(B->ptr+k*ldb+ii) == 0) {
+		elemt_t * B_off =B->ptr+(index_t)k*(index_t)ldb ;
+		while ( *(B_off+ii) == 0) {
 			row_beg[k] += 1 ;
 			++ii ;
 		}
@@ -60,17 +51,18 @@ void reduce_B(
 		/* B = A^(-1) B */
 
 		for ( i = M ; i--    ; ) {
-			index_t i_offset = k * MAT_ROW_BLK + i;
+			dimen_t i_offset = k * MAT_ROW_BLK + i;
 			assert( (elemt_t)-1<1); /* unsigned will fail */
 			index_t jz  ;
+			elemt_t * B_off = B->ptr+(index_t)i_offset*(index_t)ldb;
 			for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz)
 			{
 				dimen_t kz = Ad->colid[jz];
 				dimen_t rs = min(row_beg[i_offset],row_beg[kz]);
-				cblas_daxpy(N-rs,-Ad->data[jz],B->ptr+kz*(index_t)ldb+rs,1,B->ptr+i_offset*(index_t)ldb+rs,1);
+				cblas_daxpy(N-rs,-Ad->data[jz],B->ptr+(index_t)kz*(index_t)ldb+(index_t)rs,1,B_off+rs,1);
 				row_beg[i_offset] = rs ;
 			}
-			Mjoin(Freduce,elemt_t)(p,B->ptr+i_offset*(index_t)ldb,N);
+			Mjoin(Freduce,elemt_t)(p,B_off+row_beg[i_offset],N-row_beg[i_offset]);
 			assert(Ad->data[Ad->start[i]] == 1);
 		}
 	}
@@ -86,12 +78,13 @@ void reduce_B(
 		for ( i = 0 ; i < Cd->row ;  ++i) {
 			index_t i_offset = k * MAT_ROW_BLK + i;
 			index_t jz  ;
+			elemt_t * D_off = D->ptr+(index_t)i_offset*(index_t)ldd;
 			for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
 				dimen_t kz = Cd->colid[jz];
 				dimen_t rs = row_beg[kz] ;
-				cblas_daxpy(N-rs,-Cd->data[jz],B->ptr+kz*(index_t)ldb+rs,1,D->ptr+i_offset*(index_t)ldd+rs,1);
+				cblas_daxpy(N-rs,-Cd->data[jz],B->ptr+(index_t)kz*(index_t)ldb+(index_t)rs,1,D_off+rs,1);
 			}
-			Mjoin(Freduce,elemt_t)(p,D->ptr+i_offset*(index_t)ldd, N) ;
+			Mjoin(Freduce,elemt_t)(p,D_off, N) ;
 		}
 	}
 
