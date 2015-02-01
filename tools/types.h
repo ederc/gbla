@@ -27,6 +27,8 @@
 #define elemt_m  uint16_t /* modulo storage */
 #define elemt_t  double   /* field element type in computations  */
 
+#define SAME_READ_TYPE 1 /* elemt_s == elemt_t */
+
 #define index_t       uint64_t  /* indexing elements */
 #define dimen_t       uint32_t /* size_t */
 

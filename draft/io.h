@@ -182,7 +182,7 @@ void splitHorizontal(
 		assert(start[i] < nnz);
 		if ( (last_pivot < pivots_size) && (pivots[last_pivot] == i) ) {
 			dimen_t i_loc = i_a / MAT_ROW_BLK ;
-			Asub_nnz[i_loc] += start[i+1] - start[i] ;
+			Asub_nnz[i_loc] += (start[i+1] - start[i]) ;
 			++last_pivot;
 			ami[i] = 1 ;
 			qui[i] = i_a  ;
@@ -190,7 +190,7 @@ void splitHorizontal(
 		}
 		else {
 			dimen_t i_loc = i_c / MAT_ROW_BLK ;
-			Csub_nnz[i_loc] += start[i+1] - start[i] ;
+			Csub_nnz[i_loc] += (start[i+1] - start[i]) ;
 			qui[i] = i_c   ;
 			i_c ++ ;
 		}
@@ -199,13 +199,12 @@ void splitHorizontal(
 	SAFE_MALLOC(A->sub,A->sub_nb,CSR);
 	SAFE_MALLOC(C->sub,C->sub_nb,CSR);
 
-	dimen_t A_nnz = 0 ;
+	index_t A_nnz = 0 ;
 
 	for ( i = 0 ; i < A->sub_nb ; ++i) {
 		CSR * A_sub = A->sub+i ;
 		A_sub->row = min((dimen_t)MAT_ROW_BLK,A->row-i*MAT_ROW_BLK);
 		A_sub->col = A->col ;
-		/* A_sub->mod = A->mod ; */
 		A_sub->nnz = Asub_nnz[i] ;
 		A_nnz += Asub_nnz[i] ;
 		SAFE_CALLOC(A_sub->start,(A_sub->row+1),index_t);
@@ -344,7 +343,7 @@ void splitVerticalUnit(
 			dimen_t here  = 0; /* shift */
 			index_t there = b_there[i];
 			index_t i_offset =  j * MAT_ROW_BLK + i ;
-			dimen_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
+			index_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
 			elemt_t * d = polys->data_pol+start_p ;
 			index_t jz ;
 			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
@@ -417,12 +416,11 @@ void splitVerticalUnitSparse(
 		CSR * Ad = A->sub+j;
 		CSR * Bd = B->sub+j;
 		Ad->row = A_k->row ;
-		Bd->row = A_k->row ;
 		Ad->col = A->col ;
-		Bd->col = B->col ;
 		Ad->nnz = 0 ;
+		Bd->row = A_k->row ;
+		Bd->col = B->col ;
 		Bd->nnz = 0 ;
-		/* A->row += Ad->row ; */
 		assert(A->col == Ad->col);
 		assert(B->col == Bd->col);
 
@@ -494,7 +492,7 @@ void splitVerticalUnitSparse(
 			index_t there = b_there[i] ;
 			index_t ici =  b_la[i] ;
 			index_t la  =  ici + b_row_off[i] ;
-			dimen_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
+			index_t start_p = polys->start_pol[ A_k->map_zo_pol[i] ] ;
 			elemt_t * d = polys->data_pol+start_p ;
 			index_t jz ;
 			for (jz = A_k->start[i] ; jz < A_k->start[i+1] ; ++jz) {
@@ -630,7 +628,7 @@ dimen_t * readFileSplit(
 	assert(mod > 1);
 	SAFE_READ_DECL_V(nnz,index_t,fh);
 
-	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %.3f%%) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
+	fprintf(stderr," Mat is %u x %u - %lu (sparsity : %5.2f%%) mod %lu\n",m,n,nnz,(double)(nnz)/((double)m*(double)n)*100.,(int64_t)mod);
 
 	A_init->col = C_init->col = n ;
 	A_init->mod = C_init->mod = mod ;
@@ -650,6 +648,10 @@ dimen_t * readFileSplit(
 	SAFE_READ_V(polys->nb,dimen_t,fh);
 
 	SAFE_READ_DECL_V(pol_nnz,index_t,fh);
+
+	if (pol_nnz > UINT32_MAX) {
+		fprintf(stderr," ** warning, there are really many polynomials in this matrix **\n");
+	}
 
 	/* create GBpolynomials shared by A_init and B_init */
 	SAFE_READ_DECL_P(pol_rows,polys->nb,dimen_t,fh);
@@ -677,14 +679,14 @@ dimen_t * readFileSplit(
 		start[i+1] = start[i] + rows[i];
 	free(rows);
 
-	SAFE_MALLOC(polys->start_pol,(polys->nb+1),dimen_t);
+	SAFE_MALLOC(polys->start_pol,(polys->nb+1),index_t);
 	polys->start_pol[0] = 0 ;
 	for ( i = 0 ; i < polys->nb ; ++i)
 		polys->start_pol[i+1] = polys->start_pol[i]+pol_rows[i];
 	free(pol_rows);
 
 	assert(polys->start_pol[polys->nb] == pol_nnz);
-	SAFE_MEMCPY_CVT(polys->data_pol,elemt_t,polys_data_pol,polys->start_pol[polys->nb]);
+	SAFE_MEMCPY_CVT(polys->data_pol,elemt_t,polys_data_pol,pol_nnz);
 	free(polys_data_pol);
 
 
@@ -838,10 +840,10 @@ dimen_t * readFileSplit(
 	freePol(polys);
 	free(polys);
 
-	fprintf(stderr,"   -- sparsity of A   : %.3f%% (%u x %u - %lu)\n",(double)A->nnz/(double)A->row/(double)A->col*100.,A->row,A->col,A->nnz);
-	fprintf(stderr,"   -- sparsity of B   : %.3f%% (%u x %u - %lu)\n",(double)B->nnz/(double)B->row/(double)B->col*100.,B->row,B->col,B->nnz);
-	fprintf(stderr,"   -- sparsity of C   : %.3f%% (%u x %u - %lu)\n",(double)C->nnz/(double)C->row/(double)C->col*100.,C->row,C->col,C->nnz);
-	fprintf(stderr,"   -- sparsity of D   : %.3f%% (%u x %u - %lu)\n",(double)D->nnz/(double)D->row/(double)D->col*100.,D->row,D->col,D->nnz);
+	fprintf(stderr,"   -- sparsity of A   : %5.2f%% (%8u x %8u - %12lu)\n",(double)A->nnz/(double)A->row/(double)A->col*100.,A->row,A->col,A->nnz);
+	fprintf(stderr,"   -- sparsity of B   : %5.2f%% (%8u x %8u - %12lu)\n",(double)B->nnz/(double)B->row/(double)B->col*100.,B->row,B->col,B->nnz);
+	fprintf(stderr,"   -- sparsity of C   : %5.2f%% (%8u x %8u - %12lu)\n",(double)C->nnz/(double)C->row/(double)C->col*100.,C->row,C->col,C->nnz);
+	fprintf(stderr,"   -- sparsity of D   : %5.2f%% (%8u x %8u - %12lu)\n",(double)D->nnz/(double)D->row/(double)D->col*100.,D->row,D->col,D->nnz);
 
 
 

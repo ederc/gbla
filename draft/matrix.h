@@ -25,8 +25,8 @@
 
 typedef struct CSR_pol {
 	dimen_t nb ;
-	dimen_t * start_pol ;
-	elemt_t   * data_pol ;
+	index_t  * start_pol ;
+	elemt_t  * data_pol ;
 } CSR_pol;
 
 typedef struct CSR {
@@ -230,12 +230,12 @@ void printPoly(CSR_pol * P)
 	fprintf(stderr,"start\n");
 	dimen_t i = 0 ;
 	for ( ; i < P->nb+1 ; ++i) {
-		fprintf(stderr,"%u ", P->start_pol[i]);
+		fprintf(stderr,"%lu ", P->start_pol[i]);
 	}
 	fprintf(stderr,"\ndata:\n");
 	i = 0 ;
 	for ( ; i < P->nb ; ++i) {
-		dimen_t j = P->start_pol[i] ;
+		index_t j = P->start_pol[i] ;
 		for ( ; j < P->start_pol[i+1] ; ++j) {
 			Mjoin(print,elemt_t)(P->data_pol[j]);
 			fprintf(stderr," ");
@@ -328,9 +328,9 @@ void checkMat(const GBMatrix_t *A)
 	index_t nnz = 0 ;
 	dimen_t i = 0 ;
 	for ( i = 0 ; i < A->sub_nb ; ++i) {
-		row += A->sub[i].row;
-		nnz += A->sub[i].nnz;
 		const CSR * Ak = A->sub + i ;
+		row += Ak->row;
+		nnz += Ak->nnz;
 		checkMatUnit(Ak);
 	}
 	assert (nnz == A->nnz);
