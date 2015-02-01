@@ -185,6 +185,8 @@ void convert_old2new( FILE * titi, int rev, int sor)
 #endif
 	if (! sor && ! rev)
 		free(cols);
+	else
+		free(cols_reord);
 
 	SAFE_REALLOC(colid,here,dimen_t);
 
@@ -203,6 +205,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	row * d ;
 	/* map_zo_pol */
 	dimen_t pol_nb = 0 ;
+	SAFE_MALLOC_DECL(key_dict,m,row *);
 	for ( i = 0 ; i < m ; ++i) {
 		dimen_t k;
 		if (sor) {
@@ -222,7 +225,8 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		sprintf(key_char, "%lu", key);
 		key_char[63]='\0';
 		item.key =  key_char ;
-		SAFE_MALLOC(d,1,row); /* XXX this is a memory leak */
+		SAFE_MALLOC(d,1,row); 
+		key_dict[i] = d ;
 		d->id = pol_nb ;
 		item.data = (char*) d;
 		/* row d ; */
@@ -281,6 +285,9 @@ void convert_old2new( FILE * titi, int rev, int sor)
 				map_zo_pol[m-k-1] = ((row*)result->data)->id;
 		}
 	}
+	for (i = 0 ; i < m ; ++i)
+		free(key_dict[i]);
+	free(key_dict);
 	hdestroy();
 
 
