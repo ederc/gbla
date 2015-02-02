@@ -95,11 +95,10 @@ void reduce_B(
 		, GBMatrix_t    * C
 		, DNS * D )
 {
-	/* dimen_t k  ; */
+	dimen_t k  ;
 	dimen_t ldb = B->ld ;
 	dimen_t N = B->col ;
 	elemt_t p = A->mod ;
-	/* dimen_t i ; */
 	/* SAFE_CALLOC_DECL(row_beg,B->row,dimen_t);
 	for ( k = 0 ; k < B->row ; ++k) {
 		dimen_t ii = 0 ;
@@ -111,52 +110,55 @@ void reduce_B(
 	}                                                            */
 
 
-	dimen_t band ;
-#pragma omp parallel for
-	for (band = 0 ; band < DIVIDE_INTO(B->col,32) ; ++band) {
-		dimen_t col_start = band*32;
-		dimen_t col_width = min (32U,B->col-col_start);
-		dimen_t k,i;
-		for ( k = A->sub_nb ; k --  ; ) {
+	for ( k = A->sub_nb ; k --  ; ) {
 			CSR * Ad = & (A->sub[k]);
 			dimen_t M = Ad->row ;
 			/* B = A^(-1) B */
+			dimen_t band ;
+#pragma omp parallel for
+			for (band = 0 ; band < DIVIDE_INTO(B->col,MAT_COL_BLK) ; ++band) {
+				dimen_t col_start = band*MAT_COL_BLK;
+				dimen_t col_width = min ((dimen_t)MAT_COL_BLK,B->col-col_start);
+				dimen_t i;
 
-			for ( i = M ; i--    ; ) {
-				dimen_t i_offset = k * MAT_ROW_BLK + i;
-				assert( (elemt_t)-1<1); /* unsigned will fail */
-				index_t jz  ;
-				elemt_t * B_off = B->ptr+(index_t)i_offset*(index_t)ldb+col_start;
-				for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz)
-				{
-					dimen_t kz = Ad->colid[jz];
-					/* dimen_t rs = min(row_beg[i_offset],row_beg[kz]); */
-					cblas_daxpy(col_width,-Ad->data[jz],B->ptr+(index_t)kz*(index_t)ldb+col_start,1,B_off,1);
-					/* row_beg[i_offset] = rs ; */
+				for ( i = M ; i--    ; ) {
+					dimen_t i_offset = k * MAT_ROW_BLK + i;
+					assert( (elemt_t)-1<1); /* unsigned will fail */
+					index_t jz  ;
+					elemt_t * B_off = B->ptr+(index_t)i_offset*(index_t)ldb+col_start;
+					for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz)
+					{
+						dimen_t kz = Ad->colid[jz];
+						/* dimen_t rs = min(row_beg[i_offset],row_beg[kz]); */
+						cblas_daxpy(col_width,-Ad->data[jz],B->ptr+(index_t)kz*(index_t)ldb+col_start,1,B_off,1);
+						/* row_beg[i_offset] = rs ; */
+					}
+					Mjoin(Freduce,elemt_t)(p,B_off,col_width);
+					/* assert(Ad->data[Ad->start[i]] == 1); */
 				}
-				Mjoin(Freduce,elemt_t)(p,B_off,col_width);
-				/* assert(Ad->data[Ad->start[i]] == 1); */
 			}
-		}
 	}
 
-	dimen_t k,i;
 	for ( k = 0 ; k < C->sub_nb  ; ++k ) {
 		CSR * Cd = C->sub + k ;
 		dimen_t ldd = D->ld ;
 		/* D = D - C . B */
 		assert( (elemt_t)-1<1); /* unsigned will fail */
+		dimen_t band ;
 #pragma omp parallel for
-		for ( i = 0 ; i < Cd->row ;  ++i) {
-			index_t i_offset = k * MAT_ROW_BLK + i;
-			index_t jz  ;
-			elemt_t * D_off = D->ptr+(index_t)i_offset*(index_t)ldd;
-			for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
-				dimen_t kz = Cd->colid[jz];
-				/* dimen_t rs = row_beg[kz] ; */
-				cblas_daxpy(N,-Cd->data[jz],B->ptr+(index_t)kz*(index_t)ldb,1,D_off,1);
+		for (band = 0 ; band < DIVIDE_INTO(Cd->row,MAT_SUB_BLK) ; ++band) {
+			dimen_t i;
+			for ( i = band*MAT_SUB_BLK ; i < min((band+1)*MAT_SUB_BLK,Cd->row) ;  ++i) {
+				index_t i_offset = k * MAT_ROW_BLK + i;
+				index_t jz  ;
+				elemt_t * D_off = D->ptr+(index_t)i_offset*(index_t)ldd;
+				for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
+					dimen_t kz = Cd->colid[jz];
+					/* dimen_t rs = row_beg[kz] ; */
+					cblas_daxpy(N,-Cd->data[jz],B->ptr+(index_t)kz*(index_t)ldb,1,D_off,1);
+				}
+				Mjoin(Freduce,elemt_t)(p,D_off, N) ;
 			}
-			Mjoin(Freduce,elemt_t)(p,D_off, N) ;
 		}
 	}
 

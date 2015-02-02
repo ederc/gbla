@@ -210,7 +210,9 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		dimen_t k;
 		if (sor) {
 			k = permut[i];
+#ifndef NDEBUG
 			if (k != i) fprintf(stderr,"permutation %d <-> %d\n",k,i);
+#endif
 		}
 		else
 			k = i ;
@@ -225,7 +227,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		sprintf(key_char, "%lu", key);
 		key_char[63]='\0';
 		item.key =  key_char ;
-		SAFE_MALLOC(d,1,row); 
+		SAFE_MALLOC(d,1,row);
 		key_dict[i] = d ;
 		d->id = pol_nb ;
 		item.data = (char*) d;
@@ -244,8 +246,6 @@ void convert_old2new( FILE * titi, int rev, int sor)
 		}
 		else { /* found */
 			{ /* check hash a little */
-				/* fprintf(stderr,"%d \n",k); */
-
 				dimen_t o = hash_row_pol[((row*)result->data)->id];
 				index_t k0 = start[o];
 				index_t k1 = start[o+1];
@@ -261,14 +261,18 @@ void convert_old2new( FILE * titi, int rev, int sor)
 					index_t kk  ; /* first is suppose to be 1 */
 					for (kk = 1 ; kk < (k1-k0) ; ++kk)
 						if (d1[kk] != d2[kk]) {
+#ifndef NDEBUG
 							fprintf(stderr," ** oops ** hash was bad: but we are safe.\n");
+#endif
 							vrai = 0;
 							break;
 						}
 				}
 
 				if (!vrai) {
+#ifndef NDEBUG
 					fprintf(stderr," ** warning ** bad hash\n");
+#endif
 					if (!rev)
 						map_zo_pol[k] = pol_nb;
 					else
@@ -557,9 +561,7 @@ int main( int ac, char ** av)
 			options = 0 ;
 	}
 
-	if (! rev || ! sor) {
-		fprintf(stderr, " warning : not sorting (%d) or not reverting (%d) rows !\n",sor,rev);
-	}
+	fprintf(stderr, " rows are: Sorted: %s  ; Reverted: %s\n",(sor?"yes":"no"),(rev?"yes":"no"));
 
 	FILE * titi ;
 
