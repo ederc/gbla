@@ -45,10 +45,10 @@ int main(int ac, char **av) {
 	}
 
 	int red = 0 ;
-	int nb_threads = 1;
+	int nth = 1;
 
 #ifdef _OPENMP
-	nb_threads = omp_get_num_threads() ;
+	nth = omp_get_num_threads() ;
 #endif
 
 	while (ac > 2) {
@@ -59,17 +59,17 @@ int main(int ac, char **av) {
 		}
 
 		if (ac > 1 && ( (strcmp(av[1],"-t") == 0)  ) ) {
-			nb_threads = atoi(av[2]) ;
+			nth = atoi(av[2]) ;
 			ac -=2;
 			av +=2;
 #ifdef _OPENMP
-			if (nb_threads > 1)
-				omp_set_num_threads(nb_threads);
+			if (nth > 1)
+				omp_set_num_threads(nth);
 #endif
 
 		}
 #ifndef _OPENMP
-		assert(nb_threads == 1);
+		assert(nth == 1);
 #endif
 
 		if (ac > 1 &&  (strcmp(av[1],"-r") == 0)) {
@@ -80,12 +80,12 @@ int main(int ac, char **av) {
 	}
 
 #ifdef _OPENMP
-	if (nb_threads == 1) {
-		omp_set_num_threads(nb_threads);
+	if (nth == 1) {
+		omp_set_num_threads(nth);
 	}
 #endif
 
-	fprintf(stderr,"using  %d thread(s)\n",nb_threads);
+	fprintf(stderr,"using  %d thread(s)\n",nth);
 
 	if (ac != 2) {
 		usage(av[0]);
@@ -135,11 +135,11 @@ int main(int ac, char **av) {
 		SAFE_MALLOC_DECL(Bd,1,DNS);
 		initDenseUnit(Bd);
 		convert_CSR_2_DNS(Bd,B);
-		reduce_B(A,Bd,C,D);
+		reduce_B(A,Bd,C,D,nth);
 		freeMatDense(Bd);
 	}
 	else {
-		reduce_C(A,B,C,D);
+		reduce_C(A,B,C,D,nth);
 	}
 
 	gettimeofday(&tac,NULL);
@@ -153,7 +153,7 @@ int main(int ac, char **av) {
 
 	/* ECHELON */
 
-	uint32_t r = echelonD(A,D,nb_threads);
+	uint32_t r = echelonD(A,D,nth);
 
 	gettimeofday(&tac,NULL);
 

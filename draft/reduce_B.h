@@ -28,7 +28,9 @@ void reduce_B(
 		GBMatrix_t      * A
 		, DNS * B
 		, GBMatrix_t    * C
-		, DNS * D )
+		, DNS * D
+		, int
+		)
 {
 	dimen_t k  ;
 	dimen_t ldb = B->ld ;
@@ -93,7 +95,9 @@ void reduce_B(
 		GBMatrix_t      * A
 		, DNS * B
 		, GBMatrix_t    * C
-		, DNS * D )
+		, DNS * D
+		, int nth
+		)
 {
 	dimen_t k  ;
 	dimen_t ldb = B->ld ;

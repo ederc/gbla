@@ -257,7 +257,8 @@ void reduce_C(
 		GBMatrix_t      * A
 		, GBMatrix_t    * B
 		, GBMatrix_t    * C
-		, DNS * D )
+		, DNS * D
+	    , int nth  )
 {
 	struct timeval tic,tac ;
 	gettimeofday(&tic,NULL);
@@ -317,53 +318,66 @@ void reduce_C(
 	for (k = 0 ; k < C->sub_nb ; ++k) {
 		CSR * C_k = CH->sub + k  ;
 #ifdef _OPENMP
-#pragma omp parallel for
+		/* #pragma omp parallel for */
+#pragma omp parallel
+#pragma omp single nowait
+		{
+			dimen_t i ;
+/* #pragma omp for */
+
 #endif
-		for ( i = 0 ; i < C_k->row ; i += blk ) {
-			dimen_t blk_i = min(blk,C_k->row - i);
+			for ( i = 0 ; i < C_k->row ; i += blk ) {
 #ifdef _OPENMP
-			SAFE_MALLOC_DECL(temp_D,((index_t)ldd*(index_t)blk_i),elemt_t);
-			SAFE_CALLOC_DECL(temp_C,((index_t)ldc*(index_t)blk_i),elemt_t);
+#pragma omp task
+				{
+#endif
+					dimen_t blk_i = min(blk,C_k->row - i);
+#ifdef _OPENMP
+					SAFE_MALLOC_DECL(temp_D,((index_t)ldd*(index_t)blk_i),elemt_t);
+					SAFE_CALLOC_DECL(temp_C,((index_t)ldc*(index_t)blk_i),elemt_t);
 #endif
 
-			index_t i_offset = k*MAT_ROW_BLK + i ;
+					index_t i_offset = k*MAT_ROW_BLK + i ;
 #ifndef _OPENMP
-			cblas_dscal(ldc*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
-			/* memset(temp_C,0,(index_t)ldc*(index_t)blk_i*sizeof(elemt_t)); */
+					cblas_dscal(ldc*blk_i,0.,temp_C,1); /* XXX blk * col < 2^32 */
+					/* memset(temp_C,0,(index_t)ldc*(index_t)blk_i*sizeof(elemt_t)); */
 #endif
 #ifdef CONV_C
-			sparse_dcopy_block( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
+					sparse_dcopy_block( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
 #else
-			sparse_dcopy( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
+					sparse_dcopy( blk_i, C_k->start+i, C_k->colid, C_k->data    , temp_C, ldc);
 #endif
 
-			cblas_dcopy(blk_i*ldd,Dd+i_offset*(index_t)ldd,1,temp_D,1);
+					cblas_dcopy(blk_i*ldd,Dd+i_offset*(index_t)ldd,1,temp_D,1);
 
 
 #ifdef USE_SAXPY
 #if  defined(USE_SAXPY2)
 #error "make a choice"
 #endif
-			reduce_chunk_1(blk_i,AH,BH,temp_C,ldc,temp_D,ldd,p);
+					reduce_chunk_1(blk_i,AH,BH,temp_C,ldc,temp_D,ldd,p);
 #endif /* USE_SAXPY */
 
 #ifdef USE_SAXPY2
 #if defined(USE_SAXPY)
 #error "make a choice"
 #endif
-			reduce_chunk_2(blk_i,AH,BH,temp_C,ldc,temp_D,ldd,p);
+					reduce_chunk_2(blk_i,AH,BH,temp_C,ldc,temp_D,ldd,p);
 #endif /* USE_SAXPY2 */
 
 
-			cblas_dcopy(ldd*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
+					cblas_dcopy(ldd*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1);
 
 #ifdef _OPENMP
-			free(temp_D);
-			free(temp_C);
+					free(temp_D);
+					free(temp_C);
+				} /* task */
 #endif /* _OPENMP */
-		}
-
-	}
+			} /* for */
+#ifdef _OPENMP
+		} /* single */
+#endif
+	} /* for */
 
 #ifndef _OPENMP
 	free(temp_D);

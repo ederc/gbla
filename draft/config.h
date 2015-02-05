@@ -47,9 +47,9 @@
 #endif /* BLOCK_CSR */
 #else /* OPENMP present */
 #ifdef BLOCK_CSR
-#define MAT_SUB_BLK 64              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
+#define MAT_SUB_BLK 8              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
 #else
-#define MAT_SUB_BLK 16              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
+#define MAT_SUB_BLK 2              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
 #endif /* BLOCK_CSR */
 #endif /* OPENMP */
 #endif /* MAT_SUB_BLK */
