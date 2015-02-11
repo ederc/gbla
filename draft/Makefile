@@ -2,7 +2,7 @@ CC=gcc -std=c11
 #  CC=clang
 CXX=g++ 
 #  CXX=clang++
-DBG=-O0 -g -mavx
+DBG=-march=native -mtune=native -O0 -g
 WAR=-Wall -Wextra -ansi
 STA=
 #  STA=-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive 
