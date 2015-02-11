@@ -1109,3 +1109,26 @@ void fmodin_int32_t(int32_t * a, int32_t p)
 	 return;
 }
 
+/* ACCESS */
+
+index_t size(CSR * mat)
+{
+	return mat->start[mat->row] ;
+}
+
+dimen_t * getRow(CSR * mat, dimen_t i)
+{
+	return mat->colid + mat->start[i];
+}
+
+
+const CSR * getLastMatrixConst(const GBMatrix_t * A)
+{
+	return A->sub+(A->sub_nb-1);
+}
+
+CSR * getLastMatrix(GBMatrix_t * A)
+{
+	return A->sub+(A->sub_nb-1);
+}
+

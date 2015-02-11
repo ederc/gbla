@@ -36,7 +36,6 @@
 #define CONV_C
 
 
-#define MAT_COL_BLK 512
 
 #ifndef MAT_SUB_BLK
 #ifndef _OPENMP
@@ -47,12 +46,17 @@
 #endif /* BLOCK_CSR */
 #else /* OPENMP present */
 #ifdef BLOCK_CSR
-#define MAT_SUB_BLK 8              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
-#else
 #define MAT_SUB_BLK 2              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
+#else
+#define MAT_SUB_BLK 16              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
 #endif /* BLOCK_CSR */
 #endif /* OPENMP */
 #endif /* MAT_SUB_BLK */
+
+
+#ifndef MAT_COL_BLK
+#define MAT_COL_BLK 512
+#endif /* MAT_COL_BLK */
 
 #ifndef MAT_ROW_BLK
 #ifndef _OPENMP
@@ -63,7 +67,7 @@
 #endif /* BLOCK_CSR */
 #else /* OPENMP present */
 #ifdef BLOCK_CSR
-#define MAT_ROW_BLK (MAT_SUB_BLK*32) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
+#define MAT_ROW_BLK (MAT_SUB_BLK*256) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
 #else
 #define MAT_ROW_BLK (MAT_SUB_BLK*32) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
 #endif /* BLOCK_CSR */

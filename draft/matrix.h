@@ -35,9 +35,8 @@ typedef struct CSR {
 	index_t  nnz ; /* this is start[row] */
 	index_t  * start ;
 	dimen_t * colid ;
-	dimen_t * map_zo_pol ;
+	dimen_t * map_zo_pol ; /* == NULL iff data != NULL */
 	elemt_t   * data ;
-
 } CSR;
 
 typedef struct GBMatrix_t {
@@ -46,7 +45,8 @@ typedef struct GBMatrix_t {
 	dimen_t   col ;
 	index_t    nnz ;
 	elemt_t     mod ;
-	dimen_t   sub_nb ;  /* nb of 0/1 matrices */
+	dimen_t   sub_row ;  /* there are sub_row x sub_col matrices sub */
+	dimen_t   sub_col ;  /* there are sub_row x sub_col matrices sub */
 	CSR      * sub ; /* 0/1 matrices reprensenting positions */
 } GBMatrix_t;
 
@@ -68,27 +68,6 @@ typedef struct DenseMatrix_t {
 	DNS      * blk ;
 } DenseMatrix_t ;
 
-/* ACCESS */
-
-index_t size(CSR * mat)
-{
-	return mat->start[mat->row] ;
-}
-
-dimen_t * getRow(CSR * mat, dimen_t i)
-{
-	return mat->colid + mat->start[i];
-}
-
-const CSR * getLastMatrixConst(const GBMatrix_t * A)
-{
-	return A->sub+(A->sub_nb-1);
-}
-
-CSR * getLastMatrix(GBMatrix_t * A)
-{
-	return A->sub+(A->sub_nb-1);
-}
 
 /* INIT */
 
@@ -116,9 +95,8 @@ void initSparse(GBMatrix_t * A)
 	A->row = 0 ;
 	A->col = 0 ;
 	A->nnz = 0 ;
-	A->sub_nb = 0 ;
-	/* SAFE_MALLOC(A->sub,A->sub_nb,CSR); */
-	/* initSparseUnit(A->sub); */
+	A->sub_row = 0 ;
+	A->sub_col = 0 ;
 	A->sub = NULL ;
 }
 
@@ -200,9 +178,11 @@ void printMat(GBMatrix_t * A)
 	fprintf(stderr,"mod ");
 	Mjoin(print,elemt_t)(A->mod);
 	fprintf(stderr,"\n");
-	dimen_t k = 0 ;
-	for (  ; k < A->sub_nb ; ++k ) {
-		printMatUnit(A->sub + k);
+	dimen_t i,j  ;
+	fprintf(stderr," subdivision : %u x %u\n",A->sub_row , A->sub_col );
+	for ( i=0 ; i < A->sub_row ; ++i ) {
+		for ( j=0 ; j < A->sub_col ; ++j ) {
+		printMatUnit(A->sub + i*A->sub_col+j);
 	}
 }
 
@@ -248,25 +228,26 @@ void printPoly(CSR_pol * P)
 
 index_t occupancySparse(GBMatrix_t * A)
 {
-	dimen_t k ;
+	dimen_t k,j ;
 	index_t  acc = 0;
-	for ( k = 0 ; k < A->sub_nb  ; ++k ) {
-		CSR * Ad = A->sub + k;
-		index_t j ;
-		dimen_t i ;
-		for (i = 0 ; i < Ad->row ; ++i) {
-			SAFE_CALLOC_DECL(occup,(Ad->col/UNRL+1),dimen_t);
-			for ( j = Ad->start[i] ; j < Ad->start[i+1] ; ++j) {
-				occup[Ad->colid[j]/UNRL] += 1 ;
-			}
-			for ( j = 0 ; j < Ad->col/UNRL+1 ; ++j) {
-				if (occup[j] > 0)
-					acc += 1 ;
-			}
-			free(occup);
+	for ( k = 0 ; k < A->sub_row  ; ++k ) {
+		for ( j = 0 ; j < A->sub_col  ; ++j ) {
+			CSR * Ad = A->sub + k * A->sub_col + j;
+			index_t j ;
+			dimen_t i ;
+			for (i = 0 ; i < Ad->row ; ++i) {
+				SAFE_CALLOC_DECL(occup,(Ad->col/UNRL+1),dimen_t);
+				for ( j = Ad->start[i] ; j < Ad->start[i+1] ; ++j) {
+					occup[Ad->colid[j]/UNRL] += 1 ;
+				}
+				for ( j = 0 ; j < Ad->col/UNRL+1 ; ++j) {
+					if (occup[j] > 0)
+						acc += 1 ;
+				}
+				free(occup);
 
+			}
 		}
-	}
 	acc *= UNRL ;
 
 	return acc ;
@@ -326,17 +307,18 @@ void checkMat(const GBMatrix_t *A)
 #ifndef NDEBUG
 	dimen_t row = 0 ;
 	index_t nnz = 0 ;
-	dimen_t i = 0 ;
-	for ( i = 0 ; i < A->sub_nb ; ++i) {
-		const CSR * Ak = A->sub + i ;
-		row += Ak->row;
-		nnz += Ak->nnz;
-		checkMatUnit(Ak);
+	dimen_t i,j  ;
+	for ( i = 0 ; i < A->sub_row ; ++i) {
+		for ( j = 0 ; j < A->sub_col ; ++j) {
+			const CSR * Ak = A->sub + i * A->sub_col + j ;
+			row += Ak->row;
+			nnz += Ak->nnz;
+			checkMatUnit(Ak);
+		}
 	}
 	assert (nnz == A->nnz);
 	assert (row == A->row);
 
-	/* assert( A->sub_nb == 1); */
 #endif
 
 }
@@ -367,7 +349,7 @@ void freePol( CSR_pol * A)
 void freeMat(GBMatrix_t * A)
 {
 	dimen_t i;
-	for (i=0 ; i < A->sub_nb ; ++i) {
+	for (i=0 ; i < A->sub_row*A->sub_col ; ++i) {
 		freeMatUnit(A->sub+i) ;
 	}
 	free(A->sub);
@@ -383,16 +365,19 @@ void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
 	D->mod = S->mod ;
 	SAFE_CALLOC(D->ptr,(index_t)D->row * (index_t)D->ld,elemt_t);
 
-	dimen_t k ;
-	for (k = 0 ; k < S->sub_nb ; ++k) {
-		CSR * S_k = S->sub+k ;
-		dimen_t i ;
-		index_t i_off = k * MAT_ROW_BLK ;
-		for (i = 0 ; i < S_k->row ; ++i) {
+	dimen_t i,j ;
+	for (i = 0 ; i < S->sub_row ; ++i) {
+		for (j = 0 ; j < S->sub_col ; ++j) {
+		CSR * S_k = S->sub+i ;
+		dimen_t k ;
+		index_t i_off = i * MAT_ROW_BLK ;
+		index_t j_off = j * MAT_COL_BLK ;
+		elemt_t * D_off = D->ptr + i_off*D->ld+j_off ;
+		for (k = 0 ; k < S_k->row ; ++k) {
 			index_t jz ;
-			for ( jz = S_k->start[i] ; jz < S_k->start[i+1] ; ++jz) {
+			for ( jz = S_k->start[k] ; jz < S_k->start[k+1] ; ++jz) {
 				dimen_t j = S_k->colid[jz] ;
-				D->ptr[(i_off+i)*D->ld+j] = S_k->data[jz] ;
+				D_off[k*D->ld + j] = S_k->data[jz] ;
 			}
 		}
 	}
