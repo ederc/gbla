@@ -31,7 +31,7 @@ TETES=matrix.h field_ops.h selecter.h tools.h config.h types.h macros.h printer.
 
 ### run the algo
 RED=fflas_reduce
-FFLAS=/home/bboyer/usr/
+FFLAS=~/usr/
 FFLAS_CFLAGS=`sh $(FFLAS)/bin/fflas-ffpack-config --cflags-full`
 FFLAS_LIBS=`sh $(FFLAS)/bin/fflas-ffpack-config --libs`
 
