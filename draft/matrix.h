@@ -391,81 +391,81 @@ void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 	B->col = S->col;
 	B->nnz = S->nnz;
 	B->mod = S->mod;
-	B->sub_nb = S->sub_nb ;
-	SAFE_MALLOC(B->sub,B->sub_nb,CSR);
+	B->sub_row = S->sub_row ;
+	B->sub_col = S->sub_col ;
+	SAFE_MALLOC(B->sub,B->sub_row*B->sub_col,CSR);
 
-	dimen_t k ;
-	for (k = 0 ; k < S->sub_nb ; ++k) {
-		const CSR * B_k = S->sub+k ;
-		CSR * Bd = B->sub + k ;
-		Bd->row = B_k->row ;
-		Bd->col = B_k->col ;
-		Bd->nnz = B_k->nnz ;
-		Bd->map_zo_pol = NULL ;
-		SAFE_CALLOC(Bd->start,(Bd->row+1),index_t);
-		dimen_t i ;
-		SAFE_CALLOC(Bd->data,UNRL*ALIGN(Bd->nnz),elemt_t);
-		SAFE_MALLOC(Bd->colid,ALIGN(Bd->nnz),dimen_t);
-		/* index_t there = (index_t)-1 ; */
+	dimen_t k,l ;
+	for (k = 0 ; k < S->sub_row ; ++k) {
+		for (l = 0 ; l < S->sub_col ; ++l) {
+			const CSR * B_k = S->sub+k*S->sub_col+l ;
+			CSR * Bd = B->sub + k *B->sub_col+l;
+			Bd->row = B_k->row ;
+			Bd->col = B_k->col ;
+			Bd->nnz = B_k->nnz ;
+			Bd->map_zo_pol = NULL ;
 
-		SAFE_CALLOC_DECL(b_there,(Bd->row+1),index_t);
-		b_there[0] = (index_t)-1 ;
-		for (i = 0 ; i < B_k->row ; ++i) {
-			index_t jz ;
-			dimen_t last_j = (dimen_t) -1 ;
-			for (jz = B_k->start[i] ; jz < B_k->start[i+1] ; ++jz) {
-				dimen_t j = B_k->colid[jz] ;
-				if (j/UNRL  != last_j) {
-					last_j = j/UNRL ;
-					b_there[i+1] += 1 ;
+			SAFE_CALLOC(Bd->start,(Bd->row+1),index_t);
+			SAFE_CALLOC(Bd->data,UNRL*ALIGN(Bd->nnz),elemt_t);
+			SAFE_MALLOC(Bd->colid,ALIGN(Bd->nnz),dimen_t);
+
+			SAFE_CALLOC_DECL(b_there,(Bd->row+1),index_t);
+			b_there[0] = (index_t)-1 ;
+
+			dimen_t i ;
+			for (i = 0 ; i < B_k->row ; ++i) {
+				index_t jz ;
+				dimen_t last_j = (dimen_t) -1 ;
+				for (jz = B_k->start[i] ; jz < B_k->start[i+1] ; ++jz) {
+					dimen_t j = B_k->colid[jz] ;
+					if (j/UNRL  != last_j) {
+						last_j = j/UNRL ;
+						b_there[i+1] += 1 ;
+					}
 				}
 			}
-		}
-		for (i = 0 ; i < B_k->row ; ++i) {
-			b_there[i+1] += b_there[i] ;
-		}
+			for (i = 0 ; i < B_k->row ; ++i) {
+				b_there[i+1] += b_there[i] ;
+			}
 
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif
-		for (i = 0 ; i < B_k->row ; ++i) {
-			index_t there = b_there[i] ;
-			index_t jz ;
-			dimen_t last_j = (dimen_t) -1 ;
-			for (jz = B_k->start[i] ; jz < B_k->start[i+1] ; ++jz) {
-				dimen_t j = B_k->colid[jz] ;
-				if (j/UNRL  == last_j) {
-					Bd->data[UNRL*there+j%UNRL] = B_k->data[jz] ;
+			for (i = 0 ; i < B_k->row ; ++i) {
+				index_t there = b_there[i] ;
+				index_t jz ;
+				dimen_t last_j = (dimen_t) -1 ;
+				for (jz = B_k->start[i] ; jz < B_k->start[i+1] ; ++jz) {
+					dimen_t j = B_k->colid[jz] ;
+					if (j/UNRL  == last_j) {
+						Bd->data[UNRL*there+j%UNRL] = B_k->data[jz] ;
+					}
+					else {
+						last_j = j/UNRL ;
+						++there ;
+						Bd->colid[there] = last_j*UNRL ;
+						Bd->data[UNRL*there+j%UNRL] = B_k->data[jz] ;
+						Bd->start[i+1] += 1 ;
+						assert(there<Bd->nnz);
+					}
 				}
-				else {
-					last_j = j/UNRL ;
-					++there ;
-					Bd->colid[there] = last_j*UNRL ;
-					Bd->data[UNRL*there+j%UNRL] = B_k->data[jz] ;
-					Bd->start[i+1] += 1 ;
-					assert(there<Bd->nnz);
-				}
-			}
 #ifndef NDEBUG
-			if (B_k->start[i+1]-B_k->start[i]) { assert(Bd->start[i+1]) ; }
+				if (B_k->start[i+1]-B_k->start[i]) { assert(Bd->start[i+1]) ; }
 #endif
 
-			/* Bd->start[i] += 1 ; */
-			/* ++there ; */
+			}
+
+			index_t there = b_there[Bd->row] + 1 ;
+
+			free(b_there);
+
+			for ( i = 0 ; i < Bd->row ; ++i) {
+				Bd->start[i+1] += Bd->start[i];
+			}
+			assert(Bd->start[Bd->row] == there);
+			SAFE_REALLOC(Bd->data,(UNRL*there),elemt_t);
+			SAFE_REALLOC(Bd->colid,there,dimen_t);
 		}
-
-		index_t there = b_there[Bd->row] + 1 ;
-
-		free(b_there);
-
-		for ( i = 0 ; i < Bd->row ; ++i) {
-			/* assert(Bd->start[i+1]); */
-			Bd->start[i+1] += Bd->start[i];
-		}
-		assert(Bd->start[Bd->row] == there);
-		SAFE_REALLOC(Bd->data,(UNRL*there),elemt_t);
-		SAFE_REALLOC(Bd->colid,there,dimen_t);
-	}
 	return;
 
 }
