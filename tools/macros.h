@@ -35,6 +35,8 @@
 	a = b ; \
 	b = t
 
+#define REDLIM (1UL<<52)
+
 #define DIVIDE_INTO(x,y) (((x) + (y) - 1)/(y))
 #define ALIGN(x) DIVIDE_INTO(x,UNRL)*UNRL
 
