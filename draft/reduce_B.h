@@ -50,50 +50,29 @@ void reduce_B(
 
 
 	{ /* B = A^(-1) B */
-		for ( l = 0 ; l < A->sub_col ; ++l) {
-			for ( k = A->sub_nb ; k --  ; ) {
+		for ( k = A->sub_row ; k --  ; ) {
+			for ( l = k ; l < A->sub_col ; ++l) {
 				CSR * Ad = A->sub + k * A->sub_col + l ;
 
 				dimen_t M = Ad->row ;
 				for ( i = M ; i--    ; ) {
 					dimen_t i_offset = k * MAT_ROW_BLK + i;
-					dimen_t j_offset = l * MAT_COL_BLK ;
-					elemt_t * B_off = B->ptr + j_offset ;
-					dimen_t col_width = min((dimen_t)MAT_COL_BLK,B->col-j_offset);
-					dimen_t rs,rt ;
+					elemt_t * B_off = B->ptr + +(index_t)i_offset*(index_t)ldb;
+					dimen_t rs ;
 
-					index_t jz  ;
-					for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz)
+					index_t jz = Ad->start[i] ;
+					if (l == k)
+						jz ++
+					for (  ; jz < Ad->start[i+1] ; ++jz)
 					{
 						dimen_t kz = Ad->colid[jz];
-						elemt_t * B_offset = B_off+(index_t)kz*(index_t)ldb ;
 						rs = min(row_beg[i_offset],row_beg[kz]);
-						if (rs > j_offset ) {
-							if ( rs < j_offset+col_width) {
-								rt = rs-j_offset;
-								row_beg[i_offset] = rs ;
-							}
-							else {
-								rt = col_width ;
-							}
-						}
-						else {
-							rt = 0 ;
-						}
-						cblas_daxpy(col_width-rt,-Ad->data[jz],B_offset+rt,1,B_off+rt,1);
+						elemt_t * B_offset = B->ptr+(index_t)kz*(index_t)ldb ;
+						cblas_daxpy(N-rs,-Ad->data[jz],B_offset+rs,1,B_off+rs,1);
+						row_beg[i_offset] = rs ;
 					}
 					rs = row_beg[i_offset] ;
-					if (rs > j_offset) {
-						if (rs < j_offset+col_width)
-							rt = rs ;
-						else
-							rt = col_width ;
-
-					}
-					else {
-						rt = 0
-					}
-					Mjoin(Freduce,elemt_t)(p,B_off+rt,col_width-rt);
+					Mjoin(Freduce,elemt_t)(p,B_off+rs,N-rs);
 					assert(Ad->data[Ad->start[i]] == 1);
 				}
 			}
@@ -140,6 +119,7 @@ void reduce_B(
 		, int nth
 		)
 {
+	exit(-1);
 	assert( (elemt_t)-1<1); /* unsigned will fail */
 	dimen_t ldb = B->ld ;
 	dimen_t ldd = D->ld ;
