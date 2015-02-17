@@ -24,7 +24,8 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
   // initialize all map entries to __GB_MINUS_ONE_8
   init_fl_map(M, map);
 
-  uint32_t npiv = 0;  // number of pivots
+  //ri_t max_length = M->ncols > M->nrows ? M->ncols : M->n 
+  uint32_t npiv   = 0;  // number of pivots
   ri_t i = 0;         // current row index
   ri_t idx;          // possible pivot entry index
 
@@ -1205,7 +1206,6 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // C & D.
   uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows;
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
-  piv_start_idx[0]  = M->nrows;
   uint32_t block_idx, block_idx_2;
 
   // find blocks for construction of A & B
@@ -1347,7 +1347,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // loop might overwrite piv_start_idx[0] with a wrong index;
   // instead of checking "npiv > 0" in each if clause we just reset
   // piv_start_idx[0] after the for loop
-  piv_start_idx[0]  = M->nrows;
+  piv_start_idx[0]  = M->ncols;
   // set leftout entries to zero
   for (i=npiv/D->bheight+1; i < (max_nrows / D->bheight) + 2; ++i)
     piv_start_idx[i] = 0;
@@ -1500,7 +1500,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   // loop might overwrite piv_start_idx[0] with a wrong index;
   // instead of checking "npiv > 0" in each if clause we just reset
   // piv_start_idx[0] after the for loop
-  piv_start_idx[0]  = M->ncols;
+  piv_start_idx[0]  = M->nrows;
 
   // set leftout entries to zero
   for (i=npiv/B->bheight+1; i < (max_nrows / B->bheight) + 2; ++i)
@@ -1958,7 +1958,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 
   // find blocks for construction of C & D
   npiv  = 0;
-  for (i = (int)M->ncols-1; i > -1; --i) {
+  for (i = (int)M->nrows-1; i > -1; --i) {
     if (map->npri[i] != __GB_MINUS_ONE_32)
       npiv++;
 

@@ -113,6 +113,9 @@ static inline void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_f
 static inline void init_fl_map(sm_t *M, map_fl_t *map) {
   // initialize map arrays and
   // set initial values to __GB_MINUS_ONE_8
+  
+  ri_t max_length = M->ncols > M->nrows ? M->ncols : M->nrows;
+
   map->pc = (ci_t *)malloc(M->ncols * sizeof(ci_t));
   memset(map->pc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
 
@@ -128,8 +131,8 @@ static inline void init_fl_map(sm_t *M, map_fl_t *map) {
   map->pri  = (ri_t *)malloc(M->ncols * sizeof(ri_t));
   memset(map->pri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
 
-  map->npri = (ri_t *)malloc(M->ncols * sizeof(ri_t));
-  memset(map->npri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
+  map->npri = (ri_t *)malloc(max_length * sizeof(ri_t));
+  memset(map->npri, __GB_MINUS_ONE_8, M->nrows * sizeof(ri_t));
 }
 
 /**
