@@ -516,6 +516,34 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
   return out;
 }
 
+/**
+ * \brief Reallocates memory for the rows of the blocks during the splicing of
+ * the input matrix. The buffer size buffer_A is doubled during this process
+ *
+ * \param block matrix A
+ *
+ * \param row block index rbi in A
+ *
+ * \param block index in row bir
+ *
+ * \param block index in row bir
+ *
+ * \param line index in block lib
+ *
+ * \param buffer size buffer_A
+ *
+ */
+static inline void realloc_block_rows_B(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
+    const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) {
+  *buffer_A +=  init_buffer_A;
+  A->blocks[rbi][bir][lib].idx = realloc(
+      A->blocks[rbi][bir][lib].idx,
+      (*buffer_A) * sizeof(bi_t));
+  A->blocks[rbi][bir][lib].val = realloc(
+      A->blocks[rbi][bir][lib].val,
+      2 * (*buffer_A) * sizeof(re_t));
+}
+
 sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
     ri_t bheight, ci_t bwidth, int free_memory, int nthrds) {
 
@@ -550,8 +578,10 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
       B->blocks[i][j] = (mbl_t *)malloc(
           ml_bheight * sizeof(mbl_t));
       for (k=0; k<ml_bheight; ++k) {
-        B->blocks[i][j][k].val  = (re_t *)malloc(2*bwidth*sizeof(re_t));
-        B->blocks[i][j][k].idx  = (bi_t *)malloc(bwidth*sizeof(bi_t));
+        B->blocks[i][j][k].val  = NULL;
+        B->blocks[i][j][k].idx  = NULL;
+        //B->blocks[i][j][k].val  = (re_t *)malloc(2*bwidth*sizeof(re_t));
+        //B->blocks[i][j][k].idx  = (bi_t *)malloc(bwidth*sizeof(bi_t));
         B->blocks[i][j][k].sz   = B->blocks[i][j][k].dense  = 0;
       }
     }
@@ -569,6 +599,7 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
 
 #pragma omp for nowait ordered
     for (i=0; i<ml_rlB; ++i) {
+      memset(buffer_B, 0, clB * sizeof(bi_t));
       if (A->ml[i].sz == 0)
         continue;
 
@@ -580,12 +611,9 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
         bir = (A->ncols - 1 - idx) / bwidth;
         eil = (A->ncols - 1 - idx) % bwidth;
         // realloc memory if needed
-        /*
         if (B->blocks[rbi][bir][lib].sz == buffer_B[bir]) {
-          printf("init_buffer_B %d || buffer_B[%d] %d\n",init_buffer_B,bir,buffer_B[bir]);
-          realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
+          realloc_block_rows_B(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
         }
-        */
         // set values
         B->blocks[rbi][bir][lib].idx[B->blocks[rbi][bir][lib].sz]   = eil;
         B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz]   =
