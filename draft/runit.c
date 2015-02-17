@@ -20,8 +20,13 @@
 #include <sys/time.h>
 #include <string.h>
 #include "io.h"
+#ifdef _OPENMP
+#include "reduce_B_omp.h"
+#include "reduce_C_omp.h"
+#else
 #include "reduce_B.h"
 #include "reduce_C.h"
+#endif
 #include "echelon.h"
 
 #include "ouvrir.h"

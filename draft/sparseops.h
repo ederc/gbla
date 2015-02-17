@@ -51,7 +51,7 @@ void spaxpy(
 			B[colid[jz+7]] += tc * A[jz+7] ;
 #endif
 	}
-	assert((int64_t)nb - (int64_t)jz < UNRL);
+	assert((int64_t)nb - (int64_t)jz < (int64_t)UNRL);
 	for (  ; jz < nb ; ++jz) {
 		B[colid[jz]] += tc * A[jz] ;
 	}

@@ -13,8 +13,8 @@
  * along with gbla . If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GB_reduce_B_H
-#define __GB_reduce_B_H
+#ifndef __GB_reduce_B_omp_H
+#define __GB_reduce_B_omp_H
 
 void     Freduce_double(double p, double * A, index_t n);
 int cblas_daxpy(const int N, const double alpha, const double * X, const int incX, double * Y, const int incY);
@@ -30,76 +30,63 @@ void reduce_B(
 		)
 {
 	assert( (elemt_t)-1<1); /* unsigned will fail */
-	dimen_t l,k  ;
 	dimen_t ldb = B->ld ;
 	dimen_t N = B->col ;
 	elemt_t p = A->mod ;
-	dimen_t i ;
-	SAFE_CALLOC_DECL(row_beg,B->row,dimen_t);
-	for ( k = 0 ; k < B->row ; ++k) {
-		dimen_t ii = 0 ;
-		elemt_t * B_off =B->ptr+(index_t)k*(index_t)ldb ;
-		while ( *(B_off+ii) == 0) {
-			row_beg[k] += 1 ;
-			++ii ;
-		}
-	}
-
 
 	{ /* B = A^(-1) B */
+		dimen_t k  ;
 		for ( k = A->sub_row ; k --  ; ) {
-			for ( l = 0 ; l < A->sub_col ; ++l) { /* XXX triangular */
-				CSR * Ad = A->sub + k * A->sub_col + l ;
-				dimen_t M = Ad->row ;
+			CSR * Ad = A->sub + k ;
+			dimen_t M = Ad->row ;
+			dimen_t band ;
+#pragma omp parallel for
+			for (band = 0 ; band < DIVIDE_INTO(B->col,MAT_COL_BLK) ; ++band) {
+				dimen_t col_start = band*MAT_COL_BLK;
+				dimen_t col_width = min ((dimen_t)MAT_COL_BLK,B->col-col_start);
+				dimen_t i;
+
 				for ( i = M ; i--    ; ) {
 					dimen_t i_offset = k * MAT_ROW_BLK + i;
-					elemt_t * B_off = B->ptr+(index_t)i_offset*(index_t)ldb;
-					dimen_t rs ;
-
-					index_t jz = Ad->start[i]+1 ;
-					for (  ; jz < Ad->start[i+1] ; ++jz)
+					index_t jz  ;
+					elemt_t * B_off = B->ptr+(index_t)i_offset*(index_t)ldb+col_start;
+					for ( jz = Ad->start[i]+1 ; jz < Ad->start[i+1] ; ++jz)
 					{
 						dimen_t kz = Ad->colid[jz];
-						rs = min(row_beg[i_offset],row_beg[kz]);
-						elemt_t * B_offset = B->ptr+(index_t)kz*(index_t)ldb ;
-						cblas_daxpy(N-rs,-Ad->data[jz],B_offset+rs,1,B_off+rs,1);
-						row_beg[i_offset] = rs ;
+						cblas_daxpy(col_width,-Ad->data[jz],B->ptr+(index_t)kz*(index_t)ldb+col_start,1,B_off,1);
 					}
-					rs = row_beg[i_offset] ;
-					Mjoin(Freduce,elemt_t)(p,B_off+rs,N-rs);
-					assert(Ad->data[Ad->start[i]] == 1);
+					Mjoin(Freduce,elemt_t)(p,B_off,col_width);
 				}
 			}
 		}
 	}
 
 	{ /* D = D - C . B */
-		dimen_t ldd = D->ld ;
+		dimen_t k ;
 		for ( k = 0 ; k < C->sub_row  ; ++k ) {
-			for ( l = 0 ; l < C->sub_col  ; ++l ) {
-				CSR * Cd = C->sub + k*C->sub_col + l ;
-				index_t j_offset = l * MAT_COL_BLK ;
-				for ( i = 0 ; i < Cd->row ;  ++i) {
+			CSR * Cd = C->sub + k ;
+			dimen_t ldd = D->ld ;
+			dimen_t band ;
+#pragma omp parallel for
+			for (band = 0 ; band < DIVIDE_INTO(Cd->row,MAT_SUB_BLK) ; ++band) {
+				dimen_t i;
+				for ( i = band*MAT_SUB_BLK ; i < min((band+1)*MAT_SUB_BLK,Cd->row) ;  ++i) {
 					index_t i_offset = k * MAT_ROW_BLK + i;
 					index_t jz  ;
 					elemt_t * D_off = D->ptr+(index_t)i_offset*(index_t)ldd;
-					elemt_t * B_off = B->ptr+(index_t)j_offset*(index_t)ldb;
-					assert((Cd->start[i+1]-Cd->start[i])*(p-1)*(p-1) < REDLIM);
 					for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
 						dimen_t kz = Cd->colid[jz];
-						dimen_t rs = row_beg[kz] ;
-						elemt_t * B_offset = B_off+(index_t)kz*(index_t)ldb ;
-						cblas_daxpy(N-rs,-Cd->data[jz],B_offset+rs,1,D_off+rs,1);
+						cblas_daxpy(N,-Cd->data[jz],B->ptr+(index_t)kz*(index_t)ldb,1,D_off,1);
 					}
+					Mjoin(Freduce,elemt_t)(p,D_off, N) ;
 				}
-				Mjoin(Freduce,elemt_t)(p,D->ptr+k*MAT_ROW_BLK, N*Cd->row) ;
 			}
 		}
 	}
 
-	free(row_beg);
 }
 
-#endif /*  __GB_reduce_B_H*/
+
+#endif /* __GB_reduce_B_omp_H */
 
 /* vim: set ft=c: */
