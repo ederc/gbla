@@ -29,7 +29,7 @@ void reduce_B(
 		, DNS * B
 		, GBMatrix_t    * C
 		, DNS * D
-		, int
+		, int nth
 		)
 {
 	assert( (elemt_t)-1<1); /* unsigned will fail */
@@ -51,18 +51,15 @@ void reduce_B(
 
 	{ /* B = A^(-1) B */
 		for ( k = A->sub_row ; k --  ; ) {
-			for ( l = k ; l < A->sub_col ; ++l) {
+			for ( l = 0 ; l < A->sub_col ; ++l) { /* XXX triangular */
 				CSR * Ad = A->sub + k * A->sub_col + l ;
-
 				dimen_t M = Ad->row ;
 				for ( i = M ; i--    ; ) {
 					dimen_t i_offset = k * MAT_ROW_BLK + i;
-					elemt_t * B_off = B->ptr + +(index_t)i_offset*(index_t)ldb;
+					elemt_t * B_off = B->ptr+(index_t)i_offset*(index_t)ldb;
 					dimen_t rs ;
 
-					index_t jz = Ad->start[i] ;
-					if (l == k)
-						jz ++
+					index_t jz = Ad->start[i]+1 ;
 					for (  ; jz < Ad->start[i+1] ; ++jz)
 					{
 						dimen_t kz = Ad->colid[jz];
@@ -80,37 +77,34 @@ void reduce_B(
 	}
 
 	{ /* D = D - C . B */
-		for ( k = 0 ; k < C->row_nb  ; ++k ) {
-			for ( l = 0 ; l < C->col_nb  ; ++l ) {
-				CSR * Cd = C->sub + k*C->col_nb + l ;
+		dimen_t ldd = D->ld ;
+		for ( k = 0 ; k < C->sub_row  ; ++k ) {
+			for ( l = 0 ; l < C->sub_col  ; ++l ) {
+				CSR * Cd = C->sub + k*C->sub_col + l ;
 				index_t j_offset = l * MAT_COL_BLK ;
-				index_t acc = 0 ;
 				for ( i = 0 ; i < Cd->row ;  ++i) {
 					index_t i_offset = k * MAT_ROW_BLK + i;
 					index_t jz  ;
 					elemt_t * D_off = D->ptr+(index_t)i_offset*(index_t)ldd;
 					elemt_t * B_off = B->ptr+(index_t)j_offset*(index_t)ldb;
-					assert((Cd->start[i+1]-Cd->start[i])*(index_t)(p-1)*(index_t)(p-1) < REDLIM);
-					acc += (Cd->start[i+1]-Cd->start[i])*(p-1)*(p-1);
-					if (acc > REDLIM ) {
-						Mjoin(Freduce,elemt_t)(p,D_off, N) ;
-						acc = 0 ;
-					}
+					assert((Cd->start[i+1]-Cd->start[i])*(p-1)*(p-1) < REDLIM);
 					for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
 						dimen_t kz = Cd->colid[jz];
 						dimen_t rs = row_beg[kz] ;
-						cblas_daxpy(N-rs,-Cd->data[jz],B_off+(index_t)kz*(index_t)ldb+(index_t)rs,1,D_off+rs,1);
+						elemt_t * B_offset = B_off+(index_t)kz*(index_t)ldb ;
+						cblas_daxpy(N-rs,-Cd->data[jz],B_offset+rs,1,D_off+rs,1);
 					}
-					if ( i == Cd->row-1)
-						Mjoin(Freduce,elemt_t)(p,D_off, N) ;
 				}
+				Mjoin(Freduce,elemt_t)(p,D->ptr+k*MAT_ROW_BLK, N*Cd->row) ;
 			}
 		}
 	}
 
 	free(row_beg);
 }
+
 #else /* _OPENMP */
+
 void reduce_B(
 		GBMatrix_t      * A
 		, DNS * B
@@ -161,29 +155,21 @@ void reduce_B(
 				CSR * Cd = C->sub + k * C->sub_col + l ;
 				index_t j_offset = l * MAT_COL_BLK ;
 				dimen_t i;
-				index_t acc = 0 ;
 				for ( i = 0 ; i < Cd->row ;  ++i) {
 					index_t i_offset = k * MAT_ROW_BLK + i;
 					index_t jz  ;
 					elemt_t * D_off = D->ptr+(index_t)i_offset*(index_t)ldd;
 					elemt_t * B_off = B->ptr+(index_t)j_offset*(index_t)ldb;
-					acc += (Cd->start[i+1]-Cd->start[i])*(p-1)*(p-1);
-					if (acc > REDLIM ) {
-						Mjoin(Freduce,elemt_t)(p,D_off, N) ;
-						acc = 0 ;
-					}
 					for ( jz = Cd->start[i]; jz < Cd->start[i+1] ; ++jz ) {
 						dimen_t kz = Cd->colid[jz];
 						cblas_daxpy(N,-Cd->data[jz],B_off+(index_t)kz*(index_t)ldb,1,D_off,1);
 					}
-					if ( i == Cd->row-1)
-						Mjoin(Freduce,elemt_t)(p,D_off, N) ;
+					Mjoin(Freduce,elemt_t)(p,D_off, N) ;
 				}
 			}
 		}
 	}
 
-	/* free(row_beg); */
 }
 
 #endif /* _OPENMP */

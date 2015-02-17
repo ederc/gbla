@@ -167,13 +167,18 @@ void splitHorizontal(
 	assert(C->row == row - pivots_size );
 	assert(C->row); /* return here and terminate */
 
-	A->sub_nb = DIVIDE_INTO(A->row,MAT_ROW_BLK);
-	assert(A->sub_nb);
-	C->sub_nb = DIVIDE_INTO(C->row,MAT_ROW_BLK);
-	assert(C->sub_nb);
+	A->sub_row = DIVIDE_INTO(A->row,MAT_ROW_BLK);
+	A->sub_col = 1 ;
+	assert(A->sub_row);
+	C->sub_row = DIVIDE_INTO(C->row,MAT_ROW_BLK);
+	C->sub_col = 1 ;
+	assert(C->sub_row);
 
-	SAFE_CALLOC_DECL(Asub_nnz,A->sub_nb,index_t);
-	SAFE_CALLOC_DECL(Csub_nnz,C->sub_nb,index_t);
+	dimen_t A_sub_nb = A->sub_row * A->sub_col ;
+	dimen_t C_sub_nb = C->sub_row * C->sub_col ;
+
+	SAFE_CALLOC_DECL(Asub_nnz,A_sub_nb,index_t);
+	SAFE_CALLOC_DECL(Csub_nnz,C_sub_nb,index_t);
 	SAFE_CALLOC_DECL(ami,row,uint8_t);
 	SAFE_CALLOC_DECL(qui,row,dimen_t);
 
@@ -196,12 +201,12 @@ void splitHorizontal(
 		}
 	}
 
-	SAFE_MALLOC(A->sub,A->sub_nb,CSR);
-	SAFE_MALLOC(C->sub,C->sub_nb,CSR);
+	SAFE_MALLOC(A->sub,A_sub_nb,CSR);
+	SAFE_MALLOC(C->sub,C_sub_nb,CSR);
 
 	index_t A_nnz = 0 ;
 
-	for ( i = 0 ; i < A->sub_nb ; ++i) {
+	for ( i = 0 ; i < A_sub_nb ; ++i) {
 		CSR * A_sub = A->sub+i ;
 		A_sub->row = min((dimen_t)MAT_ROW_BLK,A->row-i*MAT_ROW_BLK);
 		A_sub->col = A->col ;
@@ -213,7 +218,7 @@ void splitHorizontal(
 		A_sub->data = NULL ;
 	}
 
-	for ( i = 0 ; i < C->sub_nb ; ++i) {
+	for ( i = 0 ; i < C_sub_nb ; ++i) {
 		CSR * C_sub = C->sub+i ;
 		C_sub->row = min((dimen_t)MAT_ROW_BLK,C->row-i*MAT_ROW_BLK);
 		C_sub->col = C->col ;
@@ -239,7 +244,7 @@ void splitHorizontal(
 		dimen_t s_loc = qui[i] / MAT_ROW_BLK ;
 		dimen_t i_loc = qui[i] % MAT_ROW_BLK ;
 		if ( ami[i] == 1 ) {
-			assert(s_loc < A->sub_nb);
+			assert(s_loc < A_sub_nb);
 			CSR * A_sub = A->sub+s_loc ;
 			assert(qui[i_loc] < A_sub->row);
 			setRow(A_sub,i_loc,colid+start[i],start[i+1]-start[i],map_zo_pol[i]);
@@ -283,13 +288,16 @@ void splitVerticalUnit(
 	dimen_t ldb = B->ld;
 	SAFE_CALLOC(B->ptr,(index_t)B->row*(index_t)ldb,elemt_t);
 
-	A->sub_nb = A_init->sub_nb ;
-	SAFE_MALLOC(A->sub,A->sub_nb,CSR);
+	A->sub_row = A_init->sub_row ;
+	A->sub_col = A_init->sub_col ;
+	dimen_t A_sub_nb = A->sub_row * A->sub_col ;
+	dimen_t A_init_sub_nb = A_sub_nb ;
+	SAFE_MALLOC(A->sub,A_sub_nb,CSR);
 
 	/* Init sparse */
 
 	dimen_t j ;
-	for ( j = 0 ; j < A_init->sub_nb ; ++j) {
+	for ( j = 0 ; j < A_init_sub_nb ; ++j) {
 		const CSR * A_k = A_init->sub + j ;
 #ifndef NDEBUG
 		checkMatUnit(A_k);
@@ -403,12 +411,14 @@ void splitVerticalUnitSparse(
 
 	/* Init sparse */
 
-	A->sub_nb = B->sub_nb = A_init->sub_nb ;
+	A->sub_row = B->sub_row = A_init->sub_row ;
+	A->sub_col = B->sub_col = A_init->sub_col ;
+	assert(A->sub_col);
 
-	SAFE_MALLOC(A->sub,A->sub_nb,CSR);
-	SAFE_MALLOC(B->sub,B->sub_nb,CSR);
+	SAFE_MALLOC(A->sub,A->sub_row,CSR);
+	SAFE_MALLOC(B->sub,B->sub_row,CSR); /* XXX sub_nb */
 	dimen_t j ;
-	for ( j = 0 ; j < A_init->sub_nb ; ++j) {
+	for ( j = 0 ; j < A_init->sub_row ; ++j) { /* XXX sub_nb */
 		const CSR * A_k = A_init->sub + j ;
 #ifndef NDEBUG
 		checkMatUnit(A_k);
@@ -798,7 +808,7 @@ dimen_t * readFileSplit(
 
 #ifdef STATS
 	dimen_t cnt = 0 ;
-	for ( i = 0 ; i< A->sub_nb ; ++i) {
+	for ( i = 0 ; i< A->sub_row ; ++i) { /* XXX sub_nb */
 		CSR * Ai = A->sub + i ;
 		dimen_t i_off = i*MAT_ROW_BLK ;
 		dimen_t ii = 0 ;

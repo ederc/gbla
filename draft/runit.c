@@ -139,7 +139,20 @@ int main(int ac, char **av) {
 		freeMatDense(Bd);
 	}
 	else {
-		reduce_C(A,B,C,D,nth);
+		int conv_a = 0 , conv_b = 0 , conv_c = 0 , algo_red = 1 ;
+#ifdef CONV_A
+		conv_a = 1 ;
+#endif
+#ifdef CONV_B
+		conv_b = 1 ;
+#endif
+#ifdef CONV_C
+		conv_c = 1 ;
+#endif
+#ifdef USE_SAXPY2
+		algo_red = 2;
+#endif
+		reduce_C(A,conv_a,B,conv_b,C,conv_c,D,algo_red,nth);
 	}
 
 	gettimeofday(&tac,NULL);
@@ -147,7 +160,7 @@ int main(int ac, char **av) {
 	fprintf(stderr," REDUCE  time         : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
 				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
-#endif
+#endif /* ONLY_FFLAS */
 
 	gettimeofday(&tic,NULL);
 
@@ -179,3 +192,4 @@ int main(int ac, char **av) {
 
 	return 0;
 }
+

@@ -128,7 +128,9 @@ void sparse_dcopy(
 		elemt_t * C_off = temp_C+(index_t)ii*(index_t)ldc;
 		index_t jz = start[ii] ;
 #ifdef DEROULE
-		for ( ; jz < (start[ii+1])/UNRL*UNRL ; jz += UNRL) {
+		index_t last = start[ii] + (start[ii+1]-start[ii])/UNRL*UNRL ;
+		assert(start[ii+1]-last < UNRL);
+		for ( ; jz <  last ; jz += UNRL) {
 			C_off[colid[jz  ]] = data[jz  ] ;
 			C_off[colid[jz+1]] = data[jz+1] ;
 #if (UNRL>2)
@@ -140,8 +142,8 @@ void sparse_dcopy(
 			C_off[colid[jz+5]] = data[jz+5] ;
 #endif
 #if (UNRL>6)
-			C_off[colid[jz+6]] = data[jz+7] ;
-			C_off[colid[jz+6]] = data[jz+7] ;
+			C_off[colid[jz+6]] = data[jz+6] ;
+			C_off[colid[jz+7]] = data[jz+7] ;
 #endif
 		}
 #endif /*  DEROULE */
@@ -151,8 +153,6 @@ void sparse_dcopy(
 		}
 	}
 }
-
-
 
 
 #endif /*  __GB_sparseops_H */

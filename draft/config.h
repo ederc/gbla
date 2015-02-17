@@ -76,19 +76,27 @@
 
 
 #ifdef SSE
-#define UNRL 2
+#define UNRL 2UL
 #endif
 
 #ifdef AVX
-#define UNRL 4
+#define UNRL 4UL
 #endif
 
 #ifndef SIMD
-#define UNRL 4
+#define UNRL 4UL
 #endif
 
+
 #define DEROULE
-#undef USE_SAXPY
+
+#if defined(DEROULE)
+#ifndef UNRL
+#error "you need to define UNRL"
+#endif
+#endif
+
+/* #define USE_SAXPY */
 #define USE_SAXPY2
 #undef STATS
 

@@ -182,7 +182,8 @@ void printMat(GBMatrix_t * A)
 	fprintf(stderr," subdivision : %u x %u\n",A->sub_row , A->sub_col );
 	for ( i=0 ; i < A->sub_row ; ++i ) {
 		for ( j=0 ; j < A->sub_col ; ++j ) {
-		printMatUnit(A->sub + i*A->sub_col+j);
+			printMatUnit(A->sub + i*A->sub_col+j);
+		}
 	}
 }
 
@@ -248,6 +249,7 @@ index_t occupancySparse(GBMatrix_t * A)
 
 			}
 		}
+	}
 	acc *= UNRL ;
 
 	return acc ;
@@ -365,19 +367,20 @@ void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
 	D->mod = S->mod ;
 	SAFE_CALLOC(D->ptr,(index_t)D->row * (index_t)D->ld,elemt_t);
 
-	dimen_t i,j ;
-	for (i = 0 ; i < S->sub_row ; ++i) {
+	dimen_t k,j ;
+	for (k = 0 ; k < S->sub_row ; ++k) {
 		for (j = 0 ; j < S->sub_col ; ++j) {
-		CSR * S_k = S->sub+i ;
-		dimen_t k ;
-		index_t i_off = i * MAT_ROW_BLK ;
-		index_t j_off = j * MAT_COL_BLK ;
-		elemt_t * D_off = D->ptr + i_off*D->ld+j_off ;
-		for (k = 0 ; k < S_k->row ; ++k) {
-			index_t jz ;
-			for ( jz = S_k->start[k] ; jz < S_k->start[k+1] ; ++jz) {
-				dimen_t j = S_k->colid[jz] ;
-				D_off[k*D->ld + j] = S_k->data[jz] ;
+			CSR * S_k = S->sub+k*S->sub_col+j ;
+			dimen_t i ;
+			index_t i_off = k * MAT_ROW_BLK ;
+			index_t j_off = j * MAT_COL_BLK ;
+			elemt_t * D_off = D->ptr + i_off*D->ld+j_off ;
+			for (i = 0 ; i < S_k->row ; ++i) {
+				index_t jz ;
+				for ( jz = S_k->start[i] ; jz < S_k->start[i+1] ; ++jz) {
+					dimen_t j = S_k->colid[jz] ;
+					D_off[i*D->ld + j] = S_k->data[jz] ;
+				}
 			}
 		}
 	}
@@ -466,6 +469,7 @@ void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 			SAFE_REALLOC(Bd->data,(UNRL*there),elemt_t);
 			SAFE_REALLOC(Bd->colid,there,dimen_t);
 		}
+	}
 	return;
 
 }
