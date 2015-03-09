@@ -58,9 +58,11 @@
  *  \param level of verbosity
  *
  *  \param compute a complete reduced row echelon form? reduce_completely
+ *
+ *  \param use third party dense reducer for D dense_reducer
  */
 int fl_block(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem,
-    int verbose, int reduce_completely);
+    int verbose, int reduce_completely, int dense_reducer);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -89,8 +91,10 @@ int fl_block(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int
  *  \param number of threads to be used nthreads
  *
  *  \param level of verbosity
+ *
+ *  \param use third party dense reducer for D dense_reducer
  */
-int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem, int verbose);
+int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem, int verbose, int dense_reducer);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -121,8 +125,10 @@ int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int 
  *  \param level of verbosity
  *
  *  \param compute a complete reduced row echelon form? reduce_completely
+ *
+ *  \param use third party dense reducer for D dense_reducer
  */
 int fl_ml_A_C(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem,
-    int verbose, int reduce_completely);
+    int verbose, int reduce_completely, int dense_reducer);
 
 #endif

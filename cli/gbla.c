@@ -46,6 +46,7 @@ void print_help() {
   printf("                Default: 1.\n");
   */
   printf("    -n          Use the new format for matrices.\n");
+  printf("    -o          Use third party dense reducer for D. By default this is FFLAS-FFPACK\n");
   printf("    -p          Writes intermediate matrices in pbm format.\n");
   printf("    -r          Compute a REDUCED row echelon form.\n");
   printf("    -s          Splicing options:\n");
@@ -77,6 +78,7 @@ int main(int argc, char *argv[]) {
   int write_pbm         = 0;
   int nthreads          = 1;
   int splicing          = 1;
+  int dense_reducer     = 0;
   int new_format        = 0;
 
   int index;
@@ -88,7 +90,7 @@ int main(int argc, char *argv[]) {
 
   opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "b:f:hm:t:v:prs:n")) != -1) {
+  while ((opt = getopt(argc, argv, "b:f:hm:t:v:oprs:n")) != -1) {
     switch (opt) {
       case 'b':
         block_dimension = atoi(optarg);
@@ -107,6 +109,9 @@ int main(int argc, char *argv[]) {
         nrows_multiline = atoi(optarg);
         if (nrows_multiline < 1)
           nrows_multiline = 1;
+        break;
+      case 'o':
+        dense_reducer = 1;
         break;
       case 'p':
         write_pbm = 1;
@@ -166,6 +171,7 @@ int main(int argc, char *argv[]) {
     printf("---------------------------------------------------------------------\n");
     printf("number of threads           %4d\n", nthreads);
     printf("splicing option             %4d\n", splicing);
+    printf("third party dense reducer   %4d\n", dense_reducer);
     printf("dimension of blocks         %4d\n", block_dimension);
     printf("free memory on the go       %4d\n", free_mem);
     printf("reduced row echelon form    %4d\n", reduce_completely);
@@ -232,14 +238,14 @@ int main(int argc, char *argv[]) {
     // all submatrices are of block type
     case 0:
       if (fl_block(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose,
-            reduce_completely)) {
+            reduce_completely, dense_reducer)) {
         printf("Error while trying to eliminate matrix from file '%s' in all block type mode.\n",fn);
       }
       break;
     // submatrices A and C of multiline type, submatrices B and D are of block type
     case 1:
       if (fl_ml_A_C(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose,
-            reduce_completely)) {
+            reduce_completely, dense_reducer)) {
         printf("Error while trying to eliminate matrix from file '%s' in A and C multiline,\n",fn);
         printf("B and D block type mode.\n");
       }
@@ -267,7 +273,7 @@ int main(int argc, char *argv[]) {
 }
 
 int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
-    int verbose, int reduce_completely) {
+    int verbose, int reduce_completely, int dense_reducer) {
   struct timeval t_load_start;
   // all submatrices of block type
   if (verbose > 1) {
@@ -454,7 +460,11 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing D to upper triangular matrix ...\n");
   }
-  ri_t rank_D = elim_fl_D_block(D, D_red, M->mod, nthreads);
+  ri_t rank_D;
+  if (dense_reducer == 1)
+    rank_D = elim_fl_D_fflas_ffpack(D, M->mod, nthreads);
+  else
+    rank_D = elim_fl_D_block(D, D_red, M->mod, nthreads);
   if (rank_D == -1) {
     printf("Error while reducing D to upper triangular matrix.\n");
     return 1;
@@ -574,7 +584,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
 }
 
 int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
-    int verbose, int reduce_completely) {
+    int verbose, int reduce_completely, int dense_reducer) {
   struct timeval t_load_start;
   // submatrices A and C of multiline type, B and D of block type
   if (verbose > 1) {
@@ -724,10 +734,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-  // column loops
-  const uint32_t clC  = (uint32_t) ceil((float)C_block->ncols / C_block->bwidth);
-  // row loops
-  const uint32_t rlC  = (uint32_t) ceil((float)C_block->nrows / C_block->bheight);
 
   // reducing submatrix C to zero using methods of Faugère & Lachartre
   if (verbose > 1) {
@@ -760,7 +766,11 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing D to upper triangular matrix ...\n");
   }
-  ri_t rank_D = elim_fl_D_block(D, D_red, M->mod, nthreads);
+  ri_t rank_D;
+  if (dense_reducer == 1)
+    rank_D = elim_fl_D_fflas_ffpack(D, M->mod, nthreads);
+  else
+    rank_D = elim_fl_D_block(D, D_red, M->mod, nthreads);
   if (rank_D == -1) {
     printf("Error while reducing D to upper triangular matrix.\n");
     return 1;

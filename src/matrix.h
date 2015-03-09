@@ -30,6 +30,7 @@
 #include <math.h>
 #include <omp.h>
 #include <types.h>
+#include "../draft/matrix.h"
 
 /**
  * \brief Sparse matrix structure for reading jcf matrices
@@ -170,6 +171,15 @@ typedef struct sm_fl_ml_t {
 void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     sm_fl_ml_t **input_ml, ri_t rank_input_ml, sm_t **output,
     int deleteIn, int nthrds);
+
+/**
+ * \brief Copies data from block matrix into DNS matrix format.
+ *
+ * \param pointer to block matrix source
+ *
+ * \param pointer to DNS matrix destination
+ */
+void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination);
 
 /**
  * \brief Copies data from block matrix in to multiline matrix out. If deleteIn

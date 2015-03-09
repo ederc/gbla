@@ -17,6 +17,91 @@
 
 #define NOT_DENSE_COPYING 0
 
+void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
+  sbm_fl_t *src = *source;
+  DNS *dst      = *destination;
+
+  const ri_t src_row_idx  = (ri_t) ceil((float) src->nrows / src->bheight);
+  const ci_t src_col_idx  = (ci_t) ceil((float) src->ncols / src->bwidth);
+  const bi_t ml_bheight   = src->bheight / __GB_NROWS_MULTILINE;
+
+  const ri_t max_rows  = dst->row;
+
+  ri_t i;
+  ci_t j;
+  bi_t k, l;
+
+  bi_t pos;
+
+  ri_t dst_row_idx, dst_col_idx;
+  for (i=0; i<src_row_idx; ++i) {
+    for (j=0; j<src_col_idx; ++j) {
+      if (src->blocks[i][j] == NULL)
+        continue;
+      dst_row_idx = i * src->bheight;
+      dst_col_idx = j * src->bwidth;
+      for (k=0; k<ml_bheight; ++k) {
+        if (src->blocks[i][j][k].sz == 0) {
+          dst_row_idx +=  2;
+          continue;
+        }
+        if (src->blocks[i][j][k].dense == 0) {
+          for (l=0; l<src->blocks[i][j][k].sz; ++l) {
+            pos = src->blocks[i][j][k].idx[l];
+            dst->ptr[dst_row_idx * dst->ld + dst_col_idx + pos] = 
+              (elemt_t)src->blocks[i][j][k].val[2*l];
+          }
+          dst_row_idx++;
+          if (dst_row_idx<max_rows) {
+            for (l=0; l<src->blocks[i][j][k].sz; ++l) {
+              pos = src->blocks[i][j][k].idx[l];
+              dst->ptr[dst_row_idx * dst->ld + dst_col_idx + pos] = 
+                (elemt_t)src->blocks[i][j][k].val[2*l+1];
+            }
+          }
+          dst_row_idx++;
+        } else {
+          for (l=0; l<src->blocks[i][j][k].sz; ++l) {
+            dst->ptr[dst_row_idx * dst->ld + dst_col_idx + l] = 
+              (elemt_t)src->blocks[i][j][k].val[2*l];
+          }
+          dst_row_idx++;
+          if (dst_row_idx<max_rows) {
+            for (l=0; l<src->blocks[i][j][k].sz; ++l) {
+              //printf("position %ld\n",dst_row_idx * dst->ld + dst_col_idx + l/2-1);
+              dst->ptr[dst_row_idx * dst->ld + dst_col_idx + l] = 
+                (elemt_t)src->blocks[i][j][k].val[2*l+1];
+            }
+          }
+          dst_row_idx++;
+        }
+      }
+    }
+  }
+  // free memory in block multiline matrix
+  for (i=0; i<src_row_idx; ++i) {
+    for (j=0; j<src_col_idx; ++j) {
+      if (src->blocks[i][j] == NULL)
+        continue;
+      for (k=0; k<ml_bheight; ++k) {
+        free(src->blocks[i][j][k].idx);
+        free(src->blocks[i][j][k].val);
+      }
+      free(src->blocks[i][j]);
+      src->blocks[i][j] = NULL;
+    }
+    free(src->blocks[i]);
+    src->blocks[i]  = NULL;
+  }
+  free(src->blocks);
+  src->blocks = NULL;
+  free(src);
+  src = NULL;
+
+  *source       = src;
+  *destination  = dst;
+}
+
 void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     sm_fl_ml_t **input_ml, ri_t rank_input_ml, sm_t **output,
     int deleteIn, int nthrds) {

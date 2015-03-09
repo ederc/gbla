@@ -24,6 +24,7 @@
 #define DENSE_MULTILINE_C_AFTER_ELIM  0
 
 #define TASKS 0
+#define GBLA_WITH_FFLAS 0
 
 // global variables for echelonization of D
 static omp_lock_t echelonize_lock;
@@ -806,6 +807,43 @@ if (rows_empty == bheight/2) {
   sparse_block  = NULL;
 }
 *sparse_block_in  = sparse_block;
+}
+
+
+ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
+  
+  // generate DNS matrix D out of D_old
+  SAFE_MALLOC_DECL(D, 1, DNS);
+  initDenseUnit(D);
+  copyMetaData(D, D_old, modulus);
+
+  // dense representation of D, alloc memory at once and set entries to zero
+  SAFE_CALLOC(D->ptr, (index_t)D->row * (index_t)D->ld, elemt_t);
+
+  // copy multiline block matrix to DNS format
+  copy_block_ml_matrix_to_dns_matrix(&D_old, &D);
+
+  // row reduce D with FFLAS-FFPACK
+  ri_t rank;
+#if GBLA_WITH_FFLAS
+  rank  = Mjoin(RowReduce,elemt_t)(D->mod,D->ptr,D->row,D->col,D->ld, nthrds); 
+#endif
+  /*
+  size_t i, j, k;
+  ri_t ctr = 0;
+  for (i=0; i<D->row; ++i) {
+    ctr = 0;
+    printf("\n%d || %d\n",i,ctr/256);
+    for (j=0; j<D->col; ++j) {
+      printf("%.1f ",D->ptr[i*D->ld+j]);
+      ctr++;
+      if (ctr % 256 == 0)
+        printf("\n%d || %d\n",i,ctr/256);
+    }
+  }
+  */
+
+  return rank;
 }
 
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {

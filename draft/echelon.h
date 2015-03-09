@@ -19,7 +19,7 @@
 dimen_t RowReduce_int32_t ( int32_t p, int32_t * A, dimen_t m, dimen_t n, dimen_t lda) ;
 dimen_t RowReduce_double  ( double p, double * A, dimen_t m, dimen_t n, dimen_t lda, uint32_t nt) ;
 
-dimen_t echelonD(
+static dimen_t echelonD(
 		GBMatrix_t      * A
 		, DNS * D
 		, uint32_t nt)

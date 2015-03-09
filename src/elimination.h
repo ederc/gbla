@@ -25,6 +25,7 @@
 
 #include <mapping.h>
 #include <matrix.h>
+#include <../draft/echelon.h>
 
 /**
  * \brief Structure of a waiting list element
@@ -1275,6 +1276,24 @@ static inline int get_smallest_waiting_row(wl_t *waiting_global,
 }
 
 /**
+ * \brief Copies meta data from block matrix representation B to dense matrix
+ * representation A. Needs modulus, too.
+ *
+ * \param dense matrix representation A
+ *
+ * \param block multiline matrix representation B
+ *
+ * \param characteristic of underlying field modulus
+ */
+static inline void copyMetaData(DNS *A, sbm_fl_t *B, mod_t modulus) {
+  A->row  = (dimen_t)B->nrows;
+  A->col  = (dimen_t)B->ncols;
+  A->ld   = ALIGN(A->col);
+  A->mod  = (elemt_t)modulus;
+  A->nnz  = (index_t)B->nnz;
+}
+
+/**
  * \brief Reduces dense block block_B with rectangular sparse block block_A.
  *
  * \param sparse block block_A
@@ -1385,6 +1404,21 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const int inv_scalar
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
     const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
     const int inv_scalars, const mod_t modulus);
+
+/**
+ * \brief Elimination procedure which reduces the block submatrix D to an
+ * upper triangular matrix. For this FFLAS-FFPACK procedures are used. Thus the
+ * input matrix D has to be converted to DNS type first.
+ *
+ * \param block submatrix D (right lower side), input matrix
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return rank of D_red
+ */
+ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D, const mod_t modulus, int nthrds);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix D to an

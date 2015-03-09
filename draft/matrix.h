@@ -71,7 +71,7 @@ typedef struct DenseMatrix_t {
 
 /* INIT */
 
-void initSparseUnit(CSR * mat)
+static void initSparseUnit(CSR * mat)
 {
 	/* if (!mat) return ; */
 	assert(mat);
@@ -89,7 +89,7 @@ void initSparseUnit(CSR * mat)
 	mat->data = NULL ;
 }
 
-void initSparse(GBMatrix_t * A)
+static void initSparse(GBMatrix_t * A)
 {
 	if (!A) return;
 	A->row = 0 ;
@@ -100,7 +100,7 @@ void initSparse(GBMatrix_t * A)
 	A->sub = NULL ;
 }
 
-void initDenseUnit (DNS * A)
+static void initDenseUnit (DNS * A)
 {
 	A->row = 0 ;
 	A->col = 0 ;
@@ -113,7 +113,7 @@ void initDenseUnit (DNS * A)
 /* GROW */
 
 
-void setRow(CSR * mat
+static void setRow(CSR * mat
 		, dimen_t i
 		, dimen_t * colid
 		, index_t size
@@ -134,7 +134,7 @@ void setRow(CSR * mat
 
 /* PRINT */
 
-void printMatUnit(CSR * A)
+static void printMatUnit(CSR * A)
 {
 	fprintf(stderr,"block %u x %u - %lu",A->row, A->col,A->nnz);
 	fprintf(stderr,"\nstart:\n<");
@@ -172,7 +172,7 @@ void printMatUnit(CSR * A)
 	fprintf(stderr,">\n");
 }
 
-void printMat(GBMatrix_t * A)
+static void printMat(GBMatrix_t * A)
 {
 	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col,A->nnz);
 	fprintf(stderr,"mod ");
@@ -187,7 +187,7 @@ void printMat(GBMatrix_t * A)
 	}
 }
 
-void printMatDense(DNS * A)
+static void printMatDense(DNS * A)
 {
 	fprintf(stderr,"matrix %u x %u - %lu\n",A->row, A->col, A->nnz);
 	fprintf(stderr,"mod ");
@@ -205,7 +205,7 @@ void printMatDense(DNS * A)
 	}
 }
 
-void printPoly(CSR_pol * P)
+static void printPoly(CSR_pol * P)
 {
 	fprintf(stderr,"polys (%u)\n",P->nb);
 	fprintf(stderr,"start\n");
@@ -227,7 +227,7 @@ void printPoly(CSR_pol * P)
 
 /* STATS */
 
-index_t occupancySparse(GBMatrix_t * A)
+static index_t occupancySparse(GBMatrix_t * A)
 {
 	dimen_t k,j ;
 	index_t  acc = 0;
@@ -255,7 +255,7 @@ index_t occupancySparse(GBMatrix_t * A)
 	return acc ;
 }
 
-index_t occupancyDense ( DNS * D)
+static index_t occupancyDense ( DNS * D)
 {
 	dimen_t i,j ;
 	index_t  acc = 0;
@@ -282,7 +282,7 @@ index_t occupancyDense ( DNS * D)
 
 /* CHECK */
 
-void checkMatUnit(const CSR *Ak)
+static void checkMatUnit(const CSR *Ak)
 {
 
 	if (Ak == NULL) exit(-1);
@@ -303,7 +303,7 @@ void checkMatUnit(const CSR *Ak)
 	/* fprintf(stderr,"ok\n"); */
 }
 
-void checkMat(const GBMatrix_t *A)
+static void checkMat(const GBMatrix_t *A)
 {
 	if (A == NULL) exit(-1);
 #ifndef NDEBUG
@@ -327,12 +327,12 @@ void checkMat(const GBMatrix_t *A)
 
 /* FREE */
 
-void freeMatDense(DNS * A)
+static void freeMatDense(DNS * A)
 {
 	free(A->ptr);
 }
 
-void freeMatUnit(CSR * A)
+static void freeMatUnit(CSR * A)
 {
 	free(A->start);
 	free(A->colid);
@@ -341,14 +341,14 @@ void freeMatUnit(CSR * A)
 	/* free(A); */
 }
 
-void freePol( CSR_pol * A)
+static void freePol( CSR_pol * A)
 {
 	free (A->start_pol);
 	free (A->data_pol);
 }
 
 
-void freeMat(GBMatrix_t * A)
+static void freeMat(GBMatrix_t * A)
 {
 	dimen_t i;
 	for (i=0 ; i < A->sub_row*A->sub_col ; ++i) {
@@ -359,7 +359,7 @@ void freeMat(GBMatrix_t * A)
 
 /* CONVERSION */
 
-void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
+static void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
 {
 	D->row = S->row ;
 	D->col = S->col ;
@@ -388,7 +388,7 @@ void convert_CSR_2_DNS(DNS * D, const GBMatrix_t * S )
 
 }
 
-void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
+static void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 {
 	B->row = S->row;
 	B->col = S->col;
