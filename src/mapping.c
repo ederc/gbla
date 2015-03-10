@@ -117,7 +117,7 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GB_NROWS_MULTILINE);
   const ci_t coldim = A->ncols;
 
-  init_fl_map_sizes(A->ncols + (A->ncols % bheight), A->nrows + (A->ncols % bheight), map);
+  init_fl_map_sizes(A->ncols + (A->ncols % bheight), A->nrows + (A->nrows % bheight), map);
 
   map->npiv = 0;
 

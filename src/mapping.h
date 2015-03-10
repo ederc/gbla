@@ -72,9 +72,9 @@ typedef struct map_fl_t {
  * \brief Initializes a map for the input matrix M with all entries set
  * to __GB_MINUS_ONE_8.
  *
- * \param size of rows row_size
- *
  * \param size of columns col_size
+ *
+ * \param size of rows row_size
  *
  * \param map to be initialized
  *
