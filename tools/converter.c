@@ -82,6 +82,12 @@ void convert_old2new( FILE * titi, int rev, int sor)
 	un = un | VERMASK ;
 	fwrite(&un,sizeof(dimen_t),1,toto);
 
+	dimen_t de = Mjoin(select,elemt_s)();
+	de = de | OLDMASK ;
+	SAFE_READ_DECL_V(b,  dimen_t,titi);
+	if (b != de) {
+		fprintf(stderr, " *** WARNING *** header seems wrong ***\n");
+	}
 	SAFE_READ_DECL_V(m,  stor_t,titi);
 	SAFE_READ_DECL_V(n,  stor_t,titi);
 	SAFE_READ_DECL_V(mod,stor_t,titi);
@@ -444,6 +450,11 @@ void convert_new2old( FILE * fh)
 	stor_t n_ = n ;
 	stor_t p_ = mod;
 	larg_t z_ = nnz ;
+
+	dimen_t d_ = Mjoin(select,elemt_s)();
+	d_ = d_ | OLDMASK ;
+	fwrite(&d_,sizeof(dimen_t),1,toto);
+
 	fwrite(&m_,sizeof(stor_t),1,toto);
 	fwrite(&n_,sizeof(stor_t),1,toto);
 	fwrite(&p_,sizeof(stor_t),1,toto);

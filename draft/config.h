@@ -18,16 +18,18 @@
 #ifndef __GB_config_H
 #define __GB_config_H
 
-/* #undef ONLY_FFLAS */
+#include <malloc.h>
+#include <immintrin.h>
+
+
+/* #define ONLY_FFLAS */
 
 #define AVX
-#undef SSE
+/* #define SSE */
+
 #if defined(AVX) || defined(SSE)
 #define SIMD
 #endif /* SIMD */
-
-#include <malloc.h>
-#include <immintrin.h>
 
 #define BLOCK_CSR
 
@@ -46,9 +48,9 @@
 #endif /* BLOCK_CSR */
 #else /* OPENMP present */
 #ifdef BLOCK_CSR
-#define MAT_SUB_BLK 2              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
+#define MAT_SUB_BLK 8              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
 #else
-#define MAT_SUB_BLK 16              /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
+#define MAT_SUB_BLK 16             /* process submatrix MAT_SUB_BLK by MAT_SUB_BLK */
 #endif /* BLOCK_CSR */
 #endif /* OPENMP */
 #endif /* MAT_SUB_BLK */
@@ -67,7 +69,7 @@
 #endif /* BLOCK_CSR */
 #else /* OPENMP present */
 #ifdef BLOCK_CSR
-#define MAT_ROW_BLK (MAT_SUB_BLK*256) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
+#define MAT_ROW_BLK (MAT_SUB_BLK*32) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
 #else
 #define MAT_ROW_BLK (MAT_SUB_BLK*32) /* write matrix MAT_ROW_BLK by MAT_ROW_BLK */
 #endif /* BLOCK_CSR */
@@ -98,7 +100,7 @@
 
 /* #define USE_SAXPY */
 #define USE_SAXPY2
-#undef STATS
+/* #define STATS */
 
 #ifndef SIMD
 #warning "you should enable simd operations"

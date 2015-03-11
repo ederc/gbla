@@ -474,5 +474,107 @@ static void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 
 }
 
+/* SUBMATRIX SPLIT */
+
+void createSubmatricesUnit(CSR * Ad, dimen_t col, const CSR * Ah)
+{
+
+	/* get sizes of submatrices */
+	SAFE_CALLOC_DECL(sizes,col,dimen_t);
+	dimen_t i ;
+	for (i = 0 ; i < Ah->row ; ++i) {
+		index_t jz ;
+		for ( jz = Ah->start[i] ; jz < Ah->start[i+1] ; ++jz) {
+			dimen_t macol = Ah->colid[jz];
+			assert(macol/MAT_COL_BLK < col);
+			sizes[macol/MAT_COL_BLK] += 1 ;
+		}
+	}
+
+	/* allocate submatrices */
+	dimen_t j ;
+	for ( j = 0 ; j < col ; ++j) {
+		CSR * Aj = Ad + j ;
+		if (sizes[j] == 0)
+			Aj = NULL ;
+		else {
+			Aj->row = Ad->row ;
+			Aj->col = 0 ;
+			Aj->nnz = sizes[j] ;
+			SAFE_CALLOC(Aj->start,Aj->row+1,index_t); /* could be dimen_t */
+			SAFE_MALLOC(Aj->colid,Aj->nnz,dimen_t);
+			SAFE_MALLOC(Aj->data, Aj->nnz,elemt_t);
+			Aj->map_zo_pol = NULL ;
+		}
+
+	}
+
+	/* populate submatrices */
+	SAFE_CALLOC_DECL(here,col,index_t);
+	for (i = 0 ; i < Ah->row ; ++i) {
+		index_t jz ;
+		for ( jz = Ah->start[i] ; jz < Ah->start[i+1] ; ++jz) {
+			dimen_t macol = Ah->colid[jz];
+			dimen_t mamat = macol / MAT_COL_BLK ;
+			dimen_t colid = macol % MAT_COL_BLK ;
+			CSR * Aloc = Ad + mamat ;
+			Aloc->start[i+1] += 1 ;
+			Aloc->colid[here[mamat]] = colid ;
+			Aloc->data [here[mamat]] = Ah->data[jz] ;
+			here[mamat] += 1 ;
+		}
+	}
+
+	/* fixing start */
+	for ( j = 0 ; j < col ; ++j) {
+		CSR * Aj = Ad + j ;
+		if (Aj != NULL) {
+			for (i = 0 ; i < Aj->row ; ++i) {
+				Aj->start[i+1] += Aj->start[i] ;
+			}
+			/* could reduce row if start stagnates at end */
+		}
+	}
+
+	/* fixing col */
+	for ( j = 0 ; j < col ; ++j) {
+		CSR * Aj = Ad + j ;
+		if (Aj != NULL) {
+			for (i = 0 ; i < Aj->row ; ++i) {
+				/* if (Aj->start[i+1] > Aj->start[i]) { |+ non empty row +| */
+				if (Aj->start[i+1] > 0) {
+					Aj->col = max(Aj->col,Aj->colid[Aj->start[i+1]-1]);
+				}
+				/* } */
+			}
+			assert(Aj->col < MAT_COL_BLK);
+		}
+	}
+	return ;
+}
+
+void createSubmatrices(GBMatrix_t *A, const GBMatrix_t * AH)
+{
+	A->row = AH->row;
+	A->col = AH->col;
+	A->nnz = AH->nnz;
+	A->mod = AH->mod;
+
+	A->sub_row = AH->sub_row;
+	A->sub_col = DIVIDE_INTO(A->col,MAT_COL_BLK);
+
+	SAFE_MALLOC(A->sub,A->sub_row*A->sub_col,CSR);
+
+	/* if (A->sub_col == 1) return ; */
+
+	dimen_t i ;
+	for (i = 0 ; i < A->sub_row ; ++i) {
+		const CSR * Ah = AH->sub + i ;
+		CSR * Ak =  A->sub + i * A->sub_col ;
+		createSubmatricesUnit( Ak, A->sub_col, Ah) ;
+	}
+	return ;
+}
+
 #endif /* __GB_matrix_H */
 /* vim: set ft=c: */

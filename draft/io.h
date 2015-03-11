@@ -174,11 +174,9 @@ void splitHorizontal(
 	C->sub_col = 1 ;
 	assert(C->sub_row);
 
-	dimen_t A_sub_nb = A->sub_row * A->sub_col ;
-	dimen_t C_sub_nb = C->sub_row * C->sub_col ;
 
-	SAFE_CALLOC_DECL(Asub_nnz,A_sub_nb,index_t);
-	SAFE_CALLOC_DECL(Csub_nnz,C_sub_nb,index_t);
+	SAFE_CALLOC_DECL(Asub_nnz,A->sub_row,index_t);
+	SAFE_CALLOC_DECL(Csub_nnz,C->sub_row,index_t);
 	SAFE_CALLOC_DECL(ami,row,uint8_t);
 	SAFE_CALLOC_DECL(qui,row,dimen_t);
 
@@ -201,12 +199,12 @@ void splitHorizontal(
 		}
 	}
 
-	SAFE_MALLOC(A->sub,A_sub_nb,CSR);
-	SAFE_MALLOC(C->sub,C_sub_nb,CSR);
+	SAFE_MALLOC(A->sub,A->sub_row,CSR);
+	SAFE_MALLOC(C->sub,C->sub_row,CSR);
 
 	index_t A_nnz = 0 ;
 
-	for ( i = 0 ; i < A_sub_nb ; ++i) {
+	for ( i = 0 ; i < A->sub_row ; ++i) {
 		CSR * A_sub = A->sub+i ;
 		A_sub->row = min((dimen_t)MAT_ROW_BLK,A->row-i*MAT_ROW_BLK);
 		A_sub->col = A->col ;
@@ -218,7 +216,7 @@ void splitHorizontal(
 		A_sub->data = NULL ;
 	}
 
-	for ( i = 0 ; i < C_sub_nb ; ++i) {
+	for ( i = 0 ; i < C->sub_row; ++i) {
 		CSR * C_sub = C->sub+i ;
 		C_sub->row = min((dimen_t)MAT_ROW_BLK,C->row-i*MAT_ROW_BLK);
 		C_sub->col = C->col ;
@@ -244,7 +242,7 @@ void splitHorizontal(
 		dimen_t s_loc = qui[i] / MAT_ROW_BLK ;
 		dimen_t i_loc = qui[i] % MAT_ROW_BLK ;
 		if ( ami[i] == 1 ) {
-			assert(s_loc < A_sub_nb);
+			assert(s_loc < A->sub_row);
 			CSR * A_sub = A->sub+s_loc ;
 			assert(qui[i_loc] < A_sub->row);
 			setRow(A_sub,i_loc,colid+start[i],start[i+1]-start[i],map_zo_pol[i]);
@@ -290,14 +288,12 @@ void splitVerticalUnit(
 
 	A->sub_row = A_init->sub_row ;
 	A->sub_col = A_init->sub_col ;
-	dimen_t A_sub_nb = A->sub_row * A->sub_col ;
-	dimen_t A_init_sub_nb = A_sub_nb ;
-	SAFE_MALLOC(A->sub,A_sub_nb,CSR);
+	SAFE_MALLOC(A->sub,A->sub_row,CSR);
 
 	/* Init sparse */
 
 	dimen_t j ;
-	for ( j = 0 ; j < A_init_sub_nb ; ++j) {
+	for ( j = 0 ; j < A_init->sub_row; ++j) {
 		const CSR * A_k = A_init->sub + j ;
 #ifndef NDEBUG
 		checkMatUnit(A_k);
@@ -416,9 +412,9 @@ void splitVerticalUnitSparse(
 	assert(A->sub_col);
 
 	SAFE_MALLOC(A->sub,A->sub_row,CSR);
-	SAFE_MALLOC(B->sub,B->sub_row,CSR); /* XXX sub_nb */
+	SAFE_MALLOC(B->sub,B->sub_row,CSR);
 	dimen_t j ;
-	for ( j = 0 ; j < A_init->sub_row ; ++j) { /* XXX sub_nb */
+	for ( j = 0 ; j < A_init->sub_row ; ++j) {
 		const CSR * A_k = A_init->sub + j ;
 #ifndef NDEBUG
 		checkMatUnit(A_k);
@@ -799,16 +795,51 @@ dimen_t * readFileSplit(
 
 	gettimeofday(&tic,NULL);
 
-	splitVertical(A_init,C_init,nonpiv,nonpiv_size,polys,A,B,C,D);
+	SAFE_MALLOC_DECL(AH,1,GBMatrix_t);
+	SAFE_MALLOC_DECL(BH,1,GBMatrix_t);
+	SAFE_MALLOC_DECL(CH,1,GBMatrix_t);
+
+	initSparse(AH);
+	initSparse(BH);
+	initSparse(CH);
+
+	splitVertical(A_init,C_init,nonpiv,nonpiv_size,polys,AH,BH,CH,D);
+
+	freeMat(A_init);
+	free(A_init);
+	freeMat(C_init);
+	free(C_init);
+	freePol(polys);
+	free(polys);
 
 	gettimeofday(&tac,NULL);
 
 	fprintf(stderr,"  >> split vertical   : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
 				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 
+	gettimeofday(&tic,NULL);
+
+	createSubmatrices(A,AH);
+
+	freeMat(AH);
+	free(AH);
+
+	createSubmatrices(B,BH);
+	freeMat(BH);
+	free(BH);
+
+	createSubmatrices(C,CH);
+	freeMat(CH);
+	free(CH);
+
+
+	gettimeofday(&tac,NULL);
+	fprintf(stderr,"  >> submatrices      : %.3f s\n", ((double)(tac.tv_sec - tic.tv_sec)
+				+(double)(tac.tv_usec - tic.tv_usec)/1e6));
 #ifdef STATS
 	dimen_t cnt = 0 ;
-	for ( i = 0 ; i< A->sub_row ; ++i) { /* XXX sub_nb */
+	assert(A->sub_col == 1);
+	for ( i = 0 ; i< A->sub_row ; ++i) {
 		CSR * Ai = A->sub + i ;
 		dimen_t i_off = i*MAT_ROW_BLK ;
 		dimen_t ii = 0 ;
@@ -843,12 +874,7 @@ dimen_t * readFileSplit(
 	}
 #endif
 
-	freeMat(A_init);
-	free(A_init);
-	freeMat(C_init);
-	free(C_init);
-	freePol(polys);
-	free(polys);
+
 
 	fprintf(stderr,"   -- sparsity of A   : %5.2f%% (%8u x %8u - %12lu)\n",(double)A->nnz/(double)A->row/(double)A->col*100.,A->row,A->col,A->nnz);
 	fprintf(stderr,"   -- sparsity of B   : %5.2f%% (%8u x %8u - %12lu)\n",(double)B->nnz/(double)B->row/(double)B->col*100.,B->row,B->col,B->nnz);
