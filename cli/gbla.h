@@ -78,6 +78,40 @@ int fl_block(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int
  * B->ncols = D->ncols = M->ncols - map->npiv.
  * Afterwards the row echelon form of M is computed.
  *
+ *  \note No multilines at all, but dense small block representations in order
+ *  to exploit SIMD operations as much as possible.
+ *
+ *  \param original matrix M
+ *
+ *  \param dimension of blocks block_dimension
+ *
+ *  \param destructing input matrix on the go? free_mem
+ *
+ *  \param number of threads to be used nthreads
+ *
+ *  \param level of verbosity
+ *
+ *  \param compute a complete reduced row echelon form? reduce_completely
+ *
+ *  \param use third party dense reducer for D dense_reducer
+ */
+int fl_block_dense(sm_t *M, int block_dimension, int nthreads, int free_mem,
+    int verbose, int reduce_completely, int dense_reducer);
+
+/**
+ * \brief Constructs the subdivision of M into ABCD in the
+ * Faugère-Lachartre style
+ *
+ *                 A | B
+ * M     ---->     --+--
+ *                 C | D
+ * In the subdivision the following dimensions hold:
+ * A->nrows = B->nrows = map->npiv // number of pivots found
+ * C->nrows = D->nrows = M->nrows - map->npiv // non-pivots
+ * A->ncols = C->ncols = map->npiv
+ * B->ncols = D->ncols = M->ncols - map->npiv.
+ * Afterwards the row echelon form of M is computed.
+ *
  *  \note Submatrix A is in multiline format.
  *
  *  \param original matrix M
@@ -114,8 +148,6 @@ int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int 
  *
  *  \param original matrix M
  *
- *  \param dimension of blocks block_dimension
- *
  *  \param number of rows per multiline rows_multiline
  *
  *  \param destructing input matrix on the go? free_mem
@@ -128,7 +160,7 @@ int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int 
  *
  *  \param use third party dense reducer for D dense_reducer
  */
-int fl_ml_A_C(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem,
+int fl_ml_A_C(sm_t *M, int rows_multiline, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer);
 
 #endif

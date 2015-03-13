@@ -661,6 +661,45 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
  * A->ncols = C->ncols = map->npiv
  * B->ncols = D->ncols = M->ncols - map->npiv
  *
+ * \note Dense version without multilines in order to exploit SIMD instructions.
+ *
+ *  \param original matrix M
+ *
+ *  \param block submatrix A
+ *
+ *  \param block submatrix B
+ *
+ *  \param block submatrix C
+ *
+ *  \param block submatrix D
+ *
+ *  \param indexer mapping map
+ *
+ *  \param destructing input matrix on the go? destruct_input_matrix
+ *
+ *  \param number of threads to be used nthreads
+ *
+ *  \param level of verbosity
+ *
+ *  \param checks if map was already defined outside map_defined
+ */
+void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
+    dbm_fl_t *D, map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
+    int nthreads, int destruct_input_matrix, int verbose, int map_defined);
+
+/**
+ * \brief Constructs the subdivision of M into ABCD in the
+ * Faugère-Lachartre style
+ *
+ *                 A | B
+ * M     ---->     --+--
+ *                 C | D
+ * In the subdivision the following dimensions hold:
+ * A->nrows = B->nrows = map->npiv // number of pivots found
+ * C->nrows = D->nrows = M->nrows - map->npiv // non-pivots
+ * A->ncols = C->ncols = map->npiv
+ * B->ncols = D->ncols = M->ncols - map->npiv
+ *
  *  \note Submatrix A is in multiline format.
  *
  *  \param original matrix M

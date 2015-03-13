@@ -31,6 +31,7 @@
 
 #define __GB_ROUND_DOWN(x, s) ((x) & ~((s)-1))
 
+#define __GBLA_SIMD_BLOCK_SIZE  4
 #define __GB_NROWS_MULTILINE  2
 #define __GB_HYBRID_THRESHOLD 0.5f
 #define __GB_DENSITY_THRESHOLD 10.0f

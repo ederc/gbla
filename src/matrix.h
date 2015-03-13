@@ -58,6 +58,14 @@ typedef struct sm_t {
 
 
 /**
+ * \brief A dense block is a block of size  __GBLA_SIMD_BLOCK_SIZE^2 of
+ * matrix entries.
+ */
+typedef struct dbl_t {
+  re_t val[__GBLA_SIMD_BLOCK_SIZE * __GBLA_SIMD_BLOCK_SIZE];  /*!< rows */
+} dbl_t;
+
+/**
  * \brief A multiline block is a vector of an vector of multilines. It consists of
  * an index for the column of the value entries in rows. For each index rows stores
  * __GB_NROWS_MULTILINE elements, i.e. this many rows are taken care of at once.
@@ -99,6 +107,23 @@ enum ba_t {
   dtrl  /*!<  down-to-top, right-to-left */
 };
 
+
+/**
+ * \brief Dense block matrix structure for Faugère-Lachartre decompositions.
+ * For non multiline implementation using small dense blocks for exploiting SIMD
+ * inctructions.
+ */
+
+typedef struct dbm_fl_t {
+  ri_t nrows;       /*!<  number of rows */
+  ci_t ncols;       /*!<  number of columns */
+  ri_t bheight;     /*!<  number of rows per block */
+  ci_t bwidth;      /*!<  number of columns per block */
+  nnz_t nnz;        /*!<  number of nonzero elements */
+  double density;   /*!<  density of this submatrix */
+  dbl_t **blocks;   /*!<  address of blocks: M->blocks[i][j] gives address of
+                          block. */
+} dbm_fl_t;
 
 /**
  * \brief Sparse block matrix structure for Faugère-Lachartre decompositions.
