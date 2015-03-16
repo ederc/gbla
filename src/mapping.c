@@ -1077,12 +1077,18 @@ void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
   ri_t npiv = 0; // number pivots handled
   ri_t *piv_start_idx;
 
-  init_pivot_block_start_indices(&piv_start_idx, &npiv, map, M->ncols, A->nrows);
-  printf("npiv %d\n",npiv);
-
   // write data in A and B, i.e. fill upper part of splicing
-  fill_submatrices(M, A, B, map, piv_start_idx, destruct_input_matrix, nthreads);
+  init_pivot_block_start_indices(&piv_start_idx, &npiv, map->pri, M->ncols, A->nrows);
+  fill_submatrices(M, A, B, map, map->pri, piv_start_idx, destruct_input_matrix, nthreads);
 
+  free(piv_start_idx);
+  piv_start_idx = NULL;
+  // write data in C and D, i.e. fill upper part of splicing
+  init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
+  fill_submatrices(M, C, D, map, map->npri, piv_start_idx, destruct_input_matrix, nthreads);
+
+  free(piv_start_idx);
+  piv_start_idx = NULL;
 }
 
 
@@ -2045,110 +2051,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 #endif
 }
 
-
-void write_dense_blocks_matrix(sm_t *M, dbm_fl_t *A, dbm_fl_t *B,
-    map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi) {
-
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
-  ci_t  it, ri;
-
-  // memory for block entries is already allocated in splice_fl_matrix()
-
-  // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
-
-  // column loops
-  const ci_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
-  const ci_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
-
-  // ususally cvb is divisible by 2, but for the last row of blocks there might
-  // be only an odd number of lines in the blocks
-  for (i=0; i<cvb; ++i) {
-    bi  = rihb[i];
-    ri  = 0;
-
-    // loop over rows i and i+1 of M and splice correspondingly into A & B
-    while (ri < M->rwidth[bi]) {
-      it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
-        insert_in_dbm(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
-      else
-        insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
-      ri++;
-    }
-  }
-
-#if __GB_DEBUG
-  printf("i %d -- cvb %d\n",i,cvb);
-#endif
-  /*
-  // write data to A (from right to left)
-  swap_block_data(A, clA, rbi, cvb);
-
-  // hybrid multirows for the righthand side block matrices?
-  if (B->hr) {
-    uint32_t idx  = 0;
-    // TODO: Implement hybrid stuff
-    for (i=0; i<clB; ++i) {
-      for (j=0; j<rounded_cvb/__GB_NROWS_MULTILINE; ++j) {
-        if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
-            < __GB_HYBRID_THRESHOLD) {
-          B->blocks[rbi][i][j].idx =  realloc(
-              B->blocks[rbi][i][j].idx,
-              B->blocks[rbi][i][j].sz * sizeof(bi_t));
-          B->blocks[rbi][i][j].val =  realloc(
-              B->blocks[rbi][i][j].val,
-              2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
-          continue;
-        }
-        re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
-        idx  = 0;
-        for (k=0; k<B->bwidth; ++k) {
-          if (idx < B->blocks[rbi][i][j].sz && B->blocks[rbi][i][j].idx[idx] == k) {
-            tmp_val_ptr[2*k]    = B->blocks[rbi][i][j].val[2*idx];
-            tmp_val_ptr[2*k+1]  = B->blocks[rbi][i][j].val[2*idx+1];
-            idx++;
-          } else {
-            tmp_val_ptr[2*k]    = 0;
-            tmp_val_ptr[2*k+1]  = 0;
-          }
-        }
-        free(B->blocks[rbi][i][j].idx);
-        B->blocks[rbi][i][j].idx    = NULL;
-        free(B->blocks[rbi][i][j].val);
-        B->blocks[rbi][i][j].val    = tmp_val_ptr;
-        B->blocks[rbi][i][j].sz     = B->bwidth;
-        B->blocks[rbi][i][j].dense  = 1;
-      }
-    }
-  } else { // cut down memory usage
-    // Realloc memory usage:
-    // Note that A is reallocated during the swapping of the data, so we
-    // reallocate only B here.
-    int ctr;
-    for (k=0; k<clB; ++k) {
-      ctr = 0;
-      for (l=0; l<rounded_cvb/2; ++l) {
-        if (B->blocks[rbi][k][l].sz>0) {
-          ctr = 1;
-          B->blocks[rbi][k][l].idx = realloc(
-              B->blocks[rbi][k][l].idx,
-              B->blocks[rbi][k][l].sz * sizeof(bi_t));
-          B->blocks[rbi][k][l].val = realloc(
-              B->blocks[rbi][k][l].val,
-              2 * B->blocks[rbi][k][l].sz  * sizeof(re_t));
-        }
-      }
-      // if full block is empty, remove it!
-      if (ctr == 0) {
-        free(B->blocks[rbi][k]);
-        B->blocks[rbi][k] = NULL;
-      }
-    }
-  }
-  */
-}
 
 
 void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
