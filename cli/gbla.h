@@ -83,8 +83,6 @@ int fl_block(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int
  *
  *  \param original matrix M
  *
- *  \param dimension of blocks block_dimension
- *
  *  \param destructing input matrix on the go? free_mem
  *
  *  \param number of threads to be used nthreads
@@ -95,7 +93,7 @@ int fl_block(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int
  *
  *  \param use third party dense reducer for D dense_reducer
  */
-int fl_block_dense(sm_t *M, int block_dimension, int nthreads, int free_mem,
+int fl_block_dense(sm_t *M, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer);
 
 /**
@@ -148,6 +146,8 @@ int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int 
  *
  *  \param original matrix M
  *
+ *  \param dimension of blocks block_dimension
+ *
  *  \param number of rows per multiline rows_multiline
  *
  *  \param destructing input matrix on the go? free_mem
@@ -160,7 +160,7 @@ int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int 
  *
  *  \param use third party dense reducer for D dense_reducer
  */
-int fl_ml_A_C(sm_t *M, int rows_multiline, int nthreads, int free_mem,
+int fl_ml_A_C(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer);
 
 #endif

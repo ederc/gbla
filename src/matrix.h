@@ -62,7 +62,7 @@ typedef struct sm_t {
  * matrix entries.
  */
 typedef struct dbl_t {
-  re_t val[__GBLA_SIMD_BLOCK_SIZE * __GBLA_SIMD_BLOCK_SIZE];  /*!< rows */
+  re_t *val;  /*!< rows */
 } dbl_t;
 
 /**
@@ -117,8 +117,6 @@ enum ba_t {
 typedef struct dbm_fl_t {
   ri_t nrows;       /*!<  number of rows */
   ci_t ncols;       /*!<  number of columns */
-  ri_t bheight;     /*!<  number of rows per block */
-  ci_t bwidth;      /*!<  number of columns per block */
   nnz_t nnz;        /*!<  number of nonzero elements */
   double density;   /*!<  density of this submatrix */
   dbl_t **blocks;   /*!<  address of blocks: M->blocks[i][j] gives address of

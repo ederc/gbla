@@ -393,6 +393,66 @@ static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
   }
 }
 
+/**
+ * \brief Inserts elements from input matrix M in dense block of submatrix A
+ *
+ * \param dense block submatrix A
+ *
+ * \param original matrix M
+ *
+ * \param current row block index rbi
+ *
+ * \param current block index in block row bir
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ */
+static inline void insert_dense_block_data(dbm_fl_t *A, const sm_t *M,
+    const bi_t rbi, const bi_t bir, const bi_t lib, const ci_t eil,
+    const ci_t bi1, const ci_t i1) {
+  A->blocks[rbi][bir].val[lib*eil]  = M->rows[bi1][i1];
+}
+
+/**
+ * \brief Inserts elements from input matrix M in submatrix A
+ *
+ * \param dense block submatrix A
+ *
+ * \param original matrix M
+ *
+ * \param shift to calculate correct coordinates of the corresponding block in A
+ * and inside the block itself shift
+ *
+ * \param current row block index rbi
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ */
+static inline void insert_in_dbm(dbm_fl_t *A, const sm_t *M, const ci_t shift, const ri_t rbi,
+    const ri_t lib, const ri_t bi, const ci_t ri)
+{
+  const bi_t bir = shift / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  const bi_t eil = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
+  // allocate memory if needed, initialized to zero
+  if (A->blocks[rbi][bir].val == NULL)
+    A->blocks[rbi][bir].val = (re_t *)calloc(
+        __GBLA_SIMD_BLOCK_SIZE * __GBLA_SIMD_BLOCK_SIZE, sizeof(re_t));
+  // set values
+  insert_dense_block_data(A, M, rbi, bir, lib, eil, bi, ri);
+}
+
 
 /**
  * \brief Inserts elements from input matrix M in multiline rows of A corresponding
@@ -605,6 +665,211 @@ void construct_fl_map_reduced(map_fl_t *map, map_fl_t *map_D, ri_t rows_BD,
  */
 void construct_fl_map(sm_t *M, map_fl_t *map);
 
+
+/**
+ * \brief Checks dimensions of sub matrices after constructing map and
+ * initializing sub matrices
+ *
+ * \param initial input matrix M
+ *
+ * \param dense block submatrix A
+ *
+ * \param dense block submatrix B
+ *
+ * \param dense block submatrix C
+ *
+ * \param dense block submatrix D
+ */
+static inline void check_dimensions(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
+    dbm_fl_t *D) {
+
+  printf("M[%dx%d]\n",M->nrows,M->ncols);
+  printf("A[%dx%d]\n",A->nrows,A->ncols);
+  printf("B[%dx%d]\n",B->nrows,B->ncols);
+  printf("C[%dx%d]\n",C->nrows,C->ncols);
+  printf("D[%dx%d]\n",D->nrows,D->ncols);
+  assert(A->nrows == A->ncols);
+  assert(A->nrows == B->nrows);
+  assert(A->ncols == C->ncols);
+  assert(B->ncols == D->ncols);
+  assert(C->nrows == D->nrows);
+  assert(M->nrows == A->nrows + D->nrows);
+  assert(M->ncols == B->ncols + C->ncols);
+}
+
+/**
+ * \brief Initializes dense block submatrices
+ *
+ * \param dense block submatrix A
+ *
+ * \param number of rows nrows
+ *
+ * \param number of columns ncols
+ */
+static inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols) {
+  int i, j;
+
+  // initialize meta data for block submatrices
+  A->nrows  = nrows;  // row dimension
+  A->ncols  = ncols;  // col dimension
+  A->nnz    = 0;      // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
+
+  A->blocks = (dbl_t **)malloc(rlA * sizeof(dbl_t *));
+  for (i=0; i<rlA; ++i) {
+    A->blocks[i]  = (dbl_t *)malloc(clA * sizeof(dbl_t));
+    for (j=0; j<clA; ++j) {
+      A->blocks[i][j].val = NULL;
+    }
+  }
+}
+
+/**
+ * \brief Initializes pivot indices corresponding to the blocks
+ * in A,B.
+ *
+ * \param array storing indices piv_start_idx
+ *
+ * \param number of pivots npiv
+ *
+ * \param splicer map map
+ *
+ * \param number of columns in input matrix input_ncols
+ *
+ * \param number of rows needed for the submatrix splice nrows
+ */
+static inline void init_pivot_block_start_indices(ri_t **piv_start_idx,
+    ri_t *npiv, const map_fl_t *map, const ci_t input_ncols,
+    const ri_t nrows) {
+  ri_t *psi = (ri_t *)malloc(
+      ((nrows / __GBLA_SIMD_BLOCK_SIZE) + 2) * sizeof(ri_t));
+  int i;
+  *npiv  = 0;
+  // find blocks for construction of A & B
+  for (i = (int)input_ncols-1; i>-1; --i) {
+    if (map->pri[i] != __GB_MINUS_ONE_32) {
+      (*npiv)++;
+    }
+    if ((*npiv % __GBLA_SIMD_BLOCK_SIZE) == 0) {
+      psi[*npiv/__GBLA_SIMD_BLOCK_SIZE]  = i;
+    }
+  }
+  // loop might overwrite piv_start_idx[0] with a wrong index;
+  // instead of checking "npiv > 0" in each if clause we just reset
+  // piv_start_idx[0] after the for loop
+  psi[0]  = input_ncols;
+
+  // set leftout entries to zero
+  for (i=*npiv/__GBLA_SIMD_BLOCK_SIZE+1;
+      i < (nrows / __GBLA_SIMD_BLOCK_SIZE) + 2; ++i)
+    psi[i] = 0;
+
+  *piv_start_idx  = psi;
+}
+
+/**
+ * \brief Frees given sparts of the input matrix M.
+ *
+ * \param input matrix M
+ *
+ * \param rows in horizontal blocks that are already written to submatrices rihb
+ *
+ * \param current vector in block cvb
+ */
+static inline void free_input_matrix(sm_t *M, const uint32_t *rihb, const uint16_t cvb) {
+  int j;
+  for (j=0; j<cvb; ++j) {
+    free(M->pos[rihb[j]]);
+    M->pos[rihb[j]] = NULL;
+    free(M->rows[rihb[j]]);
+    M->rows[rihb[j]] = NULL;
+  }
+}
+
+/**
+ * \brief Writes corresponding entries of original matrix M into the dense block
+ * submatrices A and B. The entries are defined by the mappings from M given by
+ * rihb, crb and rbi:
+ * parts of M --> A|B
+ *
+ * \param original matrix M
+ *
+ * \param dense block submatrix A (left side)
+ *
+ * \param dense block submatrix B (right side)
+ *
+ * \param splicer mapping map  that stores pivots and non pivots
+ *
+ * \param row indices in horizonal block rihb
+ *
+ * \param current row block crb
+ *
+ * \param row block index rbi
+ */
+void write_dense_blocks_matrix(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, map_fl_t *map,
+        ri_t *rihb, const ri_t cvb, const ri_t rbi);
+
+/**
+ * \brief Fills submatrices A and B with values from M with respect to the
+ * splicing stored in map.
+ *
+ * \param input matrix M
+ *
+ * \param left side dense block matrix A
+ *
+ * \param right side dense block matrix B
+ *
+ * \param splicer map map
+ *
+ * \param array storing indices piv_start_idx
+ *
+ * \param flag for destructing input matrix splices on the fly
+ * destruct_input_matrix
+ *
+ * \param number of threads for parallel computations nthreads
+ */
+static inline void fill_submatrices(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, map_fl_t *map,
+    const ri_t *piv_start_idx, const int destruct_input_matrix, const int nthreads) {
+
+  int i;
+  ri_t block_idx;
+
+  omp_set_dynamic(0);
+#pragma omp parallel private(block_idx, i) num_threads(nthreads)
+  {
+    uint32_t rihb[__GBLA_SIMD_BLOCK_SIZE];  // rows indices horizontal block
+    uint16_t cvb  = 0;          // current vector in block
+
+#pragma omp for schedule(dynamic) nowait
+    for (block_idx = 0; block_idx <= A->nrows/__GBLA_SIMD_BLOCK_SIZE; ++block_idx) {
+      // construct block submatrices A & B
+      // Note: In the for loop we always construct block "block+1" and not block
+      // "block".
+      // TODO: Try to improve this rather strange looping.
+      for (i = ((int)piv_start_idx[block_idx]-1);
+          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+        if (map->pri[i] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->pri[i];
+          cvb++;
+        }
+        if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
+          write_dense_blocks_matrix(M, A, B, map, rihb, cvb, block_idx);
+
+          // TODO: Destruct input matrix on the go
+          if (destruct_input_matrix)
+            free_input_matrix(M, rihb, cvb);
+          cvb = 0;
+        }
+      }
+    }
+  }
+}
+
 /**
  * \brief Constructs the subdivision of M into ABCD in the
  * Faugère-Lachartre style
@@ -675,17 +940,17 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
  *
  *  \param indexer mapping map
  *
- *  \param destructing input matrix on the go? destruct_input_matrix
- *
  *  \param number of threads to be used nthreads
+ *
+ *  \param destructing input matrix on the go? destruct_input_matrix
  *
  *  \param level of verbosity
  *
  *  \param checks if map was already defined outside map_defined
  */
 void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
-    dbm_fl_t *D, map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
-    int nthreads, int destruct_input_matrix, int verbose, int map_defined);
+    dbm_fl_t *D, map_fl_t *map, int nthreads, int destruct_input_matrix,
+    int verbose, int map_defined);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -798,7 +1063,6 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
  */
 void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         ri_t *rihb, const ri_t cvb, const ri_t rbi, const bi_t density_level);
-
 
 /**
  * \brief Writes corresponding entries of original matrix M into the mutiline

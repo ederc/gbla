@@ -24,9 +24,7 @@ pkgincludesub_HEADERS = \
 	tools/print_helper.h \
 	tools/selecter.h \
 	tools/tools.h \
-	tools/types.h \
-	draft/matrix.h \
-	draft/echelon.h
+	tools/types.h
 
 
 nodist_pkgincludesub_HEADERS = src/gbla_config.h
