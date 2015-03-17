@@ -416,7 +416,7 @@ static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
 static inline void insert_dense_block_data(dbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const ci_t eil,
     const ci_t bi1, const ci_t i1) {
-  A->blocks[rbi][bir].val[lib*eil]  = M->rows[bi1][i1];
+  A->blocks[rbi][bir].val[(lib*__GBLA_SIMD_BLOCK_SIZE)+eil] = M->rows[bi1][i1];
 }
 
 /**
@@ -485,7 +485,7 @@ static inline void insert_in_dbm_inv(dbm_fl_t *A, const sm_t *M, const ci_t shif
         __GBLA_SIMD_BLOCK_SIZE * __GBLA_SIMD_BLOCK_SIZE, sizeof(re_t));
   // set values
   insert_dense_block_data(A, M, rbi, bir, lib,
-      __GBLA_SIMD_BLOCK_SIZE-eil, bi, ri);
+      __GBLA_SIMD_BLOCK_SIZE-1-eil, bi, ri);
 }
 
 
@@ -872,7 +872,7 @@ static inline void write_dense_blocks_matrix(sm_t *M, dbm_fl_t *A, dbm_fl_t *B,
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
       if (map->pc[it] != __GB_MINUS_ONE_32)
-        insert_in_dbm(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
+        insert_in_dbm_inv(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
       ri++;

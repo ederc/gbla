@@ -297,6 +297,112 @@ int fl_block_dense(sm_t *M, int nthreads, int free_mem,
   map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
 
   splice_fl_matrix_dense(M, A, B, C, D, map, nthreads, free_mem, verbose, 0);
+#if __GB_CLI_DEBUG
+  // column loops
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  // row loops
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / __GBLA_SIMD_BLOCK_SIZE);
+
+  int ii,jj,kk,ll;
+  /*
+  for (ii=0; ii<rlA; ++ii) {
+    for (jj=0; jj<clA; ++jj) {
+      if (A->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", A->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
+          }
+          printf("\n");
+      } else {
+        printf("%d .. %d\n", ii, jj);
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+      }
+    }
+  }
+*/
+  printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (ii=0; ii<rlB; ++ii) {
+    for (jj=0; jj<clB; ++jj) {
+      if (B->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", B->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
+          }
+          printf("\n");
+          /*
+      } else {
+        printf("%d .. %d\n", ii, jj);
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        */
+      }
+    }
+  }
+          /*
+  printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (ii=0; ii<rlC; ++ii) {
+    for (jj=0; jj<clC; ++jj) {
+      if (C->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", C->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
+          }
+          printf("\n");
+      } else {
+        printf("%d .. %d\n", ii, jj);
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+      }
+    }
+  }
+        */
+  printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (ii=0; ii<rlD; ++ii) {
+    for (jj=0; jj<clD; ++jj) {
+      if (D->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", D->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
+          }
+          printf("\n");
+          /*
+      } else {
+        printf("%d .. %d\n", ii, jj);
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        */
+      }
+    }
+  }
+  printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+#endif
 
   return 0;
 }
@@ -368,47 +474,54 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
 
   int ii,jj,kk,ll;
+  /*
   for (ii=0; ii<rlA; ++ii) {
     for (jj=0; jj<clA; ++jj) {
       if (A->blocks[ii][jj] != NULL) {
         for (kk=0; kk<block_dimension/2; ++kk) {
           printf("%d .. %d .. %d\n",ii,jj,kk);
-          printf("%d | %d\n", A->blocks[ii][jj][kk].sz, A->blocks[ii][jj][kk].dense);
-        }
-      } else {
-        for (kk=0; kk<block_dimension/2; ++kk) {
-          printf("%d .. %d .. %d\n",ii,jj,kk);
-          printf("0 | 0\n");
+          if (A->blocks[ii][jj][kk].dense == 0) {
+            for (ll=0; ll<A->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", A->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", A->blocks[ii][jj][kk].val[2*ll], A->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
+          } else {
+            for (ll=0; ll<A->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", A->blocks[ii][jj][kk].val[2*ll], A->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
+          }
         }
       }
     }
   }
-  printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+ */
+ printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
   for (ii=0; ii<rlB; ++ii) {
     for (jj=0; jj<clB; ++jj) {
       if (B->blocks[ii][jj] != NULL) {
         for (kk=0; kk<block_dimension/2; ++kk) {
           printf("%d .. %d .. %d\n",ii,jj,kk);
-          printf("%d | %d\n", B->blocks[ii][jj][kk].sz, B->blocks[ii][jj][kk].dense);
-        }
-      }
-    }
-  }
-  printf("NNZ %ld\n\n",ctr_nnz);
-  for (ii=0; ii<rlB; ++ii) {
-    for (jj=0; jj<clB; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (B->blocks[ii][jj] != NULL) {
-          for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
-            printf("%d -- ", B->blocks[ii][jj][kk].idx[ll]);
-            printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
+          if (B->blocks[ii][jj][kk].dense == 0) {
+            for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", B->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
+          } else {
+            for (ll=0; ll<B->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", B->blocks[ii][jj][kk].val[2*ll], B->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
           }
-          printf("\n");
         }
       }
     }
   }
+  /*
   for (ii=0; ii<rlC; ++ii) {
     for (jj=0; jj<clC; ++jj) {
       for (kk=0; kk<block_dimension/2; ++kk) {
@@ -423,16 +536,26 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       }
     }
   }
+  */
+ printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
   for (ii=0; ii<rlD; ++ii) {
     for (jj=0; jj<clD; ++jj) {
-      for (kk=0; kk<block_dimension/2; ++kk) {
-        printf("%d .. %d .. %d\n",ii,jj,kk);
-        if (D->blocks[ii][jj] != NULL) {
-          for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
-            printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
-            printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+      if (D->blocks[ii][jj] != NULL) {
+        for (kk=0; kk<block_dimension/2; ++kk) {
+          printf("%d .. %d .. %d\n",ii,jj,kk);
+          if (D->blocks[ii][jj][kk].dense == 0) {
+            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
+          } else {
+            for (ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
           }
-          printf("\n");
         }
       }
     }
