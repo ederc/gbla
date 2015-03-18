@@ -4,6 +4,8 @@ ACLOCAL_AMFLAGS = -I m4
 AM_CFLAGS=-I. -I.. ${SIMD_CFLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS}
 AM_LDFLAGS=-lm
 
+SUBDIRS=examples
+
 TESTS =	\
 	read-jcf-matrix-mod			\
 	read-jcf-matrix-ncols		\

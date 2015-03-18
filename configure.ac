@@ -370,6 +370,6 @@ fi
 
 AC_PROG_MAKE_SET
 
-AC_CONFIG_FILES([Makefile test/Makefile src/gbla_config.h gbla.pc])
+AC_CONFIG_FILES([Makefile test/Makefile test/examples/Makefile src/gbla_config.h gbla.pc])
 AC_OUTPUT
 
