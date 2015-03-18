@@ -20,7 +20,7 @@
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 #include <assert.h>
-#include "../cli/io.h"
+#include "cli/io.h"
 
 int main(int argc, char **argv) {
   return 0;
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   float density   = 6.62;
   sm_t *M         = NULL;
 
-  M = load_jcf_matrix(fn, verbose);
+  M = load_jcf_matrix(fn, verbose, 0);
 
   assert(M->density - density < 0.0000001);
   assert(density - M->density < 0.0000001);

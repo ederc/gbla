@@ -476,7 +476,7 @@ static void convert_CSR_2_CSR_block(GBMatrix_t * B, const GBMatrix_t * S )
 
 /* SUBMATRIX SPLIT */
 
-void createSubmatricesUnit(CSR * Ad, dimen_t col, const CSR * Ah)
+static void createSubmatricesUnit(CSR * Ad, dimen_t col, const CSR * Ah)
 {
 
 	/* get sizes of submatrices */
@@ -553,7 +553,7 @@ void createSubmatricesUnit(CSR * Ad, dimen_t col, const CSR * Ah)
 	return ;
 }
 
-void createSubmatrices(GBMatrix_t *A, const GBMatrix_t * AH)
+static void createSubmatrices(GBMatrix_t *A, const GBMatrix_t * AH)
 {
 	A->row = AH->row;
 	A->col = AH->col;

@@ -48,7 +48,7 @@
 #endif
 
 #include <stdlib.h>
-#include <stdalign.h>
+/* #include <stdalign.h> */
 #include <malloc.h>
 #include <immintrin.h>
 
