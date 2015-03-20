@@ -176,6 +176,99 @@ typedef struct sm_fl_ml_t {
 } sm_fl_ml_t;
 
 /**
+ * \brief returns number of row blocks for dense block submatrix A
+ *
+ * \param dense block submatrix A
+ *
+ * \return number of row blocks for A
+ */
+inline ri_t get_number_dense_row_blocks(dbm_fl_t *A)
+{
+  return (ri_t) ceil((float) A->nrows / __GBLA_SIMD_BLOCK_SIZE);
+}
+
+/**
+ * \brief returns number of column blocks for dense block submatrix A
+ *
+ * \param dense block submatrix A
+ *
+ * \return number of column blocks for A
+ */
+inline ci_t get_number_dense_col_blocks(dbm_fl_t *A)
+{
+  return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
+}
+
+/**
+ * \brief Initializes dense block submatrices
+ *
+ * \param dense block submatrix A
+ *
+ * \param number of rows nrows
+ *
+ * \param number of columns ncols
+ */
+inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
+{
+  int i, j;
+
+  // initialize meta data for block submatrices
+  A->nrows  = nrows;  // row dimension
+  A->ncols  = ncols;  // col dimension
+  A->nnz    = 0;      // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops
+  const ci_t clA  = get_number_dense_col_blocks(A);
+  const ri_t rlA  = get_number_dense_row_blocks(A);
+
+  A->blocks = (dbl_t **)malloc(rlA * sizeof(dbl_t *));
+  for (i=0; i<rlA; ++i) {
+    A->blocks[i]  = (dbl_t *)malloc(clA * sizeof(dbl_t));
+    for (j=0; j<clA; ++j) {
+      A->blocks[i][j].val = NULL;
+    }
+  }
+}
+
+/**
+ * \brief Frees given dense block submatrix A
+ *
+ * \param dense block submatrix A
+ *
+ * \param number of threads for parallel computation
+ */
+inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
+{
+  dbm_fl_t *A     = *A_in;
+  const ci_t clA  = get_number_dense_col_blocks(A);
+  const ri_t rlA  = get_number_dense_row_blocks(A);
+  ri_t j;
+  ci_t i;
+  // free A
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i,j)
+    for (j=0; j<rlA; ++j) {
+      for (i=0; i<clA; ++i) {
+        if (A->blocks[j][i].val != NULL) {
+          free(A->blocks[j][i].val);
+          A->blocks[j][i].val  = NULL;
+        }
+      }
+      free(A->blocks[j]);
+      A->blocks[j]  = NULL;
+    }
+  }
+  free(A->blocks);
+  A->blocks = NULL;
+  free(A);
+  A = NULL;
+  *A_in  = A;
+}
+
+/**
  * \brief Copies data from block matrix in to input sparse matrix format. If deleteIn
  * is set the input block matrix in is deleted.
  *
@@ -233,7 +326,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
  * \param block height bheight
  *
  * \param block width bwidth
- *
+ -*
  * \param freeing memory? if 1 then memory is freed, otherwise not, free_memory
  *
  * \param number of threads for parallel computations nthrds
