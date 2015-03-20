@@ -1058,8 +1058,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
 }
 
 void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
-    dbm_fl_t *D, map_fl_t *map,
-    int nthreads, int destruct_input_matrix, int verbose, int map_defined) {
+    dbm_fl_t *D, map_fl_t *map, const int map_defined,
+    const int destruct_input_matrix, const int verbose, const int nthreads) {
 
   // construct index map for Faugère-Lachartre decomposition of matrix M
   if (map_defined == 0)
@@ -1079,7 +1079,8 @@ void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
 
   // write data in A and B, i.e. fill upper part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->pri, M->ncols, A->nrows);
-  fill_submatrices(M, A, B, map, map->pri, piv_start_idx, destruct_input_matrix, nthreads);
+  fill_submatrices_diagonalize(M, A, B, map, map->pri, piv_start_idx, destruct_input_matrix,
+      nthreads);
 
   free(piv_start_idx);
   piv_start_idx = NULL;
