@@ -40,6 +40,118 @@ static ri_t reduce_C_next_col_to_reduce;
 static omp_lock_t reduce_A_lock;
 static ri_t reduce_A_next_col_to_reduce;
 
+int elim_fl_A_dense_block(dbm_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int nthrds)
+{
+  dbm_fl_t *A = *A_in;
+  ci_t i, rc;
+  ri_t j, k;
+  const ci_t clB  = get_number_dense_col_blocks(B);
+  const ci_t clA  = get_number_dense_col_blocks(A);
+  const ri_t rlA  = get_number_dense_row_blocks(A);
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<clB; ++i) {
+#pragma omp task
+      {
+        rc  = elim_fl_A_dense_blocks_task(A, B, i, rlA, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+  // free A
+  free_dense_submatrix(&A, nthrds);
+  return 0;
+}
+
+int elim_fl_A_dense_blocks_task(dbm_fl_t *A, dbm_fl_t *B,
+    const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus)
+{
+  bi_t i, ctr;
+  ri_t j, k;
+  re_l_t **wide_block;
+  
+  init_wide_blocks(&wide_block);
+  for (j=0; j<nbrows_A; ++j) {
+    ctr = 0;
+    const ri_t first_block_idx  = 0;
+
+    set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
+
+    // copy sparse block data to dense representation
+    if (B->blocks[j][block_col_idx_B].val != NULL) {
+      ctr = 1;
+      copy_dense_to_wide_block(B->blocks[j][block_col_idx_B].val, wide_block);
+    }
+    // do all rectangular blocks
+    for (k=0; k<j; ++k) {
+      /*
+      printf("k %d | lci %d\n",k,block_col_idx_B);
+      if (block_col_idx_B==8 && k==34) {
+        int bi = k;
+        int bj= block_col_idx_B;
+        printf("B[%d][%d] ----------------------------------------\n",bi,bj);
+        if (B->blocks[bi][bj].val != NULL) {
+          for (int ii=0; ii<__GBLA_SIMD_BLOCK_SIZE; ++ii) {
+            for (int jj=0; jj<__GBLA_SIMD_BLOCK_SIZE; ++jj) {
+              printf("%ld | ", B->blocks[bi][bj].val[ii*__GBLA_SIMD_BLOCK_SIZE+jj]);
+            }
+            printf("\n");
+          }
+        }
+      }
+      */
+      if ((A->blocks[j][k].val != NULL) && (B->blocks[k][block_col_idx_B].val != NULL)) {
+        ctr = 1;
+        red_dense_rectangular(A->blocks[j][k].val,
+            B->blocks[k][block_col_idx_B].val, wide_block);
+        // do the diagonal block from A
+      }
+      /*
+      if (block_col_idx_B == 8) {
+        printf("RECT %d < %d----------------------------------------\n",k,j);
+        for (int ii=0; ii<__GBLA_SIMD_BLOCK_SIZE; ++ii) {
+          for (int jj=0; jj<__GBLA_SIMD_BLOCK_SIZE; ++jj) {
+            printf("%ld | ", wide_block[ii][jj]);
+          }
+          printf("\n");
+        }
+      }
+      */
+    }
+    if (ctr == 1)
+      red_dense_triangular(A->blocks[j][j].val, wide_block, modulus);
+    /*
+    printf("TRIANGULAR %d----------------------------------------\n",j);
+    for (int ii=0; ii<__GBLA_SIMD_BLOCK_SIZE; ++ii) {
+      for (int jj=0; jj<__GBLA_SIMD_BLOCK_SIZE; ++jj) {
+        printf("%ld | ", wide_block[ii][jj]);
+      }
+      printf("\n");
+    }
+    */
+    copy_wide_to_dense_block(wide_block, &B->blocks[j][block_col_idx_B].val);
+
+#if DDDEBUG
+    printf("after copying\n");
+    if (B->blocks[j][block_col_idx_B] != NULL) {
+      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+        if (B->blocks[j][block_col_idx_B][kk].sz>0) {
+          printf("%d\n",kk);
+          for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
+            printf("%d %d ",B->blocks[j][block_col_idx_B][kk].val[2*ll], B->blocks[j][block_col_idx_B][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+#endif
+  }
+  free_wide_block(&wide_block);
+
+  return 0;
+}
 #if TASKS
 int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   sbm_fl_t *A = *A_in;
@@ -111,8 +223,16 @@ for (j=0; j<nbrows_A; ++j) {
         B->bheight, B->bwidth);
 
   for (k=0; k<j; ++k) {
+        printf("k %d | lci %d\n",k,block_col_idx_B);
     red_with_rectangular_block(A->blocks[j][k], B->blocks[k][block_col_idx_B],
         dense_block, B->bheight, 1, modulus);
+        printf("RECT %d < %d----------------------------------------\n",k,j);
+        for (int ii=0; ii<B->bheight; ++ii) {
+          for (int jj=0; jj<B->bheight; ++jj) {
+            printf("%ld | ", dense_block[ii][jj]);
+          }
+          printf("\n");
+        }
     /*
         printf("RECTANGULAR DONE\n");
         for (int kk=0; kk<B->bheight; ++kk) {
@@ -126,6 +246,13 @@ for (j=0; j<nbrows_A; ++j) {
 
   red_with_triangular_block(A->blocks[j][j], dense_block,
       B->bheight, 1, modulus);
+      printf("TRIANGULAR %d----------------------------------------\n",j);
+      for (int ii=0; ii<B->bheight; ++ii) {
+        for (int jj=0; jj<B->bheight; ++jj) {
+          printf("%ld | ", dense_block[ii][jj]);
+        }
+        printf("\n");
+      }
   /*printf("TRIANGULAR DONE\n");
     for (int kk=0; kk<B->bheight; ++kk) {
     for (int ll=0; ll<B->bheight; ++ll) {
@@ -245,16 +372,59 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
       if (B->blocks[j][lci] != NULL)
         copy_sparse_to_dense_block(B->blocks[j][lci], dense_block,
             B->bheight, B->bwidth);
-
+      
       for (k=0; k<j; ++k) {
+        /*
+        printf("k %d | lci %d\n",k,lci);
+        if (lci==8 && k==34) {  
+          int bi=k;
+          int bj=lci;
+          printf("B[%d][%d] ----------------------------------------\n",bi,bj);
+          for (int ii=0; ii<B->bheight/2; ++ii) {
+            if (B->blocks[bi][bj] != NULL) {
+            if (B->blocks[bi][bj][ii].dense == 0) {
+              for (int jj=0; jj<B->blocks[bi][bj][ii].sz; ++jj) {
+                printf("%d -- ", B->blocks[bi][bj][ii].idx[jj]);
+                printf("%d %d ", B->blocks[bi][bj][ii].val[2*jj], B->blocks[bi][bj][ii].val[2*jj+1]);
+              }
+              printf("\n");
+            } else {
+              for (int jj=0; jj<B->blocks[bi][bj][ii].sz; ++jj) {
+                printf("%d -- ", jj);
+                printf("%d %d ", B->blocks[bi][bj][ii].val[2*jj], B->blocks[bi][bj][ii].val[2*jj+1]);
+              }
+              printf("\n");
+            }
+          }
+          }
+        }
+        */
         red_with_rectangular_block(A->blocks[j][k], B->blocks[k][lci],
             dense_block, B->bheight, 1, modulus);
+        /*
+        if (lci == 8) {
+          printf("RECT %d < %d----------------------------------------\n",k,j);
+          for (int ii=0; ii<B->bheight; ++ii) {
+            for (int jj=0; jj<B->bheight; ++jj) {
+              printf("%ld | ", dense_block[ii][jj]);
+            }
+            printf("\n");
+          }
+        }
+        */
       }
 
       red_with_triangular_block(A->blocks[j][j], dense_block,
           B->bheight, 1, modulus);
-
-
+      /*
+      printf("TRIANGULAR %d----------------------------------------\n",j);
+      for (int ii=0; ii<B->bheight; ++ii) {
+        for (int jj=0; jj<B->bheight; ++jj) {
+          printf("%ld | ", dense_block[ii][jj]);
+        }
+        printf("\n");
+      }
+    */
       copy_dense_block_to_sparse(
           dense_block, &B->blocks[j][lci],
           B->bheight, B->bwidth, modulus);
@@ -521,9 +691,9 @@ for (i=0; i<bheight/2; ++i) {
     continue;
 
   last_idx  = -1;
-  if (block_A[i].val[2*(block_A[i].sz-1)+1] == 0)
+  if (block_A[i].val[2*(block_A[i].sz-1)+1] == 0) {
     last_idx  = block_A[i].sz-1;
-  else
+  } else {
     last_idx  = block_A[i].sz-2;
 
   register re_m_t Av1_col1, Av2_col1;
@@ -544,7 +714,10 @@ for (i=0; i<bheight/2; ++i) {
       if (Av2_col1 != 0)
         Av2_col1  = (re_m_t)modulus - Av2_col1;
     }
-
+    /*
+    printf("1| %lu | %d | %d\n",Av1_col1,i,Ap1);
+    printf("1| %lu | %d | %d\n",Av2_col1,i,Ap1);
+    */
     if ((Ap1 % 2) == 0 && (j < last_idx-1)) {
       Ap2  = block_A[i].idx[j+1];
       if (Ap2 == Ap1+1) { // AXPY two rows
@@ -557,6 +730,10 @@ for (i=0; i<bheight/2; ++i) {
           if (Av2_col2 != 0)
             Av2_col2  = (re_m_t)modulus - Av2_col2;
         }
+        /*
+        printf("2| %lu | %d | %d\n",Av1_col2,i,Ap2);
+        printf("2| %lu | %d | %d\n",Av2_col2,i,Ap2);
+        */
         ++j;
 
         dense_scal_mul_sub_2_rows_array_array(
@@ -575,6 +752,15 @@ for (i=0; i<bheight/2; ++i) {
           dense_block[Ap1],
           dense_block[2*i], dense_block[2*i+1]);
     }
+    /*
+    if (2*i == 83 || 2*i+1 == 83) {
+      printf("A1| %lu | %d | %d\n",Av1_col1,2*i,Ap1);
+      printf("A1| %lu | %d | %d\n",Av2_col1,2*i+1,Ap1);
+      printf("A2| %lu | %d | %d\n",Av1_col2,2*i,Ap2);
+      printf("A2| %lu | %d | %d\n",Av2_col2,2*i+1,Ap2);
+      printf("---> %lu\n",dense_block[83][0]);
+    }
+    */
   }
 
   // do modular reduction on dense array row
@@ -636,6 +822,14 @@ for (i=0; i<bheight/2; ++i) {
       if (Av2_col1 != 0)
         Av2_col1  = (re_m_t)modulus - Av2_col1;
     }
+    /*
+    if (2*i+1 == 83) {
+    printf("A1| %lu | %d | %d\n",Av1_col1,2*i,Ap1);
+    printf("A1| %lu | %d | %d\n",Av2_col1, 2*i+1,Ap1);
+    if (block_B[Ap1/__GB_NROWS_MULTILINE].val != NULL)
+      printf("from B %lu\n", block_B[Ap1/__GB_NROWS_MULTILINE].val[1]);
+    }
+    */
     if (((Ap1 % 2) == 0) && (j < (uint32_t)(N - 1))) {
       const bi_t Ap2  = (is_sparse == 1 ? block_A[i].idx[j+1] : j+1);
       if (Ap2 == Ap1+1) { // AXPY two rows
@@ -648,6 +842,14 @@ for (i=0; i<bheight/2; ++i) {
           if (Av2_col2 != 0)
             Av2_col2  = (re_m_t)modulus - Av2_col2;
         }
+        /*
+    if (2*i+1 == 83) {
+    printf("A2| %lu | %d | %d\n",Av1_col2,2*i,Ap2);
+    printf("A2| %lu | %d | %d\n",Av2_col2, 2*i+1,Ap2);
+    if (block_B[Ap1/__GB_NROWS_MULTILINE].val != NULL)
+      printf("from B %lu\n", block_B[Ap1/__GB_NROWS_MULTILINE].val[1]);
+    }
+    */
         ++j;
         if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
           //printf("1S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE);
@@ -701,6 +903,11 @@ for (i=0; i<bheight/2; ++i) {
             dense_block[2*i], dense_block[2*i+1]);
       }
     }
+    /*
+    if (2*i == 83 || 2*i+1 == 83) {
+      printf("---> %lu\n",dense_block[83][0]);
+    }
+    */
   }
 }
 }

@@ -97,6 +97,216 @@ static inline void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row
 }
 
 /**
+ * \brief Initializes wide (=uint64_t) blocks for cumulative multiplications and
+ * additions.
+ *
+ * \param wide block wide_block
+ */
+static inline void init_wide_blocks(re_l_t ***wide_block)
+{
+  re_l_t **wb = *wide_block;
+  wb = (re_l_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_l_t *));
+  uint64_t size = __GBLA_SIMD_BLOCK_SIZE * sizeof(re_l_t);
+  bi_t i;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    posix_memalign((void **)&wb[i], 16, size);
+  }
+  *wide_block  = wb;
+}
+
+/**
+ * \brief Set wide block array to zero.
+ *
+ * \param wide block array wide_blocks
+ *
+ * \param length of wide_blocks array length
+ */
+static inline void set_wide_block_to_zero(re_l_t **wide_block, const bi_t length)
+{
+    bi_t k;
+    for (k=0; k<length; ++k)
+      memset(wide_block[k], 0, length * sizeof(re_l_t));
+}
+
+/**
+ * \brief Frees memory allocated for a wide block.
+ *
+ * \param wide block to be freed wide_block
+ */
+static inline void free_wide_block(re_l_t ***wide_block)
+{
+  re_l_t **wb = *wide_block;
+  bi_t i;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
+    free(wb[i]);
+  free(wb);
+  wb  = NULL;
+  *wide_block = wb;
+}
+
+/**
+ * \brief Copies entry from sparse block sparse_block to dense block dense_block
+ * for elimination purposes.
+ *
+ * \param sparse block sparse_block
+ *
+ * \param dense block dense_block
+ */
+static inline void copy_dense_to_wide_block(re_t *dense_block,
+    re_l_t **wide_block)
+{
+  bi_t i,j;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j)
+      wide_block[i][j]  = dense_block[i*__GBLA_SIMD_BLOCK_SIZE+j];
+}
+
+/**
+ * \brief Copies entry from sparse block sparse_block to dense block dense_block
+ * for elimination purposes.
+ *
+ * \param sparse block sparse_block
+ *
+ * \param dense block dense_block
+ */
+static inline void copy_wide_to_dense_block(re_l_t **wide_block, re_t **dense_block)
+{
+  re_t *db = *dense_block;
+  bi_t i,j;
+  //printf("IN wb %p\n",wide_block);
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      //printf("wb[%d][%d] = %lu\n",i,j,wide_block[i][j]);
+      if (wide_block[i][j] != 0) {
+        goto not_zero;
+      }
+    }
+  }
+  // wide_block has only zeroes in it
+  free(db);
+  db  = NULL;
+  *dense_block  = db;
+
+not_zero:
+  if (db == NULL)
+    db = (re_t *)malloc(__GBLA_SIMD_BLOCK_SIZE_RECT * sizeof(re_t));
+
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j)
+      db[i*__GBLA_SIMD_BLOCK_SIZE+j]  = (re_t)wide_block[i][j];
+  
+  *dense_block  = db;
+}
+
+/**
+ * \brief Modular reduction of wide block row
+ *
+ * \param wide block wide_block
+ *
+ * \param row in wide block row_idx
+ *
+ * \param modulus resp. field characteristic modulus
+ */
+static inline void modulo_wide_block_row(re_l_t **wide_block, const bi_t row_idx,
+    const mod_t modulus) {
+  bi_t i;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
+    wide_block[row_idx][i]  = (re_l_t)(wide_block[row_idx][i] % modulus);
+}
+
+/**
+ * \brief Modular reduction of wide block before copying back
+ *
+ * \param wide block wide_block
+ *
+ * \param modulus resp. field characteristic modulus
+ */
+static inline void modulo_wide_block(re_l_t **wide_block, const mod_t modulus) {
+  bi_t i, j;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j)
+      wide_block[i][j]  = (re_l_t)(wide_block[i][j] % modulus);
+}
+
+/**
+ * \brief Use compressed dense blocks from A to update dense blocks in B.
+ * Delay modulus operations by storing results in wide blocks.
+ *
+ * \param compressed dense block from A block_A
+ *
+ * \param dense block from B block_B
+ *
+ * \param wide block storing the result wide_block
+ */
+static inline void red_dense_rectangular(const re_t *block_A, const re_t *block_B,
+  re_l_t **wide_block)
+{
+  bi_t i, j, k;
+  register re_m_t a;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      if (block_A[i*__GBLA_SIMD_BLOCK_SIZE+j] != 0) {
+        a = block_A[i*__GBLA_SIMD_BLOCK_SIZE+j];
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          /*
+          if (i==83 && k==0) {
+            printf("%lu ==> ", wide_block[83][0]);
+          }
+          */
+          wide_block[i][k]  += a *
+            (re_m_t)block_B[j*__GBLA_SIMD_BLOCK_SIZE + k];
+          /*
+          if (i==83 && k==0) {
+            printf("==> %lu || %lu %lu, %d\n", wide_block[83][0], a, block_B[j*__GBLA_SIMD_BLOCK_SIZE + 0], j);
+          }
+          */
+        }
+      }
+    }
+  }
+}
+
+/**
+ * \brief Use compressed dense blocks from A to update dense blocks in B.
+ * Delay modulus operations by storing results in wide blocks.
+ * 
+ * \param compressed dense block from A block_A
+ *
+ * \param dense block from B block_B
+ *
+ * \param wide block storing the result wide_block
+ *
+ * \param modulus resp. field characteristic modulus
+ */
+static inline void red_dense_triangular(const re_t *block_A,
+  re_l_t **wide_block, const mod_t modulus)
+{
+  bi_t i, j, k, l;
+  register re_m_t a;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (j=0; j<i; ++j) {
+      // Note: diagonal blocks in A are compressed, only lower triangular
+      // entries are stored due to inversion of ordering of the elements when
+      // storing them in src/mapping.h
+      if (block_A[i + ((2*__GBLA_SIMD_BLOCK_SIZE-(j+1))*j)/2] != 0) {
+        a = block_A[i + ((2*__GBLA_SIMD_BLOCK_SIZE-(j+1))*j)/2];
+       // printf("%lu || %d | %d\n", a, i, j);
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          /*
+          if (i==83 && k==0) {
+            printf("%lu !! %lu, %d\n", a, wide_block[83][0], j);
+          }
+          */
+          wide_block[i][k]  +=  a * wide_block[j][k];
+        }
+        //printf("---> %lu\n",wide_block[83][0]);
+      }
+    }
+    modulo_wide_block_row(wide_block, i, modulus);
+  }
+}
+
+/**
  * \brief Copies entry from sparse block sparse_block to dense block dense_block
  * for elimination purposes.
  *
@@ -1347,6 +1557,41 @@ void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B,
 int elim_fl_A_block(sbm_fl_t **A, sbm_fl_t *B, const mod_t modulus, int nthrds);
 
 /**
+ * \brief Elimination procedure which reduces the dense block submatrix A to
+ * the unit matrix. Corresponding changes in dense block submatrix B are
+ * carried out, too.
+ *
+ * \param dense block submatrix A (left upper side)
+ *
+ * \param dense block submatrix B (right upper side)
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_A_dense_block(dbm_fl_t **A, dbm_fl_t *B, const mod_t modulus, int nthrds);
+
+/**
+ * \brief Different block tasks when reducing dense block submatrix A.
+ *
+ * \param dense block submatrix A (left upper side)
+ *
+ * \param dense block submatrix B (right upper side)
+ *
+ * \param column index of blocks in B block_col_idx_B
+ *
+ * \param number of block rows in A nbrows_A
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_A_dense_blocks_task(dbm_fl_t *A, dbm_fl_t *B,
+    const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus);
+
+/**
  * \brief Different block tasks when reducing block submatrix A.
  *
  * \param block submatrix A (left upper side)
@@ -1355,7 +1600,7 @@ int elim_fl_A_block(sbm_fl_t **A, sbm_fl_t *B, const mod_t modulus, int nthrds);
  *
  * \param column index of blocks in B block_col_idx_B
  *
- * \param number of block rows in A nblock_rows_A
+ * \param number of block rows in A nbrows_A
  *
  * \param characteristic of underlying field modulus
  *

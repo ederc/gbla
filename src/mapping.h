@@ -397,9 +397,12 @@ static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
  * \brief Inserts elements from input matrix M in dense diagonal block of submatrix A
  *
  * \note For diagonal blocks memory is compressed to use only upper triangular
- * block space. We use the compressed format for upper triangular matrices also
- * known as packed storage from LAPACK, see, for example,
+ * block space. We use the compressed format for upper resp. lowerd triangular
+ * matrices also known as packed storage from LAPACK, see, for example,
  * http://www.netlib.org/lapack/lug/node123.html
+ *
+ * upper triangular, not inverted, aij is stored in AP(i+j(j-1)/2)
+ * upper triangular, but inverted (for A in ABCD), aij is stored in AP( i+(2n-j)(j-1)/2)
  *
  * \param dense block submatrix A
  *
@@ -423,8 +426,7 @@ static inline void insert_dense_block_data_diagonalize(dbm_fl_t *A, const sm_t *
     const ci_t bi1, const ci_t i1)
 {
   assert(rbi == bir);
-  printf("%d|%d => %d\n",lib,eil,(lib+1) + ((eil+1)*eil)/2 - 1);
-  A->blocks[rbi][bir].val[(lib+1) + ((eil+1)*eil)/2 - 1] =
+  A->blocks[rbi][bir].val[lib + ((2*__GBLA_SIMD_BLOCK_SIZE-(eil+1))*eil)/2] =
     (re_t)((re_m_t)M->mod - M->rows[bi1][i1]);
 }
 

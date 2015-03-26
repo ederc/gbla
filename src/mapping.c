@@ -2140,6 +2140,8 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 #if __GB_DEBUG
           printf("1 %d -- %d -- %d\n", rbi,bir,lib);
           printf("1 eil %d\n",eil);
+          printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
+          printf("%d\n\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-1]);
 #endif
         } else {
           bir = map->npc[it1] / B->bwidth;
@@ -2174,6 +2176,8 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 #if __GB_DEBUG
             printf("3 %d -- %d -- %d\n", rbi,bir,lib);
             printf("3 eil %d\n",eil);
+          printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
+          printf("%d\n\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-1]);
 #endif
           } else {
             bir = map->npc[it2] / B->bwidth;
@@ -2207,6 +2211,8 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 #if __GB_DEBUG
             printf("5 %d -- %d -- %d\n", rbi,bir,lib);
             printf("5 eil %d\n",eil);
+          printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
+          printf("%d\n\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-1]);
 #endif
           } else {
             bir = map->npc[it2] / B->bwidth;
@@ -2246,6 +2252,8 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 #if __GB_DEBUG
         printf("7 %d -- %d -- %d\n", rbi,bir,lib);
         printf("7 eil %d\n",eil);
+          printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
+          printf("%d\n\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-1]);
 #endif
       } else {
         bir = map->npc[it1] / B->bwidth;
@@ -2282,6 +2290,8 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 #if __GB_DEBUG
         printf("9 %d -- %d -- %d\n", rbi,bir,lib);
         printf("9 eil %d\n",eil);
+          printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
+          printf("%d\n\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-1]);
 #endif
       } else {
         bir = map->npc[it2] / B->bwidth;
