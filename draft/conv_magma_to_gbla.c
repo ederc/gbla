@@ -91,7 +91,7 @@ int main (int argc, char *argv[])
         ridx++;
         for (i=0; i<ctr; i=i+3) {
           strncpy(tmp, buffer+position[i]+1, position[i+1]-position[i]-2);
-          colid[idx]  = (dimen_t) atoi(tmp);
+          colid[idx]  = (dimen_t) atoi(tmp) - 1; // magma starts at column 1
           memset(tmp,0,strlen(tmp));
           strncpy(tmp, buffer+position[i+1]+1, position[i+2]-position[i+1]-2);
           data[idx]  = (elt_t) atoi(tmp);
