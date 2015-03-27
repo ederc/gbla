@@ -145,12 +145,40 @@ static inline void free_wide_block(re_l_t ***wide_block)
 }
 
 /**
- * \brief Copies entry from sparse block sparse_block to dense block dense_block
- * for elimination purposes.
+ * \brief Copies entry from hybrid block hybrid_block to dense wide block
+ * wide_block for elimination purposes.
  *
- * \param sparse block sparse_block
+ * \note hybrid_block is already checked to be != NULL
+ *
+ * \param hybrid block hybrid_block
+ *
+ * \param wide block wide_block
+ */
+static inline void copy_hybrid_to_wide_block(dbl_t **hybrid_block,
+    re_l_t **wide_block)
+{
+  bi_t i,j, k;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    if (hybrid_block[i] != NULL) {
+      for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
+        if (hybrid_block[i][j].val != NULL) {
+          for (k=0; k<__GBLA_SIMD_INNER_SIZE; ++k) {
+            wide_block[i][j*__GBLA_SIMD_INNER_SIZE + k] =
+              hybrid_block[i][j].val[k];
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * \brief Copies entry from dense block dense_block to dense wide block
+ * wide_block for elimination purposes.
  *
  * \param dense block dense_block
+ *
+ * \param wide block wide_block
  */
 static inline void copy_dense_to_wide_block(re_t *dense_block,
     re_l_t **wide_block)
@@ -162,10 +190,10 @@ static inline void copy_dense_to_wide_block(re_t *dense_block,
 }
 
 /**
- * \brief Copies entry from sparse block sparse_block to dense block dense_block
- * for elimination purposes.
+ * \brief Copies entry from dense wide block wide_block to dense block
+ * dense_block for elimination purposes.
  *
- * \param sparse block sparse_block
+ * \param wide block wide_block
  *
  * \param dense block dense_block
  */

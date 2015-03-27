@@ -72,7 +72,6 @@ int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
   ri_t j, k;
   re_l_t **wide_block;
   
-#if 0
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_A; ++j) {
     ctr = 0;
@@ -81,10 +80,11 @@ int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
     // copy sparse block data to dense representation
-    if (B->blocks[j][block_col_idx_B].val != NULL) {
+    if (B->blocks[j][block_col_idx_B] != NULL) {
       ctr = 1;
-      copy_dense_to_wide_block(B->blocks[j][block_col_idx_B].val, wide_block);
+      copy_hybrid_to_wide_block(B->blocks[j][block_col_idx_B], wide_block);
     }
+#if 0
     // do all rectangular blocks
     for (k=0; k<j; ++k) {
       /*
@@ -132,7 +132,8 @@ int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
       printf("\n");
     }
     */
-    copy_wide_to_dense_block(wide_block, &B->blocks[j][block_col_idx_B].val);
+#endif
+    //copy_wide_to_dense_block(wide_block, &B->blocks[j][block_col_idx_B].val);
 
 #if DDDEBUG
     printf("after copying\n");
@@ -150,7 +151,6 @@ int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
 #endif
   }
   free_wide_block(&wide_block);
-#endif
 
   return 0;
 }
