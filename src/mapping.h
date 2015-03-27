@@ -487,6 +487,125 @@ static inline void insert_dense_block_data(dbm_fl_t *A, const sm_t *M,
 }
 
 /**
+ * \brief Inserts elements from input matrix M in hybrid submatrix A
+ *
+ * \param hybrid block submatrix A
+ *
+ * \param original matrix M
+ *
+ * \param shift to calculate correct coordinates of the corresponding block in A
+ * and inside the block itself shift
+ *
+ * \param current row block index rbi
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ */
+static inline void insert_in_hbm(hbm_fl_t *A, const sm_t *M, const ci_t shift, const ri_t rbi,
+    const ri_t lib, const ri_t bi, const ci_t ri)
+{
+  const bi_t bir = shift / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  const bi_t eil = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
+  bi_t i, j;
+  // allocate memory if needed, initialized to zero
+  if (A->blocks[rbi][bir] == NULL) {
+    A->blocks[rbi][bir] = (dbl_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(dbl_t *));
+    for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+      A->blocks[rbi][bir][i]  = NULL;
+    }
+    A->blocks[rbi][bir][lib]  = (dbl_t *)malloc(__GBLA_SIMD_INNER_BLOCKS_PER_ROW * sizeof(dbl_t));
+    for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
+      A->blocks[rbi][bir][lib][j].val = NULL;
+    }
+    A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val = (re_t *)calloc(
+        __GBLA_SIMD_INNER_SIZE, sizeof(re_t));
+  } else {
+    if (A->blocks[rbi][bir][lib] == NULL) {
+      A->blocks[rbi][bir][lib]  = (dbl_t *)malloc(__GBLA_SIMD_INNER_BLOCKS_PER_ROW * sizeof(dbl_t));
+      for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
+        A->blocks[rbi][bir][lib][j].val = NULL;
+      }
+      A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val = (re_t *)calloc(
+          __GBLA_SIMD_INNER_SIZE, sizeof(re_t));
+    } else {
+      if (A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val  ==  NULL) {
+        A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val = (re_t *)calloc(
+            __GBLA_SIMD_INNER_SIZE, sizeof(re_t));
+      }
+    }
+  }
+  // set values
+  A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val[eil%__GBLA_SIMD_INNER_SIZE]  = 
+    M->rows[bi][ri];
+}
+
+/**
+ * \brief Inserts elements from input matrix M in hybrid submatrix A, invert
+ * their values w.r.t. to addition and M->mod
+ *
+ * \param hybrid block submatrix A
+ *
+ * \param original matrix M
+ *
+ * \param shift to calculate correct coordinates of the corresponding block in A
+ * and inside the block itself shift
+ *
+ * \param current row block index rbi
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ */
+static inline void insert_in_hbm_inv(hbm_fl_t *A, const sm_t *M, const ci_t shift, const ri_t rbi,
+    const ri_t lib, const ri_t bi, const ci_t ri)
+{
+  const bi_t bir = shift / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  const bi_t eil = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
+  bi_t i, j;
+  // allocate memory if needed, initialized to zero
+  if (A->blocks[rbi][bir] == NULL) {
+    A->blocks[rbi][bir] = (dbl_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(dbl_t *));
+    for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+      A->blocks[rbi][bir][i]  = NULL;
+    }
+    A->blocks[rbi][bir][lib]  = (dbl_t *)malloc(__GBLA_SIMD_INNER_BLOCKS_PER_ROW * sizeof(dbl_t));
+    for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
+      A->blocks[rbi][bir][lib][j].val = NULL;
+    }
+    A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val = (re_t *)calloc(
+        __GBLA_SIMD_INNER_SIZE, sizeof(re_t));
+  } else {
+    if (A->blocks[rbi][bir][lib] == NULL) {
+      A->blocks[rbi][bir][lib]  = (dbl_t *)malloc(__GBLA_SIMD_INNER_BLOCKS_PER_ROW * sizeof(dbl_t));
+      for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
+        A->blocks[rbi][bir][lib][j].val = NULL;
+      }
+      A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val = (re_t *)calloc(
+          __GBLA_SIMD_INNER_SIZE, sizeof(re_t));
+    } else {
+      if (A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val  ==  NULL) {
+        A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val = (re_t *)calloc(
+            __GBLA_SIMD_INNER_SIZE, sizeof(re_t));
+      }
+    }
+  }
+  // set values
+  A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val[eil%__GBLA_SIMD_INNER_SIZE]  = 
+    (re_t)((re_m_t)M->mod - M->rows[bi][ri]);
+}
+
+/**
  * \brief Inserts elements from input matrix M in submatrix A
  *
  * \param dense block submatrix A
@@ -834,6 +953,37 @@ void construct_fl_map(sm_t *M, map_fl_t *map);
  *
  * \param initial input matrix M
  *
+ * \param hybrid block submatrix A
+ *
+ * \param hybrid block submatrix B
+ *
+ * \param hybrid block submatrix C
+ *
+ * \param hybrid block submatrix D
+ */
+static inline void check_dimensions_hbm(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
+    hbm_fl_t *D)
+{
+  printf("M[%dx%d]\n",M->nrows,M->ncols);
+  printf("A[%dx%d]\n",A->nrows,A->ncols);
+  printf("B[%dx%d]\n",B->nrows,B->ncols);
+  printf("C[%dx%d]\n",C->nrows,C->ncols);
+  printf("D[%dx%d]\n",D->nrows,D->ncols);
+  assert(A->nrows == A->ncols);
+  assert(A->nrows == B->nrows);
+  assert(A->ncols == C->ncols);
+  assert(B->ncols == D->ncols);
+  assert(C->nrows == D->nrows);
+  assert(M->nrows == A->nrows + D->nrows);
+  assert(M->ncols == B->ncols + C->ncols);
+}
+
+/**
+ * \brief Checks dimensions of sub matrices after constructing map and
+ * initializing sub matrices
+ *
+ * \param initial input matrix M
+ *
  * \param dense block submatrix A
  *
  * \param dense block submatrix B
@@ -926,6 +1076,60 @@ static inline void free_input_matrix(sm_t **M_in, const uint32_t *rihb, const ui
 }
 
 /**
+ * \brief Writes corresponding entries of original matrix M into the hybrid block
+ * submatrices A and B. The entries are defined by the mappings from M given by
+ * rihb, crb and rbi:
+ * parts of M --> A|B
+ *
+ * \param original matrix M
+ *
+ * \param hybrid block submatrix A (left side)
+ *
+ * \param hybrid block submatrix B (right side)
+ *
+ * \param splicer mapping map  that stores pivots and non pivots
+ *
+ * \param row indices in horizonal block rihb
+ *
+ * \param current row block crb
+ *
+ * \param row block index rbi
+ */
+static inline void write_hybrid_blocks_matrix(const sm_t *M, hbm_fl_t *A, hbm_fl_t *B,
+    const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
+{
+  bi_t  lib;    // line index in block
+  bi_t  length; // local helper for block line length arithmetic
+  ci_t  it, ri;
+
+  // memory for block entries is already allocated in splice_fl_matrix()
+
+  // current loop variable i, block indices 1 (rihb[i])
+  ri_t i, j, k, l, bi;
+
+  // column loops
+  const ci_t clA  = get_number_hybrid_col_blocks(A);
+  const ci_t clB  = get_number_hybrid_col_blocks(B);
+
+  // ususally cvb is divisible by 2, but for the last row of blocks there might
+  // be only an odd number of lines in the blocks
+  for (i=0; i<cvb; ++i) {
+    bi  = rihb[i];
+    ri  = 0;
+
+    // loop over rows i and i+1 of M and splice correspondingly into A & B
+    while (ri < M->rwidth[bi]) {
+      it  = M->pos[bi][ri];
+      if (map->pc[it] != __GB_MINUS_ONE_32)
+        insert_in_hbm_inv(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
+      else
+        insert_in_hbm(B, M, map->npc[it], rbi, i, bi, ri); 
+      ri++;
+    }
+  }
+}
+
+/**
  * \brief Writes corresponding entries of original matrix M into the dense block
  * submatrices A and B. The entries are defined by the mappings from M given by
  * rihb, crb and rbi:
@@ -933,7 +1137,7 @@ static inline void free_input_matrix(sm_t **M_in, const uint32_t *rihb, const ui
  *
  * \param original matrix M
  *
- * \param ense block submatrix A (left side)
+ * \param dense block submatrix A (left side)
  *
  * \param dense block submatrix B (right side)
  *
@@ -1034,6 +1238,65 @@ static inline void write_dense_blocks_matrix_diagonalize(const sm_t *M,
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
       ri++;
+    }
+  }
+}
+
+/**
+ * \brief Fills hybrid submatrices A and B with values from M with respect to the
+ * splicing stored in map.
+ *
+ * \param input matrix M
+ *
+ * \param left side hybrid block matrix A
+ *
+ * \param right side hybrid block matrix B
+ *
+ * \param splicer map map
+ *
+ * \param range in map, either pivots or non-pivots range
+ *
+ * \param array storing indices piv_start_idx
+ *
+ * \param flag for destructing input matrix splices on the fly
+ * destruct_input_matrix
+ *
+ * \param number of threads for parallel computations nthreads
+ */
+static inline void fill_hybrid_submatrices(sm_t *M, hbm_fl_t *A, hbm_fl_t *B,
+    const map_fl_t *map, const ri_t *range, const ri_t *piv_start_idx,
+    const int destruct_input_matrix, const int nthreads)
+{
+  int i;
+  ri_t block_idx;
+
+  omp_set_dynamic(0);
+#pragma omp parallel private(block_idx, i) num_threads(nthreads)
+  {
+    ri_t rihb[__GBLA_SIMD_BLOCK_SIZE];  // rows indices horizontal block
+    bi_t cvb  = 0;          // current vector in block
+
+#pragma omp for schedule(dynamic) nowait
+    for (block_idx = 0; block_idx <= A->nrows/__GBLA_SIMD_BLOCK_SIZE; ++block_idx) {
+      // construct block submatrices A & B
+      // Note: In the for loop we always construct block "block+1" and not block
+      // "block".
+      // TODO: Try to improve this rather strange looping.
+      for (i = ((int)piv_start_idx[block_idx]-1);
+          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+        if (range[i] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = range[i];
+          cvb++;
+        }
+        if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
+          write_hybrid_blocks_matrix(M, A, B, map, rihb, cvb, block_idx);
+
+          // TODO: Destruct input matrix on the go
+          if (destruct_input_matrix)
+            free_input_matrix(&M, rihb, cvb);
+          cvb = 0;
+        }
+      }
     }
   }
 }
@@ -1200,6 +1463,45 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
                       int block_dim, int rows_multiline,
                       int nthreads, int destruct_input_matrix, int verbose,
                       int map_defined);
+
+/**
+ * \brief Constructs the subdivision of M into ABCD in the
+ * Faugère-Lachartre style
+ *
+ *                 A | B
+ * M     ---->     --+--
+ *                 C | D
+ * In the subdivision the following dimensions hold:
+ * A->nrows = B->nrows = map->npiv // number of pivots found
+ * C->nrows = D->nrows = M->nrows - map->npiv // non-pivots
+ * A->ncols = C->ncols = map->npiv
+ * B->ncols = D->ncols = M->ncols - map->npiv
+ *
+ * \note Hybrid version without multilines in order to exploit SIMD instructions.
+ *
+ *  \param original matrix M
+ *
+ *  \param hybrid block submatrix A
+ *
+ *  \param hybrid block submatrix B
+ *
+ *  \param hybrid block submatrix C
+ *
+ *  \param hybrid block submatrix D
+ *
+ *  \param indexer mapping map
+ *
+ *  \param checks if map was already defined outside map_defined
+ *
+ *  \param destructing input matrix on the go? destruct_input_matrix
+ *
+ *  \param level of verbosity
+ *
+ *  \param number of threads to be used nthreads
+ */
+void splice_fl_matrix_hybrid(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
+    hbm_fl_t *D, map_fl_t *map, const int map_defined,
+    const int destruct_input_matrix, const int verbose, const int nthreads);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the

@@ -124,6 +124,41 @@ typedef struct dbm_fl_t {
 } dbm_fl_t;
 
 /**
+ * \brief Hybrid simd block matrix structure for Faugère-Lachartre decompositions.
+ * For non multiline implementation using small inner dense blocks for exploiting
+ * SIMD inctructions.
+ *
+ * ---------------------------------
+ * |       |       |       |       |
+ * ---------------------------------
+ * |       |       |       |       |
+ * ---------------------------------
+ * |       |       |       |       |
+ * ---------------------------------
+ * |       |       |       |       |
+ * ---------------------------------
+ * |       |       |       |       |
+ * ---------------------------------
+ * |       |       |       |       |
+ * ---------------------------------
+ * 
+ * The above picture represents one block of size __GBLA_SIMD_BLOCK_SIZE_RECT.
+ * Inside we store small sub blocks of height 1 and width __GBLA_SIMD_INNER_SIZE.
+ * Such an inner sub block is either NULL (if all entries are zero) or
+ * represented in dense fashion.
+ * All in all this leads to the fact that blocks is of type dbl_t ****blocks:
+ * blocks[outer_row][outer_col][inner_row][inner_col].
+ */
+typedef struct hbm_fl_t {
+  ri_t nrows;       /*!<  number of rows */
+  ci_t ncols;       /*!<  number of columns */
+  nnz_t nnz;        /*!<  number of nonzero elements */
+  double density;   /*!<  density of this submatrix */
+  dbl_t ****blocks; /*!<  address of blocks: M->blocks[i][j][k][l] as explained
+                          above */
+} hbm_fl_t;
+
+/**
  * \brief Sparse block matrix structure for Faugère-Lachartre decompositions.
  * Can be used for usual line implementations and multi line implementations,
  * the corresponding multi line functions are labeled with an "_ml".
@@ -176,6 +211,30 @@ typedef struct sm_fl_ml_t {
 } sm_fl_ml_t;
 
 /**
+ * \brief returns number of row blocks for hybrid block submatrix A
+ *
+ * \param hybrid block submatrix A
+ *
+ * \return number of row blocks for A
+ */
+inline ri_t get_number_hybrid_row_blocks(hbm_fl_t *A)
+{
+  return (ri_t) ceil((float) A->nrows / __GBLA_SIMD_BLOCK_SIZE);
+}
+
+/**
+ * \brief returns number of column blocks for hybrid block submatrix A
+ *
+ * \param hybrid block submatrix A
+ *
+ * \return number of column blocks for A
+ */
+inline ci_t get_number_hybrid_col_blocks(hbm_fl_t *A)
+{
+  return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
+}
+
+/**
  * \brief returns number of row blocks for dense block submatrix A
  *
  * \param dense block submatrix A
@@ -197,6 +256,39 @@ inline ri_t get_number_dense_row_blocks(dbm_fl_t *A)
 inline ci_t get_number_dense_col_blocks(dbm_fl_t *A)
 {
   return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
+}
+
+/**
+ * \brief Initializes hybrid block submatrices
+ *
+ * \param hybrid block submatrix A
+ *
+ * \param number of rows nrows
+ *
+ * \param number of columns ncols
+ */
+inline void init_hbm(hbm_fl_t *A, const ri_t nrows, const ri_t ncols)
+{
+  int i, j;
+
+  // initialize meta data for block submatrices
+  A->nrows  = nrows;  // row dimension
+  A->ncols  = ncols;  // col dimension
+  A->nnz    = 0;      // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops
+  const ci_t clA  = get_number_hybrid_col_blocks(A);
+  const ri_t rlA  = get_number_hybrid_row_blocks(A);
+
+  A->blocks = (dbl_t ****)malloc(rlA * sizeof(dbl_t ***));
+  for (i=0; i<rlA; ++i) {
+    A->blocks[i]  = (dbl_t ***)malloc(clA * sizeof(dbl_t **));
+    for (j=0; j<clA; ++j) {
+      A->blocks[i][j] = NULL;
+    }
+  }
 }
 
 /**
@@ -230,6 +322,53 @@ inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
       A->blocks[i][j].val = NULL;
     }
   }
+}
+
+/**
+ * \brief Frees given hybrid block submatrix A
+ *
+ * \param hybrid block submatrix A
+ *
+ * \param number of threads for parallel computation
+ */
+inline void free_hybrid_submatrix(hbm_fl_t **A_in, int nthrds)
+{
+  hbm_fl_t *A     = *A_in;
+  const ci_t clA  = get_number_hybrid_col_blocks(A);
+  const ri_t rlA  = get_number_hybrid_row_blocks(A);
+  ri_t i, j, k, l;
+  // free A
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i, j, k, l)
+    for (i=0; i<rlA; ++i) {
+      for (j=0; j<clA; ++j) {
+        if (A->blocks[i][j] != NULL) {
+          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+            if (A->blocks[i][j][k] != NULL) {
+              for (l=0; l<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++l) {
+                if (A->blocks[i][j][k][l].val != NULL) {
+                  free(A->blocks[i][j][k][l].val);
+                  A->blocks[i][j][k][l].val  = NULL;
+                }
+              }
+              free(A->blocks[i][j][k]);
+              A->blocks[i][j][k]  = NULL;
+            }
+          }
+          free(A->blocks[i][j]);
+          A->blocks[i][j] = NULL;
+        }
+      }
+      free(A->blocks[i]);
+      A->blocks[i]  = NULL;
+    }
+  }
+  free(A->blocks);
+  A->blocks = NULL;
+  free(A);
+  A = NULL;
+  *A_in  = A;
 }
 
 /**

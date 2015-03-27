@@ -1557,6 +1557,41 @@ void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B,
 int elim_fl_A_block(sbm_fl_t **A, sbm_fl_t *B, const mod_t modulus, int nthrds);
 
 /**
+ * \brief Elimination procedure which reduces the hybrid block submatrix A to
+ * the unit matrix. Corresponding changes in dense block submatrix B are
+ * carried out, too.
+ *
+ * \param hybrid block submatrix A (left upper side)
+ *
+ * \param hybrid block submatrix B (right upper side)
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_A_hybrid_block(hbm_fl_t **A, hbm_fl_t *B, const mod_t modulus, int nthrds);
+
+/**
+ * \brief Different block tasks when reducing hybrid block submatrix A.
+ *
+ * \param hybrid block submatrix A (left upper side)
+ *
+ * \param hybrid block submatrix B (right upper side)
+ *
+ * \param column index of blocks in B block_col_idx_B
+ *
+ * \param number of block rows in A nbrows_A
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
+    const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus);
+
+/**
  * \brief Elimination procedure which reduces the dense block submatrix A to
  * the unit matrix. Corresponding changes in dense block submatrix B are
  * carried out, too.
