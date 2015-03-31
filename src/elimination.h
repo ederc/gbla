@@ -200,6 +200,18 @@ static inline void copy_wide_to_hybrid_block(re_l_t **wide_block,
     free(hb);
     hb  = NULL;
   }
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      //printf("wb[%d][%d] = %lu\n",i,j,wide_block[i][j]);
+      if (wide_block[i][j] != 0) {
+        goto not_zero;
+      }
+    }
+  }
+  *hybrid_block = hb;
+  return;
+
+not_zero:
   hb  = (dbl_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(dbl_t *));
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     hb[i] = NULL;
@@ -341,13 +353,13 @@ static inline void red_hybrid_dense_rectangular(dbl_t **block_A, const re_t *blo
         } else {
   //printf("block_A[%d][%d].val %p\n",i,j,block_A[i][j].val);
           for (k=0; k<__GBLA_SIMD_INNER_SIZE; ++k) {
-  //printf("block_A[%d][%d].val[%d] %p\n",i,j,k,block_A[i][j].val[k]);
             if (block_A[i][j].val[k] != 0) {
               a = block_A[i][j].val[k];
               if (a != 0) {
+                //printf("%u - %d\n",block_A[i][j].val[k],j*__GBLA_SIMD_INNER_SIZE+k);
                 for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
                   wide_block[i][l] +=  a *
-                    (re_m_t)block_B[j*__GBLA_SIMD_INNER_SIZE*__GBLA_SIMD_BLOCK_SIZE+l];
+                    (re_m_t)block_B[(j*__GBLA_SIMD_INNER_SIZE+k)*__GBLA_SIMD_BLOCK_SIZE+l];
                 }
               }
             }
@@ -378,6 +390,7 @@ static inline void red_dense_rectangular(const re_t *block_A, const re_t *block_
       if (block_A[i*__GBLA_SIMD_BLOCK_SIZE+j] != 0) {
         a = block_A[i*__GBLA_SIMD_BLOCK_SIZE+j];
         if (a != 0) {
+          //printf("%u - %d\n",block_A[i*__GBLA_SIMD_BLOCK_SIZE+j],j);
           for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
             /*
                if (i==83 && k==0) {

@@ -433,7 +433,7 @@ int fl_block_hybrid_dense(sm_t *M, int nthreads, int free_mem,
   printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
 */
 #endif
-#if __GB_CLI_DEBUG_1
+#if __GB_CLI_DEBUG_2
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
