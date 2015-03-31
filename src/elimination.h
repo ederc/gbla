@@ -145,7 +145,7 @@ static inline void free_wide_block(re_l_t ***wide_block)
 }
 
 /**
- * \brief Copies entry from hybrid block hybrid_block to dense wide block
+ * \brief Copies entries from hybrid block hybrid_block to dense wide block
  * wide_block for elimination purposes.
  *
  * \note hybrid_block is already checked to be != NULL
@@ -157,7 +157,7 @@ static inline void free_wide_block(re_l_t ***wide_block)
 static inline void copy_hybrid_to_wide_block(dbl_t **hybrid_block,
     re_l_t **wide_block)
 {
-  bi_t i,j, k;
+  bi_t i, j, k;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     if (hybrid_block[i] != NULL) {
       for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
@@ -173,7 +173,64 @@ static inline void copy_hybrid_to_wide_block(dbl_t **hybrid_block,
 }
 
 /**
- * \brief Copies entry from dense block dense_block to dense wide block
+ * \brief Copies entries from dense wide block wide_block back to the hybrid block
+ * hybrid_block after elimination purposes.
+ *
+ * \param wide block wide_block
+ *
+ * \param hybrid block hybrid_block
+ */
+static inline void copy_wide_to_hybrid_block(re_l_t **wide_block,
+    dbl_t ***hybrid_block)
+{
+  dbl_t **hb  = *hybrid_block;
+  bi_t i, j, k;
+  // first of all we free memory for hybrid_block completely
+  if (hb != NULL) {
+    for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+      if (hb[i] != NULL) {
+        for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
+          free(hb[i][j].val);
+          hb[i][j].val  = NULL;
+        }
+        free(hb[i]);
+        hb[i] = NULL;
+      }
+    }
+    free(hb);
+    hb  = NULL;
+  }
+  hb  = (dbl_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(dbl_t *));
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    hb[i] = NULL;
+  }
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      if (wide_block[i][j] != 0) {
+        if (hb[i] == NULL) {
+          hb[i] = (dbl_t *)malloc(__GBLA_SIMD_INNER_BLOCKS_PER_ROW * sizeof(dbl_t));
+          for (k=0; k<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++k) {
+            hb[i][k].val  = NULL;
+          }
+          hb[i][j/__GBLA_SIMD_INNER_SIZE].val =  (re_t *)calloc(
+              __GBLA_SIMD_INNER_SIZE, sizeof(re_t));
+
+        } else {
+          if (hb[i][j/__GBLA_SIMD_INNER_SIZE].val == NULL) {
+            hb[i][j/__GBLA_SIMD_INNER_SIZE].val =  (re_t *)calloc(
+                __GBLA_SIMD_INNER_SIZE, sizeof(re_t));
+          }
+        }
+        hb[i][j/__GBLA_SIMD_INNER_SIZE].val[j%__GBLA_SIMD_INNER_SIZE] =
+          (re_t) wide_block[i][j];
+      }
+    }
+  }
+  *hybrid_block = hb;
+}
+
+/**
+ * \brief Copies entries from dense block dense_block to dense wide block
  * wide_block for elimination purposes.
  *
  * \param dense block dense_block
@@ -183,14 +240,14 @@ static inline void copy_hybrid_to_wide_block(dbl_t **hybrid_block,
 static inline void copy_dense_to_wide_block(re_t *dense_block,
     re_l_t **wide_block)
 {
-  bi_t i,j;
+  bi_t i, j;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j)
       wide_block[i][j]  = dense_block[i*__GBLA_SIMD_BLOCK_SIZE+j];
 }
 
 /**
- * \brief Copies entry from dense wide block wide_block to dense block
+ * \brief Copies entries from dense wide block wide_block to dense block
  * dense_block for elimination purposes.
  *
  * \param wide block wide_block
@@ -200,7 +257,7 @@ static inline void copy_dense_to_wide_block(re_t *dense_block,
 static inline void copy_wide_to_dense_block(re_l_t **wide_block, re_t **dense_block)
 {
   re_t *db = *dense_block;
-  bi_t i,j;
+  bi_t i, j;
   //printf("IN wb %p\n",wide_block);
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
@@ -214,6 +271,7 @@ static inline void copy_wide_to_dense_block(re_l_t **wide_block, re_t **dense_bl
   free(db);
   db  = NULL;
   *dense_block  = db;
+  return;
 
 not_zero:
   if (db == NULL)
@@ -257,6 +315,50 @@ static inline void modulo_wide_block(re_l_t **wide_block, const mod_t modulus) {
 }
 
 /**
+ * \brief Use hybrid blocks from A to update dense blocks in B.
+ * Delay modulus operations by storing results in wide blocks.
+ *
+ * \param hybrid block from A block_A
+ *
+ * \param dense block from B block_B
+ *
+ * \param wide block storing the result wide_block
+ */
+static inline void red_hybrid_dense_rectangular(dbl_t **block_A, const re_t *block_B,
+  re_l_t **wide_block)
+{
+  bi_t i, j, k, l;
+  register re_m_t a;
+  //printf("block_A %p\n",block_A);
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    if (block_A[i] == NULL) {
+      continue;
+    } else {
+  //printf("block_A[%d] %p\n",i,block_A[i]);
+      for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
+        if (block_A[i][j].val == NULL) {
+          continue;
+        } else {
+  //printf("block_A[%d][%d].val %p\n",i,j,block_A[i][j].val);
+          for (k=0; k<__GBLA_SIMD_INNER_SIZE; ++k) {
+  //printf("block_A[%d][%d].val[%d] %p\n",i,j,k,block_A[i][j].val[k]);
+            if (block_A[i][j].val[k] != 0) {
+              a = block_A[i][j].val[k];
+              if (a != 0) {
+                for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
+                  wide_block[i][l] +=  a *
+                    (re_m_t)block_B[j*__GBLA_SIMD_INNER_SIZE*__GBLA_SIMD_BLOCK_SIZE+l];
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
  * \brief Use compressed dense blocks from A to update dense blocks in B.
  * Delay modulus operations by storing results in wide blocks.
  *
@@ -275,19 +377,134 @@ static inline void red_dense_rectangular(const re_t *block_A, const re_t *block_
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
       if (block_A[i*__GBLA_SIMD_BLOCK_SIZE+j] != 0) {
         a = block_A[i*__GBLA_SIMD_BLOCK_SIZE+j];
-        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-          /*
-          if (i==83 && k==0) {
-            printf("%lu ==> ", wide_block[83][0]);
+        if (a != 0) {
+          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+            /*
+               if (i==83 && k==0) {
+               printf("%lu ==> ", wide_block[83][0]);
+               }
+               */
+            wide_block[i][k]  += a *
+              (re_m_t)block_B[j*__GBLA_SIMD_BLOCK_SIZE + k];
+            /*
+               if (i==83 && k==0) {
+               printf("==> %lu || %lu %lu, %d\n", wide_block[83][0], a, block_B[j*__GBLA_SIMD_BLOCK_SIZE + 0], j);
+               }
+               */
           }
-          */
-          wide_block[i][k]  += a *
-            (re_m_t)block_B[j*__GBLA_SIMD_BLOCK_SIZE + k];
-          /*
-          if (i==83 && k==0) {
-            printf("==> %lu || %lu %lu, %d\n", wide_block[83][0], a, block_B[j*__GBLA_SIMD_BLOCK_SIZE + 0], j);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * \brief Uses hybrid blocks from A to update rows in wide_block.
+ * Delay modulus operations by storing results in wide blocks.
+ * 
+ * \param compressed dense block from A block_A
+ *
+ * \param wide block storing the result wide_block
+ *
+ * \param modulus resp. field characteristic modulus
+ */
+static inline void red_hybrid_triangular(dbl_t **block_A,
+    re_l_t **wide_block, mod_t modulus)
+{
+  bi_t i, j, k, l;
+  register re_m_t a;
+  //            printf("%u || %d | %d\n", block_A[3][0].val[0], 3,0);
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    // if we reach a zero row then the algorithm is in the very last triangular
+    // block of A and the number of rows of A does not divide
+    // __GBLA_SIMD_BLOCK_SIZE. Thus, this last triangular block is not filled
+    // completely and once we reach the very first such row, we are done and can
+    // return to the caller.
+    if (block_A[i] == NULL) {
+      return;
+    }
+    // we are doing j < i/__GBLA_SIMD_INNER_SIZE+1, but we have to distinguish:
+    // 1. For j < i/__GBLA_SIMD_INNER_SIZE we can always go through the
+    // full inner block
+    // 2. For j =  i/__GBLA_SIMD_INNER_SIZE+1 we have
+    // i%__GBLA_SIMD_INNER_SIZE as maximum for k
+    for (j=0; j<i/__GBLA_SIMD_INNER_SIZE; ++j) {
+      if (block_A[i][j].val == NULL) {
+        continue;
+      } else {
+        for (k=0; k<__GBLA_SIMD_INNER_SIZE; ++k) {
+          if (block_A[i][j].val[k] != 0) {
+            a = block_A[i][j].val[k];
+            if (a != 0) {
+              for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
+                wide_block[i][l] +=  a *
+                  wide_block[j*__GBLA_SIMD_INNER_SIZE+k][l];
+              }
+            }
           }
-          */
+        }
+      }
+    }
+    // now the last inner block in this line which we might only go through
+    // until i%__GBLA_SIMD_INNER_SIZE
+    if (block_A[i][j].val == NULL) {
+      continue;
+    } else {
+      for (k=0; k<i%__GBLA_SIMD_INNER_SIZE; ++k) {
+        if (block_A[i][j].val[k] != 0) {
+          a = block_A[i][j].val[k];
+          if (a != 0) {
+            for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
+              wide_block[i][l] +=  a *
+                wide_block[j*__GBLA_SIMD_INNER_SIZE+k][l];
+            }
+          }
+        }
+      }
+    }
+    modulo_wide_block_row(wide_block, i, modulus);
+  }
+}
+
+/**
+ * \brief Use hybrid blocks from A to update hybrid blocks in B.
+ * Delay modulus operations by storing results in wide blocks.
+ *
+ * \param hybrid block from A block_A
+ *
+ * \param hybrid block from B block_B
+ *
+ * \param wide block storing the result wide_block
+ */
+static inline void red_hybrid_rectangular(dbl_t **block_A, dbl_t **block_B,
+  re_l_t **wide_block)
+{
+  
+  bi_t i, j, k, l, m;
+  register re_m_t a;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    if (block_A[i] == NULL) {
+      continue;
+    } else {
+      for (j=0; j<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++j) {
+        if (block_A[i][j].val == NULL) {
+          continue;
+        } else {
+          for (k=0; k<__GBLA_SIMD_INNER_SIZE; ++k) {
+            if (block_A[i][j].val[k] != 0) {
+              a = block_A[i][j].val[k];
+              if ((a != 0) && (block_B[j*__GBLA_SIMD_INNER_SIZE+k] != NULL)) {
+                for (l=0; l<__GBLA_SIMD_INNER_BLOCKS_PER_ROW; ++l){
+                  if (block_B[j*__GBLA_SIMD_INNER_SIZE+k][l].val != NULL) {
+                    for (m=0; m<__GBLA_SIMD_INNER_SIZE; ++m) {
+                      wide_block[i][l*__GBLA_SIMD_INNER_SIZE+m] +=  a *
+                        (re_m_t)block_B[j*__GBLA_SIMD_INNER_SIZE+k][l].val[m];
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -300,8 +517,6 @@ static inline void red_dense_rectangular(const re_t *block_A, const re_t *block_
  * 
  * \param compressed dense block from A block_A
  *
- * \param dense block from B block_B
- *
  * \param wide block storing the result wide_block
  *
  * \param modulus resp. field characteristic modulus
@@ -309,6 +524,7 @@ static inline void red_dense_rectangular(const re_t *block_A, const re_t *block_
 static inline void red_dense_triangular(const re_t *block_A,
   re_l_t **wide_block, const mod_t modulus)
 {
+  //printf("INDENSE\n");
   bi_t i, j, k, l;
   register re_m_t a;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
@@ -319,6 +535,7 @@ static inline void red_dense_triangular(const re_t *block_A,
       if (block_A[i + ((2*__GBLA_SIMD_BLOCK_SIZE-(j+1))*j)/2] != 0) {
         a = block_A[i + ((2*__GBLA_SIMD_BLOCK_SIZE-(j+1))*j)/2];
        // printf("%lu || %d | %d\n", a, i, j);
+              //printf("%u || %d | %d\n", a, i,j);
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
           /*
           if (i==83 && k==0) {
@@ -1583,6 +1800,42 @@ void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B,
  * \return 0 if success, 1 if failure
  */
 int elim_fl_A_block(sbm_fl_t **A, sbm_fl_t *B, const mod_t modulus, int nthrds);
+
+/**
+ * \brief Elimination procedure which reduces the hybrid block submatrix A to
+ * the unit matrix. Corresponding changes in dense block submatrix B are
+ * carried out, too.
+ *
+ * \param hybrid block submatrix A (left upper side)
+ *
+ * \param dense block submatrix B (right upper side)
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_A_hybrid_dense_block(hbm_fl_t **A, dbm_fl_t *B, const mod_t modulus,
+    int nthrds);
+
+/**
+ * \brief Different block tasks when reducing hybrid block submatrix A.
+ *
+ * \param hybrid block submatrix A (left upper side)
+ *
+ * \param dense block submatrix B (right upper side)
+ *
+ * \param column index of blocks in B block_col_idx_B
+ *
+ * \param number of block rows in A nbrows_A
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_A_hybrid_dense_blocks_task(hbm_fl_t *A, dbm_fl_t *B,
+    const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the hybrid block submatrix A to

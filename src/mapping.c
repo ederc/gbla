@@ -1127,6 +1127,41 @@ void splice_fl_matrix_hybrid(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
   piv_start_idx = NULL;
 }
 
+void splice_fl_matrix_hybrid_dense(sm_t *M, hbm_fl_t *A, dbm_fl_t *B, hbm_fl_t *C,
+    dbm_fl_t *D, map_fl_t *map, const int map_defined,
+    const int destruct_input_matrix, const int verbose, const int nthreads) {
+
+  // construct index map for Faugère-Lachartre decomposition of matrix M
+  if (map_defined == 0)
+    construct_fl_map(M, map);
+
+  // initialize submatrices
+  init_hbm(A, map->npiv, map->npiv);
+  init_dbm(B, map->npiv, M->ncols - map->npiv);
+  init_hbm(C, M->nrows - map->npiv, map->npiv);
+  init_dbm(D, M->nrows - map->npiv, M->ncols - map->npiv);
+
+#if GB_DEBUG
+  //check_dimensions_hbm(M, A, B, C, D);
+#endif
+  ri_t npiv = 0; // number pivots handled
+  ri_t *piv_start_idx;
+
+  // write data in A and B, i.e. fill upper part of splicing
+  init_pivot_block_start_indices(&piv_start_idx, &npiv, map->pri, M->ncols, A->nrows);
+  fill_hybrid_dense_submatrices(M, A, B, map, map->pri, piv_start_idx, destruct_input_matrix,
+      nthreads);
+
+  free(piv_start_idx);
+  piv_start_idx = NULL;
+  // write data in C and D, i.e. fill upper part of splicing
+  init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
+  fill_hybrid_dense_submatrices(M, C, D, map, map->npri, piv_start_idx, destruct_input_matrix, nthreads);
+
+  free(piv_start_idx);
+  piv_start_idx = NULL;
+}
+
 
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                     map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
