@@ -494,6 +494,35 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
+#if __GB_CLI_DEBUG_1
+  // column loops
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  // row loops
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  printf("+++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (int ii=0; ii<rlB; ++ii) {
+    for (int jj=0; jj<clB; ++jj) {
+      if (B->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (int ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", B->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
+          }
+          printf("\n");
+          /*
+      } else {
+        printf("%d .. %d\n", ii, jj);
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        */
+      }
+    }
+  }
+#endif
 
   return 0;
 }
@@ -1027,6 +1056,24 @@ int fl_block_dense(sm_t *M, int nthreads, int free_mem,
   printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
 */
 #endif
+  // reducing submatrix A using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reducing A ...\n");
+  }
+  if (elim_fl_A_dense_block(&A, B, M->mod, nthreads)) {
+    printf("Error while reducing A.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reducing A.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
 #if __GB_CLI_DEBUG_1
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -1056,24 +1103,6 @@ int fl_block_dense(sm_t *M, int nthreads, int free_mem,
     }
   }
 #endif
-  // reducing submatrix A using methods of Faugère & Lachartre
-  if (verbose > 1) {
-    gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART reducing A ...\n");
-  }
-  if (elim_fl_A_dense_block(&A, B, M->mod, nthreads)) {
-    printf("Error while reducing A.\n");
-    return 1;
-  }
-  if (verbose > 1) {
-    printf("<<<<\tDONE  reducing A.\n");
-    printf("TIME\t%.3f sec\n",
-        walltime(t_load_start) / (1000000));
-    print_mem_usage();
-    printf("---------------------------------------------------------------------\n");
-    printf("\n");
-  }
 
   return 0;
 }

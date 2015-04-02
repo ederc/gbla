@@ -49,12 +49,10 @@ typedef double mod_t;
 #else
 /// matrix row entry type
 typedef uint16_t  re_t;
-/// matrix row entry type enlarged (medium) for compressed dense blocks (A and C)
-typedef uint64_t  re_m_t;
-/// matrix row entry type enlarged (large) for delayed modulus
-typedef uint64_t  re_l_t;
 /// matrix row entry type enlarged (half) for delayed modulus
 typedef uint32_t  re_m_t;
+/// matrix row entry type enlarged (large) for delayed modulus
+typedef uint64_t  re_l_t;
 /// type of field characteristic
 typedef uint32_t  mod_t;
 #endif

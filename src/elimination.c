@@ -1017,6 +1017,7 @@ for (i=0; i<bheight/2; ++i) {
     last_idx  = block_A[i].sz-1;
   } else {
     last_idx  = block_A[i].sz-2;
+  }
 
   register re_m_t Av1_col1, Av2_col1;
   register re_m_t Av1_col2, Av2_col2;
@@ -2184,6 +2185,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
     start_idx = C->ml[row_idx].idx[0];
   } else {
     start_idx = 0;
+  }
 
   re_m_t Cv1_col1, Cv2_col1;
   re_m_t Cv1_col2, Cv2_col2;
