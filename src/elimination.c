@@ -82,7 +82,7 @@ int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
     // copy sparse block data to dense representation
     if (B->blocks[j][block_col_idx_B] != NULL) {
       ctr = 1;
-      copy_hybrid_to_wide_block(B->blocks[j][block_col_idx_B], wide_block);
+      copy_hybrid_to_wide_block(&B->blocks[j][block_col_idx_B], wide_block);
     }
     // do all rectangular blocks
     for (k=0; k<j; ++k) {
@@ -146,6 +146,117 @@ int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
     }
     */
     copy_wide_to_hybrid_block(wide_block, &B->blocks[j][block_col_idx_B]);
+
+#if DDDEBUG
+    printf("after copying\n");
+    if (B->blocks[j][block_col_idx_B] != NULL) {
+      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+        if (B->blocks[j][block_col_idx_B][kk].sz>0) {
+          printf("%d\n",kk);
+          for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
+            printf("%d %d ",B->blocks[j][block_col_idx_B][kk].val[2*ll], B->blocks[j][block_col_idx_B][kk].val[2*ll+1]);
+          }
+          printf("\n");
+        }
+      }
+    }
+#endif
+  }
+  free_wide_block(&wide_block);
+
+  return 0;
+}
+
+int elim_fl_A_sparse_dense_block(sb_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int nthrds)
+{
+  sb_fl_t *A  = *A_in;
+  ci_t i, rc;
+  ri_t j, k;
+  const ci_t clB  = get_number_dense_col_blocks(B);
+  const ci_t clA  = get_number_sparse_col_blocks(A);
+  const ri_t rlA  = get_number_sparse_row_blocks(A);
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<clB; ++i) {
+#pragma omp task
+      {
+        rc  = elim_fl_A_sparse_dense_blocks_task(A, B, i, rlA, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+  // free A
+  free_sparse_submatrix(&A, nthrds);
+  return 0;
+}
+
+int elim_fl_A_sparse_dense_blocks_task(sb_fl_t *A, dbm_fl_t *B,
+    const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus)
+{
+  bi_t i, ctr;
+  ri_t j, k;
+  re_l_t **wide_block;
+  
+  init_wide_blocks(&wide_block);
+  for (j=0; j<nbrows_A; ++j) {
+    ctr = 0;
+    const ri_t first_block_idx  = 0;
+
+    set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
+
+    // copy sparse block data to dense representation
+    if (B->blocks[j][block_col_idx_B].val != NULL) {
+      ctr = 1;
+      copy_dense_to_wide_block(B->blocks[j][block_col_idx_B].val, wide_block);
+    }
+    // do all rectangular blocks
+    for (k=0; k<j; ++k) {
+      /*
+         printf("k %d | lci %d\n",k,block_col_idx_B);
+         if (k==22 && j==23) {
+         int bi = k;
+         int bj= block_col_idx_B;
+         printf("B[%d][%d] ----------------------------------------\n",bi,bj);
+         if (B->blocks[bi][bj].val != NULL) {
+         for (int ii=0; ii<__GBLA_SIMD_BLOCK_SIZE; ++ii) {
+         for (int jj=0; jj<__GBLA_SIMD_BLOCK_SIZE; ++jj) {
+         printf("%ld | ", B->blocks[bi][bj].val[ii*__GBLA_SIMD_BLOCK_SIZE+jj]);
+         }
+         printf("\n");
+         }
+         }
+         }
+         */
+      if ((A->blocks[j][k].row != NULL) && (B->blocks[k][block_col_idx_B].val != NULL)) {
+        ctr = 1;
+        red_sparse_dense_rectangular(&A->blocks[j][k],
+            B->blocks[k][block_col_idx_B].val, wide_block);
+        // do the diagonal block from A
+        /*
+        printf("RECT %d < %d----------------------------------------\n",k,j);
+        for (int ii=0; ii<__GBLA_SIMD_BLOCK_SIZE; ++ii) {
+          for (int jj=0; jj<__GBLA_SIMD_BLOCK_SIZE; ++jj) {
+            printf("%ld | ", wide_block[ii][jj]);
+          }
+          printf("\n");
+        }
+        */
+      }
+    }
+    if (ctr == 1)
+      red_sparse_triangular(&A->blocks[j][j], wide_block, modulus);
+    /*
+    printf("ctr %d -- TRIANGULAR %d----------------------------------------\n",ctr,j);
+    for (int ii=0; ii<__GBLA_SIMD_BLOCK_SIZE; ++ii) {
+      for (int jj=0; jj<__GBLA_SIMD_BLOCK_SIZE; ++jj) {
+        printf("%ld | ", wide_block[ii][jj]);
+      }
+      printf("\n");
+    }
+    */
+    copy_wide_to_dense_block(wide_block, &B->blocks[j][block_col_idx_B].val);
 
 #if DDDEBUG
     printf("after copying\n");
@@ -345,6 +456,15 @@ int elim_fl_A_dense_blocks_task(dbm_fl_t *A, dbm_fl_t *B,
         red_dense_rectangular(A->blocks[j][k].val,
             B->blocks[k][block_col_idx_B].val, wide_block);
         // do the diagonal block from A
+        /*
+        printf("RECT %d < %d----------------------------------------\n",k,j);
+        for (int ii=0; ii<__GBLA_SIMD_BLOCK_SIZE; ++ii) {
+          for (int jj=0; jj<__GBLA_SIMD_BLOCK_SIZE; ++jj) {
+            printf("%ld | ", wide_block[ii][jj]);
+          }
+          printf("\n");
+        }
+        */
       }
     }
     if (ctr == 1)
@@ -2059,9 +2179,10 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   ci_t start_idx;
   // Note that all our multilines are stored in a sparse fashion at the moment.
   // For compatibility and later changes we keep this check in the code.
-  if (C->ml[row_idx].dense == 0)
+  if (C->ml[row_idx].dense == 0) {
+    printf("row_idx %d\n",row_idx);
     start_idx = C->ml[row_idx].idx[0];
-  else
+  } else {
     start_idx = 0;
 
   re_m_t Cv1_col1, Cv2_col1;

@@ -58,6 +58,30 @@ typedef struct sm_t {
 
 
 /**
+ * \brief A sparse matrix block
+ */
+typedef struct sbl_t {
+  re_t **row; /*!< row entries */
+  bi_t **pos; /*!< position in row */
+  bi_t *sz;   /*!< size of row */
+  bi_t *buf;  /*!< memory buffer already allocated */
+} sbl_t;
+
+/**
+ * \brief Sparse block matrix structure for Faugère-Lachartre decompositions.
+ * For non multiline implementation using small sparse blocks for the A part.
+ */
+
+typedef struct sb_fl_t {
+  ri_t nrows;       /*!<  number of rows */
+  ci_t ncols;       /*!<  number of columns */
+  nnz_t nnz;        /*!<  number of nonzero elements */
+  double density;   /*!<  density of this submatrix */
+  sbl_t **blocks;   /*!<  address of blocks: M->blocks[i][j] gives address of
+                          block. */
+} sb_fl_t;
+
+/**
  * \brief A dense block is a block of size  __GBLA_SIMD_BLOCK_SIZE^2 of
  * matrix entries.
  */
@@ -259,6 +283,79 @@ inline ci_t get_number_dense_col_blocks(dbm_fl_t *A)
 }
 
 /**
+ * \brief returns number of row blocks for sparse block submatrix A
+ *
+ * \param sparse block submatrix A
+ *
+ * \return number of row blocks for A
+ */
+inline ri_t get_number_sparse_row_blocks(sb_fl_t *A)
+{
+  return (ri_t) ceil((float) A->nrows / __GBLA_SIMD_BLOCK_SIZE);
+}
+
+/**
+ * \brief returns number of column blocks for sparse block submatrix A
+ *
+ * \param sparse block submatrix A
+ *
+ * \return number of column blocks for A
+ */
+inline ci_t get_number_sparse_col_blocks(sb_fl_t *A)
+{
+  return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
+}
+
+/**
+ * \brief Initializes sparse block submatrices
+ *
+ * \param sparse block submatrix A
+ *
+ * \param number of rows nrows
+ *
+ * \param number of columns ncols
+ */
+inline void init_sb(sb_fl_t *A, const ri_t nrows, const ri_t ncols)
+{
+  int i, j;
+
+  // initialize meta data for block submatrices
+  A->nrows  = nrows;  // row dimension
+  A->ncols  = ncols;  // col dimension
+  A->nnz    = 0;      // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops
+  const ci_t clA  = get_number_sparse_col_blocks(A);
+  const ri_t rlA  = get_number_sparse_row_blocks(A);
+  // we know that no block of A will be empty, thus we can already allocate
+  // corresponding memory
+  A->blocks = (sbl_t **)malloc(rlA * sizeof(sbl_t *));
+  for (i=0; i<rlA; ++i) {
+    A->blocks[i]  = (sbl_t *)malloc(clA * sizeof(sbl_t));
+    for (j=0; j<clA; ++j) {
+      A->blocks[i][j].row = NULL;
+      A->blocks[i][j].pos = NULL;
+      A->blocks[i][j].sz  = NULL;
+      A->blocks[i][j].buf = NULL;
+      /*
+      A->blocks[i][j].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+      A->blocks[i][j].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+      A->blocks[i][j].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+      A->blocks[i][j].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        A->blocks[i][j].row[k]  = NULL;
+        A->blocks[i][j].pos[k]  = NULL;
+        A->blocks[i][j].sz[k]   = 0;
+        A->blocks[i][j].buf[k]  = 0;
+      }
+      */
+    }
+  }
+}
+
+/**
  * \brief Initializes hybrid block submatrices
  *
  * \param hybrid block submatrix A
@@ -322,6 +419,46 @@ inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
       A->blocks[i][j].val = NULL;
     }
   }
+}
+
+/**
+ * \brief Frees given sparse block submatrix A
+ *
+ * \param sparse block submatrix A
+ *
+ * \param number of threads for parallel computation
+ */
+inline void free_sparse_submatrix(sb_fl_t **A_in, int nthrds)
+{
+  sb_fl_t *A      = *A_in;
+  const ci_t clA  = get_number_sparse_col_blocks(A);
+  const ri_t rlA  = get_number_sparse_row_blocks(A);
+  ri_t i, j, k, l;
+  // free A
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i, j, k, l)
+    for (i=0; i<rlA; ++i) {
+      for (j=0; j<clA; ++j) {
+        if (A->blocks[i][j].row != NULL) {
+          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+            free(A->blocks[i][j].row[k]);
+            free(A->blocks[i][j].pos[k]);
+          }
+          free(A->blocks[i][j].row);
+          free(A->blocks[i][j].pos);
+          free(A->blocks[i][j].sz);
+          free(A->blocks[i][j].buf);
+        }
+      }
+      free(A->blocks[i]);
+    }
+  }
+  free(A->blocks);
+  A->blocks = NULL;
+  free(A);
+  A = NULL;
+  *A_in  = A;
 }
 
 /**
