@@ -310,11 +310,13 @@ static inline void modulo_wide_block_row(re_l_t **wide_block, const bi_t row_idx
  *
  * \param modulus resp. field characteristic modulus
  */
-static inline void modulo_wide_block(re_l_t **wide_block, const mod_t modulus) {
+static inline void modulo_wide_block(re_l_t ***wide_block, const mod_t modulus) {
+  re_l_t **wb = *wide_block;
   bi_t i, j;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j)
-      wide_block[i][j]  = (re_l_t)(wide_block[i][j] % modulus);
+      wb[i][j]  = (re_l_t)(wb[i][j] % modulus);
+  *wide_block = wb;
 }
 
 /**
@@ -2032,6 +2034,51 @@ int elim_fl_A_dense_blocks_task(dbm_fl_t *A, dbm_fl_t *B,
  */
 int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
     const ri_t nbrows_A, const mod_t modulus);
+
+/**
+ * \brief Elimination procedure which reduces the dense block submatrix C to zero.
+ * Corresponding changes in dense block submatrix D are carried out using dense block
+ * submatrixB, too.
+ *
+ * \param dense block submatrix B (right upper side)
+ *
+ * \param dense block submatrix C (left lower side)
+ *
+ * \param dense block submatrix D (right lower side)
+ *
+ * \param inverse scalars? inv_scalars
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C, dbm_fl_t *D, const int inv_scalars,
+    const mod_t modulus, const int nthrds);
+
+/**
+ * \brief Different block tasks when reducing denes block submatrix C.
+ *
+ * \param dense block submatrix B (right upper side)
+ *
+ * \param dense block submatrix C (left lower side)
+ *
+ * \param dense block submatrix D (right lower side)
+ *
+ * \param column index of blocks in D block_col_idx_D
+ *
+ * \param number of block rows in C nblock_rows_C
+ *
+ * \param inverse scalars? inv_scalars
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_dense_blocks_task(dbm_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
+    const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+    const int inv_scalars, const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix C to zero.

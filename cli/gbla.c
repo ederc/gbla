@@ -524,6 +524,55 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
   }
 #endif
 
+  // reducing submatrix C to zero using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reducing C to zero ...\n");
+  }
+  if (elim_fl_C_dense_block(B, &C, D, 1, M->mod, nthreads)) {
+    printf("Error while reducing C.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reducing C to zero.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+#if __GB_CLI_DEBUG_1
+  // column loops
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  // row loops
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  printf("+++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (int ii=0; ii<rlD; ++ii) {
+    for (int jj=0; jj<clD; ++jj) {
+      if (D->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (int ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", D->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
+          }
+          printf("\n");
+          /*
+      } else {
+        printf("%d .. %d\n", ii, jj);
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        */
+      }
+    }
+  }
+#endif
+
+
   return 0;
 }
 
@@ -1104,6 +1153,55 @@ int fl_block_dense(sm_t *M, int nthreads, int free_mem,
   }
 #endif
 
+  // reducing submatrix C to zero using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reducing C to zero ...\n");
+  }
+  if (elim_fl_C_dense_block(B, &C, D, 1, M->mod, nthreads)) {
+    printf("Error while reducing C.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reducing C to zero.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+#if __GB_CLI_DEBUG_1
+  // column loops
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  // row loops
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  printf("+++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (int ii=0; ii<rlD; ++ii) {
+    for (int jj=0; jj<clD; ++jj) {
+      if (D->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (int ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", D->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
+          }
+          printf("\n");
+          /*
+      } else {
+        printf("%d .. %d\n", ii, jj);
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        printf("0 | 0 | 0 | 0\n");
+        */
+      }
+    }
+  }
+#endif
+
+
   return 0;
 }
 int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
@@ -1326,6 +1424,35 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
+#if __GB_CLI_DEBUG_1
+  // column loops
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  // row loops
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
+ printf("++++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (int ii=0; ii<rlD; ++ii) {
+    for (int jj=0; jj<clD; ++jj) {
+      if (D->blocks[ii][jj] != NULL) {
+        for (int kk=0; kk<block_dimension/2; ++kk) {
+          printf("%d .. %d .. %d\n",ii,jj,kk);
+          if (D->blocks[ii][jj][kk].dense == 0) {
+            for (int ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
+          } else {
+            for (int ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
+          }
+        }
+      }
+    }
+  }
+#endif
 
   // echelonize D using methods of Faugère & Lachartre
 
