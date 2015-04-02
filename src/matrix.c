@@ -17,6 +17,7 @@
 
 #define NOT_DENSE_COPYING 0
 
+#if GBLA_WITH_FFLAS
 void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
   sbm_fl_t *src = *source;
   DNS *dst      = *destination;
@@ -48,28 +49,28 @@ void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
         if (src->blocks[i][j][k].dense == 0) {
           for (l=0; l<src->blocks[i][j][k].sz; ++l) {
             pos = src->blocks[i][j][k].idx[l];
-            dst->ptr[dst_row_idx * dst->ld + dst_col_idx + pos] = 
+            dst->ptr[dst_row_idx * dst->ld + dst_col_idx + pos] =
               (elemt_t)src->blocks[i][j][k].val[2*l];
           }
           dst_row_idx++;
           if (dst_row_idx<max_rows) {
             for (l=0; l<src->blocks[i][j][k].sz; ++l) {
               pos = src->blocks[i][j][k].idx[l];
-              dst->ptr[dst_row_idx * dst->ld + dst_col_idx + pos] = 
+              dst->ptr[dst_row_idx * dst->ld + dst_col_idx + pos] =
                 (elemt_t)src->blocks[i][j][k].val[2*l+1];
             }
           }
           dst_row_idx++;
         } else {
           for (l=0; l<src->blocks[i][j][k].sz; ++l) {
-            dst->ptr[dst_row_idx * dst->ld + dst_col_idx + l] = 
+            dst->ptr[dst_row_idx * dst->ld + dst_col_idx + l] =
               (elemt_t)src->blocks[i][j][k].val[2*l];
           }
           dst_row_idx++;
           if (dst_row_idx<max_rows) {
             for (l=0; l<src->blocks[i][j][k].sz; ++l) {
               //printf("position %ld\n",dst_row_idx * dst->ld + dst_col_idx + l/2-1);
-              dst->ptr[dst_row_idx * dst->ld + dst_col_idx + l] = 
+              dst->ptr[dst_row_idx * dst->ld + dst_col_idx + l] =
                 (elemt_t)src->blocks[i][j][k].val[2*l+1];
             }
           }
@@ -101,6 +102,7 @@ void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
   *source       = src;
   *destination  = dst;
 }
+#endif
 
 void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     sm_fl_ml_t **input_ml, ri_t rank_input_ml, sm_t **output,
@@ -126,7 +128,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
 
   out->rows   = (re_t **)malloc(rl * sizeof(re_t *));
   out->pos    = (ci_t **)malloc(rl * sizeof(ci_t *));
-  out->rwidth = (ci_t *)malloc(rl * sizeof(ci_t));
+  out->rwidth = (ci_t *) malloc(rl * sizeof(ci_t));
   memset(out->rwidth, 0, rl * sizeof(ci_t));
   const ri_t rlin_bl = (ri_t) ceil((float) in_bl->nrows / in_bl->bheight);
   const ci_t clin_bl = (ci_t) ceil((float) in_bl->ncols / in_bl->bwidth);
@@ -194,13 +196,13 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
         }
       }
     }
-    out->rows[sparse_idx] = realloc(out->rows[sparse_idx],
+    out->rows[sparse_idx] = (re_t*) realloc(out->rows[sparse_idx],
         out->rwidth[sparse_idx]*sizeof(re_t));
-    out->pos[sparse_idx]  = realloc(out->pos[sparse_idx],
+    out->pos[sparse_idx]  = (ci_t*) realloc(out->pos[sparse_idx],
         out->rwidth[sparse_idx]*sizeof(ci_t));
-    out->rows[sparse_idx+1] = realloc(out->rows[sparse_idx+1],
+    out->rows[sparse_idx+1] = (re_t*) realloc(out->rows[sparse_idx+1],
         out->rwidth[sparse_idx+1]*sizeof(re_t));
-    out->pos[sparse_idx+1]  = realloc(out->pos[sparse_idx+1],
+    out->pos[sparse_idx+1]  = (ci_t*) realloc(out->pos[sparse_idx+1],
         out->rwidth[sparse_idx+1]*sizeof(ci_t));
   }
   if (deleteIn == 1) {
@@ -283,9 +285,9 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     }
     k = 0;
     while (sparse_idx+k < out->nrows && k<in_bl->bheight) {
-      out->rows[sparse_idx+k] = realloc(out->rows[sparse_idx+k],
+      out->rows[sparse_idx+k] = (re_t*) realloc(out->rows[sparse_idx+k],
           out->rwidth[sparse_idx+k]*sizeof(re_t));
-      out->pos[sparse_idx+k]  = realloc(out->pos[sparse_idx+k],
+      out->pos[sparse_idx+k]  = (ci_t*) realloc(out->pos[sparse_idx+k],
           out->rwidth[sparse_idx+k]*sizeof(ci_t));
       ++k;
     }
@@ -621,10 +623,10 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
 static inline void realloc_block_rows_B(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
     const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) {
   *buffer_A +=  init_buffer_A;
-  A->blocks[rbi][bir][lib].idx = realloc(
+  A->blocks[rbi][bir][lib].idx = (bi_t*) realloc(
       A->blocks[rbi][bir][lib].idx,
       (*buffer_A) * sizeof(bi_t));
-  A->blocks[rbi][bir][lib].val = realloc(
+  A->blocks[rbi][bir][lib].val = (re_t*) realloc(
       A->blocks[rbi][bir][lib].val,
       2 * (*buffer_A) * sizeof(re_t));
 }
@@ -741,12 +743,12 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
             }
             if ((float)B->blocks[i][j][k].sz / (float)B->bwidth
                 < __GB_HYBRID_THRESHOLD) {
-              B->blocks[i][j][k].idx =  realloc(
+              B->blocks[i][j][k].idx =  (bi_t*) realloc(
                   B->blocks[i][j][k].idx,
                   B->blocks[i][j][k].sz * sizeof(bi_t));
-              B->blocks[i][j][k].val =  realloc(
+              B->blocks[i][j][k].val =  (re_t*) realloc(
                   B->blocks[i][j][k].val,
-                  2 * B->blocks[i][j][k].sz * sizeof(bi_t));
+                  2 * B->blocks[i][j][k].sz * sizeof(re_t));
               continue;
             }
             re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));
@@ -785,10 +787,10 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
           for (k=0; k<ml_bheight; ++k) {
             if (B->blocks[i][j][k].sz > 0) {
               ctr = 1;
-              B->blocks[i][j][k].idx = realloc(
+              B->blocks[i][j][k].idx = (bi_t*) realloc(
                   B->blocks[i][j][k].idx,
                   B->blocks[i][j][k].sz * sizeof(bi_t));
-              B->blocks[i][j][k].val = realloc(
+              B->blocks[i][j][k].val = (re_t*) realloc(
                   B->blocks[i][j][k].val,
                   2 * B->blocks[i][j][k].sz  * sizeof(re_t));
             }
@@ -804,3 +806,6 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
   }
   return B;
 }
+
+/* vim:sts=2:sw=2:ts=2:
+ */

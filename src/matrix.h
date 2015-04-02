@@ -30,7 +30,9 @@
 #include <math.h>
 #include <omp.h>
 #include <types.h>
+#if GBLA_WITH_FFLAS
 #include "../draft/matrix.h"
+#endif
 
 /**
  * \brief Sparse matrix structure for reading jcf matrices
@@ -172,6 +174,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     sm_fl_ml_t **input_ml, ri_t rank_input_ml, sm_t **output,
     int deleteIn, int nthrds);
 
+#if GBLA_WITH_FFLAS
 /**
  * \brief Copies data from block matrix into DNS matrix format.
  *
@@ -180,6 +183,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
  * \param pointer to DNS matrix destination
  */
 void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination);
+#endif
 
 /**
  * \brief Copies data from block matrix in to multiline matrix out. If deleteIn
@@ -216,3 +220,6 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
 sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
     ri_t bheight, ci_t bwidth, int free_memory, int nthrds);
 #endif
+
+/* vim:sts=2:sw=2:ts=2:
+ */

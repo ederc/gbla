@@ -96,7 +96,7 @@ re_l_t *dense_block[B->bheight] __attribute__((aligned(0x1000)));
 //re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
 uint64_t size = B->bwidth * sizeof(re_l_t);
 for (i=0; i<B->bheight; ++i) {
-  posix_memalign((void **)&dense_block[i], 16, size);
+  posix_memalign((void **)&dense_block[i], ALIGNT, size);
 }
 for (j=0; j<nbrows_A; ++j) {
   const ri_t first_block_idx  = 0;
@@ -219,7 +219,7 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
   //re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
   uint64_t size = B->bwidth * sizeof(re_l_t);
   for (i=0; i<B->bheight; ++i) {
-    posix_memalign((void **)&dense_block[i], 16, size);
+    posix_memalign((void **)&dense_block[i], ALIGNT, size);
   }
 
   const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
@@ -329,7 +329,7 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
   //re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
   uint64_t size = D->bwidth * sizeof(re_l_t);
   for (i=0; i<D->bheight; ++i) {
-    posix_memalign((void **)&dense_block[i], 16, size);
+    posix_memalign((void **)&dense_block[i], ALIGNT, size);
   }
 
   // take maximum number and check if blocks are NULL in loop
@@ -456,7 +456,7 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
   //re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *));
   uint64_t size = D->bwidth * sizeof(re_l_t);
   for (i=0; i<D->bheight; ++i) {
-    posix_memalign((void **)&dense_block[i], 16, size);
+    posix_memalign((void **)&dense_block[i], ALIGNT, size);
   }
 
   uint32_t lci; // local column index
@@ -526,8 +526,8 @@ for (i=0; i<bheight/2; ++i) {
   else
     last_idx  = block_A[i].sz-2;
 
-  register uint32_t Av1_col1, Av2_col1;
-  register uint32_t Av1_col2, Av2_col2;
+  register re_m_t Av1_col1, Av2_col1;
+  register re_m_t Av1_col2, Av2_col2;
   bi_t Ap1, Ap2;
 
 #if DDDEBUG
@@ -540,9 +540,9 @@ for (i=0; i<bheight/2; ++i) {
 
     if (inv_scalars == 1) {
       if (Av1_col1 != 0)
-        Av1_col1  = (uint32_t)modulus - Av1_col1;
+        Av1_col1  = (re_m_t)modulus - Av1_col1;
       if (Av2_col1 != 0)
-        Av2_col1  = (uint32_t)modulus - Av2_col1;
+        Av2_col1  = (re_m_t)modulus - Av2_col1;
     }
 
     if ((Ap1 % 2) == 0 && (j < last_idx-1)) {
@@ -553,9 +553,9 @@ for (i=0; i<bheight/2; ++i) {
 
         if (inv_scalars == 1) {
           if (Av1_col2 != 0)
-            Av1_col2  = (uint32_t)modulus - Av1_col2;
+            Av1_col2  = (re_m_t)modulus - Av1_col2;
           if (Av2_col2 != 0)
-            Av2_col2  = (uint32_t)modulus - Av2_col2;
+            Av2_col2  = (re_m_t)modulus - Av2_col2;
         }
         ++j;
 
@@ -590,13 +590,13 @@ for (i=0; i<bheight/2; ++i) {
     if(Av1_col1 != 0) {
       if (inv_scalars == 1)
         if (Av1_col1 != 0)
-          Av1_col1  = (uint32_t)modulus - Av1_col1;
+          Av1_col1  = (re_m_t)modulus - Av1_col1;
 
       const bi_t offset1  = 2*i+1;
       const bi_t offset2  = 2*i;
 
       for (k=0; k<bheight; ++k)
-        dense_block[offset1][k] +=  (uint32_t) Av1_col1 * dense_block[offset2][k];
+        dense_block[offset1][k] +=  (re_m_t) Av1_col1 * dense_block[offset2][k];
     }
   }
 
@@ -627,26 +627,26 @@ for (i=0; i<bheight/2; ++i) {
     */
     //printf("%d // %d // %d\n",i,j, N);
     const bi_t Ap1  = is_sparse == 1 ? block_A[i].idx[j] : j;
-    register uint32_t Av1_col1  = block_A[i].val[2*j];
-    register uint32_t Av2_col1  = block_A[i].val[2*j+1];
+    register re_m_t Av1_col1  = block_A[i].val[2*j];
+    register re_m_t Av2_col1  = block_A[i].val[2*j+1];
 
     if (inv_scalars == 1) {
       if (Av1_col1 != 0)
-        Av1_col1  = (uint32_t)modulus - Av1_col1;
+        Av1_col1  = (re_m_t)modulus - Av1_col1;
       if (Av2_col1 != 0)
-        Av2_col1  = (uint32_t)modulus - Av2_col1;
+        Av2_col1  = (re_m_t)modulus - Av2_col1;
     }
     if (((Ap1 % 2) == 0) && (j < (uint32_t)(N - 1))) {
       const bi_t Ap2  = (is_sparse == 1 ? block_A[i].idx[j+1] : j+1);
       if (Ap2 == Ap1+1) { // AXPY two rows
-        register uint32_t Av1_col2  = block_A[i].val[2*(j+1)];
-        register uint32_t Av2_col2  = block_A[i].val[2*(j+1)+1];
+        register re_m_t Av1_col2  = block_A[i].val[2*(j+1)];
+        register re_m_t Av2_col2  = block_A[i].val[2*(j+1)+1];
 
         if (inv_scalars == 1) {
           if (Av1_col2 != 0)
-            Av1_col2  = (uint32_t)modulus - Av1_col2;
+            Av1_col2  = (re_m_t)modulus - Av1_col2;
           if (Av2_col2 != 0)
-            Av2_col2  = (uint32_t)modulus - Av2_col2;
+            Av2_col2  = (re_m_t)modulus - Av2_col2;
         }
         ++j;
         if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
@@ -731,17 +731,17 @@ for (i=0; i<bheight/2; ++i) {
     sparse_block[i].dense = 0;
     for (j=0; j<bwidth; ++j) {
       if (dense_block[2*i][j] != 0) {
-        dense_block[2*i][j] = (re_l_t)(dense_block[2*i][j] % modulus);
+        dense_block[2*i][j] = (re_l_t)(MODP(dense_block[2*i][j], modulus));
       }
       if (dense_block[2*i+1][j] != 0) {
-        dense_block[2*i+1][j] = (re_l_t)(dense_block[2*i+1][j] % modulus);
+        dense_block[2*i+1][j] = (re_l_t)(MODP(dense_block[2*i+1][j] , modulus));
       }
       if (dense_block[2*i][j] != 0 || dense_block[2*i+1][j] != 0) {
         if (ctr >= buffer) {
           // if this happens just allocate memory for full block multiline row
-          sparse_block[i].idx = realloc(
+          sparse_block[i].idx = (bi_t*) realloc(
               sparse_block[i].idx, bwidth * sizeof(bi_t));
-          sparse_block[i].val = realloc(
+          sparse_block[i].val = (re_t*) realloc(
               sparse_block[i].val, 2 * bwidth * sizeof(re_t));
           buffer  = bwidth;
         }
@@ -758,10 +758,10 @@ for (i=0; i<bheight/2; ++i) {
     if ((float)sparse_block[i].sz / (float)bwidth < __GB_HYBRID_THRESHOLD) {
       // realloc memory, cut it down as much as possible
       if (sparse_block[i].sz>0) {
-        sparse_block[i].idx = realloc(
+        sparse_block[i].idx = (bi_t*) realloc(
             sparse_block[i].idx,
             sparse_block[i].sz * sizeof(bi_t));
-        sparse_block[i].val = realloc(
+        sparse_block[i].val = (re_t*) realloc(
             sparse_block[i].val,
             2 * sparse_block[i].sz  * sizeof(re_t));
       } else {
@@ -810,8 +810,9 @@ if (rows_empty == bheight/2) {
 }
 
 
+#if GBLA_WITH_FFLAS
 ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
-  
+
   // generate DNS matrix D out of D_old
   SAFE_MALLOC_DECL(D, 1, DNS);
   initDenseUnit(D);
@@ -826,7 +827,7 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
   // row reduce D with FFLAS-FFPACK
   ri_t rank;
 #if GBLA_WITH_FFLAS
-  rank  = Mjoin(RowReduce,elemt_t)(D->mod,D->ptr,D->row,D->col,D->ld, nthrds); 
+  rank  = Mjoin(RowReduce,elemt_t)(D->mod,D->ptr,D->row,D->col,D->ld, nthrds);
 #endif
   /*
   size_t i, j, k;
@@ -845,147 +846,148 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
 
   return rank;
 }
+#endif
 
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
 
-  ri_t i;
-  ci_t rc;
+	ri_t i;
+	ci_t rc;
 
-  // row indices for subdividing echelonization parts in D_red
-  global_next_row_to_reduce  = nthrds * 2;
-  global_last_piv            = global_next_row_to_reduce - 1;
+	// row indices for subdividing echelonization parts in D_red
+	global_next_row_to_reduce  = nthrds * 2;
+	global_last_piv            = global_next_row_to_reduce - 1;
 
-  // meta data for the computation of the rank of D_red at the end
-  int head_line_1       = -1;
-  int head_line_2       = -1;
-  ci_t head_line_1_idx  = 0;
-  ci_t head_line_2_idx  = 0;
-  const ci_t coldim     = D->ncols;
-  ri_t wl_dim; // waiting list dimension
-  re_t h_a1;
+	// meta data for the computation of the rank of D_red at the end
+	int head_line_1       = -1;
+	int head_line_2       = -1;
+	ci_t head_line_1_idx  = 0;
+	ci_t head_line_2_idx  = 0;
+	const ci_t coldim     = D->ncols;
+	ri_t wl_dim; // waiting list dimension
+	re_t h_a1;
 
-  wl_dim  = (D->nrows/__GB_NROWS_MULTILINE);
-  if (D->nrows%__GB_NROWS_MULTILINE)
-    wl_dim++;
+	wl_dim  = (D->nrows/__GB_NROWS_MULTILINE);
+	if (D->nrows%__GB_NROWS_MULTILINE)
+		wl_dim++;
 
-  // global waiting list
-  waiting_global.list = (wle_t *)malloc(wl_dim * sizeof(wle_t));
-  waiting_global.sidx = 0;
-  waiting_global.slp  = 0;
-  waiting_global.sz   = 0;
+	// global waiting list
+	waiting_global.list = (wle_t *)malloc(wl_dim * sizeof(wle_t));
+	waiting_global.sidx = 0;
+	waiting_global.slp  = 0;
+	waiting_global.sz   = 0;
 
-  // copy D to D_red and delete D
-  D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
+	// copy D to D_red and delete D
+	D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
 #if DDEBUG_DD
-  printf("BEFORE\n");
-  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
-  int ii,jj,kk,ll;
-  for (ii=0; ii<rlD; ++ii) {
-    printf("%d .. \n",ii);
-    //printf("size %d\n", D_red->ml[ii].sz);
-    if (D_red->ml[ii].sz>0) {
-      for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-        if (D_red->ml[ii].idx != NULL)
-          printf("%d -- ", D_red->ml[ii].idx[ll]);
-        else
-          printf("%d -- ", ll);
-        printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
-      }
-      printf("\n");
-    } else {
-      printf("ml %d is zero! %p\n", ii, D_red->ml[ii]);
-    }
-  }
+	printf("BEFORE\n");
+	const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
+	int ii,jj,kk,ll;
+	for (ii=0; ii<rlD; ++ii) {
+		printf("%d .. \n",ii);
+		//printf("size %d\n", D_red->ml[ii].sz);
+		if (D_red->ml[ii].sz>0) {
+			for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
+				if (D_red->ml[ii].idx != NULL)
+					printf("%d -- ", D_red->ml[ii].idx[ll]);
+				else
+					printf("%d -- ", ll);
+				printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
+			}
+			printf("\n");
+		} else {
+			printf("ml %d is zero! %p\n", ii, D_red->ml[ii]);
+		}
+	}
 #endif
-  echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
+	echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
 #if DDEBUG_DD
-  printf("AFTER\n");
-  for (int ii=0; ii<rlD; ++ii) {
-    printf("%d .. \n",ii);
-    printf("size %d\n", D_red->ml[ii].sz);
-    if (D_red->ml[ii].sz>0) {
-      for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-        /*
-           if (D_red->ml[ii].idx != NULL)
-           printf("%d -- ", D_red->ml[ii].idx[ll]);
-           else
-           printf("%d -- ", ll);
-           */
-        printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
-      }
-    } else {
-    }
-    printf("\n");
-  }
+	printf("AFTER\n");
+	for (int ii=0; ii<rlD; ++ii) {
+		printf("%d .. \n",ii);
+		printf("size %d\n", D_red->ml[ii].sz);
+		if (D_red->ml[ii].sz>0) {
+			for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
+				/*
+					 if (D_red->ml[ii].idx != NULL)
+					 printf("%d -- ", D_red->ml[ii].idx[ll]);
+					 else
+					 printf("%d -- ", ll);
+					 */
+				printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
+			}
+		} else {
+		}
+		printf("\n");
+	}
 #endif
 
-  const ri_t ml_nrows_D_red = (D_red->nrows % __GB_NROWS_MULTILINE == 0) ?
-    D_red->nrows / __GB_NROWS_MULTILINE :
-    D_red->nrows / __GB_NROWS_MULTILINE + 1;
+	const ri_t ml_nrows_D_red = (D_red->nrows % __GB_NROWS_MULTILINE == 0) ?
+		D_red->nrows / __GB_NROWS_MULTILINE :
+		D_red->nrows / __GB_NROWS_MULTILINE + 1;
 
-  // define lock
-  //omp_lock_t echelonize_lock;
-  omp_init_lock(&echelonize_lock);
+	// define lock
+	//omp_lock_t echelonize_lock;
+	omp_init_lock(&echelonize_lock);
 
-  // if there are rows left do elimination in parallel
-  if (ml_nrows_D_red >= global_next_row_to_reduce) {
-    // TODO: parallel elimination with OpenMP
+	// if there are rows left do elimination in parallel
+	if (ml_nrows_D_red >= global_next_row_to_reduce) {
+		// TODO: parallel elimination with OpenMP
 #pragma omp parallel shared(D_red, waiting_global, global_next_row_to_reduce, global_last_piv) num_threads(nthrds)
-    {
+		{
 #pragma omp for nowait
-      for (i=0; i<nthrds; ++i) {
-        rc  = echelonize_rows_task(D_red, ml_nrows_D_red,
-            //global_next_row_to_reduce, global_last_piv,
-            //&waiting_global,
-            modulus
-            //, echelonize_lock
-            );
-      }
-    }
-  }
-  omp_destroy_lock(&echelonize_lock);
+			for (i=0; i<nthrds; ++i) {
+				rc  = echelonize_rows_task(D_red, ml_nrows_D_red,
+						//global_next_row_to_reduce, global_last_piv,
+						//&waiting_global,
+						modulus
+						//, echelonize_lock
+						);
+			}
+		}
+	}
+	omp_destroy_lock(&echelonize_lock);
 
-  ri_t rank = 0;
+	ri_t rank = 0;
 
-  for (i=0; i<ml_nrows_D_red; ++i) {
-    if (D_red->ml[i].sz == 0) {
-      continue;
-    }
+	for (i=0; i<ml_nrows_D_red; ++i) {
+		if (D_red->ml[i].sz == 0) {
+			continue;
+		}
 
 
-    head_line_1 = get_head_multiline_hybrid(&(D_red->ml[i]), 0,
-        &h_a1, &head_line_1_idx, coldim);
-    head_line_2 = get_head_multiline_hybrid(&(D_red->ml[i]), 1,
-        &h_a1, &head_line_2_idx, coldim);
+		head_line_1 = get_head_multiline_hybrid(&(D_red->ml[i]), 0,
+				&h_a1, &head_line_1_idx, coldim);
+		head_line_2 = get_head_multiline_hybrid(&(D_red->ml[i]), 1,
+				&h_a1, &head_line_2_idx, coldim);
 
-    if (head_line_1 != -1)
-      rank++;
-    if (head_line_2 != -1)
-      rank++;
-  }
+		if (head_line_1 != -1)
+			rank++;
+		if (head_line_2 != -1)
+			rank++;
+	}
 #if DDEBUG_DONE
-  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
-  int ii,jj,kk,ll;
-  printf("AFTER ALL\n");
-  for (ii=0; ii<rlD; ++ii) {
-    printf("%d .. \n",ii);
-    printf("size %d\n", D_red->ml[ii].sz * 2);
-    if (D_red->ml[ii].sz>0) {
-      for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-        /*
-           if (D_red->ml[ii].idx != NULL)
-           printf("%d -- ", D_red->ml[ii].idx[ll]);
-           else
-           printf("%d -- ", ll);
-           */
-        printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
-      }
-      printf("\n");
-    }
-  }
+	const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
+	int ii,jj,kk,ll;
+	printf("AFTER ALL\n");
+	for (ii=0; ii<rlD; ++ii) {
+		printf("%d .. \n",ii);
+		printf("size %d\n", D_red->ml[ii].sz * 2);
+		if (D_red->ml[ii].sz>0) {
+			for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
+				/*
+					 if (D_red->ml[ii].idx != NULL)
+					 printf("%d -- ", D_red->ml[ii].idx[ll]);
+					 else
+					 printf("%d -- ", ll);
+					 */
+				printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
+			}
+			printf("\n");
+		}
+	}
 #endif
 
-  return rank;
+	return rank;
 }
 
 ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
@@ -1001,8 +1003,8 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
   ml_t *ml_row;
   re_l_t *dense_array_1, *dense_array_2;
-  posix_memalign((void **)&dense_array_1, 16, coldim * sizeof(re_l_t));
-  posix_memalign((void **)&dense_array_2, 16, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
 
   ri_t i;
   ci_t j, k;
@@ -1012,7 +1014,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
   ci_t head_line_2_idx  = 0;
 
   re_t intermediate_val;
-  uint32_t tmp_val;
+  re_m_t tmp_val;
 
   normalize_multiline(&A->ml[from], coldim, modulus);
 
@@ -1033,7 +1035,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       re_t h_a1 = 1, h_a2 = 1;
 
       re_t v1_col1 = 0, v2_col1 = 0, v1_col2 = 0, v2_col2 = 0;
-      ri_t tmp  = 0;
+			/* ri_t tmp  = 0; */
 
       for (j=from; j<i; ++j) {
         ml_row  = &(A->ml[j]);
@@ -1046,8 +1048,8 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
             &h_a2, &head_line_2_idx, coldim);
 
         if (head_line_1 != -1) {
-          v1_col1 = dense_array_1[head_line_1] % modulus;
-          v2_col1 = dense_array_2[head_line_1] % modulus;
+          v1_col1 = MODP(dense_array_1[head_line_1] , modulus);
+          v2_col1 = MODP(dense_array_2[head_line_1] , modulus);
 
           if (v1_col1 != 0)
             v1_col1 = modulus - v1_col1;
@@ -1062,14 +1064,14 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
         printf("v21 %d\n",v2_col1);
 #endif
         if (head_line_2 != -1) {
-          v1_col2 = dense_array_1[head_line_2] % modulus;
-          v2_col2 = dense_array_2[head_line_2] % modulus;
+          v1_col2 = MODP(dense_array_1[head_line_2] , modulus);
+          v2_col2 = MODP(dense_array_2[head_line_2] , modulus);
 
           intermediate_val  = ml_row->val[2*head_line_2_idx];
-          tmp_val = v1_col2 + (uint32_t)v1_col1 * intermediate_val;
-          v1_col2 = tmp_val % modulus;
-          tmp_val = v2_col2 + (uint32_t)v2_col1 * intermediate_val;
-          v2_col2 = tmp_val % modulus;
+          tmp_val = v1_col2 + (re_m_t)v1_col1 * intermediate_val;
+          v1_col2 = MODP(tmp_val , modulus);
+          tmp_val = v2_col2 + (re_m_t)v2_col1 * intermediate_val;
+          v2_col2 = MODP(tmp_val , modulus);
 
           if (v1_col2 != 0)
             v1_col2 = modulus - v1_col2;
@@ -1122,12 +1124,12 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 #endif
       // reduce by same multiline
       if (head_line_1 >= head_line_2 && head_line_1 != -1 && head_line_2 != -1) {
-        dense_array_2[head_line_1] %= modulus;
+	dense_array_2[head_line_1] =MODP(dense_array_2[head_line_1], modulus);
         if (dense_array_2[head_line_1] != 0) {
-          register uint32_t h = modulus - dense_array_2[head_line_1];
-          register uint32_t v__;
+          register re_m_t h = modulus - dense_array_2[head_line_1];
+          register re_m_t v__;
           for (k=head_line_1; k<coldim; ++k) {
-            v__               =   dense_array_1[k] & 0x000000000000ffff;
+            v__               =   CAST(dense_array_1[k]);
             dense_array_2[k]  +=  h * v__;
           }
         }
@@ -1140,7 +1142,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       if (A->ml[i].dense == 0) {
         free (A->ml[i].idx);
         A->ml[i].idx  = NULL;
-        A->ml[i].val  = realloc(A->ml[i].val, 2 * coldim * sizeof(re_t));
+        A->ml[i].val  = (re_t *)realloc(A->ml[i].val, 2 * coldim * sizeof(re_t));
         A->ml[i].sz   = coldim;
       }
       memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
@@ -1232,9 +1234,11 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
   ri_t wl_lp   = 0;
 
   re_l_t *dense_array_1, *dense_array_2;
-  posix_memalign((void **)&dense_array_1, 16, coldim * sizeof(re_l_t));
-  posix_memalign((void **)&dense_array_2, 16, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
+#if DEBUG_ECHELONIZE
   int tid = omp_get_thread_num();
+#endif
 
   // do the computations
   while (1) {
@@ -1379,7 +1383,7 @@ void echelonize_one_row(sm_fl_ml_t *A,
   ci_t head_line_2_idx  = 0;
 
   re_t intermediate_val;
-  uint32_t tmp_val;
+  re_m_t tmp_val;
   const ci_t coldim = A->ncols;
 
   ml_t *ml_row;
@@ -1387,7 +1391,7 @@ void echelonize_one_row(sm_fl_ml_t *A,
   re_t h_a1 = 1, h_a2 = 1;
 
   re_t v1_col1 = 0, v2_col1 = 0, v1_col2 = 0, v2_col2 = 0;
-  ri_t tmp  = 0;
+	/* ri_t tmp  = 0; */
 
 #if DEBUG_ECHELONIZE
   printf("fp %d -- lp %d\n",first_piv, last_piv);
@@ -1424,11 +1428,11 @@ void echelonize_one_row(sm_fl_ml_t *A,
 #if DDEBUG_D_ONE
       printf("d11 %lu (%p)\n",dense_array_1[head_line_1],dense_array_1[head_line_1]);
       printf("d21 %lu\n",dense_array_2[head_line_1]);
-      printf("d11 %lu\n",dense_array_1[head_line_1] % modulus);
-      printf("d21 %lu\n",dense_array_2[head_line_1] % modulus);
+      printf("d11 %lu\n",MODP(dense_array_1[head_line_1], modulus));
+      printf("d21 %lu\n",MODP(dense_array_2[head_line_1], modulus));
 #endif
-      v1_col1 = dense_array_1[head_line_1] % modulus;
-      v2_col1 = dense_array_2[head_line_1] % modulus;
+      v1_col1 = MODP(dense_array_1[head_line_1], modulus);
+      v2_col1 = MODP(dense_array_2[head_line_1], modulus);
 #if DDEBUG_D_ONE
       printf("v11 %d\n",v1_col1);
       printf("v21 %d\n",v2_col1);
@@ -1452,18 +1456,18 @@ void echelonize_one_row(sm_fl_ml_t *A,
 #endif
     //printf("hl2 %d => %d ?\n",head_line_2,head_line_2 != -1);
     if (head_line_2 != -1) {
-      v1_col2 = dense_array_1[head_line_2] % modulus;
-      v2_col2 = dense_array_2[head_line_2] % modulus;
+      v1_col2 = MODP(dense_array_1[head_line_2], modulus);
+      v2_col2 = MODP(dense_array_2[head_line_2], modulus);
 #if DDEBUG_D_ONE
       printf("v12 %d\n",v1_col2);
       printf("v22 %d\n",v2_col2);
 #endif
 
       intermediate_val  = ml_row->val[2*head_line_2_idx];
-      tmp_val = v1_col2 + (uint32_t)v1_col1 * intermediate_val;
-      v1_col2 = tmp_val % modulus;
-      tmp_val = v2_col2 + (uint32_t)v2_col1 * intermediate_val;
-      v2_col2 = tmp_val % modulus;
+      tmp_val = v1_col2 + (re_m_t)v1_col1 * intermediate_val;
+      v1_col2 = MODP(tmp_val, modulus);
+      tmp_val = v2_col2 + (re_m_t)v2_col1 * intermediate_val;
+      v2_col2 = MODP(tmp_val, modulus);
 #if DDEBUG_D_ONE
       printf("v12 %d\n",v1_col2);
       printf("v22 %d\n",v2_col2);
@@ -1523,7 +1527,7 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
   if (reduce == 1) {
     int head_line_1 = -1;
     int head_line_2 = -1;
-    re_t h_a1 = 1, h_a2 = 1;
+    re_t /* h_a1 = 1, */ h_a2 = 1;
     ci_t k;
 #if DDEBUG_D
     for (int kk = 0; kk< coldim/2; ++kk) {
@@ -1546,12 +1550,12 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 #endif
     // reduce by same multiline
     if (head_line_1 >= head_line_2 && head_line_1 != -1 && head_line_2 != -1) {
-      dense_array_2[head_line_1] %= modulus;
+      dense_array_2[head_line_1] = MODP(dense_array_2[head_line_1], modulus);
       if (dense_array_2[head_line_1] != 0) {
-        register uint32_t h = modulus - dense_array_2[head_line_1];
-        register uint32_t v__;
+        register re_m_t h = modulus - dense_array_2[head_line_1];
+        register re_m_t v__;
         for (k=head_line_1; k<coldim; ++k) {
-          v__               =   dense_array_1[k] & 0x000000000000ffff;
+          v__               =   CAST(dense_array_1[k]);
           dense_array_2[k]  +=  h * v__;
         }
       }
@@ -1618,8 +1622,8 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
  *****************************************************************************/
 
 int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
-  ci_t i;
-  ri_t j, k, rc;
+  ri_t i;
+	ri_t /* j, k, */ rc;
 
   const ri_t rlC  = (ri_t) ceil((float) C->nrows / __GB_NROWS_MULTILINE);
 #pragma omp parallel num_threads(nthrds)
@@ -1651,15 +1655,15 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   else
     start_idx = 0;
 
-  uint32_t Cv1_col1, Cv2_col1;
-  uint32_t Cv1_col2, Cv2_col2;
+  re_m_t Cv1_col1, Cv2_col1;
+  re_m_t Cv1_col2, Cv2_col2;
   uint32_t Cp1, Cp2;
-  uint32_t tmp  = 0;
+  re_m_t tmp  = 0;
   ri_t row_in_A_mod, row_in_A;
 
   re_l_t *dense_array_C_1, *dense_array_C_2;
-  posix_memalign((void **)&dense_array_C_1, 16, coldim * sizeof(re_l_t));
-  posix_memalign((void **)&dense_array_C_2, 16, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_C_1, ALIGNT, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_C_2, ALIGNT, coldim * sizeof(re_l_t));
 
   memset(dense_array_C_1, 0, coldim * sizeof(re_l_t));
   memset(dense_array_C_2, 0, coldim * sizeof(re_l_t));
@@ -1669,36 +1673,36 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
   for (i=start_idx; i<coldim; ++i) {
     Cp1 = i;
-    Cv1_col1  = dense_array_C_1[i] % modulus;
-    Cv2_col1  = dense_array_C_2[i] % modulus;
+    Cv1_col1  = MODP(dense_array_C_1[i], modulus);
+    Cv2_col1  = MODP(dense_array_C_2[i], modulus);
 
     if (Cv1_col1 == 0 && Cv2_col1 == 0)
       continue;
 
     if (Cv1_col1 != 0)
-      Cv1_col1  = (uint32_t)modulus - Cv1_col1;
+      Cv1_col1  = (re_m_t)modulus - Cv1_col1;
     if (Cv2_col1 != 0)
-      Cv2_col1  = (uint32_t)modulus - Cv2_col1;
+      Cv2_col1  = (re_m_t)modulus - Cv2_col1;
 
     row_in_A      = (A->nrows - 1 - Cp1) / __GB_NROWS_MULTILINE;
     row_in_A_mod  = (A->nrows - 1 - Cp1) % __GB_NROWS_MULTILINE;
 
     if (row_in_A_mod == 1) {
       Cp2 = i+1;
-      Cv1_col2  = dense_array_C_1[i+1] % modulus;
-      Cv2_col2  = dense_array_C_2[i+1] % modulus;
+      Cv1_col2  = MODP(dense_array_C_1[i+1] , modulus);
+      Cv2_col2  = MODP(dense_array_C_2[i+1] , modulus);
 
       register re_t v__ = A->ml[row_in_A].val[2*1+1];
 
-      tmp = Cv1_col2 + (uint32_t)Cv1_col1 * v__;
-      Cv1_col2 = tmp % modulus;
-      tmp = Cv2_col2 + (uint32_t)Cv2_col1 * v__;
-      Cv2_col2 = tmp % modulus;
+      tmp = Cv1_col2 + (re_m_t)Cv1_col1 * v__;
+      Cv1_col2 = MODP(tmp , modulus);
+      tmp = Cv2_col2 + (re_m_t)Cv2_col1 * v__;
+      Cv2_col2 = MODP(tmp , modulus);
 
       if (Cv1_col2 != 0)
-        Cv1_col2  = (uint32_t)modulus - Cv1_col2;
+        Cv1_col2  = (re_m_t)modulus - Cv1_col2;
       if (Cv2_col2 != 0)
-        Cv2_col2  = (uint32_t)modulus - Cv2_col2;
+        Cv2_col2  = (re_m_t)modulus - Cv2_col2;
 
       sparse_scal_mul_sub_2_rows_vect_array_multiline(
           Cv1_col2, Cv2_col2,
@@ -1735,7 +1739,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   ml->idx   = NULL;
   ml->dense = 1;
   ml->sz    = coldim;
-  ml->val   = realloc(ml->val, 2 * coldim * sizeof(re_t));
+  ml->val   = (re_t *)realloc(ml->val, 2 * coldim * sizeof(re_t));
   memset(ml->val, 0, 2 * coldim * sizeof(re_t));
 
   copy_dense_arrays_to_zero_dense_multiline(
@@ -1750,3 +1754,6 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
   return 0;
 }
+
+/* vim:sts=2:sw=2:ts=2:
+ */

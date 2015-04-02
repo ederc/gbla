@@ -135,13 +135,15 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		fl += sizeof(elemt_m);
 	}
 	else {
-		if ((fread(&mod, sizeof(uint32_t), 1, fh) != 1) || (mod == 1)) {
+		mod_s mode ;
+		if ((fread(&mode, sizeof(mod_s), 1, fh) != 1) || (mode == 1)) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (modulo)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
-		fl += sizeof(uint32_t);
+		mod = (mod_t) mode ; /* this is wrong in general */
+		fl += sizeof(mod_s);
 	}
 	// get number of nonzero elements
 	if (fread(&nnz, sizeof(uint64_t), 1, fh) != 1) {
@@ -173,11 +175,11 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 #ifndef USE_SEEK
 		// maximal possible nonzero entries per row is n*sizeof(entry_t)
-		re_t *nze = (re_t *)malloc(nnz * sizeof(re_t));
+		re_s *nze = (re_s *)malloc(nnz * sizeof(re_s));
 		ci_t *pos = (ci_t *)malloc(nnz * sizeof(ci_t));
 		ci_t *sz  = (ci_t *)malloc(m   * sizeof(ci_t));
 
-		if (fread(nze, sizeof(re_t), nnz, fh) != nnz) {
+		if (fread(nze, sizeof(re_s), nnz, fh) != nnz) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (data)\n",fn);
 			free(M); /* XXX and many others */
@@ -224,7 +226,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 #else /* USE SEEK */
 
-		re_t *nze = (re_t *)malloc(n * sizeof(re_t));
+		re_s *nze = (re_s *)malloc(n * sizeof(re_s));
 		ci_t *pos = (ci_t *)malloc(n * sizeof(ci_t));
 
 
@@ -233,9 +235,9 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		uint32_t hs  = 3 * sizeof(uint32_t) + sizeof(uint64_t);
 
 		// offsets for file handling
-		uint64_t row_size_offset  = nnz * sizeof(re_t) + nnz * sizeof(uint32_t) + hs;
+		uint64_t row_size_offset  = nnz * sizeof(re_s) + nnz * sizeof(uint32_t) + hs;
 		uint64_t row_val_offset   = hs;
-		uint64_t row_pos_offset   = nnz * sizeof(re_t) + hs;
+		uint64_t row_pos_offset   = nnz * sizeof(re_s) + hs;
 
 		ri_t i;
 		ci_t j;
@@ -254,7 +256,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			row_size_offset +=  sizeof(ci_t);
 
 			fseek(fh, row_val_offset, SEEK_SET);
-			if (fread(nze, sizeof(re_t), sz, fh) != sz) {
+			if (fread(nze, sizeof(re_s), sz, fh) != sz) {
 				if (verbose > 0)
 					printf("Error while reading file '%s' (data)\n",fn);
 				free(M);
@@ -262,7 +264,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 				return NULL;
 			}
 
-			row_val_offset +=  sz * sizeof(re_t);
+			row_val_offset +=  sz * sizeof(re_s);
 
 			fseek(fh, row_pos_offset, SEEK_SET);
 			if (fread(pos, sizeof(ci_t), sz, fh) != sz) {
@@ -292,8 +294,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	}
 	else { /* new_format == 1 */
 
-		if ((sizeof(ci_t) != sizeof(uint32_t)) ||  ((ci_t)-1 < 0))
-			exit(-1);
+		/* if ((sizeof(ci_t) != sizeof(uint32_t)) ||  ((ci_t)-1 < 0)) exit(-1); */
 
 		dimen_t *row = (dimen_t *)malloc((m) * sizeof(dimen_t));
 		if (fread(row, sizeof(dimen_t), m , fh) != m) {
@@ -369,16 +370,17 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		free(rp);
 
 
+		/* BUG re_s depends on flag in first word  */
 
-		re_t * vp = (re_t*)malloc((zp) * sizeof(re_t)) ;
-		if (fread(vp, sizeof(re_t), zp, fh) != zp) {
+		re_s * vp = (re_s*)malloc((zp) * sizeof(re_s)) ;
+		if (fread(vp, sizeof(re_s), zp, fh) != zp) {
 			if (verbose > 0)
 				printf("Error while reading file '%s' (pol data)\n",fn);
 			fclose(fh);
 			return NULL;
 		}
 
-		fl += sizeof(re_t)*(zp);
+		fl += sizeof(re_s)*(zp);
 
 		dimen_t * pos = (dimen_t*)malloc(nnz * sizeof(dimen_t));
 
@@ -391,7 +393,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		ci_t j;
 		nnz_t here = 0 ;
-		re_t *nze;
+		re_s *nze;
 		for (i = 0 ; i < m ; ++i) {
 			ci_t sz     = row[i];
 			M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
@@ -447,7 +449,7 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose) {
 
 	// magic PBM header
 #ifdef __LP64__ // 64bit machine
-	sprintf(buffer, "P4\n# matrix size(%lu, %lu)\n%lu %lu\n", m, n, n, m);
+	sprintf(buffer, "P4\n# matrix size(%u, %u)\n%u %u\n", m, n, n, m);
 #else // 32bit machine
 	sprintf(buffer, "P4\n# matrix size(%u, %u)\n%u %u\n", m, n, n, m);
 #endif
@@ -489,8 +491,8 @@ void print_mem_usage() {
 	// possibly x86-64 is configured to use 2MB pages
 	long    page_size_kb  = sysconf(_SC_PAGE_SIZE) / 1024;
 
-	unsigned long _vms;
-	long          _rss;
+	unsigned long _vms = 0;
+	long          _rss = 0;
 	// get memory usage from 'file' stat which is not perfect, but gives most
 	// reliable information.
 	// Note: This corresponds to Martani's memory usage printing in his LELA
@@ -500,37 +502,37 @@ void print_mem_usage() {
 	FILE *fh        = fopen(fn,"r");
 
 	// dummy vars for leading entries in /proc/self/stat we are not interested in
-	char *pid, *comm, *state, *ppid, *pgrp, *session, *tty_nr;
-	char *tpgid, *flags, *minflt, *cminflt, *majflt, *cmajflt;
-	char *utime, *stime, *cutime, *cstime, *priority, *nice;
-	char *nthrds, *itrealvalue, *starttime;
+	char *pid = "", *comm ="", *state ="", *ppid ="", *pgrp ="", *session ="", *tty_nr ="";
+	char *tpgid ="", *flags ="", *minflt ="", *cminflt ="", *majflt ="", *cmajflt ="";
+	char *utime ="", *stime ="", *cutime ="", *cstime ="", *priority ="", *nice ="";
+	char *nthrds ="", *itrealvalue ="", *starttime ="";
 
 	// dummy reading of useless information
-	fscanf(fh, "%s", &pid);
-	fscanf(fh, "%s", &comm);
-	fscanf(fh, "%s", &state);
-	fscanf(fh, "%s", &ppid);
-	fscanf(fh, "%s", &pgrp);
-	fscanf(fh, "%s", &session);
-	fscanf(fh, "%s", &tty_nr);
-	fscanf(fh, "%s", &tpgid);
-	fscanf(fh, "%s", &flags);
-	fscanf(fh, "%s", &minflt);
-	fscanf(fh, "%s", &cminflt);
-	fscanf(fh, "%s", &majflt);
-	fscanf(fh, "%s", &cmajflt);
-	fscanf(fh, "%s", &utime);
-	fscanf(fh, "%s", &stime);
-	fscanf(fh, "%s", &cutime);
-	fscanf(fh, "%s", &cstime);
-	fscanf(fh, "%s", &priority);
-	fscanf(fh, "%s", &nice);
-	fscanf(fh, "%s", &nthrds);
-	fscanf(fh, "%s", &itrealvalue);
-	fscanf(fh, "%s", &starttime);
+	fscanf(fh, "%s", pid);
+	fscanf(fh, "%s", comm);
+	fscanf(fh, "%s", state);
+	fscanf(fh, "%s", ppid);
+	fscanf(fh, "%s", pgrp);
+	fscanf(fh, "%s", session);
+	fscanf(fh, "%s", tty_nr);
+	fscanf(fh, "%s", tpgid);
+	fscanf(fh, "%s", flags);
+	fscanf(fh, "%s", minflt);
+	fscanf(fh, "%s", cminflt);
+	fscanf(fh, "%s", majflt);
+	fscanf(fh, "%s", cmajflt);
+	fscanf(fh, "%s", utime);
+	fscanf(fh, "%s", stime);
+	fscanf(fh, "%s", cutime);
+	fscanf(fh, "%s", cstime);
+	fscanf(fh, "%s", priority);
+	fscanf(fh, "%s", nice);
+	fscanf(fh, "%s", nthrds);
+	fscanf(fh, "%s", itrealvalue);
+	fscanf(fh, "%s", starttime);
 
 	// get real memory information
-	fscanf(fh, "%ul", &_vms);
+	fscanf(fh, "%lu", &_vms);
 	fscanf(fh, "%ld", &_rss);
 
 	// close file

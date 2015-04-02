@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
   int free_mem          = 1;
   int reduce_completely = 0;
   int verbose           = 0;
-  int method            = 0;
+	/* int method            = 0; */
   int nrows_multiline   = 1;
   int block_dimension   = 256;
   int write_pbm         = 0;
@@ -199,9 +199,9 @@ int main(int argc, char *argv[]) {
     printf("---------------------------------------------------------------------\n");
     printf("Data for %s\n", fn);
     printf("---------------------------------------------------------------------\n");
-    printf("modulus                     %14d\n", M->mod);
-    printf("number of rows              %14d\n", M->nrows);
-    printf("number of columns           %14d\n", M->ncols);
+    printf("modulus                     %14d\n", (uint32_t) M->mod);
+    printf("number of rows              %14d\n", (uint32_t)M->nrows);
+    printf("number of columns           %14d\n", (uint32_t)M->ncols);
     printf("number of nonzero elements  %14ld\n", M->nnz);
     printf("density                     %14.2f %%\n", M->density);
     printf("size                        %14.2f %s\n", M->fs, M->fsu);
@@ -461,11 +461,13 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf(">>>>\tSTART reducing D to upper triangular matrix ...\n");
   }
   ri_t rank_D;
+#if GBLA_WITH_FFLAS
   if (dense_reducer == 1)
     rank_D = elim_fl_D_fflas_ffpack(D, M->mod, nthreads);
   else
+#endif
     rank_D = elim_fl_D_block(D, D_red, M->mod, nthreads);
-  if (rank_D == -1) {
+  if (rank_D == (ri_t)-1) {
     printf("Error while reducing D to upper triangular matrix.\n");
     return 1;
   }
@@ -594,11 +596,11 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   }
   // construct splicing of matrix M into A, B, C and D
   sm_fl_ml_t *A   = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
-  sbm_fl_t *B     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
+  sbm_fl_t *B     = (sbm_fl_t   *)malloc(sizeof(sbm_fl_t));
   sm_fl_ml_t *C   = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
-  sbm_fl_t *D     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
-  map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
+  sbm_fl_t *D     = (sbm_fl_t   *)malloc(sizeof(sbm_fl_t));
+  map_fl_t *map   = (map_fl_t   *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
+  map_fl_t *map_D = (map_fl_t   *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
 
   splice_fl_matrix_ml_A_C(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
@@ -767,11 +769,13 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf(">>>>\tSTART reducing D to upper triangular matrix ...\n");
   }
   ri_t rank_D;
+#if GBLA_WITH_FFLAS
   if (dense_reducer == 1)
     rank_D = elim_fl_D_fflas_ffpack(D, M->mod, nthreads);
   else
+#endif
     rank_D = elim_fl_D_block(D, D_red, M->mod, nthreads);
-  if (rank_D == -1) {
+  if (rank_D == (ri_t)-1) {
     printf("Error while reducing D to upper triangular matrix.\n");
     return 1;
   }
@@ -797,6 +801,20 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
   reconstruct_matrix_ml(M, A, B, D_red, map, M->ncols, 1, 1, 0, 0, nthreads);
 
+	/* freeing memory */
+	ri_t	ii = 0 ;
+	for ( ; ii < M->nrows ; ++ii) {
+		if (M->rows[ii] != NULL)
+		free(M->rows[ii]);
+		if (M->pos[ii] != NULL)
+		free(M->pos[ii]);
+	}
+	/* free(M->rows); */
+	/* free(M->pos); */
+	/* free(M->rwidth); */
+	/* free(M); */
+
+
   if (verbose > 1) {
     printf("<<<<\tDONE  reconstructing output matrix.\n");
     printf("TIME\t%.3f sec\n",
@@ -811,3 +829,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   return 0;
 }
 
+
+/* vim:sts=2:sw=2:ts=2:
+ */

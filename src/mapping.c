@@ -24,7 +24,7 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
   // initialize all map entries to __GB_MINUS_ONE_8
   init_fl_map(M, map);
 
-  //ri_t max_length = M->ncols > M->nrows ? M->ncols : M->n 
+  //ri_t max_length = M->ncols > M->nrows ? M->ncols : M->n
   uint32_t npiv   = 0;  // number of pivots
   ri_t i = 0;         // current row index
   ri_t idx;          // possible pivot entry index
@@ -79,7 +79,7 @@ void construct_fl_map_reduced(map_fl_t *map, map_fl_t *map_D, ri_t rows_BD,
   map->npc      = map_D->npc;
   map->pc_rev   = map_D->pc_rev;
   map->npc_rev  = map_D->npc_rev;
-  
+
   // for the rows we have to take the values from map_D, but we have to adjust
   // them by rows_B down. So we have to create new mappings
   map->npri = (ri_t *)malloc((rows_BD) * sizeof(ri_t));
@@ -205,7 +205,8 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
 #endif
       outer_map->pri[rev_idx_A] = outer_map->npiv + inner_map->pri[i];
     }
-    return;
+		/* return; */
+    goto cleanup ;
   }
 
   // remap the pivot columns of D
@@ -237,6 +238,7 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
     outer_map->npc_rev[idx_B2]  = i;
   }
 
+cleanup:
   // free memory for inner map
   free(inner_map->pc);
   free(inner_map->npc);
@@ -259,11 +261,11 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
   //ci_t buffer = (ci_t) ceil((float)M->ncols / 10);
 
   if (free_matrices == 1) {
-    posix_memalign((void *)&vec_free_B2, 16, (B2->nrows / __GB_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_B2, ALIGNT, (B2->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_B2, 0, (B2->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    posix_memalign((void *)&vec_free_D2, 16, (D2->nrows / __GB_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_D2, ALIGNT, (D2->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D2, 0, (D2->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
@@ -488,11 +490,11 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   //ci_t buffer = (ci_t) ceil((float)M->ncols / 10);
 
   if (free_matrices == 1) {
-    posix_memalign((void *)&vec_free_AB, 16, (B->nrows / __GB_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_AB, 0, (B->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    posix_memalign((void *)&vec_free_D, 16, (D->nrows / __GB_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D, 0, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
@@ -675,11 +677,11 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   //ci_t buffer = (ci_t) ceil((float)M->ncols / 10);
 
   if (free_matrices == 1) {
-    posix_memalign((void *)&vec_free_AB, 16, (B->nrows / __GB_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_AB, 0, (B->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    posix_memalign((void *)&vec_free_D, 16, (D->nrows / __GB_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D, 0, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
@@ -696,7 +698,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   }
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
-  
+
   M->nnz  = 0;
 
 #pragma omp parallel num_threads(1)
@@ -836,9 +838,9 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
       }
       // adjust memory, rows in M are done
       //printf("final row width: %d for %d\n",row_M_width, local_piv);
-      M->rows[local_piv]  = realloc(M->rows[local_piv],
+      M->rows[local_piv]  = (re_t*) realloc(M->rows[local_piv],
           M->rwidth[local_piv] * sizeof(re_t));
-      M->pos[local_piv]   = realloc(M->pos[local_piv],
+      M->pos[local_piv]   = (ci_t*) realloc(M->pos[local_piv],
           M->rwidth[local_piv] * sizeof(ci_t));
       M->nnz  = M->nnz + M->rwidth[local_piv];
       // next pivot row
@@ -878,7 +880,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   map = NULL;
 }
 
-void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t *B2, 
+void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t *B2,
     sbm_fl_t *D1, sbm_fl_t *D2, map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
     int block_dim, int rows_multiline, int nthrds, int destruct_input_matrix,
     int verbose) {
@@ -901,7 +903,7 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlB1 = (uint32_t) ceil((float)B1->nrows / B1->bheight);
   const uint32_t clB1 = (uint32_t) ceil((float)B1->ncols / B1->bwidth);
 
@@ -930,7 +932,7 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlB2  = (uint32_t) ceil((float)B2->nrows / B2->bheight);
   const uint32_t clB2  = (uint32_t) ceil((float)B2->ncols / B2->bwidth);
 
@@ -960,7 +962,7 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlD1 = (uint32_t) ceil((float)D1->nrows / D1->bheight);
   const uint32_t clD1 = (uint32_t) ceil((float)D1->ncols / D1->bwidth);
 
@@ -989,7 +991,7 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
 
   // allocate memory for blocks
 
-  // row and column loops 
+  // row and column loops
   const uint32_t rlD2  = (uint32_t) ceil((float)D2->nrows / D2->bheight);
   const uint32_t clD2  = (uint32_t) ceil((float)D2->ncols / D2->bwidth);
 
@@ -1015,7 +1017,7 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
 #endif
 
   // copy B block-row-wise to B1 and B2
-  
+
   // allocate memory for a sparse matrix of B->bheight rows and move B's entries
   // to B1 and B2 correspondingly
   sm_t *tmp_B = (sm_t *)malloc(sizeof(sm_t));

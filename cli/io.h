@@ -103,7 +103,7 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);
 
 static inline void compute_density_ml_submatrix(sm_fl_ml_t *A) {
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
-  int i, j;
+  uint32_t i, j;
   for (i=0; i<rlA; ++i) {
     if (A->ml[i].sz>0) {
       for (j=0; j<A->ml[i].sz; ++j) {
@@ -129,7 +129,7 @@ static inline void compute_density_ml_submatrix(sm_fl_ml_t *A) {
 static inline void compute_density_block_submatrix(sbm_fl_t *A) {
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
-  int i, j, k, l;
+  uint32_t i, j, k, l;
   for (i=0; i<rlA; ++i) {
     for (j=0; j<clA; ++j) {
       if (A->blocks[i][j] != NULL) {

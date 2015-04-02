@@ -25,7 +25,9 @@
 
 #include <mapping.h>
 #include <matrix.h>
-#include <../draft/echelon.h>
+#if GBLA_WITH_FFLAS
+#include "../draft/echelon.h"
+#endif
 
 /**
  * \brief Structure of a waiting list element
@@ -73,8 +75,8 @@ static inline int cmp_wle(const void *a, const void *b) {
  */
 static inline void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
     const ri_t last_piv_reduced_by) {
-  int tid = omp_get_thread_num();
 #if DEBUG_ECHELONIZE
+  int tid = omp_get_thread_num();
   printf("BEFORE PUSH\n");
     for (int ii=0; ii<waiting_global->sz; ++ii) {
       printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
@@ -112,7 +114,7 @@ static inline void copy_sparse_to_dense_block(
   bi_t i,j;
   for (i=0; i<bheight/2; ++i) {
     mli_t idx;
-    re_t val1, val2;
+		// re_t val1, val2;
 
     if (sparse_block[i].sz == 0)
       continue;
@@ -168,8 +170,8 @@ void copy_dense_block_to_sparse(
  * \param dense value 2 holder for delayed modulus dense_val2
  */
 static inline void dense_scal_mul_sub_1_row_vect_array(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
               const mbl_t multiline,
               const bi_t line_idx,
               const bi_t  bwidth,
@@ -181,7 +183,7 @@ static inline void dense_scal_mul_sub_1_row_vect_array(
   uint32_t i;
   bi_t j;
 
-  register uint32_t v__;
+  register re_m_t v__;
 
   // both cannot be zero at the same time
   //printf("mlsize %d\n",multiline.sz);
@@ -237,8 +239,8 @@ static inline void dense_scal_mul_sub_1_row_vect_array(
  * \param offset for first nonzero coefficient in multiline
  */
 static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
               const ml_t multiline,
               const bi_t line_idx,
               re_l_t *dense_val1,
@@ -251,7 +253,7 @@ static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
   uint32_t i;
   bi_t j;
 
-  register uint32_t v__;
+  register re_m_t v__;
 
   // both cannot be zero at the same time
   //printf("mlsize %d\n",multiline.sz);
@@ -325,18 +327,17 @@ static inline void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
  * \param offset for first nonzero coefficient in multiline
  */
 static inline void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
-              const uint32_t Av1_col2,
-              const uint32_t Av2_col2,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
               const ml_t multiline,
               re_l_t *dense_val1,
               re_l_t *dense_val2,
               const ci_t offset1,
               const ci_t offset2) {
 
-  if (offset1 < 0)
-    return;
+	// if (offset1 < 0) return;
 
   // check cases where one pair of the elements is zero
   if (Av1_col1 == 0 && Av2_col1 == 0) {
@@ -355,8 +356,8 @@ static inline void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
   uint32_t i;
   bi_t j;
 
-  register uint32_t v1__, v2__;
-  register uint32_t idx;
+  register re_m_t v1__, v2__;
+	// register uint32_t idx;
 
   for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
     for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
@@ -399,8 +400,8 @@ static inline void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
  * \param dense value 2 holder for delayed modulus dense_val2
  */
 static inline void sparse_scal_mul_sub_1_row_vect_array_multiline(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
               const ml_t multiline,
               const bi_t line_idx,
               re_l_t *dense_val1,
@@ -412,7 +413,7 @@ static inline void sparse_scal_mul_sub_1_row_vect_array_multiline(
   p_val +=  line_idx;
   uint32_t i  = 0;
 
-  register uint32_t v__;
+  register re_m_t v__;
   register uint32_t idx;
 
   //printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1);
@@ -461,8 +462,8 @@ static inline void sparse_scal_mul_sub_1_row_vect_array_multiline(
  * \param dense value 2 holder for delayed modulus dense_val2
  */
 static inline void sparse_scal_mul_sub_1_row_vect_array(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
               const mbl_t multiline,
               const bi_t line_idx,
               re_l_t *dense_val1,
@@ -475,7 +476,7 @@ static inline void sparse_scal_mul_sub_1_row_vect_array(
   p_val +=  line_idx;
   uint32_t i  = 0;
 
-  register uint32_t v__;
+  register re_m_t v__;
   register uint32_t idx;
 
   //printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1);
@@ -528,10 +529,10 @@ static inline void sparse_scal_mul_sub_1_row_vect_array(
  * \param dense value 2 holder for delayed modulus dense_val2
  */
 static inline void dense_scal_mul_sub_2_rows_vect_array(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
-              const uint32_t Av1_col2,
-              const uint32_t Av2_col2,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
               const mbl_t multiline,
               const bi_t  bwidth,
               re_l_t *dense_val1,
@@ -553,8 +554,8 @@ static inline void dense_scal_mul_sub_2_rows_vect_array(
   uint32_t i;
   bi_t j;
 
-  register uint32_t v1__, v2__;
-  register uint32_t idx;
+  register re_m_t v1__, v2__;
+	// register uint32_t idx;
 
   for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
     for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
@@ -595,10 +596,10 @@ static inline void dense_scal_mul_sub_2_rows_vect_array(
  * \param dense value 2 holder for delayed modulus dense_val2
  */
 static inline void sparse_scal_mul_sub_2_rows_vect_array(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
-              const uint32_t Av1_col2,
-              const uint32_t Av2_col2,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
               const mbl_t multiline,
               re_l_t *dense_val1,
               re_l_t *dense_val2) {
@@ -622,7 +623,7 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array(
   uint32_t i;
   bi_t j;
 
-  register uint32_t v1__, v2__;
+  register re_m_t v1__, v2__;
   register uint32_t idx;
 
   for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
@@ -669,10 +670,10 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array(
  * \param dense value 2 holder for delayed modulus dense_val2
  */
 static inline void sparse_scal_mul_sub_2_rows_vect_array_multiline(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
-              const uint32_t Av1_col2,
-              const uint32_t Av2_col2,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
               const ml_t multiline,
               re_l_t *dense_val1,
               re_l_t *dense_val2) {
@@ -696,7 +697,7 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array_multiline(
   uint32_t i;
   bi_t j;
 
-  register uint32_t v1__, v2__;
+  register re_m_t v1__, v2__;
   register uint32_t idx;
 
   for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
@@ -741,20 +742,20 @@ static inline void sparse_scal_mul_sub_2_rows_vect_array_multiline(
  * \param dense array 2 holder for delayed modulus dense_array2
  */
 static inline void dense_scal_mul_sub_1_row_array_array(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
               const bi_t bwidth,
               const re_l_t *dense_array_source,
               re_l_t *dense_array1,
               re_l_t *dense_array2) {
 
   bi_t i, j;
-  register uint32_t v__;
+  register re_m_t v__;
 
   if (Av1_col1 == 0) { // only one of them can be zero
     for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
       for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
-        v__ = dense_array_source[i+j] & 0x000000000000ffff;
+        v__ = CAST(dense_array_source[i+j]) ;
         dense_array2[i+j] +=  v__ * Av2_col1;
       }
     }
@@ -762,14 +763,14 @@ static inline void dense_scal_mul_sub_1_row_array_array(
     if (Av2_col1 == 0) { // only second one is zero
       for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
         for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
-          v__ = dense_array_source[i+j] & 0x000000000000ffff;
+          v__ = CAST(dense_array_source[i+j]);
           dense_array1[i+j] +=  v__ * Av1_col1;
         }
       }
     } else { // both are nonzero
       for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
         for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
-          v__ = dense_array_source[i+j] & 0x000000000000ffff;
+          v__ = CAST(dense_array_source[i+j]);
           dense_array1[i+j] +=  v__ * Av1_col1;
           dense_array2[i+j] +=  v__ * Av2_col1;
         }
@@ -800,10 +801,10 @@ static inline void dense_scal_mul_sub_1_row_array_array(
  * \param dense array 2 holder for delayed modulus dense_array2
  */
 static inline void dense_scal_mul_sub_2_rows_array_array(
-              const uint32_t Av1_col1,
-              const uint32_t Av2_col1,
-              const uint32_t Av1_col2,
-              const uint32_t Av2_col2,
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
               const bi_t bwidth,
               const re_l_t *dense_array_source1,
               const re_l_t *dense_array_source2,
@@ -827,12 +828,12 @@ static inline void dense_scal_mul_sub_2_rows_array_array(
   }
 
   bi_t i, j;
-  register uint32_t v1__, v2__;
+  register re_m_t v1__, v2__;
 
   for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
     for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
-      v1__  = dense_array_source1[i+j] & 0x000000000000ffff;
-      v2__  = dense_array_source2[i+j] & 0x000000000000ffff;
+      v1__  = CAST(dense_array_source1[i+j]);
+      v2__  = CAST(dense_array_source2[i+j]);
 
       dense_array1[i+j] +=  v1__ * Av1_col1;
       dense_array1[i+j] +=  v2__ * Av1_col2;
@@ -855,7 +856,7 @@ static inline void dense_scal_mul_sub_2_rows_array_array(
 static inline void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus) {
   bi_t i;
   for (i=0; i<bwidth; ++i) {
-    dense_array[i]  = (re_l_t)(dense_array[i] % modulus);
+    dense_array[i]  = (re_l_t)(MODP(dense_array[i], modulus));
   }
 }
 
@@ -938,7 +939,7 @@ static inline int get_head_dense_array(re_l_t *dense_array,
     re_t *val, const ci_t coldim, const mod_t modulus) {
   ci_t i;
   for (i=0; i<coldim; ++i) {
-    *val  = dense_array[i] % modulus;
+    *val  = MODP(dense_array[i], modulus);
     if (*val != 0)
       return (int)i;
     else
@@ -1009,7 +1010,7 @@ static inline int normalize_dense_array(re_l_t *dense_array,
   inverse_val(&val, modulus);
   for (i=h1; i<coldim; ++i) {
     dense_array[i]  *=  val;
-    dense_array[i]  %=  modulus;
+    dense_array[i]  =  MODP(dense_array[i],modulus);
   }
   return h1;
 }
@@ -1044,22 +1045,22 @@ static inline void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t m
   if (h1 == 0 || h1 == 1) {
     for (idx=0; idx<m->sz; ++idx) {
       tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
-      m->val[2*idx+1] = tmp_val % modulus;
+      m->val[2*idx+1] = MODP(tmp_val, modulus);
     }
   } else {
     // normalize h1
     if (h2 == 0 || h2 == 1) {
       for (idx=0; idx<m->sz; ++idx) {
         tmp_val       = (re_l_t)m->val[2*idx] * h1;
-        m->val[2*idx] = tmp_val % modulus;
+        m->val[2*idx] = MODP(tmp_val,  modulus);
       }
     // normalize h1 and h2
     } else {
       for (idx=0; idx<m->sz; ++idx) {
         tmp_val         = (re_l_t)m->val[2*idx] * h1;
-        m->val[2*idx]   = tmp_val % modulus;
+        m->val[2*idx]   = MODP(tmp_val, modulus);
         tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
-        m->val[2*idx+1] = tmp_val % modulus;
+        m->val[2*idx+1] = MODP(tmp_val, modulus);
       }
     }
   }
@@ -1091,8 +1092,8 @@ static inline void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense
   ci_t i;
   re_l_t tmp_1, tmp_2;
   for (i=start_pos; i<coldim; ++i) {
-    tmp_1 = dense_1[i] % modulus;
-    tmp_2 = dense_2[i] % modulus;
+    tmp_1 = MODP(dense_1[i], modulus);
+    tmp_2 = MODP(dense_2[i], modulus);
     //printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2);
     if (tmp_1 != 0 || tmp_2 != 0) {
       //printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
@@ -1132,13 +1133,13 @@ static inline void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
   ci_t i;
   re_l_t tmp_1, tmp_2;
   for (i=start_pos; i<coldim; ++i) {
-    tmp_1 = dense_1[i] % modulus;
-    tmp_2 = dense_2[i] % modulus;
+    tmp_1 = MODP(dense_1[i], modulus);
+    tmp_2 = MODP( dense_2[i], modulus);
     //printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2);
     if (tmp_1 != 0 || tmp_2 != 0) {
       if (m->sz >= buffer) { // realloc memory for multiline ml
-        m->idx  =   realloc(m->idx, 3*buffer*sizeof(mli_t));
-        m->val  =   realloc(m->val, 6*buffer*sizeof(re_t));
+        m->idx  =   (mli_t*)realloc(m->idx, 3*buffer*sizeof(mli_t));
+        m->val  =   (re_t *)realloc(m->val, 6*buffer*sizeof(re_t));
         buffer  *=  3;
       }
       //printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]);
@@ -1152,8 +1153,8 @@ static inline void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
   }
 
   // fix sizes: we do not touch this anymore, so keep it as small as possible
-  m->idx  = realloc(m->idx, m->sz * sizeof(mli_t));
-  m->val  = realloc(m->val, 2 * m->sz * sizeof(mli_t));
+  m->idx  = (mli_t*)realloc(m->idx, m->sz * sizeof(mli_t));
+  m->val  = (re_t *)realloc(m->val, 2 * m->sz * sizeof(re_t));
 }
 
 /**
@@ -1178,7 +1179,7 @@ static inline void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_
   ci_t i;
   re_l_t tmp_1;
   for (i=start_pos; i<coldim; ++i) {
-    tmp_1 = dense_1[i] % modulus;
+    tmp_1 = MODP(dense_1[i], modulus);
     if (tmp_1 != 0) {
       m->val[2*i]   = (re_t)tmp_1;
     }
@@ -1190,8 +1191,8 @@ static inline void copy_dense_arrays_to_dense_multiline(const re_l_t *dense_1,
   ci_t i;
   re_l_t tmp_1, tmp_2;
   for (i=0; i<coldim; ++i) {
-    tmp_1 = dense_1[i] % modulus;
-    tmp_2 = dense_2[i] % modulus;
+    tmp_1 = MODP(dense_1[i] , modulus);
+    tmp_2 = MODP(dense_2[i] , modulus);
       m->val[2*i]   = (re_t)tmp_1;
       m->val[2*i+1] = (re_t)tmp_2;
   }
@@ -1275,6 +1276,7 @@ static inline int get_smallest_waiting_row(wl_t *waiting_global,
   return 1;
 }
 
+#if GBLA_WITH_FFLAS
 /**
  * \brief Copies meta data from block matrix representation B to dense matrix
  * representation A. Needs modulus, too.
@@ -1292,6 +1294,7 @@ static inline void copyMetaData(DNS *A, sbm_fl_t *B, mod_t modulus) {
   A->mod  = (elemt_t)modulus;
   A->nnz  = (index_t)B->nnz;
 }
+#endif
 
 /**
  * \brief Reduces dense block block_B with rectangular sparse block block_A.
@@ -1550,3 +1553,6 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
     const int reduce, const ri_t curr_row_to_reduce);
 #endif
+
+/* vim:sts=2:sw=2:ts=2:
+ */

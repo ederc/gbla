@@ -23,22 +23,63 @@
 #ifndef GB_TYPES_H
 #define GB_TYPES_H
 
-#include <stdint.h>
+// #define GBLA_USE_DOUBLE
+
+// #include <stdint.h>
 
 /// index type
 typedef uint32_t  mli_t;
 /// block index type
 typedef uint16_t  bi_t;
+
+/// storage type for entries
+typedef uint16_t  re_s;
+/// storage type for mod
+typedef uint32_t mod_s;
+
+#ifdef GBLA_USE_DOUBLE
+/// matrix row entry type
+typedef double re_t;
+/// matrix row entry type enlarged for delayed modulus
+typedef double re_l_t;
+/// matrix row entry type enlarged (half) for delayed modulus
+typedef double re_m_t;
+/// type of field characteristic
+typedef double mod_t;
+#else
 /// matrix row entry type
 typedef uint16_t  re_t;
 /// matrix row entry type enlarged for delayed modulus
 typedef uint64_t  re_l_t;
+/// matrix row entry type enlarged (half) for delayed modulus
+typedef uint32_t  re_m_t;
+/// type of field characteristic
+typedef uint32_t  mod_t;
+#endif
 /// row and column index types
 typedef uint32_t  ci_t;
 typedef uint32_t  ri_t;
 /// number of nonzero elements type
 typedef uint64_t  nnz_t;
-/// tyoe of field characteristic
-typedef uint32_t  mod_t;
+
+
+#define ALIGNT 32
+
+/* field_ops.h */
+#ifdef GBLA_USE_DOUBLE
+#define MODP(a,b) \
+	fmod((a),(b))
+#define CAST(a) \
+	(double) (a)
+#else
+#define MODP(a,b) \
+	(a) % (b)
+#define CAST(a) \
+	(a) & 0x000000000000ffff
+#endif
+
 
 #endif
+
+/* vim:sts=2:sw=2:ts=2:
+ */

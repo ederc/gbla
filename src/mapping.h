@@ -113,7 +113,7 @@ static inline void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_f
 static inline void init_fl_map(sm_t *M, map_fl_t *map) {
   // initialize map arrays and
   // set initial values to __GB_MINUS_ONE_8
-  
+
   ri_t max_length = M->ncols > M->nrows ? M->ncols : M->nrows;
 
   map->pc = (ci_t *)malloc(M->ncols * sizeof(ci_t));
@@ -313,7 +313,8 @@ static inline void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bi
  */
 static inline void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
     const bi_t cvb) {
-  int i, j, k, l;
+  uint32_t i ;
+  int j, k, l;
   uint16_t ctr[clA];
   memset(ctr, 0, clA * sizeof(uint16_t));
   bi_t *old_idx_ptr = NULL;
@@ -578,7 +579,7 @@ static inline void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
 /**
  * \brief Constructs a mapping for splicing the BD part for the second round of
  * FL reduction when performing a reduced row echelon form computations
- * 
+ *
  * \param new indexer map map
  *
  * \param indexer map from D map_D
