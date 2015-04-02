@@ -508,28 +508,28 @@ void print_mem_usage() {
 	char *nthrds ="", *itrealvalue ="", *starttime ="";
 
 	// dummy reading of useless information
-	fscanf(fh, "%s", pid);
-	fscanf(fh, "%s", comm);
-	fscanf(fh, "%s", state);
-	fscanf(fh, "%s", ppid);
-	fscanf(fh, "%s", pgrp);
-	fscanf(fh, "%s", session);
-	fscanf(fh, "%s", tty_nr);
-	fscanf(fh, "%s", tpgid);
-	fscanf(fh, "%s", flags);
-	fscanf(fh, "%s", minflt);
-	fscanf(fh, "%s", cminflt);
-	fscanf(fh, "%s", majflt);
-	fscanf(fh, "%s", cmajflt);
-	fscanf(fh, "%s", utime);
-	fscanf(fh, "%s", stime);
-	fscanf(fh, "%s", cutime);
-	fscanf(fh, "%s", cstime);
-	fscanf(fh, "%s", priority);
-	fscanf(fh, "%s", nice);
-	fscanf(fh, "%s", nthrds);
-	fscanf(fh, "%s", itrealvalue);
-	fscanf(fh, "%s", starttime);
+	fscanf(fh, "%s", &pid);
+	fscanf(fh, "%s", &comm);
+	fscanf(fh, "%s", &state);
+	fscanf(fh, "%s", &ppid);
+	fscanf(fh, "%s", &pgrp);
+	fscanf(fh, "%s", &session);
+	fscanf(fh, "%s", &tty_nr);
+	fscanf(fh, "%s", &tpgid);
+	fscanf(fh, "%s", &flags);
+	fscanf(fh, "%s", &minflt);
+	fscanf(fh, "%s", &cminflt);
+	fscanf(fh, "%s", &majflt);
+	fscanf(fh, "%s", &cmajflt);
+	fscanf(fh, "%s", &utime);
+	fscanf(fh, "%s", &stime);
+	fscanf(fh, "%s", &cutime);
+	fscanf(fh, "%s", &cstime);
+	fscanf(fh, "%s", &priority);
+	fscanf(fh, "%s", &nice);
+	fscanf(fh, "%s", &nthrds);
+	fscanf(fh, "%s", &itrealvalue);
+	fscanf(fh, "%s", &starttime);
 
 	// get real memory information
 	fscanf(fh, "%lu", &_vms);
