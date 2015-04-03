@@ -2247,9 +2247,8 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   /*  For compatibility and later changes we keep this check in the code. */
   if (C->ml[row_idx].dense == 0)
     start_idx = C->ml[row_idx].idx[0];
-  } else {
+  else
     start_idx = 0;
-  }
 
   re_m_t Cv1_col1, Cv2_col1;
   re_m_t Cv1_col2, Cv2_col2;
