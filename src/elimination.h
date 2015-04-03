@@ -352,7 +352,7 @@ static inline void red_hybrid_dense_rectangular(dbl_t **block_A, const re_t *blo
                 //printf("%u - %d\n",block_A[i][j].val[k],j*__GBLA_SIMD_INNER_SIZE+k);
                 for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
                   wide_block[i][l] +=  a *
-                    (re_m_t)block_B[(j*__GBLA_SIMD_INNER_SIZE+k)*__GBLA_SIMD_BLOCK_SIZE+l];
+                    (re_l_t)block_B[(j*__GBLA_SIMD_INNER_SIZE+k)*__GBLA_SIMD_BLOCK_SIZE+l];
                 }
               }
             }
@@ -377,27 +377,34 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
   re_l_t **wide_block)
 {
   bi_t i, j, k;
-  register re_m_t a;
+  register re_m_t a, b;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+#if 0
     for (j=0; j<block_A->sz[i]; ++j) {
       a = block_A->row[i][j];
-      //printf("%u || %u | %u\n",a, i, block_A->pos[i][j]);
-      //printf("%u - %d\n",block_A[i*__GBLA_SIMD_BLOCK_SIZE+j],j);
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-        /*
-           if (i==83 && k==0) {
-           printf("%lu ==> ", wide_block[83][0]);
-           }
-           */
-        wide_block[i][k]  += a *
-          (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k];
-        /*
-           if (i==83 && k==0) {
-           printf("==> %lu || %lu %lu, %d\n", wide_block[83][0], a, block_B[j*__GBLA_SIMD_BLOCK_SIZE + 0], j);
-           }
-           */
+        wide_block[i][k]  +=
+          (a * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k]);
       }
     }
+#else
+    for (j=0; j<block_A->sz[i]-1; j = j+2) {
+      a = block_A->row[i][j];
+      b = block_A->row[i][j+1];
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        wide_block[i][k]  +=
+          (a * (re_l_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k] +
+          b * (re_l_t)block_B[block_A->pos[i][j+1]*__GBLA_SIMD_BLOCK_SIZE + k]);
+      }
+    }
+    if (j<block_A->sz[i]) {
+      a = block_A->row[i][j];
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        wide_block[i][k]  +=
+          a * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k];
+      }
+    }
+#endif
   }
 }
 
@@ -415,32 +422,34 @@ static inline void red_dense_rectangular(const re_t *block_A, const re_t *block_
   re_l_t **wide_block)
 {
   bi_t i, j, k;
-  register re_m_t a;
+  register re_m_t a, b;
+#if 1
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
-      if (block_A[i*__GBLA_SIMD_BLOCK_SIZE+j] != 0) {
-        a = block_A[i*__GBLA_SIMD_BLOCK_SIZE+j];
-        if (a != 0) {
-          //printf("%u || %u | %u\n", a, i, j);
-          //printf("%u - %d\n",block_A[i*__GBLA_SIMD_BLOCK_SIZE+j],j);
-          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-            /*
-               if (i==83 && k==0) {
-               printf("%lu ==> ", wide_block[83][0]);
-               }
-               */
-            wide_block[i][k]  += a *
-              (re_m_t)block_B[j*__GBLA_SIMD_BLOCK_SIZE + k];
-            /*
-               if (i==83 && k==0) {
-               printf("==> %lu || %lu %lu, %d\n", wide_block[83][0], a, block_B[j*__GBLA_SIMD_BLOCK_SIZE + 0], j);
-               }
-               */
-          }
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; j=j+2) {
+      a = block_A[i*__GBLA_SIMD_BLOCK_SIZE+j];
+      b = block_A[i*__GBLA_SIMD_BLOCK_SIZE+j+1];
+      if (a != 0 || b != 0) {
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          wide_block[i][k]  +=
+            (a * (re_l_t)block_B[j*__GBLA_SIMD_BLOCK_SIZE + k] +
+            b * (re_l_t)block_B[(j+1)*__GBLA_SIMD_BLOCK_SIZE + k]);
         }
       }
     }
   }
+#else
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      a = block_A[i*__GBLA_SIMD_BLOCK_SIZE+j];
+      if (a != 0) {
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          wide_block[i][k]  +=
+            a * (re_m_t)block_B[j*__GBLA_SIMD_BLOCK_SIZE + k];
+        }
+      }
+    }
+  }
+#endif
 }
 
 /**
@@ -571,13 +580,35 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
 {
   //printf("INDENSE\n");
   bi_t i, j, k, l;
-  register re_m_t a;
+  register re_m_t a, b;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+
+    /*
     for (j=0; j<block_A->sz[i]-1; ++j) {
       a = block_A->row[i][j];
       //printf("%lu - %u | %u\n",a,i,j);
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-        wide_block[i][k]  +=  a * wide_block[block_A->pos[i][j]][k];
+        wide_block[i][k]  +=
+          (a * wide_block[block_A->pos[i][j]][k]);
+      }
+    }
+    */
+    for (j=0; j<block_A->sz[i]-2; j = j+2) {
+      a = block_A->row[i][j];
+      b = block_A->row[i][j+1];
+      //printf("%lu - %u | %u\n",a,i,j);
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        wide_block[i][k]  +=
+          (a * wide_block[block_A->pos[i][j]][k] +
+          b * wide_block[block_A->pos[i][j+1]][k]);
+      }
+    }
+    if (j<block_A->sz[i]-1) {
+      a = block_A->row[i][j];
+      //printf("%lu - %u | %u\n",a,i,j);
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        wide_block[i][k]  +=
+          a * wide_block[block_A->pos[i][j]][k];
       }
     }
     modulo_wide_block_row(wide_block, i, modulus);
