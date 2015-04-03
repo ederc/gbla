@@ -25,7 +25,7 @@
 #include "tools/tools.h"
 
 
-// ========== TIMINGS ==========
+/*  ========== TIMINGS ========== */
 double walltime(struct timeval t_start) {
 	struct timeval t_end;
 	gettimeofday(&t_end, NULL);
@@ -34,28 +34,28 @@ double walltime(struct timeval t_start) {
 
 /* #define USE_SEEK */
 
-// ========== READING ==========
+/*  ========== READING ========== */
 sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
-	// meta information of matrix
+	/*  meta information of matrix */
 	double density;
 	double fs;
 	char *fsu;
-	// timing structs
+	/*  timing structs */
 	struct timeval t_load_start;
 
 	if (verbose > 1) {
 		gettimeofday(&t_load_start, NULL);
 	}
 
-	// start loading the matrix
+	/*  start loading the matrix */
 	ri_t m;
 	ci_t n;
 	mod_t     mod;
 	nnz_t     nnz;
 	uint64_t  fl = 0;
 
-	// open in binary mode first to get file size with fseek
+	/*  open in binary mode first to get file size with fseek */
 
 #ifdef USE_SEEK
 	{
@@ -73,7 +73,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	}
 #endif /* USE_SEEK */
 
-	// now read data from file
+	/*  now read data from file */
 	FILE* fh = ouvrir(fn,"r");
 
 	if (new_format == 1) {
@@ -104,7 +104,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		fl += sizeof(uint32_t);
 	}
 
-	// get columns
+	/*  get columns */
 	if (fread(&m, sizeof(uint32_t), 1, fh) != 1) {
 		if (verbose > 0)
 			printf("Error while reading file '%s'\n",fn);
@@ -113,7 +113,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	}
 	fl += sizeof(uint32_t);
 
-	// get rows
+	/*  get rows */
 	if (fread(&n, sizeof(uint32_t), 1, fh) != 1) {
 		if (verbose > 0)
 			printf("Error while reading file '%s'\n",fn);
@@ -122,7 +122,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	}
 	fl += sizeof(uint32_t);
 
-	// get modulus
+	/*  get modulus */
 	if (new_format == 1) {
 		elemt_m mode;
 		if ((fread(&mode, sizeof(elemt_m), 1, fh) != 1) || (mode == 1)) {
@@ -145,7 +145,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		mod = (mod_t) mode ; /* this is wrong in general */
 		fl += sizeof(mod_s);
 	}
-	// get number of nonzero elements
+	/*  get number of nonzero elements */
 	if (fread(&nnz, sizeof(uint64_t), 1, fh) != 1) {
 		if (verbose > 0)
 			printf("Error while reading file '%s' (nnz)\n",fn);
@@ -154,17 +154,17 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	}
 	fl += sizeof(uint64_t);
 
-	// density of matrix
+	/*  density of matrix */
 	density =   (double) n * (double) m;
 	density =   (double) (nnz) / density;
 	density *=  100.0;
-	// read entries from file
+	/*  read entries from file */
 	sm_t *M   = (sm_t *) malloc(sizeof(sm_t));
 	M->rows   = (re_t **)malloc(m*sizeof(re_t *));
 	M->pos    = (ci_t **)malloc(m*sizeof(ci_t *));
 	M->rwidth = (ci_t *) malloc(m*sizeof(ci_t));
 
-	// get meta data
+	/*  get meta data */
 	M->nrows    = m;
 	M->ncols    = n;
 	M->nnz      = nnz;
@@ -174,7 +174,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 	if (new_format == 0) {
 
 #ifndef USE_SEEK
-		// maximal possible nonzero entries per row is n*sizeof(entry_t)
+		/*  maximal possible nonzero entries per row is n*sizeof(entry_t) */
 		re_s *nze = (re_s *)malloc(nnz * sizeof(re_s));
 		ci_t *pos = (ci_t *)malloc(nnz * sizeof(ci_t));
 		ci_t *sz  = (ci_t *)malloc(m   * sizeof(ci_t));
@@ -230,11 +230,11 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		ci_t *pos = (ci_t *)malloc(n * sizeof(ci_t));
 
 
-		// store header size of file
-		// size of m, n, mod and nb
+		/*  store header size of file */
+		/*  size of m, n, mod and nb */
 		uint32_t hs  = 3 * sizeof(uint32_t) + sizeof(uint64_t);
 
-		// offsets for file handling
+		/*  offsets for file handling */
 		uint64_t row_size_offset  = nnz * sizeof(re_s) + nnz * sizeof(uint32_t) + hs;
 		uint64_t row_val_offset   = hs;
 		uint64_t row_pos_offset   = nnz * sizeof(re_s) + hs;
@@ -277,7 +277,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 			row_pos_offset +=  sz * sizeof(ci_t);
 
-			// reserve memory in matrix M for rows[i]
+			/*  reserve memory in matrix M for rows[i] */
 			M->rows[i] = (re_t *)malloc(sz * sizeof(re_t));
 			M->pos[i]  = (ci_t *)malloc(sz * sizeof(ci_t));
 			for (j = 0; j < sz; ++j) {
@@ -407,7 +407,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 			here += (nnz_t)sz ;
 		}
 
-		// free data
+		/*  free data */
 		free(pos);
 		free(vp);
 		free(sp);
@@ -416,7 +416,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		free(row);
 	}
 
-	// file size of matrix
+	/*  file size of matrix */
 	fs  = (double) fl / 1024 / 1024;
 	fsu = "MB";
 	if (fs > 1000) {
@@ -433,7 +433,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 }
 
 
-// ========== WRITING ==========
+/*  ========== WRITING ========== */
 
 void write_jcf_matrix_to_file(sm_t *M, const char *fn, int verbose) {
 }
@@ -447,10 +447,10 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose) {
 
 	FILE *fh  = fopen(fn, "wb");
 
-	// magic PBM header
-#ifdef __LP64__ // 64bit machine
+	/*  magic PBM header */
+#ifdef __LP64__ /*  64bit machine */
 	sprintf(buffer, "P4\n# matrix size(%u, %u)\n%u %u\n", m, n, n, m);
-#else // 32bit machine
+#else /*  32bit machine */
 	sprintf(buffer, "P4\n# matrix size(%u, %u)\n%u %u\n", m, n, n, m);
 #endif
 
@@ -458,7 +458,7 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose) {
 
 	ri_t i;
 	ci_t j, k;
-	// row width: number of nonzero elements in current row
+	/*  row width: number of nonzero elements in current row */
 	ci_t sz;
 
 	for (i = 0; i < m; ++i) {
@@ -486,76 +486,76 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose) {
 
 void print_mem_usage() {
 	char    *unit = "KB";
-	double  vms   = 0.0; // virtual memory size
-	double  rss   = 0.0; // resident set size
-	// possibly x86-64 is configured to use 2MB pages
+	double  vms   = 0.0; /*  virtual memory size */
+	double  rss   = 0.0; /*  resident set size */
+	/*  possibly x86-64 is configured to use 2MB pages */
 	long    page_size_kb  = sysconf(_SC_PAGE_SIZE) / 1024;
 
 	unsigned long _vms = 0;
 	long          _rss = 0;
-	// get memory usage from 'file' stat which is not perfect, but gives most
-	// reliable information.
-	// Note: This corresponds to Martani's memory usage printing in his LELA
-	// implementation, thus it is used for comparison reasons. It might be changed
-	// in later versions of the gb.
+	/*  get memory usage from 'file' stat which is not perfect, but gives most */
+	/*  reliable information. */
+	/*  Note: This corresponds to Martani's memory usage printing in his LELA */
+	/*  implementation, thus it is used for comparison reasons. It might be changed */
+	/*  in later versions of the gb. */
 	const char *fn  = "/proc/self/stat";
 	FILE *fh        = fopen(fn,"r");
 
-	// dummy vars for leading entries in /proc/self/stat we are not interested in
-	char *pid = "", *comm ="", *state ="", *ppid ="", *pgrp ="", *session ="", *tty_nr ="";
-	char *tpgid ="", *flags ="", *minflt ="", *cminflt ="", *majflt ="", *cmajflt ="";
-	char *utime ="", *stime ="", *cutime ="", *cstime ="", *priority ="", *nice ="";
-	char *nthrds ="", *itrealvalue ="", *starttime ="";
+	/*  dummy vars for leading entries in /proc/self/stat we are not interested in */
+	char pid[1024] = "\0", comm[1024] ="\0", state[1024] ="\0", ppid[1024] ="\0", pgrp[1024] ="\0", session[1024] ="\0", tty_nr[1024] ="\0";
+	char tpgid[1024] ="\0", flags[1024] ="\0", minflt[1024] ="\0", cminflt[1024] ="\0", majflt[1024] ="\0", cmajflt[1024] ="\0";
+	char utime[1024] ="\0", stime[1024] ="\0", cutime[1024] ="\0", cstime[1024] ="\0", priority[1024] ="\0", nice[1024] ="\0";
+	char nthrds[1024] ="\0", itrealvalue[1024] ="\0", starttime[1024] ="\0";
 
-	// dummy reading of useless information
-	fscanf(fh, "%s", &pid);
-	fscanf(fh, "%s", &comm);
-	fscanf(fh, "%s", &state);
-	fscanf(fh, "%s", &ppid);
-	fscanf(fh, "%s", &pgrp);
-	fscanf(fh, "%s", &session);
-	fscanf(fh, "%s", &tty_nr);
-	fscanf(fh, "%s", &tpgid);
-	fscanf(fh, "%s", &flags);
-	fscanf(fh, "%s", &minflt);
-	fscanf(fh, "%s", &cminflt);
-	fscanf(fh, "%s", &majflt);
-	fscanf(fh, "%s", &cmajflt);
-	fscanf(fh, "%s", &utime);
-	fscanf(fh, "%s", &stime);
-	fscanf(fh, "%s", &cutime);
-	fscanf(fh, "%s", &cstime);
-	fscanf(fh, "%s", &priority);
-	fscanf(fh, "%s", &nice);
-	fscanf(fh, "%s", &nthrds);
-	fscanf(fh, "%s", &itrealvalue);
-	fscanf(fh, "%s", &starttime);
+	/*  dummy reading of useless information */
+	fscanf(fh, "%1023s", &pid[0]);
+	fscanf(fh, "%1023s", &comm[0]);
+	fscanf(fh, "%1023s", &state[0]);
+	fscanf(fh, "%1023s", &ppid[0]);
+	fscanf(fh, "%1023s", &pgrp[0]);
+	fscanf(fh, "%1023s", &session[0]);
+	fscanf(fh, "%1023s", &tty_nr[0]);
+	fscanf(fh, "%1023s", &tpgid[0]);
+	fscanf(fh, "%1023s", &flags[0]);
+	fscanf(fh, "%1023s", &minflt[0]);
+	fscanf(fh, "%1023s", &cminflt[0]);
+	fscanf(fh, "%1023s", &majflt[0]);
+	fscanf(fh, "%1023s", &cmajflt[0]);
+	fscanf(fh, "%1023s", &utime[0]);
+	fscanf(fh, "%1023s", &stime[0]);
+	fscanf(fh, "%1023s", &cutime[0]);
+	fscanf(fh, "%1023s", &cstime[0]);
+	fscanf(fh, "%1023s", &priority[0]);
+	fscanf(fh, "%1023s", &nice[0]);
+	fscanf(fh, "%1023s", &nthrds[0]);
+	fscanf(fh, "%1023s", &itrealvalue[0]);
+	fscanf(fh, "%1023s", &starttime[0]);
 
-	// get real memory information
+	/*  get real memory information */
 	fscanf(fh, "%lu", &_vms);
 	fscanf(fh, "%ld", &_rss);
 
-	// close file
+	/*  close file */
 	fclose(fh);
 
-	// TODO: How to read /proc/self/stat ???
+	/*  TODO: How to read /proc/self/stat ??? */
 
 	vms = _vms / 1024.0;
 	rss = _rss * page_size_kb;
 
-	// MB ?
+	/*  MB ? */
 	if (vms > 1024) {
 		vms   = vms/1024.0;
 		rss   = rss/1024.0;
 		unit  = "MB";
 	}
-	// GB ?
+	/*  GB ? */
 	if (vms > 1024) {
 		vms   = vms/1024.0;
 		rss   = rss/1024.0;
 		unit  = "GB";
 	}
-	// TB ? Just joking!
+	/*  TB ? Just joking! */
 	if (vms > 1024) {
 		vms   = vms/1024.0;
 		rss   = rss/1024.0;
@@ -564,4 +564,5 @@ void print_mem_usage() {
 	printf("MMRY\tRSS - %.3f %s | VMS - %.3f %s\n", rss, unit, vms, unit);
 }
 
-
+/* vim:sts=2:sw=2:ts=2:
+ */

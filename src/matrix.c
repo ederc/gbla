@@ -69,7 +69,7 @@ void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
           dst_row_idx++;
           if (dst_row_idx<max_rows) {
             for (l=0; l<src->blocks[i][j][k].sz; ++l) {
-              //printf("position %ld\n",dst_row_idx * dst->ld + dst_col_idx + l/2-1);
+              /* printf("position %ld\n",dst_row_idx * dst->ld + dst_col_idx + l/2-1); */
               dst->ptr[dst_row_idx * dst->ld + dst_col_idx + l] =
                 (elemt_t)src->blocks[i][j][k].val[2*l+1];
             }
@@ -79,7 +79,7 @@ void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
       }
     }
   }
-  // free memory in block multiline matrix
+  /*  free memory in block multiline matrix */
   for (i=0; i<src_row_idx; ++i) {
     for (j=0; j<src_col_idx; ++j) {
       if (src->blocks[i][j] == NULL)
@@ -117,13 +117,12 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   bi_t k;
   bi_t l;
 
-  ri_t rank = rank_input_ml / __GB_NROWS_MULTILINE +
-    rank_input_ml % __GB_NROWS_MULTILINE;
-  // initialize meta data for multiline matrix out
-  out->nrows    = in_bl->nrows + rank_input_ml; // row dimension
-  out->ncols    = in_bl->ncols;                 // col dimension
+	/* ri_t rank = rank_input_ml / __GB_NROWS_MULTILINE + rank_input_ml % __GB_NROWS_MULTILINE; */
+  /*  initialize meta data for multiline matrix out */
+  out->nrows    = in_bl->nrows + rank_input_ml; /*  row dimension */
+  out->ncols    = in_bl->ncols;                 /*  col dimension */
 
-  // allocate memory for blocks
+  /*  allocate memory for blocks */
   ri_t rl = out->nrows;
 
   out->rows   = (re_t **)malloc(rl * sizeof(re_t *));
@@ -132,28 +131,28 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   memset(out->rwidth, 0, rl * sizeof(ci_t));
   const ri_t rlin_bl = (ri_t) ceil((float) in_bl->nrows / in_bl->bheight);
   const ci_t clin_bl = (ci_t) ceil((float) in_bl->ncols / in_bl->bwidth);
-  // we need buffers for all multiline entries since the copying process
-  // revisits already filled up multilines.if we reset the buffer to zero, we
-  // might realloc only init_buffer memory and lose what we have already in the
-  // multiline stored.
+  /*  we need buffers for all multiline entries since the copying process */
+  /*  revisits already filled up multilines.if we reset the buffer to zero, we */
+  /*  might realloc only init_buffer memory and lose what we have already in the */
+  /*  multiline stored. */
 
   ci_t block_idx;
   ri_t block_vert;
   ri_t sparse_idx;
   re_t v1, v2;
-  mli_t crb = 0;
+	/* mli_t crb = 0; */
   const bi_t ml_bheight = in_bl->bheight / __GB_NROWS_MULTILINE;
-  // write D first into output matrix
+  /*  write D first into output matrix */
 
   const ri_t rlin_ml = (ri_t) ceil((float) in_ml->nrows / __GB_NROWS_MULTILINE);
   const ci_t clin_ml = in_ml->ncols;
 
-  // we need buffers for all multiline entries since the copying process
-  // revisits already filled up multilines.if we reset the buffer to zero, we
-  // might realloc only init_buffer memory and lose what we have already in the
-  // multiline stored.
+  /*  we need buffers for all multiline entries since the copying process */
+  /*  revisits already filled up multilines.if we reset the buffer to zero, we */
+  /*  might realloc only init_buffer memory and lose what we have already in the */
+  /*  multiline stored. */
   sparse_idx  = 0;
-  for (i=0; i<rlin_ml; ++i) { // loop over multilines
+  for (i=0; i<rlin_ml; ++i) { /*  loop over multilines */
     if (out->rwidth[sparse_idx] > 0)
       sparse_idx++;
     if (out->rwidth[sparse_idx] > 0)
@@ -206,7 +205,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
         out->rwidth[sparse_idx+1]*sizeof(ci_t));
   }
   if (deleteIn == 1) {
-    // free memory for input matrix
+    /*  free memory for input matrix */
 #pragma omp parallel for num_threads(nthrds)
     for (i=0; i<rlin_ml; ++i) {
       free(in_ml->ml[i].idx);
@@ -225,9 +224,9 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     sparse_idx++;
 
   const ri_t offset = sparse_idx;
-  // write B second into output matrix
+  /*  write B second into output matrix */
 
-  for (i=0; i<rlin_bl; ++i) { // loop over multilines
+  for (i=0; i<rlin_bl; ++i) { /*  loop over multilines */
     if (in_bl->blocks[i] == NULL) {
       continue;
     }
@@ -250,7 +249,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
         }
         if (in_bl->blocks[i][j][k].dense == 0) {
           for (l=0; l<in_bl->blocks[i][j][k].sz; ++l) {
-            // fill in data
+            /*  fill in data */
             v1  = in_bl->blocks[i][j][k].val[2*l];
             v2  = in_bl->blocks[i][j][k].val[2*l+1];
             if (v1 != 0) {
@@ -266,7 +265,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
           }
         } else {
           for (l=0; l<in_bl->blocks[i][j][k].sz; ++l) {
-            // fill in data
+            /*  fill in data */
             v1  = in_bl->blocks[i][j][k].val[2*l];
             v2  = in_bl->blocks[i][j][k].val[2*l+1];
             if (v1 != 0) {
@@ -294,7 +293,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   }
 
   if (deleteIn == 1) {
-    // free memory for input matrix
+    /*  free memory for input matrix */
 #pragma omp parallel for private(i,j,k) num_threads(nthrds)
     for (i=0; i<rlin_bl; ++i) {
       for (j=0; j<clin_bl; ++j) {
@@ -317,7 +316,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
     in_bl->blocks  = NULL;
     free(in_bl);
     in_bl  = NULL;
-    // free memory for input matrix
+    /*  free memory for input matrix */
   }
   *input_bl = in_bl;
   *input_ml = in_ml;
@@ -334,16 +333,16 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
   bi_t k;
   bi_t l;
 
-  // initialize meta data for multiline matrix out
-  out->nrows    = in->nrows;  // row dimension
-  out->ncols    = in->ncols;  // col dimension
-  out->ba       = dtrl;       // block alignment
-  out->fe       = 0;          // fill empty blocks?
-  out->hr       = 0;          // allow hybrid rows?
-  out->nnz      = 0;          // number nonzero elements
+  /*  initialize meta data for multiline matrix out */
+  out->nrows    = in->nrows;  /*  row dimension */
+  out->ncols    = in->ncols;  /*  col dimension */
+  out->ba       = dtrl;       /*  block alignment */
+  out->fe       = 0;          /*  fill empty blocks? */
+  out->hr       = 0;          /*  allow hybrid rows? */
+  out->nnz      = 0;          /*  number nonzero elements */
   out->density  = (double)0;
 
-  // allocate memory for blocks
+  /*  allocate memory for blocks */
   ri_t rl = out->nrows / 2;
   if (out->nrows % 2)
     rl++;
@@ -360,28 +359,28 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
     out->ml[i].idx    = NULL;
     out->ml[i].sz     = out->ncols;
     out->ml[i].dense  = 1;
-    //out->ml[i].val  = realloc(out->ml[i].val,2 * out->ncols * sizeof(re_t));
+    /* out->ml[i].val  = realloc(out->ml[i].val,2 * out->ncols * sizeof(re_t)); */
 #endif
   }
 
   const ri_t rlin = (ri_t) ceil((float) in->nrows / in->bheight);
   const ci_t clin = (ci_t) ceil((float) in->ncols / in->bwidth);
-  mli_t init_buffer = 2 * in->bwidth;
-  // we need buffers for all multiline entries since the copying process
-  // revisits already filled up multilines.if we reset the buffer to zero, we
-  // might realloc only init_buffer memory and lose what we have already in the
-  // multiline stored.
+	/* mli_t init_buffer = 2 * in->bwidth; */
+  /*  we need buffers for all multiline entries since the copying process */
+  /*  revisits already filled up multilines.if we reset the buffer to zero, we */
+  /*  might realloc only init_buffer memory and lose what we have already in the */
+  /*  multiline stored. */
   mli_t *buffer = (mli_t *)malloc(rl * sizeof(mli_t));
   memset(buffer, 0, rl * sizeof(mli_t));
 
   ci_t block_idx;
   re_t v1, v2;
-  mli_t crb = 0;
+	/* mli_t crb = 0; */
   const bi_t ml_bheight = in->bheight / __GB_NROWS_MULTILINE;
   #pragma omp parallel shared(buffer) num_threads(nthrds)
   {
     #pragma omp for private(i,ii,j,k,l,block_idx,v1,v2) nowait
-    for (i=0; i<rl; ++i) { // loop over multilines
+    for (i=0; i<rl; ++i) { /*  loop over multilines */
       memset(out->ml[i].val, 0, 2 * out->ncols * sizeof(re_t));
       ii  = i / ml_bheight;
       k   = i % ml_bheight;
@@ -395,7 +394,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
         }
         if (in->blocks[ii][j][k].dense == 0) {
           for (l=0; l<in->blocks[ii][j][k].sz; ++l) {
-            // fill in data
+            /*  fill in data */
             v1  = in->blocks[ii][j][k].val[2*l];
             v2  = in->blocks[ii][j][k].val[2*l+1];
             if (v1 != 0 || v2 != 0) {
@@ -406,7 +405,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
           }
         } else {
           for (l=0; l<in->blocks[ii][j][k].sz; ++l) {
-            // fill in data
+            /*  fill in data */
             v1  = in->blocks[ii][j][k].val[2*l];
             v2  = in->blocks[ii][j][k].val[2*l+1];
             if (v1 != 0 || v2 != 0) {
@@ -425,7 +424,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
     }
   }
   if (deleteIn) {
-  // free memory for input matrix
+  /*  free memory for input matrix */
   #pragma omp parallel num_threads(nthrds)
     {
 #pragma omp for private(i,j,k) nowait
@@ -456,13 +455,14 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
  *  NOTE:
  *  old and deprecated code: keep for possible tests with sparse-hybrid-dense
  *  representations for D in multiline structures later on
- *
+ */
+#if 0
   #pragma omp parallel shared(buffer) num_threads(nthrds)
   {
     mli_t crb = 0;
     #pragma omp for private(i,j,k,l,block_idx,crb) nowait
     for (i=0; i<rlin; ++i) {
-      // curr_row_base in LELA
+      /*  curr_row_base in LELA */
       crb  = i * in->bheight / __GB_NROWS_MULTILINE;
 
       for (j=0; j<clin; ++j) {
@@ -478,7 +478,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
           }
           if (in->blocks[i][j][k].dense == 0) {
             for (l=0; l<in->blocks[i][j][k].sz; ++l) {
-              // possibly realloc more memory
+              /*  possibly realloc more memory */
               if (out->ml[crb+k].sz == buffer[crb+k]) {
                 buffer[crb+k] +=  init_buffer;
                 out->ml[crb+k].idx = realloc(out->ml[crb+k].idx,
@@ -486,7 +486,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
                 out->ml[crb+k].val = realloc(out->ml[crb+k].val,
                     2 * buffer[crb+k] * sizeof(re_t));
               }
-              // fill in data
+              /*  fill in data */
               out->ml[crb+k].idx[out->ml[crb+k].sz] =
                 block_idx + in->blocks[i][j][k].idx[l];
               out->ml[crb+k].val[2*out->ml[crb+k].sz] =
@@ -495,9 +495,9 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
                 in->blocks[i][j][k].val[2*l+1];
               out->ml[crb+k].sz++;
             }
-          } else { // block submatrix in is dense
+          } else { /*  block submatrix in is dense */
             for (l=0; l<in->blocks[i][j][k].sz; ++l) {
-              // possibly realloc more memory
+              /*  possibly realloc more memory */
               if (out->ml[crb+k].sz == buffer[crb+k]) {
                 buffer[crb+k]  +=  init_buffer;
                 out->ml[crb+k].idx = realloc(out->ml[crb+k].idx,
@@ -505,7 +505,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
                 out->ml[crb+k].val = realloc(out->ml[crb+k].val,
                     2 * buffer[crb+k] * sizeof(re_t));
               }
-              // fill in data
+              /*  fill in data */
               v1  = in->blocks[i][j][k].val[2*l];
               v2  = in->blocks[i][j][k].val[2*l+1];
               if (v1 != 0 || v2 != 0) {
@@ -524,7 +524,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
           if (in->blocks[i][j][k].dense == 0) {
             for (l=0; l<in->blocks[i][j][k].sz; ++l) {
               printf("%d - %d - %d - %d - %d - %d\n",i,j,k,l,crb,block_idx);
-              // fill in data
+              /*  fill in data */
               v1  = in->blocks[i][j][k].val[2*l];
               v2  = in->blocks[i][j][k].val[2*l+1];
               if (v1 != 0 || v2 != 0) {
@@ -536,7 +536,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
           } else {
             for (l=0; l<in->blocks[i][j][k].sz; ++l) {
               printf("%d - %d - %d - %d - %d - %d\n",i,j,k,l,crb,block_idx);
-              // fill in data
+              /*  fill in data */
               v1  = in->blocks[i][j][k].val[2*l];
               v2  = in->blocks[i][j][k].val[2*l+1];
               if (v1 != 0 || v2 != 0) {
@@ -547,7 +547,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
             }
           }
 #endif
-          // destruct input matrix?
+          /*  destruct input matrix? */
           if (deleteIn) {
             free(in->blocks[i][j][k].idx);
             in->blocks[i][j][k].idx = NULL;
@@ -568,7 +568,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
     }
     for (i=0; i<rlin; ++i) {
 #if NOT_DENSE_COPYING
-      // realloc memory, only needed if the multilines are not dense copied
+      /*  realloc memory, only needed if the multilines are not dense copied */
       if (out->ml[i].sz > 0) {
         if (out->ml[i].sz < out->ncols) {
           out->ml[i].idx  = realloc(out->ml[i].idx,
@@ -597,7 +597,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
     in  = NULL;
     printf("addr in %p\n",in);
   }
-  */
+#endif
   free(buffer);
   *input  = in;
   return out;
@@ -620,7 +620,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
  * \param buffer size buffer_A
  *
  */
-static inline void realloc_block_rows_B(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
+static /* inline */ void realloc_block_rows_B(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
     const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) {
   *buffer_A +=  init_buffer_A;
   A->blocks[rbi][bir][lib].idx = (bi_t*) realloc(
@@ -648,16 +648,16 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
     A->nrows / __GB_NROWS_MULTILINE + 1;
   const bi_t ml_bheight     = bheight / __GB_NROWS_MULTILINE;
 
-  // initialize meta data for block submatrices
-  B->nrows    = A->nrows; // row dimension
-  B->ncols    = A->ncols; // col dimension
-  B->bheight  = bheight;  // block height
-  B->bwidth   = bwidth;   // block width
-  B->ba       = dtlr;     // block alignment
-  B->fe       = 1;        // fill empty blocks?
-  B->hr       = 1;        // allow hybrid rows?
-  B->nnz      = 0;        // number nonzero elements
-  // initialize B
+  /*  initialize meta data for block submatrices */
+  B->nrows    = A->nrows; /*  row dimension */
+  B->ncols    = A->ncols; /*  col dimension */
+  B->bheight  = bheight;  /*  block height */
+  B->bwidth   = bwidth;   /*  block width */
+  B->ba       = dtlr;     /*  block alignment */
+  B->fe       = 1;        /*  fill empty blocks? */
+  B->hr       = 1;        /*  allow hybrid rows? */
+  B->nnz      = 0;        /*  number nonzero elements */
+  /*  initialize B */
   B->blocks = (mbl_t ***)malloc(rlB * sizeof(mbl_t **));
   for (i=0; i<rlB; ++i) {
     B->blocks[i]  = (mbl_t **)malloc(clB * sizeof(mbl_t *));
@@ -667,8 +667,8 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
       for (k=0; k<ml_bheight; ++k) {
         B->blocks[i][j][k].val  = NULL;
         B->blocks[i][j][k].idx  = NULL;
-        //B->blocks[i][j][k].val  = (re_t *)malloc(2*bwidth*sizeof(re_t));
-        //B->blocks[i][j][k].idx  = (bi_t *)malloc(bwidth*sizeof(bi_t));
+        /* B->blocks[i][j][k].val  = (re_t *)malloc(2*bwidth*sizeof(re_t)); */
+        /* B->blocks[i][j][k].idx  = (bi_t *)malloc(bwidth*sizeof(bi_t)); */
         B->blocks[i][j][k].sz   = B->blocks[i][j][k].dense  = 0;
       }
     }
@@ -676,12 +676,12 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
   const bi_t init_buffer_B  = (bi_t)(B->bwidth/2);
 #pragma omp parallel private(j,k) num_threads(nthrds)
   {
-    ri_t rbi;           // row block index
-    mli_t idx;          // multiline index of values
-    bi_t eil;           // element index in line
-    bi_t bir;           // block index in row
-    bi_t lib;           // line index in block
-    bi_t buffer_B[clB]; // buffer status for blocks in B
+    ri_t rbi;           /*  row block index */
+    mli_t idx;          /*  multiline index of values */
+    bi_t eil;           /*  element index in line */
+    bi_t bir;           /*  block index in row */
+    bi_t lib;           /*  line index in block */
+    bi_t buffer_B[clB]; /*  buffer status for blocks in B */
     memset(buffer_B, 0, clB * sizeof(bi_t));
 
 #pragma omp for nowait ordered
@@ -697,11 +697,11 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
         idx = A->ml[i].idx[j-1];
         bir = (A->ncols - 1 - idx) / bwidth;
         eil = (A->ncols - 1 - idx) % bwidth;
-        // realloc memory if needed
+        /*  realloc memory if needed */
         if (B->blocks[rbi][bir][lib].sz == buffer_B[bir]) {
           realloc_block_rows_B(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
         }
-        // set values
+        /*  set values */
         B->blocks[rbi][bir][lib].idx[B->blocks[rbi][bir][lib].sz]   = eil;
         B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz]   =
           A->ml[i].val[2*(j-1)];
@@ -711,9 +711,9 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
       }
       if (free_memory == 1) {
         free(A->ml[i].idx);
-        //A->ml[i].idx  = NULL;
+        /* A->ml[i].idx  = NULL; */
         free(A->ml[i].val);
-        //A->ml[i].val  = NULL;
+        /* A->ml[i].val  = NULL; */
       }
     }
   }
@@ -724,14 +724,14 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
     A = NULL;
   }
   A_in  = &A;
-  // hybrid multirows for the righthand side block matrices?
+  /*  hybrid multirows for the righthand side block matrices? */
   if (B->hr) {
 #pragma omp parallel num_threads(nthrds)
     {
       ri_t idx;
       bi_t l;
 #pragma omp for private(i,j,k,l) schedule(dynamic) nowait ordered
-      // TODO: Implement hybrid stuff
+      /*  TODO: Implement hybrid stuff */
       for (i=0; i<rlB; ++i) {
         for (j=0; j<clB; ++j) {
           for (k=0; k<ml_bheight; ++k) {
@@ -773,10 +773,10 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
         }
       }
     }
-  } else { // cut down memory usage
-    // Realloc memory usage:
-    // Note that A is reallocated during the swapping of the data, so we
-    // reallocate only B here.
+  } else { /*  cut down memory usage */
+    /*  Realloc memory usage: */
+    /*  Note that A is reallocated during the swapping of the data, so we */
+    /*  reallocate only B here. */
 #pragma omp parallel num_threads(nthrds)
     {
 #pragma omp for schedule(dynamic) nowait ordered
@@ -795,7 +795,7 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
                   2 * B->blocks[i][j][k].sz  * sizeof(re_t));
             }
           }
-          // if full block is empty, remove it!
+          /*  if full block is empty, remove it! */
           if (ctr == 0) {
             free(B->blocks[i][j]);
             B->blocks[i][j] = NULL;
