@@ -1802,6 +1802,45 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
  *
  *  \param dense block submatrix B
  *
+ *  \param sparse block submatrix C
+ *
+ *  \param dense block submatrix D
+ *
+ *  \param indexer mapping map
+ *
+ *  \param checks if map was already defined outside map_defined
+ *
+ *  \param destructing input matrix on the go? destruct_input_matrix
+ *
+ *  \param level of verbosity
+ *
+ *  \param number of threads to be used nthreads
+ */
+void splice_fl_matrix_sparse_dense_2(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *C,
+    dbm_fl_t *D, map_fl_t *map, const int map_defined,
+    const int destruct_input_matrix, const int verbose, const int nthreads);
+
+/**
+ * \brief Constructs the subdivision of M into ABCD in the
+ * Faugère-Lachartre style
+ *
+ *                 A | B
+ * M     ---->     --+--
+ *                 C | D
+ * In the subdivision the following dimensions hold:
+ * A->nrows = B->nrows = map->npiv // number of pivots found
+ * C->nrows = D->nrows = M->nrows - map->npiv // non-pivots
+ * A->ncols = C->ncols = map->npiv
+ * B->ncols = D->ncols = M->ncols - map->npiv
+ *
+ * \note Sparse-dense version without multilines in order to exploit SIMD instructions.
+ *
+ *  \param original matrix M
+ *
+ *  \param sparse block submatrix A
+ *
+ *  \param dense block submatrix B
+ *
  *  \param dense block submatrix C
  *
  *  \param dense block submatrix D

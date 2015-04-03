@@ -2074,6 +2074,51 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
  *
  * \param dense block submatrix B (right upper side)
  *
+ * \param sparse block submatrix C (left lower side)
+ *
+ * \param dense block submatrix D (right lower side)
+ *
+ * \param inverse scalars? inv_scalars
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C, dbm_fl_t *D, const int inv_scalars,
+    const mod_t modulus, const int nthrds);
+
+/**
+ * \brief Different block tasks when reducing denes block submatrix C.
+ *
+ * \param dense block submatrix B (right upper side)
+ *
+ * \param sparse block submatrix C (left lower side)
+ *
+ * \param dense block submatrix D (right lower side)
+ *
+ * \param column index of blocks in D block_col_idx_D
+ *
+ * \param number of block rows in C nblock_rows_C
+ *
+ * \param inverse scalars? inv_scalars
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
+    const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+    const int inv_scalars, const mod_t modulus);
+
+/**
+ * \brief Elimination procedure which reduces the dense block submatrix C to zero.
+ * Corresponding changes in dense block submatrix D are carried out using dense block
+ * submatrixB, too.
+ *
+ * \param dense block submatrix B (right upper side)
+ *
  * \param dense block submatrix C (left lower side)
  *
  * \param dense block submatrix D (right lower side)

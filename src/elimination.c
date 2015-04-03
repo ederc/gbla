@@ -500,6 +500,33 @@ int elim_fl_A_dense_blocks_task(dbm_fl_t *A, dbm_fl_t *B,
   return 0;
 }
 
+int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
+    const int inv_scalars, const mod_t modulus, const int nthrds) {
+
+  sb_fl_t *C = *C_in;
+
+  ci_t i, rc;
+  ri_t j, k;
+  const ci_t clD  = get_number_dense_col_blocks(D);
+  const ci_t clC  = get_number_sparse_col_blocks(C);
+  const ri_t rlC  = get_number_sparse_row_blocks(C);
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<clD; ++i) {
+#pragma omp task
+      {
+        rc  = elim_fl_C_sparse_dense_blocks_task(B, C, D, i, rlC, clC, inv_scalars, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+  // free C
+  free_sparse_submatrix(&C, nthrds);
+  return 0;
+}
+
 int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
     const int inv_scalars, const mod_t modulus, const int nthrds) {
 
@@ -524,6 +551,40 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
   }
   // free C
   free_dense_submatrix(&C, nthrds);
+  return 0;
+}
+
+int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
+  const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+  const int inv_scalars, const mod_t modulus) {
+  bi_t i;
+  ri_t j, k;
+  re_l_t **wide_block;
+  
+  init_wide_blocks(&wide_block);
+  for (j=0; j<nbrows_C; ++j) {
+    const ri_t first_block_idx  = 0;
+
+    set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
+
+    // copy sparse block data to dense representation
+    if (D->blocks[j][block_col_idx_D].val != NULL) {
+      copy_dense_to_wide_block(D->blocks[j][block_col_idx_D].val, wide_block);
+    }
+    // do all rectangular blocks
+    for (k=0; k<nbcols_C; ++k) {
+      if ((C->blocks[j][k].row != NULL) && (B->blocks[k][block_col_idx_D].val != NULL)) {
+        red_sparse_dense_rectangular(&C->blocks[j][k],
+            B->blocks[k][block_col_idx_D].val, wide_block);
+      }
+    }
+    // cut down elements mod field characteristic
+    modulo_wide_block(&wide_block, modulus);
+
+    copy_wide_to_dense_block(wide_block, &D->blocks[j][block_col_idx_D].val);
+  }
+  free_wide_block(&wide_block);
+
   return 0;
 }
 
