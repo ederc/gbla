@@ -1071,7 +1071,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   if (map_defined == 0)
     construct_fl_map(M, map);
 
-  int i, j, k, l, m;
+  int l/*, m*/;
+	uint32_t i,j,k;
 
   /*  initialize meta data for block submatrices */
   A->nrows    = map->npiv;            /*  row dimension */
@@ -1211,15 +1212,16 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   /*  C & D. */
   uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows;
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
-  uint32_t block_idx, block_idx_2;
+  uint32_t block_idx/*, block_idx_2*/;
 
   /*  find blocks for construction of A & B */
-  for (i = (int)M->ncols-1; i > -1; --i) {
-    if (map->pri[i] != __GB_MINUS_ONE_32) {
+	assert((int)M->ncols>=0);
+  for (l = (int)M->ncols-1; l > -1; --l) {
+    if (map->pri[l] != __GB_MINUS_ONE_32) {
       npiv++;
     }
     if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = i;
+      piv_start_idx[npiv/B->bheight]  = l;
     }
   }
   /*  loop might overwrite piv_start_idx[0] with a wrong index; */
@@ -1467,13 +1469,14 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       /*  Note: In the for loop we always construct block "block+1" and not block */
       /*  "block". */
       /*  TODO: Try to improve this rather strange looping. */
-      for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (map->pri[i] != __GB_MINUS_ONE_32) {
-          rihb[cvb] = map->pri[i];
+			assert((int)piv_start_idx[block_idx]>=0);
+      for (l = ((int)piv_start_idx[block_idx]-1);
+          l > (int)piv_start_idx[block_idx+1]-1; --l) {
+        if (map->pri[l] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->pri[l];
           cvb++;
         }
-        if (cvb == B->bheight || i == 0) {
+        if (cvb == B->bheight || l == 0) {
           write_blocks_lr_matrix(M, A, B, map, rihb, cvb, block_idx, 0);
 
           /*  TODO: Destruct input matrix on the go */
@@ -1494,12 +1497,13 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
   /*  find blocks for construction of C & D */
   npiv  = 0;
-  for (i = (int)M->nrows-1; i > -1; --i) {
-    if (map->npri[i] != __GB_MINUS_ONE_32)
+	assert((int)M->nrows>=0);
+  for (l = (int)M->nrows-1; l > -1; --l) {
+    if (map->npri[l] != __GB_MINUS_ONE_32)
       npiv++;
 
     if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = i;
+      piv_start_idx[npiv/B->bheight]  = l;
     }
   }
   /*  loop might overwrite piv_start_idx[0] with a wrong index; */
@@ -1523,13 +1527,14 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       /*  Note: In the for loop we always construct block "block+1" and not block */
       /*  "block". */
       /*  TODO: Try to improve this rather strange looping. */
-      for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (map->npri[i] != __GB_MINUS_ONE_32) {
-          rihb[cvb] = map->npri[i];
+			assert((int)piv_start_idx[block_idx]>=0);
+      for (l = ((int)piv_start_idx[block_idx]-1);
+          l > (int)piv_start_idx[block_idx+1]-1; --l) {
+        if (map->npri[l] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->npri[l];
           cvb++;
         }
-        if (cvb == D->bheight || i == 0) {
+        if (cvb == D->bheight || l == 0) {
           ctr++;
           write_blocks_lr_matrix(M, C, D, map, rihb, cvb, block_idx, 1);
 
@@ -1558,7 +1563,8 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   /*  construct index map for Faugère-Lachartre decomposition of matrix M */
   construct_fl_map(M, map);
 
-  int i, j, k, l, m;
+	int  l/*, m*/;
+	uint32_t i,j,k;
 
   /*  initialize meta data for multiline sub matrices A and C */
   A->nrows    = map->npiv;            /*  row dimension */
@@ -1681,15 +1687,16 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   /*  C & D. */
   uint32_t max_nrows =  (A->nrows > C->nrows) ? A->nrows : C->nrows;
   uint32_t piv_start_idx[(max_nrows / B->bheight) + 2];
-  uint32_t block_idx, block_idx_2;
+  uint32_t block_idx/*, block_idx_2*/;
 
   /*  find blocks for construction of A & B */
-  for (i = (int)M->ncols-1; i > -1; --i) {
-    if (map->pri[i] != __GB_MINUS_ONE_32) {
+	assert((int)M->ncols>=0);
+  for (l = (int)M->ncols-1; l > -1; --l) {
+    if (map->pri[l] != __GB_MINUS_ONE_32) {
       npiv++;
     }
     if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = i;
+      piv_start_idx[npiv/B->bheight]  = l;
     }
   }
   /*  loop might overwrite piv_start_idx[0] with a wrong index; */
@@ -1936,13 +1943,14 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       /*  Note: In the for loop we always construct block "block+1" and not block */
       /*  "block". */
       /*  TODO: Try to improve this rather strange looping. */
-      for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (map->pri[i] != __GB_MINUS_ONE_32) {
-          rihb[cvb] = map->pri[i];
+			assert((int)piv_start_idx[block_idx]>=0);
+      for (l = ((int)piv_start_idx[block_idx]-1);
+          l > (int)piv_start_idx[block_idx+1]-1; --l) {
+        if (map->pri[l] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->pri[l];
           cvb++;
         }
-        if (cvb == B->bheight || i == 0) {
+        if (cvb == B->bheight || l == 0) {
           /*  multiline version for A */
           write_lr_matrix_ml(M, A, B, map, rihb, cvb, block_idx, 0);
           /*  TODO: Destruct input matrix on the go */
@@ -1963,12 +1971,13 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 
   /*  find blocks for construction of C & D */
   npiv  = 0;
-  for (i = (int)M->nrows-1; i > -1; --i) {
-    if (map->npri[i] != __GB_MINUS_ONE_32)
+	assert((int)M->nrows>=0);
+  for (l = (int)M->nrows-1; l > -1; --l) {
+    if (map->npri[l] != __GB_MINUS_ONE_32)
       npiv++;
 
     if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = i;
+      piv_start_idx[npiv/B->bheight]  = l;
     }
   }
   /*  loop might overwrite piv_start_idx[0] with a wrong index; */
@@ -1992,13 +2001,13 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       /*  Note: In the for loop we always construct block "block+1" and not block */
       /*  "block". */
       /*  TODO: Try to improve this rather strange looping. */
-      for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (map->npri[i] != __GB_MINUS_ONE_32) {
-          rihb[cvb] = map->npri[i];
+      for (l = ((int)piv_start_idx[block_idx]-1);
+          l > (int)piv_start_idx[block_idx+1]-1; --l) {
+        if (map->npri[l] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = map->npri[l];
           cvb++;
         }
-        if (cvb == D->bheight || i == 0) {
+        if (cvb == D->bheight || l == 0) {
           /*  multiline version for C */
           write_lr_matrix_ml(M, C, D, map, rihb, cvb, block_idx, 1);
 
@@ -2026,7 +2035,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   bi_t  bir;    /*  block index in row */
   bi_t  eil;    /*  element index in line */
   bi_t  lib;    /*  line index in block */
-  bi_t  length; /*  local helper for block line length arithmetic */
+	/* bi_t  length; |+  local helper for block line length arithmetic +| */
   ci_t  it1, it2, i1, i2;
 
   /*  memory for block entries is already allocated in splice_fl_matrix() */
@@ -2393,7 +2402,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   bi_t  bir;    /*  block index in row */
   bi_t  eil;    /*  element index in line */
   bi_t  lib;    /*  line index in block */
-  bi_t  length; /*  local helper for block line length arithmetic */
+	/* bi_t  length; |+  local helper for block line length arithmetic +| */
   ci_t  it1, it2, i1, i2;
 
   /*  memory for block entries is already allocated in splice_fl_matrix() */

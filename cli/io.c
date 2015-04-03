@@ -564,5 +564,49 @@ void print_mem_usage() {
 	printf("MMRY\tRSS - %.3f %s | VMS - %.3f %s\n", rss, unit, vms, unit);
 }
 
+/* STATIC STUFF */
+
+/* static */ /* inline */ void compute_density_ml_submatrix(sm_fl_ml_t *A) {
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
+  uint32_t i, j;
+  for (i=0; i<rlA; ++i) {
+    if (A->ml[i].sz>0) {
+      for (j=0; j<A->ml[i].sz; ++j) {
+        if (A->ml[i].val[2*j] != 0) {
+          A->nnz++;
+        }
+        if (A->ml[i].val[2*j+1] != 0) {
+          A->nnz++;
+        }
+      }
+    }
+  }
+  A->density  = (double) (A->nnz * 100) / (A->nrows * (nnz_t)A->ncols);
+}
+
+/* static */ /* inline */ void compute_density_block_submatrix(sbm_fl_t *A) {
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
+  uint32_t i, j, k, l;
+  for (i=0; i<rlA; ++i) {
+    for (j=0; j<clA; ++j) {
+      if (A->blocks[i][j] != NULL) {
+        for (k=0; k<A->bwidth/2; ++k) {
+          for (l=0; l<A->blocks[i][j][k].sz; ++l) {
+            if (A->blocks[i][j][k].val[2*l]) {
+              A->nnz++;
+            }
+            if (A->blocks[i][j][k].val[2*l+1]) {
+              A->nnz++;
+            }
+          }
+        }
+      }
+    }
+  }
+  A->density  = (double) (A->nnz * 100) / (A->nrows * (nnz_t)A->ncols);
+}
+
+
 /* vim:sts=2:sw=2:ts=2:
  */

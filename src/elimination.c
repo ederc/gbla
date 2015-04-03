@@ -27,18 +27,18 @@
 #define GBLA_WITH_FFLAS 0
 
 /*  global variables for echelonization of D */
-static omp_lock_t echelonize_lock;
-static ri_t global_next_row_to_reduce;
-static ri_t global_last_piv;
-static wl_t waiting_global;
+/* static */ omp_lock_t echelonize_lock;
+/* static */ ri_t global_next_row_to_reduce;
+/* static */ ri_t global_last_piv;
+/* static */ wl_t waiting_global;
 
 /*  global variables for reduction of C */
-static omp_lock_t reduce_C_lock;
-static ri_t reduce_C_next_col_to_reduce;
+/* static */ omp_lock_t reduce_C_lock;
+/* static */ ri_t reduce_C_next_col_to_reduce;
 
 /*  global variables for reduction of C */
-static omp_lock_t reduce_A_lock;
-static ri_t reduce_A_next_col_to_reduce;
+/* static */ omp_lock_t reduce_A_lock;
+/* static */ ri_t reduce_A_next_col_to_reduce;
 
 #if TASKS
 int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
@@ -1758,6 +1758,1065 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
   return 0;
 }
+
+
+/* WAS IN HEADER */
+
+/* static */ /* inline */ void dense_scal_mul_sub_2_rows_array_array(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
+              const bi_t bwidth,
+              const re_l_t *dense_array_source1,
+              const re_l_t *dense_array_source2,
+              re_l_t *dense_array1,
+              re_l_t *dense_array2) {
+
+  /*  check cases where one pair of the elements is zero */
+  if (Av1_col1 == 0 && Av2_col1 == 0) {
+    dense_scal_mul_sub_1_row_array_array(
+        Av1_col2, Av2_col2, bwidth,
+        dense_array_source2,
+        dense_array1, dense_array2);
+    return;
+  }
+  if (Av1_col2 == 0 && Av2_col2 == 0) {
+    dense_scal_mul_sub_1_row_array_array(
+        Av1_col1, Av2_col1, bwidth,
+        dense_array_source1,
+        dense_array1, dense_array2);
+    return;
+  }
+
+  bi_t i, j;
+  register re_m_t v1__, v2__;
+
+  for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
+    for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+      v1__  = CAST(dense_array_source1[i+j]);
+      v2__  = CAST(dense_array_source2[i+j]);
+
+      dense_array1[i+j] +=  v1__ * Av1_col1;
+      dense_array1[i+j] +=  v2__ * Av1_col2;
+
+      dense_array2[i+j] +=  v1__ * Av2_col1;
+      dense_array2[i+j] +=  v2__ * Av2_col2;
+    }
+  }
+}
+
+/* static */ /* inline */ void dense_scal_mul_sub_1_row_array_array(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const bi_t bwidth,
+              const re_l_t *dense_array_source,
+              re_l_t *dense_array1,
+              re_l_t *dense_array2) {
+
+  bi_t i, j;
+  register re_m_t v__;
+
+  if (Av1_col1 == 0) { /*  only one of them can be zero */
+    for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
+      for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+        v__ = CAST(dense_array_source[i+j]) ;
+        dense_array2[i+j] +=  v__ * Av2_col1;
+      }
+    }
+  } else {
+    if (Av2_col1 == 0) { /*  only second one is zero */
+      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
+        for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+          v__ = CAST(dense_array_source[i+j]);
+          dense_array1[i+j] +=  v__ * Av1_col1;
+        }
+      }
+    } else { /*  both are nonzero */
+      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
+        for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+          v__ = CAST(dense_array_source[i+j]);
+          dense_array1[i+j] +=  v__ * Av1_col1;
+          dense_array2[i+j] +=  v__ * Av2_col1;
+        }
+      }
+    }
+  }
+}
+
+/* static */ /* inline */ void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus) {
+  bi_t i;
+  for (i=0; i<bwidth; ++i) {
+    dense_array[i]  = (re_l_t)(MODP(dense_array[i], modulus));
+  }
+}
+
+/* static */ /* inline */ int normalize_dense_array(re_l_t *dense_array,
+    const ci_t coldim, const mod_t modulus) {
+  re_t val;
+  ci_t i;
+  int h1  = get_head_dense_array(dense_array, &val, coldim, modulus);
+
+  if (h1 == -1)
+    return h1;
+
+  inverse_val(&val, modulus);
+  for (i=h1; i<coldim; ++i) {
+    dense_array[i]  *=  val;
+    dense_array[i]  =  MODP(dense_array[i],modulus);
+  }
+  return h1;
+}
+
+/* static */ /* inline */ int get_head_dense_array(re_l_t *dense_array,
+    re_t *val, const ci_t coldim, const mod_t modulus) {
+  ci_t i;
+  for (i=0; i<coldim; ++i) {
+    *val  = MODP(dense_array[i], modulus);
+    if (*val != 0)
+      return (int)i;
+    else
+      dense_array[i]  = 0;
+  }
+  return -1;
+}
+
+/* static */ /* inline */ void sparse_scal_mul_sub_2_rows_vect_array(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
+              const mbl_t multiline,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2) {
+
+  /*  check cases where one pair of the elements is zero */
+  if (Av1_col1 == 0 && Av2_col1 == 0) {
+    sparse_scal_mul_sub_1_row_vect_array(
+        Av1_col2, Av2_col2, multiline, 1, dense_val1, dense_val2);
+    return;
+  }
+  if (Av1_col2 == 0 && Av2_col2 == 0) {
+    sparse_scal_mul_sub_1_row_vect_array(
+        Av1_col1, Av2_col1, multiline, 0, dense_val1, dense_val2);
+    return;
+  }
+
+  const uint32_t N    = multiline.sz;
+  const bi_t *p_idx   = (N != 0) ? multiline.idx : NULL;
+  const re_t *p_val   = (N != 0) ? multiline.val : NULL;
+  const re_t *p_val2  = p_val + 1;
+  uint32_t i;
+  bi_t j;
+
+  register re_m_t v1__, v2__;
+  register uint32_t idx;
+
+  for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      idx   = p_idx[i+j];
+      v1__  = p_val[2*(i+j)];
+      v2__  = p_val2[2*(i+j)];
+
+      dense_val1[idx] +=  Av1_col1 * v1__;
+      dense_val1[idx] +=  Av1_col2 * v2__;
+
+      dense_val2[idx] +=  Av2_col1 * v1__;
+      dense_val2[idx] +=  Av2_col2 * v2__;
+    }
+  }
+  for ( ; i<N; ++i) {
+    idx   = p_idx[i];
+    v1__  = p_val[2*i];
+    v2__  = p_val2[2*i];
+
+    dense_val1[idx] +=  Av1_col1 * v1__;
+    dense_val1[idx] +=  Av1_col2 * v2__;
+
+    dense_val2[idx] +=  Av2_col1 * v1__;
+    dense_val2[idx] +=  Av2_col2 * v2__;
+  }
+}
+
+/* static */ /* inline */ void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
+              const ml_t multiline,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2,
+              const ci_t offset1,
+              const ci_t offset2) {
+
+	/*  if (offset1 < 0) return; */
+
+  /*  check cases where one pair of the elements is zero */
+  if (Av1_col1 == 0 && Av2_col1 == 0) {
+    dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
+        Av1_col2, Av2_col2, multiline, 1, dense_val1, dense_val2, offset2);
+    return;
+  }
+  if (Av1_col2 == 0 && Av2_col2 == 0) {
+    dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
+        Av1_col1, Av2_col1, multiline, 0, dense_val1, dense_val2, offset1);
+    return;
+  }
+
+  const re_t *p_val = multiline.val;
+  const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
+  uint32_t i;
+  bi_t j;
+
+  register re_m_t v1__, v2__;
+	/*  register uint32_t idx; */
+
+  for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      v1__ = p_val[2*(i+j)];
+      v2__ = p_val[2*(i+j)+1];
+
+      dense_val1[i+j] +=  v1__ * Av1_col1;
+      dense_val1[i+j] +=  v2__ * Av1_col2;
+
+
+      dense_val2[i+j] +=  v1__ * Av2_col1;
+      dense_val2[i+j] +=  v2__ * Av2_col2;
+    }
+  }
+  for (; i<multiline.sz; ++i) {
+    v1__ = p_val[2*i];
+    v2__ = p_val[2*i+1];
+
+    dense_val1[i] +=  v1__ * Av1_col1;
+    dense_val1[i] +=  v2__ * Av1_col2;
+
+    dense_val2[i] +=  v1__ * Av2_col1;
+    dense_val2[i] +=  v2__ * Av2_col2;
+  }
+}
+
+/* static */ /* inline */ void sparse_scal_mul_sub_1_row_vect_array_multiline(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const ml_t multiline,
+              const bi_t line_idx,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2) {
+
+  const uint32_t N    = multiline.sz;
+  const mli_t *p_idx  = (N != 0) ? multiline.idx : NULL;
+  const re_t *p_val   = (N != 0) ? multiline.val : NULL;
+  p_val +=  line_idx;
+  uint32_t i  = 0;
+
+  register re_m_t v__;
+  register uint32_t idx;
+
+  /* printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1); */
+  /*  both cannot be zero at the same time */
+  if (Av1_col1 != 0 && Av2_col1 != 0) {
+    for (; i<N; ++i) {
+      idx = p_idx[i];
+      v__ = p_val[2*i];
+
+      dense_val1[idx] +=  v__ * Av1_col1;
+      dense_val2[idx] +=  v__ * Av2_col1;
+    }
+  } else { /*  one of them is zero */
+    if (Av1_col1 != 0) {
+      /* printf("i %d -- N %d\n",i,N); */
+      for (; i<N; ++i) {
+        idx = p_idx[i];
+        v__ = p_val[2*i];
+
+        dense_val1[idx] +=  v__ * Av1_col1;
+      }
+    } else {
+      for (; i<N; ++i) {
+        idx = p_idx[i];
+        v__ = p_val[2*i];
+
+        dense_val2[idx] +=  v__ * Av2_col1;
+      }
+    }
+  }
+}
+
+/* static */ /* inline */ void dense_scal_mul_sub_2_rows_vect_array(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
+              const mbl_t multiline,
+              const bi_t  bwidth,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2) {
+
+  /*  check cases where one pair of the elements is zero */
+  if (Av1_col1 == 0 && Av2_col1 == 0) {
+    dense_scal_mul_sub_1_row_vect_array(
+        Av1_col2, Av2_col2, multiline, 1, bwidth, dense_val1, dense_val2);
+    return;
+  }
+  if (Av1_col2 == 0 && Av2_col2 == 0) {
+    dense_scal_mul_sub_1_row_vect_array(
+        Av1_col1, Av2_col1, multiline, 0, bwidth, dense_val1, dense_val2);
+    return;
+  }
+
+  const re_t *p_val = multiline.val;
+  uint32_t i;
+  bi_t j;
+
+  register re_m_t v1__, v2__;
+	/*  register uint32_t idx; */
+
+  for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      /* printf(";;%d..%d::",i,j); */
+      v1__ = p_val[2*(i+j)];
+      v2__ = p_val[2*(i+j)+1];
+        /* printf("v11 %d v21 %d !! ",v1__,v2__); */
+
+      dense_val1[i+j] +=  v1__ * Av1_col1;
+      dense_val1[i+j] +=  v2__ * Av1_col2;
+
+      v1__  *=  Av2_col1;
+      v2__  *=  Av2_col2;
+        /* printf("v12 %d v22 %d !! ",v1__,v2__); */
+
+      dense_val2[i+j] +=  v1__;
+      dense_val2[i+j] +=  v2__;
+    }
+  }
+  /* printf("\n"); */
+}
+
+/* static */ /* inline */ void sparse_scal_mul_sub_1_row_vect_array(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const mbl_t multiline,
+              const bi_t line_idx,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2) {
+
+  const uint32_t N  = multiline.sz;
+  /* printf("mlsz %d\n",multiline.sz); */
+  const bi_t *p_idx = (N != 0) ? multiline.idx : NULL;
+  const re_t *p_val = (N != 0) ? multiline.val : NULL;
+  p_val +=  line_idx;
+  uint32_t i  = 0;
+
+  register re_m_t v__;
+  register uint32_t idx;
+
+  /* printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1); */
+  /*  both cannot be zero at the same time */
+  if (Av1_col1 != 0 && Av2_col1 != 0) {
+    for (; i<N; ++i) {
+      idx = p_idx[i];
+      v__ = p_val[2*i];
+
+      dense_val1[idx] +=  v__ * Av1_col1;
+      dense_val2[idx] +=  v__ * Av2_col1;
+    }
+  } else { /*  one of them is zero */
+    if (Av1_col1 != 0) {
+      /* printf("i %d -- N %d\n",i,N); */
+      for (; i<N; ++i) {
+        idx = p_idx[i];
+        v__ = p_val[2*i];
+
+        dense_val1[idx] +=  v__ * Av1_col1;
+      }
+    } else {
+      for (; i<N; ++i) {
+        idx = p_idx[i];
+        v__ = p_val[2*i];
+
+        dense_val2[idx] +=  v__ * Av2_col1;
+      }
+    }
+  }
+}
+
+/* static */ /* inline */ void dense_scal_mul_sub_1_row_vect_array(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const mbl_t multiline,
+              const bi_t line_idx,
+              const bi_t  bwidth,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2) {
+
+  const re_t *p_val = multiline.val;
+  p_val +=  line_idx;
+  uint32_t i;
+  bi_t j;
+
+  register re_m_t v__;
+
+  /*  both cannot be zero at the same time */
+  /* printf("mlsize %d\n",multiline.sz); */
+  if (Av1_col1 != 0 && Av2_col1 != 0) {
+    for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
+      for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+        v__ = p_val[2*(i+j)];
+
+        dense_val1[i+j] +=  v__ * Av1_col1;
+        dense_val2[i+j] +=  v__ * Av2_col1;
+      }
+    }
+  } else { /*  one of them is zero */
+    if (Av1_col1 == 0) {
+      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
+        for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+          v__ = p_val[2*(i+j)];
+
+          dense_val2[i+j] +=  v__ * Av2_col1;
+        }
+      }
+    } else {
+      if (Av2_col1 == 0) {
+        for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
+          for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+            v__ = p_val[2*(i+j)];
+
+            dense_val1[i+j] +=  v__ * Av1_col1;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* static */ /* inline */ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
+  mli_t idx;
+  re_t h1 = 0, h2 = 0;
+
+  if (m->sz == 0)
+    return;
+
+  get_head_multiline_hybrid(m, 0, &h1, &idx, coldim);
+  get_head_multiline_hybrid(m, 1, &h2, &idx, coldim);
+
+  /*  invert values modulo modulus */
+  inverse_val(&h1, modulus);
+  inverse_val(&h2, modulus);
+
+  /*  skip if both are 1 and/or 0 */
+  if ((h1 == 0 || h1 == 1) && (h2 == 0 || h2 == 1))
+    return;
+
+  re_l_t tmp_val;
+  /*  normalize h2 */
+  if (h1 == 0 || h1 == 1) {
+    for (idx=0; idx<m->sz; ++idx) {
+      tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
+      m->val[2*idx+1] = MODP(tmp_val, modulus);
+    }
+  } else {
+    /*  normalize h1 */
+    if (h2 == 0 || h2 == 1) {
+      for (idx=0; idx<m->sz; ++idx) {
+        tmp_val       = (re_l_t)m->val[2*idx] * h1;
+        m->val[2*idx] = MODP(tmp_val,  modulus);
+      }
+    /*  normalize h1 and h2 */
+    } else {
+      for (idx=0; idx<m->sz; ++idx) {
+        tmp_val         = (re_l_t)m->val[2*idx] * h1;
+        m->val[2*idx]   = MODP(tmp_val, modulus);
+        tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
+        m->val[2*idx+1] = MODP(tmp_val, modulus);
+      }
+    }
+  }
+}
+
+/* static */ /* inline */ void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
+    re_l_t *dense_2, const ci_t coldim) {
+  if (m.sz == 0)
+    return;
+
+  register mli_t idx;
+  ci_t i;
+
+  if (m.sz < coldim) {
+    for (i=0; i<m.sz; ++i) {
+      idx           = m.idx[i];
+      dense_1[idx]  = (re_l_t)m.val[2*i];
+      dense_2[idx]  = (re_l_t)m.val[2*i+1];
+
+    }
+  } else {
+    for (i=0; i<coldim; ++i) {
+      dense_1[i]  = (re_l_t)m.val[2*i];
+      dense_2[i]  = (re_l_t)m.val[2*i+1];
+    }
+  }
+}
+
+/* static */ /* inline */ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const re_m_t Av1_col2,
+              const re_m_t Av2_col2,
+              const ml_t multiline,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2) {
+
+  /*  check cases where one pair of the elements is zero */
+  if (Av1_col1 == 0 && Av2_col1 == 0) {
+    sparse_scal_mul_sub_1_row_vect_array_multiline(
+        Av1_col2, Av2_col2, multiline, 1, dense_val1, dense_val2);
+    return;
+  }
+  if (Av1_col2 == 0 && Av2_col2 == 0) {
+    sparse_scal_mul_sub_1_row_vect_array_multiline(
+        Av1_col1, Av2_col1, multiline, 0, dense_val1, dense_val2);
+    return;
+  }
+
+  const uint32_t N    = multiline.sz;
+  const mli_t *p_idx  = (N != 0) ? multiline.idx : NULL;
+  const re_t *p_val   = (N != 0) ? multiline.val : NULL;
+  const re_t *p_val2  = p_val + 1;
+  uint32_t i;
+  bi_t j;
+
+  register re_m_t v1__, v2__;
+  register uint32_t idx;
+
+  for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      idx   = p_idx[i+j];
+      v1__  = p_val[2*(i+j)];
+      v2__  = p_val2[2*(i+j)];
+
+      dense_val1[idx] +=  Av1_col1 * v1__;
+      dense_val1[idx] +=  Av1_col2 * v2__;
+
+      dense_val2[idx] +=  Av2_col1 * v1__;
+      dense_val2[idx] +=  Av2_col2 * v2__;
+    }
+  }
+  for ( ; i<N; ++i) {
+    idx   = p_idx[i];
+    v1__  = p_val[2*i];
+    v2__  = p_val2[2*i];
+
+    dense_val1[idx] +=  Av1_col1 * v1__;
+    dense_val1[idx] +=  Av1_col2 * v2__;
+
+    dense_val2[idx] +=  Av2_col1 * v1__;
+    dense_val2[idx] +=  Av2_col2 * v2__;
+  }
+}
+
+/* static */ /* inline */ void inverse_val(re_t *x, const mod_t modulus) {
+	assert((int32_t)modulus > 0);
+  int32_t u1 = 1, u2 = 0;
+  int32_t v1 = 0, v3 = (int32_t)modulus;
+  int32_t u3 = (int32_t)*x, v2 = 1;
+  while (v3 != 0) {
+    int32_t q  = u3 / v3;
+    int32_t t1 = u1 - v1 * q;
+    u1  = v1; v1  = t1;
+
+    int32_t t3 = u3 - v3 * q;
+    u3  = v3; v3  = t3;
+
+    int32_t t2 = u2 - v2 * q;
+    u2  = v2; v2  = t2;
+  }
+  if (u1 < 0) {
+    u1  +=  modulus;
+    *x  =   u1;
+    return;
+  }
+  if (u1 > (int32_t)modulus) {
+    u1  -=  modulus;
+    *x  =   u1;
+    return;
+  }
+  *x  = u1;
+  return;
+}
+
+/* static */ /* inline */ int get_smallest_waiting_row(wl_t *waiting_global,
+    ri_t *wl_idx, ri_t *wl_lp) {
+  if (waiting_global->sz == 0)
+    return 0;
+
+#if DEBUG_ECHELONIZE
+  int tid = omp_get_thread_num();
+  printf("BEFORE SORT\n");
+    for (int ii=0; ii<waiting_global->sz; ++ii) {
+      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+    }
+#endif
+  /*  sort the waiting list */
+  qsort(waiting_global->list, waiting_global->sz, sizeof(wle_t), cmp_wle);
+#if DEBUG_ECHELONIZE
+  printf("AFTER SORT\n");
+    for (int ii=0; ii<waiting_global->sz; ++ii) {
+      if (ii<waiting_global->sz - 1) {
+        if (waiting_global->list[ii].idx == waiting_global->list[ii+1].idx) {
+          printf("SAME IN WAITING!\n");
+        }
+      }
+      printf("ST(%d) %d/%d %d . %d\n",tid,ii,waiting_global->sz,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+    }
+#endif
+  /*  store last (smallest index) element separately and */
+  /*  remove it from the list */
+  *wl_idx = waiting_global->list[waiting_global->sz-1].idx;
+  *wl_lp  = waiting_global->list[waiting_global->sz-1].lp;
+#if DEBUG_ECHELONIZE
+  printf("wsidx %d -- wslp %d\n",*wl_idx, *wl_lp);
+#endif
+  waiting_global->sz--;
+
+  return 1;
+}
+
+/* static */ /* inline */ void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
+    const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
+    const mod_t modulus) {
+
+#if DEBUG_ECHELONIZE
+  printf("in copy mlv %p\n",m->val);
+#endif
+
+  ci_t buffer = m->sz;
+  m->dense    = 0;
+  m->sz       = 0;
+  ci_t i;
+  re_l_t tmp_1, tmp_2;
+  for (i=start_pos; i<coldim; ++i) {
+    tmp_1 = MODP(dense_1[i], modulus);
+    tmp_2 = MODP( dense_2[i], modulus);
+    /* printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2); */
+    if (tmp_1 != 0 || tmp_2 != 0) {
+      if (m->sz >= buffer) { /*  realloc memory for multiline ml */
+        m->idx  =   (mli_t*)realloc(m->idx, 3*buffer*sizeof(mli_t));
+        m->val  =   (re_t *)realloc(m->val, 6*buffer*sizeof(re_t));
+        buffer  *=  3;
+      }
+      /* printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]); */
+      m->idx[m->sz]     = i;
+      m->val[2*m->sz]   = (re_t)tmp_1;
+      /* printf("A1 %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]); */
+      m->val[2*m->sz+1] = (re_t)tmp_2;
+      m->sz++;
+    }
+    /* printf("A %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]); */
+  }
+
+  /*  fix sizes: we do not touch this anymore, so keep it as small as possible */
+  m->idx  = (mli_t*)realloc(m->idx, m->sz * sizeof(mli_t));
+  m->val  = (re_t *)realloc(m->val, 2 * m->sz * sizeof(re_t));
+}
+
+/* static */ /* inline */ void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_1,
+    const int start_pos, ml_t *m, const ci_t coldim, const mod_t modulus) {
+
+#if DEBUG_ECHELONIZE
+  printf("in copy mlv %p\n",m->val);
+#endif
+  ci_t i;
+  re_l_t tmp_1;
+  for (i=start_pos; i<coldim; ++i) {
+    tmp_1 = MODP(dense_1[i], modulus);
+    if (tmp_1 != 0) {
+      m->val[2*i]   = (re_t)tmp_1;
+    }
+  }
+}
+
+/* static */ /* inline */ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
+              const re_m_t Av1_col1,
+              const re_m_t Av2_col1,
+              const ml_t multiline,
+              const bi_t line_idx,
+              re_l_t *dense_val1,
+              re_l_t *dense_val2,
+              const ci_t offset) {
+
+  const re_t *p_val = multiline.val;
+  p_val +=  line_idx;
+  const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
+  uint32_t i;
+  bi_t j;
+
+  register re_m_t v__;
+
+  /*  both cannot be zero at the same time */
+  /* printf("mlsize %d\n",multiline.sz); */
+  if (Av1_col1 != 0 && Av2_col1 != 0) {
+    for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+      for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+        v__ = p_val[2*(i+j)];
+
+        dense_val1[i+j] +=  v__ * Av1_col1;
+        dense_val2[i+j] +=  v__ * Av2_col1;
+      }
+    }
+    for (; i<multiline.sz; ++i) {
+      v__ = p_val[2*i];
+
+      dense_val1[i] +=  v__ * Av1_col1;
+      dense_val2[i] +=  v__ * Av2_col1;
+    }
+  } else { /*  one of them is zero */
+    if (Av1_col1 == 0) {
+      for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+        for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+          v__ = p_val[2*(i+j)];
+
+          dense_val2[i+j] +=  v__ * Av2_col1;
+        }
+      }
+      for (; i<multiline.sz; ++i) {
+        v__ = p_val[2*i];
+
+        dense_val1[i] +=  v__ * Av1_col1;
+        dense_val2[i] +=  v__ * Av2_col1;
+      }
+    } else {
+      if (Av2_col1 == 0) {
+        for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+          for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+            v__ = p_val[2*(i+j)];
+
+            dense_val1[i+j] +=  v__ * Av1_col1;
+          }
+        }
+        for (; i<multiline.sz; ++i) {
+          v__ = p_val[2*i];
+
+          dense_val1[i] +=  v__ * Av1_col1;
+          dense_val2[i] +=  v__ * Av2_col1;
+        }
+      }
+    }
+  }
+}
+
+/* static */ /* inline */ void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
+    const ri_t last_piv_reduced_by) {
+#if DEBUG_ECHELONIZE
+  int tid = omp_get_thread_num();
+  printf("BEFORE PUSH\n");
+    for (int ii=0; ii<waiting_global->sz; ++ii) {
+      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+    }
+#endif
+  waiting_global->list[waiting_global->sz].idx  = row_idx;
+  waiting_global->list[waiting_global->sz].lp   = last_piv_reduced_by;
+#if DEBUG_ECHELONIZE
+  printf("rowidx %u -- lprb %u\n", row_idx, last_piv_reduced_by);
+#endif
+  waiting_global->sz++;
+#if DEBUG_ECHELONIZE
+  printf("AFTER PUSH\n");
+    for (int ii=0; ii<waiting_global->sz; ++ii) {
+      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+    }
+#endif
+}
+
+/* static */ /* inline */ void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
+    const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
+    const mod_t modulus) {
+
+#if DEBUG_ECHELONIZE
+  printf("in copy mlv %p\n",m->val);
+#endif
+  ci_t i;
+  re_l_t tmp_1, tmp_2;
+  for (i=start_pos; i<coldim; ++i) {
+    tmp_1 = MODP(dense_1[i], modulus);
+    tmp_2 = MODP(dense_2[i], modulus);
+    /* printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2); */
+    if (tmp_1 != 0 || tmp_2 != 0) {
+      /* printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]); */
+      m->val[2*i]   = (re_t)tmp_1;
+      /* printf("A1 %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]); */
+      m->val[2*i+1] = (re_t)tmp_2;
+    }
+    /* printf("A %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]); */
+  }
+}
+
+/* static */ /* inline */ int cmp_wle(const void *a, const void *b) {
+  return ((wle_t *)(b))->idx - ((wle_t *)(a))->idx;
+}
+
+/* static */ /* inline */ void copy_sparse_to_dense_block(
+    mbl_t *sparse_block, re_l_t **dense_block, int bheight, int bwidth) {
+
+  bi_t i,j;
+  for (i=0; i<bheight/2; ++i) {
+    mli_t idx;
+		/*  re_t val1, val2; */
+
+    if (sparse_block[i].sz == 0)
+      continue;
+
+    if (sparse_block[i].dense == 0) {
+      for (j=0; j<sparse_block[i].sz; ++j) {
+        idx   = sparse_block[i].idx[j];
+        dense_block[2*i][idx]   = sparse_block[i].val[2*j];
+        dense_block[2*i+1][idx] = sparse_block[i].val[2*j+1];
+      }
+    } else{
+      for (j=0; j<bwidth; ++j) {
+        dense_block[2*i][j]   = sparse_block[i].val[2*j];
+        dense_block[2*i+1][j] = sparse_block[i].val[2*j+1];
+      }
+    }
+  }
+}
+
+/* static */ /* inline */ mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) {
+  mli_t i;
+  if (m->sz == 0)
+    return -1;
+  for (i=0; i<m->sz; ++i) {
+    if (m->val[2*i+line_idx] != 0) {
+      *h      = m->val[2*i+line_idx];
+      *h_idx  = i;
+      return m->idx[i];
+    }
+  }
+  return -1;
+}
+
+/* static */ /* inline */ mli_t get_head_multiline_hybrid(const ml_t *m,
+    const bi_t line_idx, re_t *h, mli_t *h_idx, const ci_t coldim) {
+  mli_t i;
+  if (m->sz == 0)
+    return -1;
+  if (m->sz < coldim) {
+    return get_head_multiline(m, line_idx, h, h_idx);
+  } else {
+    for (i=0; i<coldim; ++i) {
+      if (m->val[2*i+line_idx] != 0) {
+        *h      = m->val[2*i+line_idx];
+        *h_idx  = i;
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+/* HEADER STUFF PUT HERE */
+
+/* static */ /* inline */ void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_fl_t *map) {
+  /*  initialize map arrays and */
+  /*  set initial values to __GB_MINUS_ONE_8 */
+  map->pc = (ci_t *)malloc(col_size * sizeof(ci_t));
+  memset(map->pc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+
+  map->npc  = (ci_t *)malloc(col_size * sizeof(ci_t));
+  memset(map->npc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+
+  map->pc_rev = (ci_t *)malloc(col_size * sizeof(ci_t));
+  memset(map->pc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+
+  map->npc_rev  = (ci_t *)malloc(col_size * sizeof(ci_t));
+  memset(map->npc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+
+  map->pri  = (ri_t *)malloc(col_size * sizeof(ri_t));
+  memset(map->pri, __GB_MINUS_ONE_8, col_size * sizeof(ri_t));
+
+  map->npri = (ri_t *)malloc(row_size * sizeof(ri_t));
+  memset(map->npri, __GB_MINUS_ONE_8, row_size * sizeof(ri_t));
+}
+
+/* static */ /* inline */ void init_fl_map(sm_t *M, map_fl_t *map) {
+  /*  initialize map arrays and */
+  /*  set initial values to __GB_MINUS_ONE_8 */
+
+  ri_t max_length = M->ncols > M->nrows ? M->ncols : M->nrows;
+
+  map->pc = (ci_t *)malloc(M->ncols * sizeof(ci_t));
+  memset(map->pc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
+
+  map->npc  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
+  memset(map->npc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
+
+  map->pc_rev = (ci_t *)malloc(M->ncols * sizeof(ci_t));
+  memset(map->pc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
+
+  map->npc_rev  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
+  memset(map->npc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
+
+  map->pri  = (ri_t *)malloc(M->ncols * sizeof(ri_t));
+  memset(map->pri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
+
+  map->npri = (ri_t *)malloc(max_length * sizeof(ri_t));
+  memset(map->npri, __GB_MINUS_ONE_8, M->nrows * sizeof(ri_t));
+}
+
+/* static */ /* inline */ void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
+    const bi_t init_buffer_A, mli_t *buffer_A) {
+  *buffer_A +=  init_buffer_A;
+  A->ml[mli].idx = realloc(A->ml[mli].idx, (*buffer_A) * sizeof(mli_t));
+  A->ml[mli].val = realloc(A->ml[mli].val, 2 * (*buffer_A) * sizeof(re_t));
+}
+
+/* static */ /* inline */ void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
+    const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) {
+  *buffer_A +=  init_buffer_A;
+  A->blocks[rbi][bir][lib].idx = realloc(
+      A->blocks[rbi][bir][lib].idx,
+      (*buffer_A) * sizeof(bi_t));
+  A->blocks[rbi][bir][lib].val = realloc(
+      A->blocks[rbi][bir][lib].val,
+      2 * (*buffer_A) * sizeof(re_t));
+}
+
+/* static */ /* inline */ void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
+    const bi_t cvb) {
+  uint32_t i ;
+  int j, k, l;
+  uint16_t ctr[clA];
+  memset(ctr, 0, clA * sizeof(uint16_t));
+  bi_t *old_idx_ptr = NULL;
+  re_t *old_val_ptr = NULL;
+
+  bi_t rounded_cvb_half = cvb/2;
+  if (cvb % 2) /*  odd cvb */
+    rounded_cvb_half  +=  1;
+  for (i=0; i<rounded_cvb_half; ++i) {
+    /*  allocate memory for swapping data */
+    bi_t *tmp_idx_ptr = (bi_t *)malloc(A->blocks[rbi][clA-1][i].sz * sizeof(bi_t));
+    re_t *tmp_val_ptr = (re_t *)malloc(2 * A->blocks[rbi][clA-1][i].sz * sizeof(re_t));
+    /*  swap data */
+    l = 0;
+    for (k=A->blocks[rbi][clA-1][i].sz-1; k>-1; --k) {
+      tmp_idx_ptr[l]      = A->blocks[rbi][clA-1][i].idx[k];
+      tmp_val_ptr[2*l]    = A->blocks[rbi][clA-1][i].val[2*k];
+      tmp_val_ptr[2*l+1]  = A->blocks[rbi][clA-1][i].val[2*k+1];
+      l++;
+      ctr[clA-1]  = 1;
+    }
+    /*  keep track of old ptr */
+    old_idx_ptr = A->blocks[rbi][clA-1][i].idx;
+    old_val_ptr = A->blocks[rbi][clA-1][i].val;
+    /*  swap starting ptrs */
+    A->blocks[rbi][clA-1][i].idx  = tmp_idx_ptr;
+    A->blocks[rbi][clA-1][i].val  = tmp_val_ptr;
+    /*  try to reuse old, already allocated memory in the following */
+    tmp_idx_ptr = old_idx_ptr;
+    tmp_val_ptr = old_val_ptr;
+    /*  now go through all remaining blocks in the corresponding row (bir) */
+    /*  check if the already allocated memory is enough for executing the swap */
+    for (j=clA-2; j>-1; --j) {
+      if (A->blocks[rbi][j+1][i].sz == A->blocks[rbi][j][i].sz) {
+        /*   Memory is not enough, so allocate new (reallocation is used */
+        /*   at the moment: It might be prolematic since the old entries are */
+        /*   useless and need not be copied, but often the already allocated memory */
+        /*   can be extended in place, thus this operation is often faster than */
+        /*   freeing memory and allocating new. */
+        /*   Note that this reallocation is also used if the old memory allocated */
+        /*   is bigger than what is needed. In this setting realloc just cuts the */
+        /*   useless memory off. */
+      } else {
+        tmp_idx_ptr = realloc(tmp_idx_ptr,
+            A->blocks[rbi][j][i].sz * sizeof(bi_t));
+        tmp_val_ptr = realloc(tmp_val_ptr,
+            2 * A->blocks[rbi][j][i].sz * sizeof(re_t));
+      }
+      l = 0;
+      for (k=A->blocks[rbi][j][i].sz-1; k>-1; --k) {
+        tmp_idx_ptr[l]      = A->blocks[rbi][j][i].idx[k];
+        tmp_val_ptr[2*l]    = A->blocks[rbi][j][i].val[2*k];
+        tmp_val_ptr[2*l+1]  = A->blocks[rbi][j][i].val[2*k+1];
+        l++;
+        ctr[j]  = 1;
+      }
+      /*  keep track of old ptr */
+      old_idx_ptr = A->blocks[rbi][j][i].idx;
+      old_val_ptr = A->blocks[rbi][j][i].val;
+      /*  swap starting ptrs */
+      A->blocks[rbi][j][i].idx  = tmp_idx_ptr;
+      A->blocks[rbi][j][i].val  = tmp_val_ptr;
+      /*  try to reuse old, already allocated memory in the following */
+      tmp_idx_ptr = old_idx_ptr;
+      tmp_val_ptr = old_val_ptr;
+    }
+    /*  finally remove temporary memory used for swapping */
+    free(old_idx_ptr);
+    free(old_val_ptr);
+  }
+  for (i=0; i<clA; ++i) {
+    if (ctr[i]  ==  0) {
+      free(A->blocks[rbi][i]);
+      A->blocks[rbi][i] = NULL;
+    }
+  }
+}
+
+/* static */ /* inline */ void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
+    const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1) {
+  A->ml[mli].idx[A->ml[mli].sz]       = eil;
+  A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
+  A->ml[mli].val[(2*A->ml[mli].sz)+1] = 0;
+  A->ml[mli].sz++;
+}
+
+/* static */ /* inline */ void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
+    const mli_t mli, const ci_t eil, const ci_t bi2, const ci_t i2) {
+  /* printf("sz %d -- %d\n", A->ml[mli].sz, eil); */
+  A->ml[mli].idx[A->ml[mli].sz]       = eil;
+  A->ml[mli].val[2*A->ml[mli].sz]     = 0;
+  A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
+  A->ml[mli].sz++;
+}
+
+/* static */ /* inline */ void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
+    const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1,
+    const ci_t bi2, const ci_t i2) {
+  A->ml[mli].idx[A->ml[mli].sz]       = eil;
+  A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
+  A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
+  A->ml[mli].sz++;
+}
+
+
+/* static */ /* inline */ void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
+    const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
+    const ci_t bi1, const ci_t i1) {
+  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
+  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
+  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = 0;
+  A->blocks[rbi][bir][lib].sz++;
+}
+
+/* static */ /* inline */ void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
+    const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
+    const ci_t bi2, const ci_t i2) {
+  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
+  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = 0;
+  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
+  A->blocks[rbi][bir][lib].sz++;
+}
+
+/* static */ /* inline */ void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
+    const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
+    const ci_t bi1, const ci_t i1, const ci_t bi2, const ci_t i2) {
+  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
+  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
+  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
+  A->blocks[rbi][bir][lib].sz++;
+}
+
 
 /* vim:sts=2:sw=2:ts=2:
  */
