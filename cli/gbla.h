@@ -27,6 +27,7 @@
 #define GB_GB_H
 
 #include <math.h>
+#include <unistd.h>
 #include "io.h"
 #include "mapping.h"
 #include "elimination.h"
@@ -132,3 +133,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int rows_multiline, int nthreads, in
     int verbose, int reduce_completely, int dense_reducer);
 
 #endif
+
+/* vim:sts=2:sw=2:ts=2:
+ */

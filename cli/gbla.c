@@ -16,6 +16,7 @@
 
 
 #include "gbla.h"
+#include <getopt.h>
 
 #define __GB_CLI_DEBUG  0
 
@@ -84,11 +85,11 @@ int main(int argc, char *argv[]) {
   int index;
   int opt;
 
-  // timing structs
+  /*  timing structs */
   struct timeval t_load_start;
   struct timeval t_complete;
 
-  opterr  = 0;
+	opterr  = 0;
 
   while ((opt = getopt(argc, argv, "b:f:hm:t:v:oprs:n")) != -1) {
     switch (opt) {
@@ -185,11 +186,11 @@ int main(int argc, char *argv[]) {
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART loading JCF matrix ...\n");
   }
-  // load JCF matrix
+  /*  load JCF matrix */
   M = load_jcf_matrix(fn, verbose, new_format);
   if (verbose > 1) {
     printf("<<<<\tDONE  loading JCF matrix.\n");
-    // print walltime
+    /*  print walltime */
     printf("TIME\t%.3f sec (%.3f %s/sec)\n",
         walltime(t_load_start) / (1000000),
         M->fs / (walltime(t_load_start) / (1000000)), M->fsu);
@@ -208,7 +209,7 @@ int main(int argc, char *argv[]) {
     printf("---------------------------------------------------------------------\n");
   }
 
-  // write JCF matrix to PBM file
+  /*  write JCF matrix to PBM file */
   if (write_pbm) {
     if (verbose > 1) {
       gettimeofday(&t_load_start, NULL);
@@ -219,7 +220,7 @@ int main(int argc, char *argv[]) {
     write_jcf_matrix_to_pbm(M, pbm_fn, verbose);
     if (verbose > 1) {
       printf("<<<<\tDONE writing input matrix to PBM file.\n");
-      // print walltime
+      /*  print walltime */
       printf("TIME\t%.3f sec (%.3f %s/sec)\n",
           walltime(t_load_start) / (1000000),
           M->fs / (walltime(t_load_start) / (1000000)), M->fsu);
@@ -229,20 +230,20 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // track time for the complete reduction process (excluding load)
+  /*  track time for the complete reduction process (excluding load) */
   if (verbose > 1)
     gettimeofday(&t_complete, NULL);
 
 
   switch (splicing) {
-    // all submatrices are of block type
+    /*  all submatrices are of block type */
     case 0:
       if (fl_block(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose,
             reduce_completely, dense_reducer)) {
         printf("Error while trying to eliminate matrix from file '%s' in all block type mode.\n",fn);
       }
       break;
-    // submatrices A and C of multiline type, submatrices B and D are of block type
+    /*  submatrices A and C of multiline type, submatrices B and D are of block type */
     case 1:
       if (fl_ml_A_C(M, block_dimension, nrows_multiline, nthreads, free_mem, verbose,
             reduce_completely, dense_reducer)) {
@@ -275,19 +276,19 @@ int main(int argc, char *argv[]) {
 int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer) {
   struct timeval t_load_start;
-  // all submatrices of block type
+  /*  all submatrices of block type */
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
   }
-  // construct splicing of matrix M into A, B, C and D
+  /*  construct splicing of matrix M into A, B, C and D */
   sbm_fl_t *A     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   sbm_fl_t *B     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   sbm_fl_t *C     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
   sbm_fl_t *D     = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
-  map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
-  map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
+  map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); /*  stores mappings from M <-> ABCD */
+  map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); /*  stores mappings for reduced D */
 
   splice_fl_matrix(M, A, B, C, D, map,
       M->nrows, M->ncols, block_dimension,
@@ -328,12 +329,12 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
   }
 #if __GB_CLI_DEBUG
-  // column loops
+  /*  column loops */
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops
+  /*  row loops */
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
@@ -411,7 +412,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   }
 #endif
 
-  // reducing submatrix A using methods of Faugère & Lachartre
+  /*  reducing submatrix A using methods of Faugère & Lachartre */
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
@@ -430,7 +431,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("\n");
   }
 
-  // reducing submatrix C to zero using methods of Faugère & Lachartre
+  /*  reducing submatrix C to zero using methods of Faugère & Lachartre */
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
@@ -449,11 +450,11 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("\n");
   }
 
-  // echelonize D using methods of Faugère & Lachartre
+  /*  echelonize D using methods of Faugère & Lachartre */
 
-  // We need to do at least two rounds on D, possibly even reducing B further
-  // with the reduced D later on. For this purpose we use a multiline version of
-  // D as output of the Gaussian elimination.
+  /*  We need to do at least two rounds on D, possibly even reducing B further */
+  /*  with the reduced D later on. For this purpose we use a multiline version of */
+  /*  D as output of the Gaussian elimination. */
   sm_fl_ml_t *D_red = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
@@ -503,7 +504,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("---------------------------------------------------------------------\n");
       printf("\n");
     }
-  } else { // compute reduced row echelon form of input matrix
+  } else { /*  compute reduced row echelon form of input matrix */
     if (verbose > 1) {
       printf("---------------------------------------------------------------------\n");
       printf(">>>>\tSTART of RREF computation...\n");
@@ -512,8 +513,8 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     process_matrix(D_red, map_D, block_dimension);
     sm_t *BD        = (sm_t *)malloc(sizeof(sm_t));
 
-    // copy block matrix B back to a sparse matrix in order to use
-    // splice_fl_matrix() procedure again
+    /*  copy block matrix B back to a sparse matrix in order to use */
+    /*  splice_fl_matrix() procedure again */
     copy_block_ml_matrices_to_sparse_matrix(&B, &D_red, rank_D, &BD, 1, nthreads);
 
     map_fl_t *map2  = (map_fl_t *)malloc(sizeof(map_fl_t));
@@ -543,7 +544,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("\n");
     }
 
-    // reducing submatrix C to zero using methods of Faugère & Lachartre
+    /*  reducing submatrix C to zero using methods of Faugère & Lachartre */
     if (verbose > 1) {
       gettimeofday(&t_load_start, NULL);
       printf("---------------------------------------------------------------------\n");
@@ -562,7 +563,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("\n");
     }
 
-    // reconstruct matrix
+    /*  reconstruct matrix */
     if (verbose > 1) {
       gettimeofday(&t_load_start, NULL);
       printf("---------------------------------------------------------------------\n");
@@ -588,19 +589,19 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
 int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer) {
   struct timeval t_load_start;
-  // submatrices A and C of multiline type, B and D of block type
+  /*  submatrices A and C of multiline type, B and D of block type */
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
   }
-  // construct splicing of matrix M into A, B, C and D
+  /*  construct splicing of matrix M into A, B, C and D */
   sm_fl_ml_t *A   = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
   sbm_fl_t *B     = (sbm_fl_t   *)malloc(sizeof(sbm_fl_t));
   sm_fl_ml_t *C   = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
   sbm_fl_t *D     = (sbm_fl_t   *)malloc(sizeof(sbm_fl_t));
-  map_fl_t *map   = (map_fl_t   *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
-  map_fl_t *map_D = (map_fl_t   *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
+  map_fl_t *map   = (map_fl_t   *)malloc(sizeof(map_fl_t)); /*  stores mappings from M <-> ABCD */
+  map_fl_t *map_D = (map_fl_t   *)malloc(sizeof(map_fl_t)); /*  stores mappings for reduced D */
 
   splice_fl_matrix_ml_A_C(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
       free_mem, verbose);
@@ -641,10 +642,10 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   }
 #if __GB_CLI_DEBUG
 
-  // column loops
+  /*  column loops */
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
-  // row loops
+  /*  row loops */
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / __GB_NROWS_MULTILINE);
@@ -703,7 +704,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   }
 #endif
 
-  // reducing submatrix A using methods of Faugère & Lachartre
+  /*  reducing submatrix A using methods of Faugère & Lachartre */
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
@@ -721,7 +722,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-  // copying multiline matrix C to a block matrix C_block
+  /*  copying multiline matrix C to a block matrix C_block */
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
@@ -737,7 +738,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("\n");
   }
 
-  // reducing submatrix C to zero using methods of Faugère & Lachartre
+  /*  reducing submatrix C to zero using methods of Faugère & Lachartre */
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
@@ -757,11 +758,11 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   }
 
 
-  // echelonize D using methods of Faugère & Lachartre
+  /*  echelonize D using methods of Faugère & Lachartre */
 
-  // We need to do at least two rounds on D, possibly even reducing B further
-  // with the reduced D later on. For this purpose we use a multiline version of
-  // D as output of the Gaussian elimination.
+  /*  We need to do at least two rounds on D, possibly even reducing B further */
+  /*  with the reduced D later on. For this purpose we use a multiline version of */
+  /*  D as output of the Gaussian elimination. */
   sm_fl_ml_t *D_red = (sm_fl_ml_t *)malloc(sizeof(sm_fl_ml_t));
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);

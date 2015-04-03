@@ -37,7 +37,7 @@
 #include <gbla_config.h>
 #include <src/matrix.h>
 
-// ========== TIMINGS ==========
+/*  ========== TIMINGS ========== */
 
 /**
  * \brief Returns walltime since time t0.
@@ -51,7 +51,7 @@ double walltime(struct timeval t_start);
 
 
 
-// ========== READING ==========
+/*  ========== READING ========== */
 
 /**
  * \brief Loads a matrix given in Jean-Charles Faugère's style to a sparse
@@ -68,7 +68,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format);
 
 
 
-// ========== WRITING ==========
+/*  ========== WRITING ========== */
 
 /**
  * \brief Writes a sparse matrix in (sm_t *) format to a file in Jean-Charles Faugère's style.
@@ -92,7 +92,7 @@ void write_jcf_matrix_to_file(sm_t *M, const char *fn, int verbose);
 void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);
 
 
-// ========== PRINTING ==========
+/*  ========== PRINTING ========== */
 
 /**
  * \brief Computes number of nonzero elements in multiline submatrix A and
@@ -101,7 +101,7 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);
  * \param multiline submatrix A
  */
 
-static inline void compute_density_ml_submatrix(sm_fl_ml_t *A) {
+static /* inline */ void compute_density_ml_submatrix(sm_fl_ml_t *A) {
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
   uint32_t i, j;
   for (i=0; i<rlA; ++i) {
@@ -126,7 +126,7 @@ static inline void compute_density_ml_submatrix(sm_fl_ml_t *A) {
  * \param block submatrix A
  */
 
-static inline void compute_density_block_submatrix(sbm_fl_t *A) {
+static /* inline */ void compute_density_block_submatrix(sbm_fl_t *A) {
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   uint32_t i, j, k, l;
@@ -155,3 +155,6 @@ static inline void compute_density_block_submatrix(sbm_fl_t *A) {
  */
 void print_mem_usage();
 #endif
+
+/* vim:sts=2:sw=2:ts=2:
+ */
