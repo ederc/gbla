@@ -377,7 +377,7 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
   re_l_t **wide_block)
 {
   bi_t i, j, k;
-  register re_m_t a, b, c, d;
+  register re_m_t a, b, c, d, e, f, g, h;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
 #if 0
     for (j=0; j<block_A->sz[i]; ++j) {
@@ -388,17 +388,25 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
       }
     }
 #else
-    for (j=0; j<block_A->sz[i]-3; j = j+4) {
+    for (j=0; j<block_A->sz[i]-7; j = j+8) {
       a = block_A->row[i][j];
       b = block_A->row[i][j+1];
       c = block_A->row[i][j+2];
       d = block_A->row[i][j+3];
+      e = block_A->row[i][j+4];
+      f = block_A->row[i][j+5];
+      g = block_A->row[i][j+6];
+      h = block_A->row[i][j+7];
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           (a * (re_l_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k] +
           b * (re_l_t)block_B[block_A->pos[i][j+1]*__GBLA_SIMD_BLOCK_SIZE + k] +
           c * (re_l_t)block_B[block_A->pos[i][j+2]*__GBLA_SIMD_BLOCK_SIZE + k] +
-          d * (re_l_t)block_B[block_A->pos[i][j+3]*__GBLA_SIMD_BLOCK_SIZE + k]);
+          d * (re_l_t)block_B[block_A->pos[i][j+3]*__GBLA_SIMD_BLOCK_SIZE + k] +
+          e * (re_l_t)block_B[block_A->pos[i][j+4]*__GBLA_SIMD_BLOCK_SIZE + k] +
+          f * (re_l_t)block_B[block_A->pos[i][j+5]*__GBLA_SIMD_BLOCK_SIZE + k] +
+          g * (re_l_t)block_B[block_A->pos[i][j+6]*__GBLA_SIMD_BLOCK_SIZE + k] +
+          h * (re_l_t)block_B[block_A->pos[i][j+7]*__GBLA_SIMD_BLOCK_SIZE + k]);
       }
     }
     for (;j<block_A->sz[i]; ++j) {
@@ -584,7 +592,7 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
 {
   //printf("INDENSE\n");
   bi_t i, j, k, l;
-  register re_m_t a, b ,c, d;
+  register re_m_t a, b ,c, d, e, f, g, h;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
 
     /*
@@ -597,18 +605,26 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
       }
     }
     */
-    for (j=0; j<block_A->sz[i]-4; j = j+4) {
+    for (j=0; j<block_A->sz[i]-8; j = j+8) {
       a = block_A->row[i][j];
       b = block_A->row[i][j+1];
       c = block_A->row[i][j+2];
       d = block_A->row[i][j+3];
+      e = block_A->row[i][j+4];
+      f = block_A->row[i][j+5];
+      g = block_A->row[i][j+6];
+      h = block_A->row[i][j+7];
       //printf("%lu - %u | %u\n",a,i,j);
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           (a * wide_block[block_A->pos[i][j]][k] +
           b * wide_block[block_A->pos[i][j+1]][k] +
           c * wide_block[block_A->pos[i][j+2]][k] +
-          d * wide_block[block_A->pos[i][j+3]][k]);
+          d * wide_block[block_A->pos[i][j+3]][k] +
+          e * wide_block[block_A->pos[i][j+4]][k] +
+          f * wide_block[block_A->pos[i][j+5]][k] +
+          g * wide_block[block_A->pos[i][j+6]][k] +
+          h * wide_block[block_A->pos[i][j+7]][k]);
       }
     }
     for (;j<block_A->sz[i]-1; ++j) {
