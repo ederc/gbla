@@ -14,12 +14,10 @@ Using autotools one can compile and install gbla by
 For further installation instructions please see INSTALL.
 
 # DEBUGGING #
-In order to debug gb one needs to use
-
+In order to debug gbla one needs configure with --enable-debug and use
 
 ```
 libtool e gdb --args ./gbla --options
 ```
 
-
-since we build the library using libtool and link it than against the binary gb.
+since we build the library using libtool and link it than against the binary gbla.
