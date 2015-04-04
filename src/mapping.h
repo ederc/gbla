@@ -79,27 +79,7 @@ typedef struct map_fl_t {
  * \param map to be initialized
  *
  */
-static /* inline */ void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_fl_t *map) {
-  /*  initialize map arrays and */
-  /*  set initial values to __GB_MINUS_ONE_8 */
-  map->pc = (ci_t *)malloc(col_size * sizeof(ci_t));
-  memset(map->pc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
-
-  map->npc  = (ci_t *)malloc(col_size * sizeof(ci_t));
-  memset(map->npc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
-
-  map->pc_rev = (ci_t *)malloc(col_size * sizeof(ci_t));
-  memset(map->pc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
-
-  map->npc_rev  = (ci_t *)malloc(col_size * sizeof(ci_t));
-  memset(map->npc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
-
-  map->pri  = (ri_t *)malloc(col_size * sizeof(ri_t));
-  memset(map->pri, __GB_MINUS_ONE_8, col_size * sizeof(ri_t));
-
-  map->npri = (ri_t *)malloc(row_size * sizeof(ri_t));
-  memset(map->npri, __GB_MINUS_ONE_8, row_size * sizeof(ri_t));
-}
+/* static */ /* inline */ void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_fl_t *map);
 
 /**
  * \brief Initializes a map for the input matrix M with all entries set
@@ -110,30 +90,7 @@ static /* inline */ void init_fl_map_sizes(uint32_t col_size, uint32_t row_size,
  * \param map to be initialized
  *
  */
-static /* inline */ void init_fl_map(sm_t *M, map_fl_t *map) {
-  /*  initialize map arrays and */
-  /*  set initial values to __GB_MINUS_ONE_8 */
-
-  ri_t max_length = M->ncols > M->nrows ? M->ncols : M->nrows;
-
-  map->pc = (ci_t *)malloc(M->ncols * sizeof(ci_t));
-  memset(map->pc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
-
-  map->npc  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
-  memset(map->npc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
-
-  map->pc_rev = (ci_t *)malloc(M->ncols * sizeof(ci_t));
-  memset(map->pc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
-
-  map->npc_rev  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
-  memset(map->npc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
-
-  map->pri  = (ri_t *)malloc(M->ncols * sizeof(ri_t));
-  memset(map->pri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
-
-  map->npri = (ri_t *)malloc(max_length * sizeof(ri_t));
-  memset(map->npri, __GB_MINUS_ONE_8, M->nrows * sizeof(ri_t));
-}
+/* static */ /* inline */ void init_fl_map(sm_t *M, map_fl_t *map) ;
 
 /**
  * \brief Process multiline matrix and applies mapping for it
@@ -264,12 +221,8 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
  *
  * \param buffer size buffer_A
  */
-static /* inline */ void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
-    const bi_t init_buffer_A, mli_t *buffer_A) {
-  *buffer_A +=  init_buffer_A;
-  A->ml[mli].idx = realloc(A->ml[mli].idx, (*buffer_A) * sizeof(mli_t));
-  A->ml[mli].val = realloc(A->ml[mli].val, 2 * (*buffer_A) * sizeof(re_t));
-}
+/* static */ /* inline */ void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
+    const bi_t init_buffer_A, mli_t *buffer_A);
 
 /**
  * \brief Reallocates memory for the rows of the blocks during the splicing of
@@ -288,16 +241,8 @@ static /* inline */ void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
  * \param buffer size buffer_A
  *
  */
-static /* inline */ void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
-    const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) {
-  *buffer_A +=  init_buffer_A;
-  A->blocks[rbi][bir][lib].idx = realloc(
-      A->blocks[rbi][bir][lib].idx,
-      (*buffer_A) * sizeof(bi_t));
-  A->blocks[rbi][bir][lib].val = realloc(
-      A->blocks[rbi][bir][lib].val,
-      2 * (*buffer_A) * sizeof(re_t));
-}
+/* static */ /* inline */ void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
+    const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) ;
 
 /**
  * \brief Swaps data arrangement in leftsided block matrices
@@ -311,87 +256,8 @@ static /* inline */ void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const c
  * \param current line in block lib
  *
  */
-static /* inline */ void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
-    const bi_t cvb) {
-  uint32_t i ;
-  int j, k, l;
-  uint16_t ctr[clA];
-  memset(ctr, 0, clA * sizeof(uint16_t));
-  bi_t *old_idx_ptr = NULL;
-  re_t *old_val_ptr = NULL;
-
-  bi_t rounded_cvb_half = cvb/2;
-  if (cvb % 2) /*  odd cvb */
-    rounded_cvb_half  +=  1;
-  for (i=0; i<rounded_cvb_half; ++i) {
-    /*  allocate memory for swapping data */
-    bi_t *tmp_idx_ptr = (bi_t *)malloc(A->blocks[rbi][clA-1][i].sz * sizeof(bi_t));
-    re_t *tmp_val_ptr = (re_t *)malloc(2 * A->blocks[rbi][clA-1][i].sz * sizeof(re_t));
-    /*  swap data */
-    l = 0;
-    for (k=A->blocks[rbi][clA-1][i].sz-1; k>-1; --k) {
-      tmp_idx_ptr[l]      = A->blocks[rbi][clA-1][i].idx[k];
-      tmp_val_ptr[2*l]    = A->blocks[rbi][clA-1][i].val[2*k];
-      tmp_val_ptr[2*l+1]  = A->blocks[rbi][clA-1][i].val[2*k+1];
-      l++;
-      ctr[clA-1]  = 1;
-    }
-    /*  keep track of old ptr */
-    old_idx_ptr = A->blocks[rbi][clA-1][i].idx;
-    old_val_ptr = A->blocks[rbi][clA-1][i].val;
-    /*  swap starting ptrs */
-    A->blocks[rbi][clA-1][i].idx  = tmp_idx_ptr;
-    A->blocks[rbi][clA-1][i].val  = tmp_val_ptr;
-    /*  try to reuse old, already allocated memory in the following */
-    tmp_idx_ptr = old_idx_ptr;
-    tmp_val_ptr = old_val_ptr;
-    /*  now go through all remaining blocks in the corresponding row (bir) */
-    /*  check if the already allocated memory is enough for executing the swap */
-    for (j=clA-2; j>-1; --j) {
-      if (A->blocks[rbi][j+1][i].sz == A->blocks[rbi][j][i].sz) {
-        /*   Memory is not enough, so allocate new (reallocation is used */
-        /*   at the moment: It might be prolematic since the old entries are */
-        /*   useless and need not be copied, but often the already allocated memory */
-        /*   can be extended in place, thus this operation is often faster than */
-        /*   freeing memory and allocating new. */
-        /*   Note that this reallocation is also used if the old memory allocated */
-        /*   is bigger than what is needed. In this setting realloc just cuts the */
-        /*   useless memory off. */
-      } else {
-        tmp_idx_ptr = realloc(tmp_idx_ptr,
-            A->blocks[rbi][j][i].sz * sizeof(bi_t));
-        tmp_val_ptr = realloc(tmp_val_ptr,
-            2 * A->blocks[rbi][j][i].sz * sizeof(re_t));
-      }
-      l = 0;
-      for (k=A->blocks[rbi][j][i].sz-1; k>-1; --k) {
-        tmp_idx_ptr[l]      = A->blocks[rbi][j][i].idx[k];
-        tmp_val_ptr[2*l]    = A->blocks[rbi][j][i].val[2*k];
-        tmp_val_ptr[2*l+1]  = A->blocks[rbi][j][i].val[2*k+1];
-        l++;
-        ctr[j]  = 1;
-      }
-      /*  keep track of old ptr */
-      old_idx_ptr = A->blocks[rbi][j][i].idx;
-      old_val_ptr = A->blocks[rbi][j][i].val;
-      /*  swap starting ptrs */
-      A->blocks[rbi][j][i].idx  = tmp_idx_ptr;
-      A->blocks[rbi][j][i].val  = tmp_val_ptr;
-      /*  try to reuse old, already allocated memory in the following */
-      tmp_idx_ptr = old_idx_ptr;
-      tmp_val_ptr = old_val_ptr;
-    }
-    /*  finally remove temporary memory used for swapping */
-    free(old_idx_ptr);
-    free(old_val_ptr);
-  }
-  for (i=0; i<clA; ++i) {
-    if (ctr[i]  ==  0) {
-      free(A->blocks[rbi][i]);
-      A->blocks[rbi][i] = NULL;
-    }
-  }
-}
+/* static */ /* inline */ void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
+    const bi_t cvb) ;
 
 /**
  * \brief Inserts elements from input matrix M in dense diagonal block of submatrix A
@@ -844,13 +710,8 @@ static inline void insert_in_dbm_inv(dbm_fl_t *A, const sm_t *M, const ci_t shif
  * \param index in row bi1 of corresponding element in M i1
  *
  */
-static /* inline */ void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
-    const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1) {
-  A->ml[mli].idx[A->ml[mli].sz]       = eil;
-  A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
-  A->ml[mli].val[(2*A->ml[mli].sz)+1] = 0;
-  A->ml[mli].sz++;
-}
+/* static */ /* inline */ void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
+    const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1) ;
 
 /**
  * \brief Inserts elements from input matrix M in multiline rows of A corresponding
@@ -870,14 +731,8 @@ static /* inline */ void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
  * \param index in row bi1 of corresponding element in M i2
  *
  */
-static /* inline */ void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
-    const mli_t mli, const ci_t eil, const ci_t bi2, const ci_t i2) {
-  /* printf("sz %d -- %d\n", A->ml[mli].sz, eil); */
-  A->ml[mli].idx[A->ml[mli].sz]       = eil;
-  A->ml[mli].val[2*A->ml[mli].sz]     = 0;
-  A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
-  A->ml[mli].sz++;
-}
+/* static */ /* inline */ void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
+    const mli_t mli, const ci_t eil, const ci_t bi2, const ci_t i2) ;
 
 /**
  * \brief Inserts elements from input matrix M in multiline rows of A corresponding
@@ -901,14 +756,9 @@ static /* inline */ void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
  * \param index in row bi1 of corresponding element in M i2
  *
  */
-static /* inline */ void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
+/* static */ /* inline */ void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
     const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1,
-    const ci_t bi2, const ci_t i2) {
-  A->ml[mli].idx[A->ml[mli].sz]       = eil;
-  A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
-  A->ml[mli].val[(2*A->ml[mli].sz)+1] = M->rows[bi2][i2];
-  A->ml[mli].sz++;
-}
+    const ci_t bi2, const ci_t i2) ;
 
 
 /**
@@ -933,14 +783,9 @@ static /* inline */ void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
  * \param index in row bi1 of corresponding element in M i1
  *
  */
-static /* inline */ void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
+/* static */ /* inline */ void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
-    const ci_t bi1, const ci_t i1) {
-  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
-  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
-  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = 0;
-  A->blocks[rbi][bir][lib].sz++;
-}
+    const ci_t bi1, const ci_t i1) ;
 
 /**
  * \brief Inserts elements from input matrix M in block rows of A corresponding
@@ -965,14 +810,10 @@ static /* inline */ void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M
  *
  */
 
-static /* inline */ void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
+/* static */ /* inline */ void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
-    const ci_t bi2, const ci_t i2) {
-  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
-  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = 0;
-  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
-  A->blocks[rbi][bir][lib].sz++;
-}
+    const ci_t bi2, const ci_t i2) ;
+
 /**
  * \brief Inserts elements from input matrix M in block rows of A corresponding
  * to the given splicing and mapping precomputed. This is the version for multi
@@ -999,14 +840,9 @@ static /* inline */ void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M
  * \param index in row bi1 of corresponding element in M i2
  *
  */
-static /* inline */ void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
+/* static */ /* inline */ void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
-    const ci_t bi1, const ci_t i1, const ci_t bi2, const ci_t i2) {
-  A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
-  A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz]     = M->rows[bi1][i1];
-  A->blocks[rbi][bir][lib].val[(2*A->blocks[rbi][bir][lib].sz)+1] = M->rows[bi2][i2];
-  A->blocks[rbi][bir][lib].sz++;
-}
+    const ci_t bi1, const ci_t i1, const ci_t bi2, const ci_t i2) ;
 
 /**
  * \brief Constructs a mapping for splicing the BD part for the second round of
