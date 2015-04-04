@@ -2722,7 +2722,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
               B->blocks[rbi][i][j].sz * sizeof(bi_t));
           B->blocks[rbi][i][j].val =  realloc(
               B->blocks[rbi][i][j].val,
-              2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
+              2 * B->blocks[rbi][i][j].sz * sizeof(re_t));
           continue;
         }
         re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));

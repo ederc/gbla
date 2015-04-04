@@ -2569,12 +2569,12 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
     if (sparse_block[i].dense == 0) {
       for (j=0; j<sparse_block[i].sz; ++j) {
         idx   = sparse_block[i].idx[j];
-        dense_block[2*i][idx]   = sparse_block[i].val[2*j];
+        dense_block[2*i  ][idx] = sparse_block[i].val[2*j  ];
         dense_block[2*i+1][idx] = sparse_block[i].val[2*j+1];
       }
     } else{
       for (j=0; j<bwidth; ++j) {
-        dense_block[2*i][j]   = sparse_block[i].val[2*j];
+        dense_block[2*i  ][j] = sparse_block[i].val[2*j  ];
         dense_block[2*i+1][j] = sparse_block[i].val[2*j+1];
       }
     }
