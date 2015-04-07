@@ -97,11 +97,8 @@ void reduce_C(
 
 				sparse_copy( blk_i, C_k->start+i, C_k->colid, C_k->data , temp_C, ldc, conv_c);
 				elemt_t * temp_D = Dd+i_offset*(index_t)ldd ;
-				/* cblas_dcopy(blk_i*ldd,Dd+i_offset*(index_t)ldd,1,temp_D,1); */
 
 				reduce_chunk(blk_i,AH,conv_a,BH,conv_b,temp_C,ldc,temp_D,ldd,p,algo_red);
-
-				/* cblas_dcopy(ldd*blk_i,temp_D,1,Dd+i_offset*(index_t)ldd,1); */
 
 			}
 		}
