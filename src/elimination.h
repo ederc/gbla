@@ -23,6 +23,7 @@
 #ifndef GB_ELIMINATION_H
 #define GB_ELIMINATION_H
 
+#include "src/config.h"
 #include <mapping.h>
 #include <matrix.h>
 #if GBLA_WITH_FFLAS

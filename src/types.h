@@ -23,7 +23,8 @@
 #ifndef GB_TYPES_H
 #define GB_TYPES_H
 
-/*  #define GBLA_USE_DOUBLE */
+// #define GBLA_USE_DOUBLE
+// #define GBLA_USE_AVX
 
 /*  #include <stdint.h> */
 
