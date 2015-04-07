@@ -1448,7 +1448,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     piv_start_idx[i] = 0;
 
   omp_set_dynamic(0);
-#pragma omp parallel private(block_idx, i, j) num_threads(nthreads)
+#pragma omp parallel private(block_idx, i, j, l) num_threads(nthreads)
   {
     uint32_t rihb[B->bheight];  /*  rows indices horizontal block */
     uint16_t cvb  = 0;          /*  current vector in block */
@@ -1516,7 +1516,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     piv_start_idx[i] = 0;
 
   omp_set_dynamic(0);
-#pragma omp parallel private(block_idx, i, j) num_threads(nthreads)
+#pragma omp parallel private(block_idx, i, j, l) num_threads(nthreads)
   {
     uint32_t rihb[B->bheight];  /*  rows indices horizontal block */
     uint16_t cvb  = 0;          /*  current vector in block */
@@ -1922,7 +1922,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     piv_start_idx[i] = 0;
 
   omp_set_dynamic(0);
-#pragma omp parallel private(block_idx, i, j) num_threads(nthreads)
+#pragma omp parallel private(block_idx, i, j, l) num_threads(nthreads)
   {
     uint32_t rihb[B->bheight];  /*  rows indices horizontal block */
     uint16_t cvb  = 0;          /*  current vector in block */
@@ -1990,7 +1990,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     piv_start_idx[i] = 0;
 
   omp_set_dynamic(0);
-#pragma omp parallel private(block_idx, i, j) num_threads(nthreads)
+#pragma omp parallel private(block_idx, i, j, l) num_threads(nthreads)
   {
     uint32_t rihb[B->bheight];  /*  rows indices horizontal block */
     uint16_t cvb  = 0;          /*  current vector in block */
@@ -2041,7 +2041,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   /*  memory for block entries is already allocated in splice_fl_matrix() */
 
   /*  current loop variable i, block indices 1 (rihb[i]) and 2 (rihb[i+1]) */
-  uint32_t i, j, k, l, bi1, bi2;
+  ri_t i, j, k, l, bi1, bi2;
   /* const uint32_t loop_size  = (uint32_t) ceil(cvb / __GB_NROWS_MULTILINE); */
 
 
@@ -2459,7 +2459,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
 
   /*  ususally cvb is divisible by 2, but for the last row of blocks there might */
   /*  be only an odd number of lines in the blocks */
-  uint16_t rounded_cvb  = cvb;
+  ri_t rounded_cvb  = cvb;
   if (cvb % 2)
     rounded_cvb = cvb-1;
   for (i=0; i<rounded_cvb; i=i+2) {
@@ -2651,8 +2651,8 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       i2++;
     }
     if (A->ml[mli].sz>0) {
-      A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
-      A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
+      A->ml[mli].idx  = (mli_t*) realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
+      A->ml[mli].val  = (re_t*)  realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
     }
   }
 
@@ -2704,8 +2704,8 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       i1++;
     }
     if (A->ml[mli].sz >0) {
-      A->ml[mli].idx  = realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
-      A->ml[mli].val  = realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
+      A->ml[mli].idx  = (mli_t*) realloc(A->ml[mli].idx, A->ml[mli].sz* sizeof(mli_t));
+      A->ml[mli].val  = (re_t*)  realloc(A->ml[mli].val, 2 * A->ml[mli].sz* sizeof(re_t));
     }
   }
 

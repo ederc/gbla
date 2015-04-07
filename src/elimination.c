@@ -94,18 +94,18 @@
 
 
 /*  global variables for echelonization of D */
- static  omp_lock_t echelonize_lock;
- static  ri_t global_next_row_to_reduce;
- static  ri_t global_last_piv;
- static  wl_t waiting_global;
+static  omp_lock_t echelonize_lock;
+static  ri_t global_next_row_to_reduce;
+static  ri_t global_last_piv;
+static  wl_t waiting_global;
 
 /*  global variables for reduction of C */
- static  omp_lock_t reduce_C_lock;
- static  ri_t reduce_C_next_col_to_reduce;
+static  omp_lock_t reduce_C_lock;
+static  ri_t reduce_C_next_col_to_reduce;
 
 /*  global variables for reduction of C */
- static  omp_lock_t reduce_A_lock;
- static  ri_t reduce_A_next_col_to_reduce;
+static  omp_lock_t reduce_A_lock;
+static  ri_t reduce_A_next_col_to_reduce;
 
 #if TASKS
 int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
