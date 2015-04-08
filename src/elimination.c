@@ -679,7 +679,7 @@ void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_block,
         const bi_t offset1  = 2*i+1;
         const bi_t offset2  = 2*i;
 
-#ifdef GBLA_USE_AVX
+#ifdef GBLA_USE_AVX_XXX
         for (k=0; k<bheight; ++k)
           dense_block[offset1][k] +=  (re_m_t) Av1_col1 * dense_block[offset2][k];
 #else
@@ -2006,7 +2006,7 @@ void dense_scal_mul_sub_1_row_array_array(
 
 /** TODO XXX use fflas avx fast stuff */
 void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus) {
-#ifdef GBLA_USE_AVX_XXX
+#ifdef GBLA_USE_AVX
   ELEM_4 P = SET1_4(modulus);
   ELEM_4 INVP = SET1_4(1./(double)modulus);
   ELEM_4 NEGP = SET1_4(-(double)modulus);
