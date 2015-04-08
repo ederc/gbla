@@ -320,6 +320,12 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   }
   *input_bl = in_bl;
   *input_ml = in_ml;
+
+	out->nnz = 0 ;
+	for (i=0 ; i < out->nrows ; ++i)
+		out->nnz += out->rwidth[i] ;
+	out->density = compute_density(out->nnz, out->nrows, out->ncols);
+
   *output   = out;
 }
 
@@ -620,7 +626,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
  * \param buffer size buffer_A
  *
  */
-static /* inline */ void realloc_block_rows_B(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
+void realloc_block_rows_B(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
     const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) {
   *buffer_A +=  init_buffer_A;
   A->blocks[rbi][bir][lib].idx = (bi_t*) realloc(
@@ -805,6 +811,10 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
     }
   }
   return B;
+}
+
+double compute_density(nnz_t nnz, ri_t nrows, ri_t ncols) {
+	return (double) (nnz * 100) / (nrows * (nnz_t)ncols);
 }
 
 /* vim:sts=2:sw=2:ts=2:

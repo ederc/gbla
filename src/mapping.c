@@ -2231,6 +2231,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   /*  already at the beginning more memory for those lines. */
   /*  We use a density threshold (which is globally defined in gb_config.h.in) to */
   /*  specify how much memory we allocate initially. */
+
   bi_t init_buffer_A, init_buffer_B;
   switch (density_level) {
     case 0: /*  splicing upper part (A & B) -- tends to be sparse */
@@ -2533,7 +2534,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
               B->blocks[rbi][i][j].sz * sizeof(bi_t));
           B->blocks[rbi][i][j].val =  realloc(
               B->blocks[rbi][i][j].val,
-              2 * B->blocks[rbi][i][j].sz * sizeof(bi_t));
+              2 * B->blocks[rbi][i][j].sz * sizeof(re_t));
           continue;
         }
         re_t *tmp_val_ptr = (re_t *)malloc(2 * B->bwidth * sizeof(re_t));

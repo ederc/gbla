@@ -292,6 +292,15 @@ int main(int argc, char *argv[]) {
       abort ();
   }
 
+	/* freeing memory */
+	ri_t	ii = 0 ;
+	for ( ; ii < M->nrows ; ++ii) {
+		if (M->rows[ii] != NULL)
+		free(M->rows[ii]);
+		if (M->pos[ii] != NULL)
+		free(M->pos[ii]);
+	}
+
   free(M->rows);
   free(M->pos);
   free(M->rwidth);
@@ -1834,6 +1843,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       printf("\n");
     }
   }
+
   return 0;
 }
 
@@ -2053,18 +2063,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
   reconstruct_matrix_ml(M, A, B, D_red, map, M->ncols, 1, 1, 0, 0, nthreads);
 
-	/* freeing memory */
-	ri_t	ii = 0 ;
-	for ( ; ii < M->nrows ; ++ii) {
-		if (M->rows[ii] != NULL)
-		free(M->rows[ii]);
-		if (M->pos[ii] != NULL)
-		free(M->pos[ii]);
-	}
-	/* free(M->rows); */
-	/* free(M->pos); */
-	/* free(M->rwidth); */
-	/* free(M); */
 
 
   if (verbose > 1) {
