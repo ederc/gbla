@@ -12,22 +12,24 @@ libgbla_la_SOURCES = \
 
 BUILT_SOURCES = src/gbla_config.h
 
-pkgincludesubdir = $(includedir)/src
-pkgincludesub_HEADERS = \
-	src/types.h \
-	src/matrix.h \
-	src/mapping.h \
-	src/elimination.h \
+dev_stuff= \
 	tools/dump_matrix.h \
 	tools/macros.h \
 	tools/ouvrir.h  \
 	tools/print_helper.h \
 	tools/selecter.h \
 	tools/tools.h \
-	tools/types.h \
+	tools/types.h\
 	draft/matrix.h \
 	draft/echelon.h
 
+
+pkgincludesubdir = $(includedir)/src
+pkgincludesub_HEADERS = \
+	src/types.h \
+	src/matrix.h \
+	src/mapping.h \
+	src/elimination.h
 
 nodist_pkgincludesub_HEADERS = src/gbla_config.h
 
