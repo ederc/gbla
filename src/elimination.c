@@ -30,64 +30,78 @@
 #include <immintrin.h>
 
 #ifdef HAVE_AVX
-#define SET1_4  _mm256_set1_pd
-#define SET_4   _mm256_set_pd
-#define STORE_4 _mm256_store_pd
-#define LOAD_4  _mm256_load_pd
-#define ADD_4   _mm256_add_pd
-#define MUL_4   _mm256_mul_pd
 #define ELEM_4  __m256d
-/* #endif |+ AVX +| */
-
-#define SET1_2  _mm_set1_pd
-#define SET_2   _mm_set_pd
-#define STORE_2 _mm_store_pd
-#define LOAD_2  _mm_load_pd
-#define ADD_2   _mm_add_pd
-#define MUL_2   _mm_mul_pd
 #define ELEM_2  __m128d
-#endif /* SSE */
 
-#define SET1_SIMD_2(a,b) \
-          ELEM_2 a =  SET1_2(b)
 
-#define SET2_SIMD_2(a,b,c) \
-         ELEM_2 a = SET_2(b,c)
-
-#define AXPY_SIMD_2(y,a,x) \
-          STORE_2((y),  ADD_2(LOAD_2((y)), MUL_2((a), LOAD_2((x)))))
-
-#define AXPY_SIMD_2_(y,a,x) \
-          ADD_2((y), MUL_2((a), (x)))
-
-#define STORE_SIMD_L_2(a,b) \
+#define STORE_L_2(a,b) \
   _mm_storel_pd(a,b)
 
-#define STORE_SIMD_H_2(a,b) \
+#define STORE_H_2(a,b) \
   _mm_storeh_pd(a,b)
 
 
-/* can do better if FMA */
+#define COPY_2(y,x) \
+  STORE_2(y, LOAD_2(x))
 
-#define COPY_SIMD_2(y,x) \
-          STORE_2(y, LOAD_2(x))
-
-#define SET1_SIMD_4(a,b) \
-          ELEM_4 a =  SET1_4(b)
-
-#define SET4_SIMD_4(a,b,c) \
-         ELEM_4 a = SET_4(b,c)
-
-#define AXPY_SIMD_4(y,a,x) \
-          STORE_4((y),  ADD_4(LOAD_4((y)), MUL_4((a), LOAD_4((x)))))
-
-#define AXPY_SIMD_4_in(y,a,x) \
-          ADD_4((y), MUL_4((a), (x)))
+#define SET1_4(a) \
+  _mm256_set1_pd(a)
+#define SET_4(b,c) \
+  _mm256_set_pd(b,c)
 
 /* can do better if FMA */
 
-#define COPY_SIMD_4(y,x) \
-          STORE_4(y, LOAD_4(x))
+#define STORE_4(a,b) \
+  _mm256_store_pd((a), (b))
+#define LOAD_4(a) \
+  _mm256_load_pd((a))
+#define COPY_4(y,x) \
+  STORE_4(y, LOAD_4(x))
+#define GREATER_4(a,b) \
+  _mm256_cmp_pd((a), (b), _CMP_GT_OS)
+#define LESSER_4(a,b) \
+  _mm256_cmp_pd((a), (b),    _CMP_LT_OS)
+#define VAND_4(a,b) \
+  _mm256_and_pd((a), (b))
+#define VOR_4(a,b) \
+  _mm256_or_pd((a), (b))
+#define ADD_4(a,b) \
+  _mm256_add_pd((a), (b))
+#define SUB_4(a,b) \
+  _mm256_sub_pd((a), (b))
+#define MUL_4(a,b) \
+  _mm256_mul_pd((a), (b))
+#define FLOOR_4(a) \
+  _mm256_floor_pd((a))
+#define ZERO_4() \
+  _mm256_setzero_pd()
+
+/* can do better if FMA */
+#define FNMADD_4(c,a,b) \
+  SUB_4((c), MUL_4((a), (b)))
+#define FMADD_4(c,a,b) \
+  ADD_4((c), MUL_4((a), (b)))
+
+#define NORML_MOD_4(C, P, NEGP, MIN, MAX, Q, T) \
+{ \
+  Q = GREATER_4(C,MAX); \
+  T = LESSER_4(C,MIN); \
+  Q = VAND_4(Q,  NEGP); \
+  T = VAND_4(T, P); \
+  Q = VOR_4(Q, T); \
+  C = ADD_4(C, Q); \
+}
+
+#define FLOAT_MOD_4(C, P, INVP,Q)\
+{\
+  Q = MUL_4(C,INVP);\
+  Q = FLOOR_4(Q);\
+  C = FNMADD_4(C, Q,P);\
+}
+
+#else
+#error "you want avx..."
+#endif /* HAVE_AVX */
 
 
 #endif /* SIMD */
@@ -157,86 +171,86 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
 }
 
 int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {
-bi_t i;
-ri_t j, k;
-re_l_t *dense_block[B->bheight] __attribute__((aligned(0x1000)));
-/* re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *)); */
-uint64_t size = B->bwidth * sizeof(re_l_t);
-for (i=0; i<B->bheight; ++i) {
-  posix_memalign((void **)&dense_block[i], ALIGNT, size);
-}
-for (j=0; j<nbrows_A; ++j) {
-	/* const ri_t first_block_idx  = 0; */
-
-  /*  set dense block entries to zero */
-  for (k=0; k<B->bheight; ++k)
-    memset(dense_block[k], 0, size);
-
-  /*  copy sparse block data to dense representation */
-  if (B->blocks[j][block_col_idx_B] != NULL)
-    copy_sparse_to_dense_block(B->blocks[j][block_col_idx_B], dense_block,
-        B->bheight, B->bwidth);
-
-  for (k=0; k<j; ++k) {
-    red_with_rectangular_block(A->blocks[j][k], B->blocks[k][block_col_idx_B],
-        dense_block, B->bheight, 1, modulus);
-    /*
-        printf("RECTANGULAR DONE\n");
-        for (int kk=0; kk<B->bheight; ++kk) {
-        for (int ll=0; ll<B->bheight; ++ll) {
-        printf("(%d,%d) %ld ",kk,ll,dense_block[kk][ll]);
-        }
-        printf("\n");
-        }
-        */
+  bi_t i;
+  ri_t j, k;
+  re_l_t *dense_block[B->bheight] __attribute__((aligned(0x1000)));
+  /* re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *)); */
+  uint64_t size = B->bwidth * sizeof(re_l_t);
+  for (i=0; i<B->bheight; ++i) {
+    posix_memalign((void **)&dense_block[i], ALIGNT, size);
   }
+  for (j=0; j<nbrows_A; ++j) {
+    /* const ri_t first_block_idx  = 0; */
 
-  red_with_triangular_block(A->blocks[j][j], dense_block,
-      B->bheight, 1, modulus);
-  /*printf("TRIANGULAR DONE\n");
-    for (int kk=0; kk<B->bheight; ++kk) {
-    for (int ll=0; ll<B->bheight; ++ll) {
-    printf("%ld ",dense_block[kk][ll]);
+    /*  set dense block entries to zero */
+    for (k=0; k<B->bheight; ++k)
+      memset(dense_block[k], 0, size);
+
+    /*  copy sparse block data to dense representation */
+    if (B->blocks[j][block_col_idx_B] != NULL)
+      copy_sparse_to_dense_block(B->blocks[j][block_col_idx_B], dense_block,
+          B->bheight, B->bwidth);
+
+    for (k=0; k<j; ++k) {
+      red_with_rectangular_block(A->blocks[j][k], B->blocks[k][block_col_idx_B],
+          dense_block, B->bheight, 1, modulus);
+      /*
+         printf("RECTANGULAR DONE\n");
+         for (int kk=0; kk<B->bheight; ++kk) {
+         for (int ll=0; ll<B->bheight; ++ll) {
+         printf("(%d,%d) %ld ",kk,ll,dense_block[kk][ll]);
+         }
+         printf("\n");
+         }
+         */
     }
-    printf("\n");
-    }
-    */
+
+    red_with_triangular_block(A->blocks[j][j], dense_block,
+        B->bheight, 1, modulus);
+    /*printf("TRIANGULAR DONE\n");
+      for (int kk=0; kk<B->bheight; ++kk) {
+      for (int ll=0; ll<B->bheight; ++ll) {
+      printf("%ld ",dense_block[kk][ll]);
+      }
+      printf("\n");
+      }
+      */
 
 
-  /* printf("OUT BEFORE %p\n",B->blocks[j][block_col_idx_B]); */
-  copy_dense_block_to_sparse(
-      dense_block, &B->blocks[j][block_col_idx_B],
-      B->bheight, B->bwidth, modulus);
-  /* printf("OUT AFTERWARDS %p\n",B->blocks[j][block_col_idx_B]); */
+    /* printf("OUT BEFORE %p\n",B->blocks[j][block_col_idx_B]); */
+    copy_dense_block_to_sparse(
+        dense_block, &B->blocks[j][block_col_idx_B],
+        B->bheight, B->bwidth, modulus);
+    /* printf("OUT AFTERWARDS %p\n",B->blocks[j][block_col_idx_B]); */
 #if DDDEBUG
-  printf("after copying\n");
-  if (B->blocks[j][block_col_idx_B] != NULL) {
-    for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
-      if (B->blocks[j][block_col_idx_B][kk].sz>0) {
-        printf("%d\n",kk);
-        for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
-          printf("%d %d ",B->blocks[j][block_col_idx_B][kk].val[2*ll], B->blocks[j][block_col_idx_B][kk].val[2*ll+1]);
+    printf("after copying\n");
+    if (B->blocks[j][block_col_idx_B] != NULL) {
+      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+        if (B->blocks[j][block_col_idx_B][kk].sz>0) {
+          printf("%d\n",kk);
+          for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
+            printf("%d %d ",B->blocks[j][block_col_idx_B][kk].val[2*ll], B->blocks[j][block_col_idx_B][kk].val[2*ll+1]);
+          }
+          printf("\n");
         }
-        printf("\n");
       }
     }
-  }
 #endif
-}
-for (i=0; i<B->bheight; ++i) {
-  free(dense_block[i]);
-  dense_block[i]  = NULL;
-}
+  }
+  for (i=0; i<B->bheight; ++i) {
+    free(dense_block[i]);
+    dense_block[i]  = NULL;
+  }
 
-return 0;
+  return 0;
 }
 #else
 int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   sbm_fl_t *A = *A_in;
   ci_t i/*, rc*/;
   ri_t j, k;
-	int tid;
-	/* const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth); */
+  int tid;
+  /* const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth); */
   const ri_t rlA  = (ri_t) ceil((float) A->nrows / A->bheight);
   const ci_t clA  = (ci_t) ceil((float) A->ncols / A->bwidth);
 
@@ -244,12 +258,12 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   omp_init_lock(&reduce_A_lock);
 
 #pragma omp parallel shared(reduce_A_next_col_to_reduce) num_threads(nthrds)
-    {
+  {
 #pragma omp for nowait
-      for (tid=0; tid<nthrds; ++tid) {
-        /*rc  =*/ elim_fl_A_blocks_task(A, B, tid, rlA, modulus);
-      }
+    for (tid=0; tid<nthrds; ++tid) {
+      /*rc  =*/ elim_fl_A_blocks_task(A, B, tid, rlA, modulus);
     }
+  }
   omp_destroy_lock(&reduce_A_lock);
   /*  free A */
 #pragma omp parallel num_threads(nthrds)
@@ -303,7 +317,7 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
     }
     omp_unset_lock(&reduce_A_lock);
     for (j=0; j<nbrows_A; ++j) {
-			/* const ri_t first_block_idx  = 0; */
+      /* const ri_t first_block_idx  = 0; */
 
       /*  set dense block entries to zero */
       for (k=0; k<B->bheight; ++k) {
@@ -389,8 +403,8 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
 }
 
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-  const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-  const int inv_scalars, const mod_t modulus) {
+    const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+    const int inv_scalars, const mod_t modulus) {
   bi_t i;
   ri_t j, k;
   re_l_t *dense_block[D->bheight] __attribute__((aligned(0x1000)));
@@ -404,7 +418,7 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
   const ri_t last_block_idx = nbcols_C;
 
   for (j=0; j<nbrows_C; ++j) {
-		/* const ri_t first_block_idx  = 0; */
+    /* const ri_t first_block_idx  = 0; */
 
     /*  set dense block entries to zero */
     for (k=0; k<D->bheight; ++k)
@@ -468,9 +482,9 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
   sbm_fl_t *C = *C_in;
 
   ci_t i/*, rc*/;
-	int tid ;
+  int tid ;
   ri_t j, k;
-	/* const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth); */
+  /* const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth); */
   const ri_t rlC  = (ri_t) ceil((float) C->nrows / C->bheight);
   const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
 
@@ -478,12 +492,12 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
   omp_init_lock(&reduce_C_lock);
 
 #pragma omp parallel shared(reduce_C_next_col_to_reduce) num_threads(nthrds)
-    {
+  {
 #pragma omp for nowait
-      for (tid=0; tid<nthrds; ++tid) {
-        /*rc  =*/ elim_fl_C_blocks_task(B, C,  D, tid, rlC, clC, inv_scalars, modulus);
-      }
+    for (tid=0; tid<nthrds; ++tid) {
+      /*rc  =*/ elim_fl_C_blocks_task(B, C,  D, tid, rlC, clC, inv_scalars, modulus);
     }
+  }
   omp_destroy_lock(&reduce_C_lock);
   /*  free C */
 #pragma omp parallel num_threads(nthrds)
@@ -515,8 +529,8 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
 }
 
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-  const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-  const int inv_scalars, const mod_t modulus) {
+    const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+    const int inv_scalars, const mod_t modulus) {
 
   const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
   bi_t i;
@@ -544,7 +558,7 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
     omp_unset_lock(&reduce_C_lock);
 
     for (j=0; j<nbrows_C; ++j) {
-			/* const ri_t first_block_idx  = 0; */
+      /* const ri_t first_block_idx  = 0; */
 
       /*  set dense block entries to zero */
       for (k=0; k<D->bheight; ++k)
@@ -581,226 +595,226 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
 
 void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_block,
     const ri_t bheight, const int inv_scalars, const mod_t modulus) {
-int  j;
-ri_t i, k ;
+  int  j;
+  ri_t i, k ;
 
-int last_idx;
+  int last_idx;
 
-for (i=0; i<bheight/2; ++i) {
-  if (block_A[i].sz == 0)
-    continue;
+  for (i=0; i<bheight/2; ++i) {
+    if (block_A[i].sz == 0)
+      continue;
 
-  last_idx  = -1;
-  if (block_A[i].val[2*(block_A[i].sz-1)+1] == 0)
-    last_idx  = block_A[i].sz-1;
-  else
-    last_idx  = block_A[i].sz-2;
+    last_idx  = -1;
+    if (block_A[i].val[2*(block_A[i].sz-1)+1] == 0)
+      last_idx  = block_A[i].sz-1;
+    else
+      last_idx  = block_A[i].sz-2;
 
-  register re_m_t Av1_col1, Av2_col1;
-  register re_m_t Av1_col2, Av2_col2;
-  bi_t Ap1, Ap2;
+    register re_m_t Av1_col1, Av2_col1;
+    register re_m_t Av1_col2, Av2_col2;
+    bi_t Ap1, Ap2;
 
 #if DDDEBUG
-  printf("lidx %d\n",last_idx);
+    printf("lidx %d\n",last_idx);
 #endif
-  for (j=0; j<last_idx; ++j) {
-    Ap1       = block_A[i].idx[j];
-    Av1_col1  = block_A[i].val[2*j];
-    Av2_col1  = block_A[i].val[2*j+1];
+    for (j=0; j<last_idx; ++j) {
+      Ap1       = block_A[i].idx[j];
+      Av1_col1  = block_A[i].val[2*j];
+      Av2_col1  = block_A[i].val[2*j+1];
 
-    if (inv_scalars == 1) {
-      if (Av1_col1 != 0)
-        Av1_col1  = (re_m_t)modulus - Av1_col1;
-      if (Av2_col1 != 0)
-        Av2_col1  = (re_m_t)modulus - Av2_col1;
-    }
+      if (inv_scalars == 1) {
+        if (Av1_col1 != 0)
+          Av1_col1  = (re_m_t)modulus - Av1_col1;
+        if (Av2_col1 != 0)
+          Av2_col1  = (re_m_t)modulus - Av2_col1;
+      }
 
-    if ((Ap1 % 2) == 0 && (j < last_idx-1)) {
-      Ap2  = block_A[i].idx[j+1];
-      if (Ap2 == Ap1+1) { /*  AXPY two rows */
-        Av1_col2  = block_A[i].val[2*(j+1)];
-        Av2_col2  = block_A[i].val[2*(j+1)+1];
+      if ((Ap1 % 2) == 0 && (j < last_idx-1)) {
+        Ap2  = block_A[i].idx[j+1];
+        if (Ap2 == Ap1+1) { /*  AXPY two rows */
+          Av1_col2  = block_A[i].val[2*(j+1)];
+          Av2_col2  = block_A[i].val[2*(j+1)+1];
 
-        if (inv_scalars == 1) {
-          if (Av1_col2 != 0)
-            Av1_col2  = (re_m_t)modulus - Av1_col2;
-          if (Av2_col2 != 0)
-            Av2_col2  = (re_m_t)modulus - Av2_col2;
+          if (inv_scalars == 1) {
+            if (Av1_col2 != 0)
+              Av1_col2  = (re_m_t)modulus - Av1_col2;
+            if (Av2_col2 != 0)
+              Av2_col2  = (re_m_t)modulus - Av2_col2;
+          }
+          ++j;
+
+          dense_scal_mul_sub_2_rows_array_array(
+              Av1_col1, Av2_col1, Av1_col2, Av2_col2, bheight,
+              dense_block[Ap1], dense_block[Ap1+1],
+              dense_block[2*i], dense_block[2*i+1]);
+        } else { /*  AXPY one row */
+          dense_scal_mul_sub_1_row_array_array(
+              Av1_col1, Av2_col1, bheight,
+              dense_block[Ap1],
+              dense_block[2*i], dense_block[2*i+1]);
         }
-        ++j;
-
-        dense_scal_mul_sub_2_rows_array_array(
-            Av1_col1, Av2_col1, Av1_col2, Av2_col2, bheight,
-            dense_block[Ap1], dense_block[Ap1+1],
-            dense_block[2*i], dense_block[2*i+1]);
       } else { /*  AXPY one row */
         dense_scal_mul_sub_1_row_array_array(
             Av1_col1, Av2_col1, bheight,
             dense_block[Ap1],
             dense_block[2*i], dense_block[2*i+1]);
       }
-    } else { /*  AXPY one row */
-      dense_scal_mul_sub_1_row_array_array(
-          Av1_col1, Av2_col1, bheight,
-          dense_block[Ap1],
-          dense_block[2*i], dense_block[2*i+1]);
     }
-  }
 
-  /*  do modular reduction on dense array row */
-  /* printf("outside %d\n", 2*i); */
-  red_dense_array_modular(dense_block[2*i], bheight, modulus);
+    /*  do modular reduction on dense array row */
+    /* printf("outside %d\n", 2*i); */
+    red_dense_array_modular(dense_block[2*i], bheight, modulus);
 
-  /*  reduce lines within the same multiline */
-  if (block_A[i].sz > 1) {
-    j         = block_A[i].sz-2;
-    Av1_col1  = block_A[i].val[2*j+1];
-    Ap1       = block_A[i].idx[j];
+    /*  reduce lines within the same multiline */
+    if (block_A[i].sz > 1) {
+      j         = block_A[i].sz-2;
+      Av1_col1  = block_A[i].val[2*j+1];
+      Ap1       = block_A[i].idx[j];
 
-    if(Av1_col1 != 0) {
-      if (inv_scalars == 1)
-        if (Av1_col1 != 0)
-          Av1_col1  = (re_m_t)modulus - Av1_col1;
+      if(Av1_col1 != 0) {
+        if (inv_scalars == 1)
+          if (Av1_col1 != 0)
+            Av1_col1  = (re_m_t)modulus - Av1_col1;
 
-      const bi_t offset1  = 2*i+1;
-      const bi_t offset2  = 2*i;
+        const bi_t offset1  = 2*i+1;
+        const bi_t offset2  = 2*i;
 
 #ifdef GBLA_USE_AVX
-      for (k=0; k<bheight; ++k)
-        dense_block[offset1][k] +=  (re_m_t) Av1_col1 * dense_block[offset2][k];
+        for (k=0; k<bheight; ++k)
+          dense_block[offset1][k] +=  (re_m_t) Av1_col1 * dense_block[offset2][k];
 #else
-  for (k=0; k<bheight; ++k)
-        dense_block[offset1][k] +=  (re_m_t) Av1_col1 * dense_block[offset2][k];
+        for (k=0; k<bheight; ++k)
+          dense_block[offset1][k] +=  (re_m_t) Av1_col1 * dense_block[offset2][k];
 #endif
 
+      }
     }
-  }
 
-  /*  do modular reduction on dense array row */
-  /* printf("outside2 %d\n", 2*i+1); */
-  red_dense_array_modular(dense_block[2*i+1], bheight, modulus);
-}
+    /*  do modular reduction on dense array row */
+    /* printf("outside2 %d\n", 2*i+1); */
+    red_dense_array_modular(dense_block[2*i+1], bheight, modulus);
+  }
 }
 
 void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_block,
     const ri_t bheight, const int inv_scalars, const mod_t modulus) {
-bi_t i, j;
-if (block_A == NULL || block_B == NULL)
-  return;
+  bi_t i, j;
+  if (block_A == NULL || block_B == NULL)
+    return;
 
-for (i=0; i<bheight/2; ++i) {
-  const bi_t is_sparse  = block_A[i].dense == 0 ? 1 : 0;
-  const bi_t N          = is_sparse == 1 ? block_A[i].sz : bheight;
-  for (j=0; j<N; ++j) {
-    /* printf("%d && %d\n",i,j); */
-    /*
-  for (int kk=0; kk<bheight; ++kk) {
-    for (int ll=0; ll<bheight; ++ll) {
-      printf("%ld ",dense_block[kk][ll]);
-    }
-    printf("\n");
-  }
-    */
-    /* printf("%d // %d // %d\n",i,j, N); */
-    const bi_t Ap1  = is_sparse == 1 ? block_A[i].idx[j] : j;
-    register re_m_t Av1_col1  = block_A[i].val[2*j];
-    register re_m_t Av2_col1  = block_A[i].val[2*j+1];
+  for (i=0; i<bheight/2; ++i) {
+    const bi_t is_sparse  = block_A[i].dense == 0 ? 1 : 0;
+    const bi_t N          = is_sparse == 1 ? block_A[i].sz : bheight;
+    for (j=0; j<N; ++j) {
+      /* printf("%d && %d\n",i,j); */
+      /*
+         for (int kk=0; kk<bheight; ++kk) {
+         for (int ll=0; ll<bheight; ++ll) {
+         printf("%ld ",dense_block[kk][ll]);
+         }
+         printf("\n");
+         }
+         */
+      /* printf("%d // %d // %d\n",i,j, N); */
+      const bi_t Ap1  = is_sparse == 1 ? block_A[i].idx[j] : j;
+      register re_m_t Av1_col1  = block_A[i].val[2*j];
+      register re_m_t Av2_col1  = block_A[i].val[2*j+1];
 
-    if (inv_scalars == 1) {
-      if (Av1_col1 != 0)
-        Av1_col1  = (re_m_t)modulus - Av1_col1;
-      if (Av2_col1 != 0)
-        Av2_col1  = (re_m_t)modulus - Av2_col1;
-    }
-    if (((Ap1 % 2) == 0) && (j < (uint32_t)(N - 1))) {
-      const bi_t Ap2  = (is_sparse == 1 ? block_A[i].idx[j+1] : j+1);
-      if (Ap2 == Ap1+1) { /*  AXPY two rows */
-        register re_m_t Av1_col2  = block_A[i].val[2*(j+1)];
-        register re_m_t Av2_col2  = block_A[i].val[2*(j+1)+1];
+      if (inv_scalars == 1) {
+        if (Av1_col1 != 0)
+          Av1_col1  = (re_m_t)modulus - Av1_col1;
+        if (Av2_col1 != 0)
+          Av2_col1  = (re_m_t)modulus - Av2_col1;
+      }
+      if (((Ap1 % 2) == 0) && (j < (uint32_t)(N - 1))) {
+        const bi_t Ap2  = (is_sparse == 1 ? block_A[i].idx[j+1] : j+1);
+        if (Ap2 == Ap1+1) { /*  AXPY two rows */
+          register re_m_t Av1_col2  = block_A[i].val[2*(j+1)];
+          register re_m_t Av2_col2  = block_A[i].val[2*(j+1)+1];
 
-        if (inv_scalars == 1) {
-          if (Av1_col2 != 0)
-            Av1_col2  = (re_m_t)modulus - Av1_col2;
-          if (Av2_col2 != 0)
-            Av2_col2  = (re_m_t)modulus - Av2_col2;
-        }
-        ++j;
-        if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
-          /* printf("1S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
-          sparse_scal_mul_sub_2_rows_vect_array(
-              Av1_col1, Av2_col1, Av1_col2, Av2_col2,
-              block_B[Ap1 / __GB_NROWS_MULTILINE],
-              dense_block[2*i], dense_block[2*i+1]);
-          /* printf("1 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
-        } else {
-          /* printf("1D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
-          dense_scal_mul_sub_2_rows_vect_array(
-              Av1_col1, Av2_col1, Av1_col2, Av2_col2,
-              block_B[Ap1 / __GB_NROWS_MULTILINE], bheight,
-              dense_block[2*i], dense_block[2*i+1]);
-          /* printf("2 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
+          if (inv_scalars == 1) {
+            if (Av1_col2 != 0)
+              Av1_col2  = (re_m_t)modulus - Av1_col2;
+            if (Av2_col2 != 0)
+              Av2_col2  = (re_m_t)modulus - Av2_col2;
+          }
+          ++j;
+          if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
+            /* printf("1S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+            sparse_scal_mul_sub_2_rows_vect_array(
+                Av1_col1, Av2_col1, Av1_col2, Av2_col2,
+                block_B[Ap1 / __GB_NROWS_MULTILINE],
+                dense_block[2*i], dense_block[2*i+1]);
+            /* printf("1 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
+          } else {
+            /* printf("1D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+            dense_scal_mul_sub_2_rows_vect_array(
+                Av1_col1, Av2_col1, Av1_col2, Av2_col2,
+                block_B[Ap1 / __GB_NROWS_MULTILINE], bheight,
+                dense_block[2*i], dense_block[2*i+1]);
+            /* printf("2 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
+          }
+        } else { /*  AXPY one row */
+          if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
+            /* printf("2S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+            sparse_scal_mul_sub_1_row_vect_array(
+                Av1_col1, Av2_col1,
+                block_B[Ap1 / __GB_NROWS_MULTILINE],
+                Ap1 % __GB_NROWS_MULTILINE,
+                dense_block[2*i], dense_block[2*i+1]);
+            /* printf("3 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
+          } else {
+            /* printf("2D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+            dense_scal_mul_sub_1_row_vect_array(
+                Av1_col1, Av2_col1,
+                block_B[Ap1 / __GB_NROWS_MULTILINE],
+                Ap1 % __GB_NROWS_MULTILINE, bheight,
+                dense_block[2*i], dense_block[2*i+1]);
+            /* printf("4 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
+          }
         }
       } else { /*  AXPY one row */
         if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
-          /* printf("2S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+          /* printf("3S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
           sparse_scal_mul_sub_1_row_vect_array(
               Av1_col1, Av2_col1,
               block_B[Ap1 / __GB_NROWS_MULTILINE],
               Ap1 % __GB_NROWS_MULTILINE,
               dense_block[2*i], dense_block[2*i+1]);
-          /* printf("3 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
+          /* printf("5 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
         } else {
-          /* printf("2D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+          /* printf("3D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
           dense_scal_mul_sub_1_row_vect_array(
               Av1_col1, Av2_col1,
               block_B[Ap1 / __GB_NROWS_MULTILINE],
               Ap1 % __GB_NROWS_MULTILINE, bheight,
               dense_block[2*i], dense_block[2*i+1]);
-          /* printf("4 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
         }
-      }
-    } else { /*  AXPY one row */
-      if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
-      /* printf("3S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
-        sparse_scal_mul_sub_1_row_vect_array(
-            Av1_col1, Av2_col1,
-            block_B[Ap1 / __GB_NROWS_MULTILINE],
-            Ap1 % __GB_NROWS_MULTILINE,
-            dense_block[2*i], dense_block[2*i+1]);
-          /* printf("5 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
-      } else {
-      /* printf("3D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
-        dense_scal_mul_sub_1_row_vect_array(
-            Av1_col1, Av2_col1,
-            block_B[Ap1 / __GB_NROWS_MULTILINE],
-            Ap1 % __GB_NROWS_MULTILINE, bheight,
-            dense_block[2*i], dense_block[2*i+1]);
       }
     }
   }
 }
-}
 
 void copy_dense_block_to_sparse(
-  re_l_t **dense_block, mbl_t **sparse_block_in, int bheight, int bwidth, mod_t modulus) {
+    re_l_t **dense_block, mbl_t **sparse_block_in, int bheight, int bwidth, mod_t modulus) {
 
-mbl_t *sparse_block = *sparse_block_in;
-bi_t i,j, k, ctr, buffer, rows_empty;
+  mbl_t *sparse_block = *sparse_block_in;
+  bi_t i,j, k, ctr, buffer, rows_empty;
 
-/*  if block was empty in the beginning, reallocate memory */
-if (sparse_block == NULL) {
-  sparse_block  = (mbl_t *)malloc(bheight / __GB_NROWS_MULTILINE * sizeof(mbl_t));
-  for (i=0; i<(bheight / __GB_NROWS_MULTILINE); ++i) {
-    sparse_block[i].val = NULL;
-    sparse_block[i].idx = NULL;
-    sparse_block[i].sz  = sparse_block[i].dense =  0;
+  /*  if block was empty in the beginning, reallocate memory */
+  if (sparse_block == NULL) {
+    sparse_block  = (mbl_t *)malloc(bheight / __GB_NROWS_MULTILINE * sizeof(mbl_t));
+    for (i=0; i<(bheight / __GB_NROWS_MULTILINE); ++i) {
+      sparse_block[i].val = NULL;
+      sparse_block[i].idx = NULL;
+      sparse_block[i].sz  = sparse_block[i].dense =  0;
+    }
   }
-}
-rows_empty  = 0;
-for (i=0; i<bheight/2; ++i) {
-  if (sparse_block[i].dense == 1) {
-    sparse_block[i].idx = (bi_t *)malloc(bwidth * sizeof(bi_t));
-  }
+  rows_empty  = 0;
+  for (i=0; i<bheight/2; ++i) {
+    if (sparse_block[i].dense == 1) {
+      sparse_block[i].idx = (bi_t *)malloc(bwidth * sizeof(bi_t));
+    }
     ctr                 = 0;
     buffer              = sparse_block[i].sz;
     sparse_block[i].sz  = 0;
@@ -875,14 +889,14 @@ for (i=0; i<bheight/2; ++i) {
       sparse_block[i].sz    = bwidth;
       sparse_block[i].dense = 1;
     }
-  /* } */
-}
-/*  if block is completely empty remove memory */
-if (rows_empty == bheight/2) {
-  free(sparse_block);
-  sparse_block  = NULL;
-}
-*sparse_block_in  = sparse_block;
+    /* } */
+  }
+  /*  if block is completely empty remove memory */
+  if (rows_empty == bheight/2) {
+    free(sparse_block);
+    sparse_block  = NULL;
+  }
+  *sparse_block_in  = sparse_block;
 }
 
 
@@ -906,19 +920,19 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
   rank  = Mjoin(RowReduce,elemt_t)(D->mod,D->ptr,D->row,D->col,D->ld, nthrds);
 #endif
   /*
-  size_t i, j, k;
-  ri_t ctr = 0;
-  for (i=0; i<D->row; ++i) {
-    ctr = 0;
-    printf("\n%d || %d\n",i,ctr/256);
-    for (j=0; j<D->col; ++j) {
-      printf("%.1f ",D->ptr[i*D->ld+j]);
-      ctr++;
-      if (ctr % 256 == 0)
-        printf("\n%d || %d\n",i,ctr/256);
-    }
-  }
-  */
+     size_t i, j, k;
+     ri_t ctr = 0;
+     for (i=0; i<D->row; ++i) {
+     ctr = 0;
+     printf("\n%d || %d\n",i,ctr/256);
+     for (j=0; j<D->col; ++j) {
+     printf("%.1f ",D->ptr[i*D->ld+j]);
+     ctr++;
+     if (ctr % 256 == 0)
+     printf("\n%d || %d\n",i,ctr/256);
+     }
+     }
+     */
 
   return rank;
 }
@@ -926,145 +940,145 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
 
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
 
-	ri_t i;
-	/* ci_t rc; */
+  ri_t i;
+  /* ci_t rc; */
 
-	/*  row indices for subdividing echelonization parts in D_red */
-	global_next_row_to_reduce  = nthrds * 2;
-	global_last_piv            = global_next_row_to_reduce - 1;
+  /*  row indices for subdividing echelonization parts in D_red */
+  global_next_row_to_reduce  = nthrds * 2;
+  global_last_piv            = global_next_row_to_reduce - 1;
 
-	/*  meta data for the computation of the rank of D_red at the end */
-	int head_line_1       = -1;
-	int head_line_2       = -1;
-	ci_t head_line_1_idx  = 0;
-	ci_t head_line_2_idx  = 0;
-	const ci_t coldim     = D->ncols;
-	ri_t wl_dim; /*  waiting list dimension */
-	re_t h_a1;
+  /*  meta data for the computation of the rank of D_red at the end */
+  int head_line_1       = -1;
+  int head_line_2       = -1;
+  ci_t head_line_1_idx  = 0;
+  ci_t head_line_2_idx  = 0;
+  const ci_t coldim     = D->ncols;
+  ri_t wl_dim; /*  waiting list dimension */
+  re_t h_a1;
 
-	wl_dim  = (D->nrows/__GB_NROWS_MULTILINE);
-	if (D->nrows%__GB_NROWS_MULTILINE)
-		wl_dim++;
+  wl_dim  = (D->nrows/__GB_NROWS_MULTILINE);
+  if (D->nrows%__GB_NROWS_MULTILINE)
+    wl_dim++;
 
-	/*  global waiting list */
-	waiting_global.list = (wle_t *)malloc(wl_dim * sizeof(wle_t));
-	waiting_global.sidx = 0;
-	waiting_global.slp  = 0;
-	waiting_global.sz   = 0;
+  /*  global waiting list */
+  waiting_global.list = (wle_t *)malloc(wl_dim * sizeof(wle_t));
+  waiting_global.sidx = 0;
+  waiting_global.slp  = 0;
+  waiting_global.sz   = 0;
 
-	/*  copy D to D_red and delete D */
-	D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
+  /*  copy D to D_red and delete D */
+  D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
 #if DDEBUG_DD
-	printf("BEFORE\n");
-	const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
-	int ii,jj,kk,ll;
-	for (ii=0; ii<rlD; ++ii) {
-		printf("%d .. \n",ii);
-		/* printf("size %d\n", D_red->ml[ii].sz); */
-		if (D_red->ml[ii].sz>0) {
-			for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-				if (D_red->ml[ii].idx != NULL)
-					printf("%d -- ", D_red->ml[ii].idx[ll]);
-				else
-					printf("%d -- ", ll);
-				printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
-			}
-			printf("\n");
-		} else {
-			printf("ml %d is zero! %p\n", ii, D_red->ml[ii]);
-		}
-	}
+  printf("BEFORE\n");
+  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
+  int ii,jj,kk,ll;
+  for (ii=0; ii<rlD; ++ii) {
+    printf("%d .. \n",ii);
+    /* printf("size %d\n", D_red->ml[ii].sz); */
+    if (D_red->ml[ii].sz>0) {
+      for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
+        if (D_red->ml[ii].idx != NULL)
+          printf("%d -- ", D_red->ml[ii].idx[ll]);
+        else
+          printf("%d -- ", ll);
+        printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
+      }
+      printf("\n");
+    } else {
+      printf("ml %d is zero! %p\n", ii, D_red->ml[ii]);
+    }
+  }
 #endif
-	echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
+  echelonize_rows_sequential(D_red, 0, global_last_piv, modulus);
 #if DDEBUG_DD
-	printf("AFTER\n");
-	for (int ii=0; ii<rlD; ++ii) {
-		printf("%d .. \n",ii);
-		printf("size %d\n", D_red->ml[ii].sz);
-		if (D_red->ml[ii].sz>0) {
-			for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-				/*
-					 if (D_red->ml[ii].idx != NULL)
-					 printf("%d -- ", D_red->ml[ii].idx[ll]);
-					 else
-					 printf("%d -- ", ll);
-					 */
-				printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
-			}
-		} else {
-		}
-		printf("\n");
-	}
+  printf("AFTER\n");
+  for (int ii=0; ii<rlD; ++ii) {
+    printf("%d .. \n",ii);
+    printf("size %d\n", D_red->ml[ii].sz);
+    if (D_red->ml[ii].sz>0) {
+      for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
+        /*
+           if (D_red->ml[ii].idx != NULL)
+           printf("%d -- ", D_red->ml[ii].idx[ll]);
+           else
+           printf("%d -- ", ll);
+           */
+        printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
+      }
+    } else {
+    }
+    printf("\n");
+  }
 #endif
 
-	const ri_t ml_nrows_D_red = (D_red->nrows % __GB_NROWS_MULTILINE == 0) ?
-		D_red->nrows / __GB_NROWS_MULTILINE :
-		D_red->nrows / __GB_NROWS_MULTILINE + 1;
+  const ri_t ml_nrows_D_red = (D_red->nrows % __GB_NROWS_MULTILINE == 0) ?
+    D_red->nrows / __GB_NROWS_MULTILINE :
+    D_red->nrows / __GB_NROWS_MULTILINE + 1;
 
-	/*  define lock */
-	/* omp_lock_t echelonize_lock; */
-	omp_init_lock(&echelonize_lock);
+  /*  define lock */
+  /* omp_lock_t echelonize_lock; */
+  omp_init_lock(&echelonize_lock);
 
-	/*  if there are rows left do elimination in parallel */
-	if (ml_nrows_D_red >= global_next_row_to_reduce) {
-		int tid ;
-		/*  TODO: parallel elimination with OpenMP */
+  /*  if there are rows left do elimination in parallel */
+  if (ml_nrows_D_red >= global_next_row_to_reduce) {
+    int tid ;
+    /*  TODO: parallel elimination with OpenMP */
 #pragma omp parallel shared(D_red, waiting_global, global_next_row_to_reduce, global_last_piv) num_threads(nthrds)
-		{
+    {
 #pragma omp for nowait
-			for (tid=0; tid<nthrds; ++tid) {
-				/*rc  =*/ echelonize_rows_task(D_red, ml_nrows_D_red,
-						/* global_next_row_to_reduce, global_last_piv, */
-						/* &waiting_global, */
-						modulus
-						/* , echelonize_lock */
-						);
-			}
-		}
-	}
-	omp_destroy_lock(&echelonize_lock);
+      for (tid=0; tid<nthrds; ++tid) {
+        /*rc  =*/ echelonize_rows_task(D_red, ml_nrows_D_red,
+            /* global_next_row_to_reduce, global_last_piv, */
+            /* &waiting_global, */
+            modulus
+            /* , echelonize_lock */
+            );
+      }
+    }
+  }
+  omp_destroy_lock(&echelonize_lock);
 
-	ri_t rank = 0;
+  ri_t rank = 0;
 
-	for (i=0; i<ml_nrows_D_red; ++i) {
-		if (D_red->ml[i].sz == 0) {
-			continue;
-		}
+  for (i=0; i<ml_nrows_D_red; ++i) {
+    if (D_red->ml[i].sz == 0) {
+      continue;
+    }
 
 
-		head_line_1 = get_head_multiline_hybrid(&(D_red->ml[i]), 0,
-				&h_a1, &head_line_1_idx, coldim);
-		head_line_2 = get_head_multiline_hybrid(&(D_red->ml[i]), 1,
-				&h_a1, &head_line_2_idx, coldim);
+    head_line_1 = get_head_multiline_hybrid(&(D_red->ml[i]), 0,
+        &h_a1, &head_line_1_idx, coldim);
+    head_line_2 = get_head_multiline_hybrid(&(D_red->ml[i]), 1,
+        &h_a1, &head_line_2_idx, coldim);
 
-		if (head_line_1 != -1)
-			rank++;
-		if (head_line_2 != -1)
-			rank++;
-	}
+    if (head_line_1 != -1)
+      rank++;
+    if (head_line_2 != -1)
+      rank++;
+  }
 #if DDEBUG_DONE
-	const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
-	int ii,jj,kk,ll;
-	printf("AFTER ALL\n");
-	for (ii=0; ii<rlD; ++ii) {
-		printf("%d .. \n",ii);
-		printf("size %d\n", D_red->ml[ii].sz * 2);
-		if (D_red->ml[ii].sz>0) {
-			for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
-				/*
-					 if (D_red->ml[ii].idx != NULL)
-					 printf("%d -- ", D_red->ml[ii].idx[ll]);
-					 else
-					 printf("%d -- ", ll);
-					 */
-				printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
-			}
-			printf("\n");
-		}
-	}
+  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
+  int ii,jj,kk,ll;
+  printf("AFTER ALL\n");
+  for (ii=0; ii<rlD; ++ii) {
+    printf("%d .. \n",ii);
+    printf("size %d\n", D_red->ml[ii].sz * 2);
+    if (D_red->ml[ii].sz>0) {
+      for (ll=0; ll<D_red->ml[ii].sz; ++ll) {
+        /*
+           if (D_red->ml[ii].idx != NULL)
+           printf("%d -- ", D_red->ml[ii].idx[ll]);
+           else
+           printf("%d -- ", ll);
+           */
+        printf("%d %d ", D_red->ml[ii].val[2*ll], D_red->ml[ii].val[2*ll+1]);
+      }
+      printf("\n");
+    }
+  }
 #endif
 
-	return rank;
+  return rank;
 }
 
 ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
@@ -1075,7 +1089,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
   ri_t npiv_real  = 0;
   ri_t N          = A->nrows / __GB_NROWS_MULTILINE +
-                    A->nrows % __GB_NROWS_MULTILINE;
+    A->nrows % __GB_NROWS_MULTILINE;
   const ci_t coldim = A->ncols;
 
   ml_t *ml_row;
@@ -1112,7 +1126,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       re_t h_a1 = 1, h_a2 = 1;
 
       re_t v1_col1 = 0, v2_col1 = 0, v1_col2 = 0, v2_col2 = 0;
-			/* ri_t tmp  = 0; */
+      /* ri_t tmp  = 0; */
 
       for (j=from; j<i; ++j) {
         ml_row  = &(A->ml[j]);
@@ -1201,7 +1215,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 #endif
       /*  reduce by same multiline */
       if (head_line_1 >= head_line_2 && head_line_1 != -1 && head_line_2 != -1) {
-	dense_array_2[head_line_1] =MODP(dense_array_2[head_line_1], modulus);
+        dense_array_2[head_line_1] =MODP(dense_array_2[head_line_1], modulus);
         if (dense_array_2[head_line_1] != 0) {
           register re_m_t h = modulus - dense_array_2[head_line_1];
           register re_m_t v__;
@@ -1211,7 +1225,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
             dense_array_2[k]  +=  h * v__;
           }
 #else
-     for (k=head_line_1; k<coldim; ++k) {
+          for (k=head_line_1; k<coldim; ++k) {
             v__               =   CAST(dense_array_1[k]);
             dense_array_2[k]  +=  h * v__;
           }
@@ -1340,7 +1354,7 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
     if ((ready_for_waiting_list == 0) && (global_next_row_to_reduce < N)) {
       curr_row_to_reduce = global_next_row_to_reduce;
 #if DEBUG_ECHELONIZE
-          printf("%d -- inc grr\n",tid);
+      printf("%d -- inc grr\n",tid);
 #endif
       global_next_row_to_reduce++;
       from_row = 0;
@@ -1372,28 +1386,28 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
 
     omp_unset_lock(&echelonize_lock);
     if (A->ml[curr_row_to_reduce].val != NULL) {
-    /*  set zero */
-    memset(dense_array_1, 0, coldim * sizeof(re_l_t));
-    memset(dense_array_2, 0, coldim * sizeof(re_l_t));
+      /*  set zero */
+      memset(dense_array_1, 0, coldim * sizeof(re_l_t));
+      memset(dense_array_2, 0, coldim * sizeof(re_l_t));
 
-    copy_multiline_to_dense_array(A->ml[curr_row_to_reduce],
-        dense_array_1, dense_array_2, coldim);
-    /*  echelonize one row */
+      copy_multiline_to_dense_array(A->ml[curr_row_to_reduce],
+          dense_array_1, dense_array_2, coldim);
+      /*  echelonize one row */
 #if DEBUG_ECHELONIZE
-    printf("thread %d reduces %d with rows %d -- %d\n",tid, curr_row_to_reduce, from_row, local_last_piv);
+      printf("thread %d reduces %d with rows %d -- %d\n",tid, curr_row_to_reduce, from_row, local_last_piv);
 #endif
-    echelonize_one_row(A, dense_array_1, dense_array_2, from_row,
-        local_last_piv, modulus); /*  TODO */
+      echelonize_one_row(A, dense_array_1, dense_array_2, from_row,
+          local_last_piv, modulus); /*  TODO */
 #if DEBUG_ECHELONIZE
-    printf("thread %d done with rows %d -- %d\n",tid, from_row, local_last_piv);
+      printf("thread %d done with rows %d -- %d\n",tid, from_row, local_last_piv);
 #endif
 #if DDEBUG_D
-    for (int kk = 0; kk< coldim/2; ++kk) {
-      printf("13-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
-    }
-    for (int kk = 0; kk< coldim/2; ++kk) {
-      printf("14-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
-    }
+      for (int kk = 0; kk< coldim/2; ++kk) {
+        printf("13-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
+      }
+      for (int kk = 0; kk< coldim/2; ++kk) {
+        printf("14-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
+      }
 #endif
     }
     if (curr_row_to_reduce == local_last_piv + 1) {
@@ -1411,23 +1425,23 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
 
     /*  save back to multiline */
     /*
-    printf("1 %p -- 2 %p\n",dense_array_1,dense_array_2);
-    printf("BEFORE A.val %p\n",A->ml[curr_row_to_reduce].val);
-    */
+       printf("1 %p -- 2 %p\n",dense_array_1,dense_array_2);
+       printf("BEFORE A.val %p\n",A->ml[curr_row_to_reduce].val);
+       */
     if (A->ml[curr_row_to_reduce].val != NULL) {
       save_back_and_reduce(&(A->ml[curr_row_to_reduce]), dense_array_1,
           dense_array_2, coldim, modulus, curr_row_fully_reduced, curr_row_to_reduce);
     }
     /*
-    printf("AFTER A.val %p\n",A->ml[curr_row_to_reduce].val);
-    printf("1 %p -- 2 %p\n",dense_array_1,dense_array_2);
-    printf("3-mlidx %p -- mlval %p\n",A->ml[curr_row_to_reduce].idx,A->ml[curr_row_to_reduce].val);
-      printf("MULTILINE AFTER SAVE\n");
-      for (int kk=0; kk<A->ml[curr_row_to_reduce].sz; ++kk) {
-        printf("%d : %u -- %u ",kk,A->ml[curr_row_to_reduce].val[2*kk],A->ml[curr_row_to_reduce].val[2*kk+1]);
-      }
-      printf("\n");
-      */
+       printf("AFTER A.val %p\n",A->ml[curr_row_to_reduce].val);
+       printf("1 %p -- 2 %p\n",dense_array_1,dense_array_2);
+       printf("3-mlidx %p -- mlval %p\n",A->ml[curr_row_to_reduce].idx,A->ml[curr_row_to_reduce].val);
+       printf("MULTILINE AFTER SAVE\n");
+       for (int kk=0; kk<A->ml[curr_row_to_reduce].sz; ++kk) {
+       printf("%d : %u -- %u ",kk,A->ml[curr_row_to_reduce].val[2*kk],A->ml[curr_row_to_reduce].val[2*kk+1]);
+       }
+       printf("\n");
+       */
 
     if (curr_row_fully_reduced == 1) {
       omp_set_lock(&echelonize_lock);
@@ -1475,7 +1489,7 @@ void echelonize_one_row(sm_fl_ml_t *A,
   re_t h_a1 = 1, h_a2 = 1;
 
   re_t v1_col1 = 0, v2_col1 = 0, v1_col2 = 0, v2_col2 = 0;
-	/* ri_t tmp  = 0; */
+  /* ri_t tmp  = 0; */
 
 #if DEBUG_ECHELONIZE
   printf("fp %d -- lp %d\n",first_piv, last_piv);
@@ -1644,7 +1658,7 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
           dense_array_2[k]  +=  h * v__;
         }
 #else
-   for (k=head_line_1; k<coldim; ++k) {
+        for (k=head_line_1; k<coldim; ++k) {
           v__               =   CAST(dense_array_1[k]);
           dense_array_2[k]  +=  h * v__;
         }
@@ -1701,7 +1715,7 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     /* ml->sz   = coldim; */
     memset(ml->val, 0, 2 * coldim * sizeof(re_t));
     /* copy_dense_arrays_to_dense_multiline( */
-       /*  dense_array_1, dense_array_2, ml, coldim, modulus); */
+    /*  dense_array_1, dense_array_2, ml, coldim, modulus); */
     copy_dense_arrays_to_zero_dense_multiline(
         dense_array_1, dense_array_2, 0, ml, coldim, modulus);
   }
@@ -1714,7 +1728,7 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 
 int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
   ri_t i;
-	/* ri_t |+ j, k, +| rc; */
+  /* ri_t |+ j, k, +| rc; */
 
   const ri_t rlC  = (ri_t) ceil((float) C->nrows / __GB_NROWS_MULTILINE);
 #pragma omp parallel num_threads(nthrds)
@@ -1849,16 +1863,16 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
 /* WAS IN HEADER */
 
-/* static */ /* inline */ void dense_scal_mul_sub_2_rows_array_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const bi_t bwidth,
-              const re_l_t *dense_array_source1,
-              const re_l_t *dense_array_source2,
-              re_l_t *dense_array1,
-              re_l_t *dense_array2) {
+void dense_scal_mul_sub_2_rows_array_array(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const re_m_t Av1_col2,
+    const re_m_t Av2_col2,
+    const bi_t bwidth,
+    const re_l_t *dense_array_source1,
+    const re_l_t *dense_array_source2,
+    re_l_t *dense_array1,
+    re_l_t *dense_array2) {
 
   /*  check cases where one pair of the elements is zero */
   if (Av1_col1 == 0 && Av2_col1 == 0) {
@@ -1880,10 +1894,10 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   register re_m_t v1__, v2__;
 
 #ifdef GBLA_USE_AVX
-  SET1_SIMD_4(av11,Av1_col1);
-  SET1_SIMD_4(av12,Av1_col2);
-  SET1_SIMD_4(av21,Av2_col1);
-  SET1_SIMD_4(av22,Av2_col2);
+  ELEM_4 av11 = SET1_4(Av1_col1);
+  ELEM_4 av12 = SET1_4(Av1_col2);
+  ELEM_4 av21 = SET1_4(Av2_col1);
+  ELEM_4 av22 = SET1_4(Av2_col2);
   /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
      for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
   for (i=0; i<bwidth; i+=4) {
@@ -1891,15 +1905,11 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
     ELEM_4 ds1 = LOAD_4(dense_array_source1+i+j);
     ELEM_4 ds2 = LOAD_4(dense_array_source2+i+j);
 
-    ELEM_4 da1 = LOAD_4(dense_array1+i+j);
-    AXPY_SIMD_4_in(da1,av11,ds1);
-    AXPY_SIMD_4_in(da1,av12,ds2);
-    STORE_4(dense_array1+i+j,da1);
+    ELEM_4 da1=FMADD_4(LOAD_4(dense_array1+i+j),av11,ds1);
+    STORE_4(dense_array1+i+j,FMADD_4(da1,av12,ds2));
 
-    ELEM_4 da2 = LOAD_4(dense_array2+i+j);
-    AXPY_SIMD_4_in(da2,av21,ds1);
-    AXPY_SIMD_4_in(da2,av22,ds2);
-    STORE_4(dense_array2+i+j,da2);
+    ELEM_4 da2=FMADD_4(LOAD_4(dense_array2+i+j),av21,ds1);
+    STORE_4(dense_array2+i+j,FMADD_4(da2,av22,ds2));
   }
   /* }
      }      */
@@ -1919,43 +1929,43 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 #endif
 }
 
-/* static */ /* inline */ void dense_scal_mul_sub_1_row_array_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const bi_t bwidth,
-              const re_l_t *dense_array_source,
-              re_l_t *dense_array1,
-              re_l_t *dense_array2) {
+void dense_scal_mul_sub_1_row_array_array(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const bi_t bwidth,
+    const re_l_t *dense_array_source,
+    re_l_t *dense_array1,
+    re_l_t *dense_array2) {
 
   bi_t i, j=0;
 #ifdef GBLA_USE_AVX
   if (Av1_col1 == 0) { /*  only one of them can be zero */
-    SET1_SIMD_4(Av2_col1_d,Av2_col1);
+    ELEM_4 Av21 = SET1_4(Av2_col1);
     /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
        for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
     for (i=0; i<bwidth; i+=4) {
-      AXPY_SIMD_4(dense_array2+i+j,Av2_col1_d,dense_array_source+i+j);
+      STORE_4(dense_array2+i+j,FMADD_4(LOAD_4(dense_array2+i+j),Av21,LOAD_4(dense_array_source+i+j)));
     }
     /* }
        }    */
   } else {
     if (Av2_col1 == 0) { /*  only second one is zero */
-      SET1_SIMD_4(Av1_col1_d,Av1_col1);
+      ELEM_4 Av11 = SET1_4(Av1_col1);
       /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
          for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
       for (i=0; i<bwidth; i+=4) {
-        AXPY_SIMD_4(dense_array1+i,Av1_col1_d,dense_array_source+i);
+        STORE_4(dense_array1+i+j,FMADD_4(LOAD_4(dense_array1+i),Av11,LOAD_4(dense_array_source+i)));
         /* }
            }      */
     }
     } else { /*  both are nonzero */
-      SET1_SIMD_4(Av2_col1_d,Av2_col1);
-      SET1_SIMD_4(Av1_col1_d,Av1_col1);
+      ELEM_4 Av21 = SET1_4(Av2_col1);
+      ELEM_4 Av11 = SET1_4(Av1_col1);
       /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
          for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
       for (i=0; i<bwidth; i+=4) {
-        AXPY_SIMD_4(dense_array2+i,Av2_col1_d,dense_array_source+i);
-        AXPY_SIMD_4(dense_array1+i,Av1_col1_d,dense_array_source+i);
+        STORE_4(dense_array2+i+j,FMADD_4(LOAD_4(dense_array2+i),Av21,LOAD_4(dense_array_source+i)));
+        STORE_4(dense_array1+i+j,FMADD_4(LOAD_4(dense_array1+i),Av11,LOAD_4(dense_array_source+i)));
       }
       /* }
          }      */
@@ -1995,15 +2005,35 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 }
 
 /** TODO XXX use fflas avx fast stuff */
-/* static */ /* inline */ void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus) {
+void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus) {
+#ifdef GBLA_USE_AVX_XXX
+  ELEM_4 P = SET1_4(modulus);
+  ELEM_4 INVP = SET1_4(1./(double)modulus);
+  ELEM_4 NEGP = SET1_4(-(double)modulus);
+  ELEM_4 MIN = ZERO_4();
+  ELEM_4 MAX = SET1_4(modulus-1);
+  ELEM_4 Q,T ;
+
+  bi_t i;
+  for (i=0; i<bwidth/4*4; i+=4) {
+    ELEM_4 C = LOAD_4(dense_array+i);
+    FLOAT_MOD_4(C, P, INVP, Q);
+    NORML_MOD_4(C, P, NEGP, MIN, MAX, Q, T);
+    STORE_4(dense_array+i, C);
+  }
+  for (; i<bwidth; ++i) {
+    dense_array[i]  = (re_l_t)(MODP(dense_array[i], modulus));
+  }
+#else
   bi_t i;
   for (i=0; i<bwidth; ++i) {
     dense_array[i]  = (re_l_t)(MODP(dense_array[i], modulus));
   }
+#endif
 }
 
 /** TODO XXX use fflas avx fast stuff */
-/* static */ /* inline */ int normalize_dense_array(re_l_t *dense_array,
+int normalize_dense_array(re_l_t *dense_array,
     const ci_t coldim, const mod_t modulus) {
   re_t val;
   ci_t i;
@@ -2020,7 +2050,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   return h1;
 }
 
-/* static */ /* inline */ int get_head_dense_array(re_l_t *dense_array,
+int get_head_dense_array(re_l_t *dense_array,
     re_t *val, const ci_t coldim, const mod_t modulus) {
   ci_t i;
   for (i=0; i<coldim; ++i) {
@@ -2033,14 +2063,14 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   return -1;
 }
 
-/* static */ /* inline */ void sparse_scal_mul_sub_2_rows_vect_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const mbl_t multiline,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) {
+void sparse_scal_mul_sub_2_rows_vect_array(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const re_m_t Av1_col2,
+    const re_m_t Av2_col2,
+    const mbl_t multiline,
+    re_l_t *dense_val1,
+    re_l_t *dense_val2) {
 
   /*  check cases where one pair of the elements is zero */
   if (Av1_col1 == 0 && Av2_col1 == 0) {
@@ -2066,18 +2096,18 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
 #ifdef GBLA_USE_AVX_XXX
   for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
-    SET2_SIMD_2(Av1_d,Av1_col1,Av1_col2);
-    SET2_SIMD_2(Av2_d,Av2_col1,Av2_col2);
+    SET2_2(Av1_d,Av1_col1,Av1_col2);
+    SET2_2(Av2_d,Av2_col1,Av2_col2);
     for (j=0; j<__GB_LOOP_UNROLL_SMALL; j+=2) {
-      SET2_SIMD_2(dv1,*(dense_val1+p_idx[i+j]),*(dense_val1+p_idx[i+j+1]));
-      SET2_SIMD_2(dv2,*(dense_val2+p_idx[i+j]),*(dense_val2+p_idx[i+j+1]));
+      SET2_2(dv1,*(dense_val1+p_idx[i+j]),*(dense_val1+p_idx[i+j+1]));
+      SET2_2(dv2,*(dense_val2+p_idx[i+j]),*(dense_val2+p_idx[i+j+1]));
       ELEM_2 v__ = LOAD_2(p_val+2*(i+j));
-      AXPY_SIMD_2_(dv1,v__,Av1_d);
-      AXPY_SIMD_2_(dv2,v__,Av2_d);
-      STORE_SIMD_L_2(dense_val1+p_idx[i+j],dv1);
-      STORE_SIMD_H_2(dense_val1+p_idx[i+j+1],dv1);
-      STORE_SIMD_L_2(dense_val2+p_idx[i+j],dv2);
-      STORE_SIMD_H_2(dense_val2+p_idx[i+j+1],dv2);
+      AXPY_2_(dv1,v__,Av1_d);
+      AXPY_2_(dv2,v__,Av2_d);
+      STORE_L_2(dense_val1+p_idx[i+j],dv1);
+      STORE_H_2(dense_val1+p_idx[i+j+1],dv1);
+      STORE_L_2(dense_val2+p_idx[i+j],dv2);
+      STORE_H_2(dense_val2+p_idx[i+j+1],dv2);
 
     }
   }
@@ -2120,18 +2150,18 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 #endif
 }
 
-/* static */ /* inline */ void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const ml_t multiline,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2,
-              const ci_t offset1,
-              const ci_t offset2) {
+void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const re_m_t Av1_col2,
+    const re_m_t Av2_col2,
+    const ml_t multiline,
+    re_l_t *dense_val1,
+    re_l_t *dense_val2,
+    const ci_t offset1,
+    const ci_t offset2) {
 
-	/*  if (offset1 < 0) return; */
+  /*  if (offset1 < 0) return; */
 
   /*  check cases where one pair of the elements is zero */
   if (Av1_col1 == 0 && Av2_col1 == 0) {
@@ -2153,7 +2183,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   bi_t j;
 
   register re_m_t v1__, v2__;
-	/*  register uint32_t idx; */
+  /*  register uint32_t idx; */
 
   for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
     for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
@@ -2181,45 +2211,45 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 }
 
 #else
-  const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
-  bi_t j;
+const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
+bi_t j;
 
-  register re_m_t v1__, v2__;
-	/*  register uint32_t idx; */
+register re_m_t v1__, v2__;
+/*  register uint32_t idx; */
 
-  for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
-      v1__ = p_val[2*(i+j)];
-      v2__ = p_val[2*(i+j)+1];
+for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+  for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+    v1__ = p_val[2*(i+j)];
+    v2__ = p_val[2*(i+j)+1];
 
-      dense_val1[i+j] +=  v1__ * Av1_col1;
-      dense_val1[i+j] +=  v2__ * Av1_col2;
+    dense_val1[i+j] +=  v1__ * Av1_col1;
+    dense_val1[i+j] +=  v2__ * Av1_col2;
 
 
-      dense_val2[i+j] +=  v1__ * Av2_col1;
-      dense_val2[i+j] +=  v2__ * Av2_col2;
-    }
+    dense_val2[i+j] +=  v1__ * Av2_col1;
+    dense_val2[i+j] +=  v2__ * Av2_col2;
   }
-  for (; i<multiline.sz; ++i) {
-    v1__ = p_val[2*i];
-    v2__ = p_val[2*i+1];
+}
+for (; i<multiline.sz; ++i) {
+  v1__ = p_val[2*i];
+  v2__ = p_val[2*i+1];
 
-    dense_val1[i] +=  v1__ * Av1_col1;
-    dense_val1[i] +=  v2__ * Av1_col2;
+  dense_val1[i] +=  v1__ * Av1_col1;
+  dense_val1[i] +=  v2__ * Av1_col2;
 
-    dense_val2[i] +=  v1__ * Av2_col1;
-    dense_val2[i] +=  v2__ * Av2_col2;
-  }
+  dense_val2[i] +=  v1__ * Av2_col1;
+  dense_val2[i] +=  v2__ * Av2_col2;
+}
 }
 #endif
 
-/* static */ /* inline */ void sparse_scal_mul_sub_1_row_vect_array_multiline(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const ml_t multiline,
-              const bi_t line_idx,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) {
+void sparse_scal_mul_sub_1_row_vect_array_multiline(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const ml_t multiline,
+    const bi_t line_idx,
+    re_l_t *dense_val1,
+    re_l_t *dense_val2) {
 
   const uint32_t N    = multiline.sz;
   const mli_t *p_idx  = (N != 0) ? multiline.idx : NULL;
@@ -2260,7 +2290,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
     }
   }
 #else
-/* printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1); */
+  /* printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1); */
   /*  both cannot be zero at the same time */
   if (Av1_col1 != 0 && Av2_col1 != 0) {
     for (; i<N; ++i) {
@@ -2291,15 +2321,15 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 #endif
 }
 
-/* static */ /* inline */ void dense_scal_mul_sub_2_rows_vect_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const mbl_t multiline,
-              const bi_t  bwidth,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) {
+void dense_scal_mul_sub_2_rows_vect_array(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const re_m_t Av1_col2,
+    const re_m_t Av2_col2,
+    const mbl_t multiline,
+    const bi_t  bwidth,
+    re_l_t *dense_val1,
+    re_l_t *dense_val2) {
 
   /*  check cases where one pair of the elements is zero */
   if (Av1_col1 == 0 && Av2_col1 == 0) {
@@ -2318,7 +2348,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   bi_t j;
 
   register re_m_t v1__, v2__;
-	/*  register uint32_t idx; */
+  /*  register uint32_t idx; */
 
 #ifdef GBLA_USE_AVX_XXX
   for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
@@ -2326,14 +2356,14 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
       /* printf(";;%d..%d::",i,j); */
       v1__ = p_val[2*(i+j)];
       v2__ = p_val[2*(i+j)+1];
-        /* printf("v11 %d v21 %d !! ",v1__,v2__); */
+      /* printf("v11 %d v21 %d !! ",v1__,v2__); */
 
       dense_val1[i+j] +=  v1__ * Av1_col1;
       dense_val1[i+j] +=  v2__ * Av1_col2;
 
       v1__  *=  Av2_col1;
       v2__  *=  Av2_col2;
-        /* printf("v12 %d v22 %d !! ",v1__,v2__); */
+      /* printf("v12 %d v22 %d !! ",v1__,v2__); */
 
       dense_val2[i+j] +=  v1__;
       dense_val2[i+j] +=  v2__;
@@ -2345,14 +2375,14 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
       /* printf(";;%d..%d::",i,j); */
       v1__ = p_val[2*(i+j)];
       v2__ = p_val[2*(i+j)+1];
-        /* printf("v11 %d v21 %d !! ",v1__,v2__); */
+      /* printf("v11 %d v21 %d !! ",v1__,v2__); */
 
       dense_val1[i+j] +=  v1__ * Av1_col1;
       dense_val1[i+j] +=  v2__ * Av1_col2;
 
       v1__  *=  Av2_col1;
       v2__  *=  Av2_col2;
-        /* printf("v12 %d v22 %d !! ",v1__,v2__); */
+      /* printf("v12 %d v22 %d !! ",v1__,v2__); */
 
       dense_val2[i+j] +=  v1__;
       dense_val2[i+j] +=  v2__;
@@ -2362,13 +2392,13 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   /* printf("\n"); */
 }
 
-/* static */ /* inline */ void sparse_scal_mul_sub_1_row_vect_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const mbl_t multiline,
-              const bi_t line_idx,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) {
+void sparse_scal_mul_sub_1_row_vect_array(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const mbl_t multiline,
+    const bi_t line_idx,
+    re_l_t *dense_val1,
+    re_l_t *dense_val2) {
 
   const uint32_t N  = multiline.sz;
   /* printf("mlsz %d\n",multiline.sz); */
@@ -2410,7 +2440,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
     }
   }
 #else
-/* printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1); */
+  /* printf("a11 %d -- a21 %d\n",Av1_col1,Av2_col1); */
   /*  both cannot be zero at the same time */
   if (Av1_col1 != 0 && Av2_col1 != 0) {
     for (; i<N; ++i) {
@@ -2441,14 +2471,14 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 #endif
 }
 
-/* static */ /* inline */ void dense_scal_mul_sub_1_row_vect_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const mbl_t multiline,
-              const bi_t line_idx,
-              const bi_t  bwidth,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) {
+void dense_scal_mul_sub_1_row_vect_array(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const mbl_t multiline,
+    const bi_t line_idx,
+    const bi_t  bwidth,
+    re_l_t *dense_val1,
+    re_l_t *dense_val2) {
 
   const re_t *p_val = multiline.val;
   p_val +=  line_idx;
@@ -2526,7 +2556,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 #endif
 }
 
-/* static */ /* inline */ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
+void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
   mli_t idx;
   re_t h1 = 0, h2 = 0;
 
@@ -2558,7 +2588,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
         tmp_val       = (re_l_t)m->val[2*idx] * h1;
         m->val[2*idx] = MODP(tmp_val,  modulus);
       }
-    /*  normalize h1 and h2 */
+      /*  normalize h1 and h2 */
     } else {
       for (idx=0; idx<m->sz; ++idx) {
         tmp_val         = (re_l_t)m->val[2*idx] * h1;
@@ -2570,7 +2600,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   }
 }
 
-/* static */ /* inline */ void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
+void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
     re_l_t *dense_2, const ci_t coldim) {
   if (m.sz == 0)
     return;
@@ -2593,14 +2623,14 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   }
 }
 
-/* static */ /* inline */ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const ml_t multiline,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) {
+void sparse_scal_mul_sub_2_rows_vect_array_multiline(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const re_m_t Av1_col2,
+    const re_m_t Av2_col2,
+    const ml_t multiline,
+    re_l_t *dense_val1,
+    re_l_t *dense_val2) {
 
   /*  check cases where one pair of the elements is zero */
   if (Av1_col1 == 0 && Av2_col1 == 0) {
@@ -2677,8 +2707,8 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 #endif
 }
 
-/* static */ /* inline */ void inverse_val(re_t *x, const mod_t modulus) {
-	assert((int32_t)modulus > 0);
+void inverse_val(re_t *x, const mod_t modulus) {
+  assert((int32_t)modulus > 0);
   int32_t u1 = 1, u2 = 0;
   int32_t v1 = 0, v3 = (int32_t)modulus;
   int32_t u3 = (int32_t)*x, v2 = 1;
@@ -2707,7 +2737,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   return;
 }
 
-/* static */ /* inline */ int get_smallest_waiting_row(wl_t *waiting_global,
+int get_smallest_waiting_row(wl_t *waiting_global,
     ri_t *wl_idx, ri_t *wl_lp) {
   if (waiting_global->sz == 0)
     return 0;
@@ -2715,22 +2745,22 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 #if DEBUG_ECHELONIZE
   int tid = omp_get_thread_num();
   printf("BEFORE SORT\n");
-    for (int ii=0; ii<waiting_global->sz; ++ii) {
-      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
-    }
+  for (int ii=0; ii<waiting_global->sz; ++ii) {
+    printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+  }
 #endif
   /*  sort the waiting list */
   qsort(waiting_global->list, waiting_global->sz, sizeof(wle_t), cmp_wle);
 #if DEBUG_ECHELONIZE
   printf("AFTER SORT\n");
-    for (int ii=0; ii<waiting_global->sz; ++ii) {
-      if (ii<waiting_global->sz - 1) {
-        if (waiting_global->list[ii].idx == waiting_global->list[ii+1].idx) {
-          printf("SAME IN WAITING!\n");
-        }
+  for (int ii=0; ii<waiting_global->sz; ++ii) {
+    if (ii<waiting_global->sz - 1) {
+      if (waiting_global->list[ii].idx == waiting_global->list[ii+1].idx) {
+        printf("SAME IN WAITING!\n");
       }
-      printf("ST(%d) %d/%d %d . %d\n",tid,ii,waiting_global->sz,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
     }
+    printf("ST(%d) %d/%d %d . %d\n",tid,ii,waiting_global->sz,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+  }
 #endif
   /*  store last (smallest index) element separately and */
   /*  remove it from the list */
@@ -2744,7 +2774,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   return 1;
 }
 
-/* static */ /* inline */ void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
+void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
     const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
     const mod_t modulus) {
 
@@ -2782,7 +2812,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   m->val  = (re_t *)realloc(m->val, 2 * m->sz * sizeof(re_t));
 }
 
-/* static */ /* inline */ void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_1,
+void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_1,
     const int start_pos, ml_t *m, const ci_t coldim, const mod_t modulus) {
 
 #if DEBUG_ECHELONIZE
@@ -2798,14 +2828,14 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   }
 }
 
-/* static */ /* inline */ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const ml_t multiline,
-              const bi_t line_idx,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2,
-              const ci_t offset) {
+void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
+    const re_m_t Av1_col1,
+    const re_m_t Av2_col1,
+    const ml_t multiline,
+    const bi_t line_idx,
+    re_l_t *dense_val1,
+    re_l_t *dense_val2,
+    const ci_t offset) {
 
   const re_t *p_val = multiline.val;
   p_val +=  line_idx;
@@ -2867,7 +2897,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
     }
   }
 #else
- /*  both cannot be zero at the same time */
+  /*  both cannot be zero at the same time */
   /* printf("mlsize %d\n",multiline.sz); */
   if (Av1_col1 != 0 && Av2_col1 != 0) {
     for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
@@ -2921,14 +2951,14 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 #endif
 }
 
-/* static */ /* inline */ void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
+void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
     const ri_t last_piv_reduced_by) {
 #if DEBUG_ECHELONIZE
   int tid = omp_get_thread_num();
   printf("BEFORE PUSH\n");
-    for (int ii=0; ii<waiting_global->sz; ++ii) {
-      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
-    }
+  for (int ii=0; ii<waiting_global->sz; ++ii) {
+    printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+  }
 #endif
   waiting_global->list[waiting_global->sz].idx  = row_idx;
   waiting_global->list[waiting_global->sz].lp   = last_piv_reduced_by;
@@ -2938,13 +2968,13 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   waiting_global->sz++;
 #if DEBUG_ECHELONIZE
   printf("AFTER PUSH\n");
-    for (int ii=0; ii<waiting_global->sz; ++ii) {
-      printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
-    }
+  for (int ii=0; ii<waiting_global->sz; ++ii) {
+    printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+  }
 #endif
 }
 
-/* static */ /* inline */ void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
+void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
     const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
     const mod_t modulus) {
 
@@ -2967,17 +2997,17 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   }
 }
 
-/* static */ /* inline */ int cmp_wle(const void *a, const void *b) {
+int cmp_wle(const void *a, const void *b) {
   return ((wle_t *)(b))->idx - ((wle_t *)(a))->idx;
 }
 
-/* static */ /* inline */ void copy_sparse_to_dense_block(
+void copy_sparse_to_dense_block(
     mbl_t *sparse_block, re_l_t **dense_block, int bheight, int bwidth) {
 
   bi_t i,j;
   for (i=0; i<bheight/2; ++i) {
     mli_t idx;
-		/*  re_t val1, val2; */
+    /*  re_t val1, val2; */
 
     if (sparse_block[i].sz == 0)
       continue;
@@ -2997,7 +3027,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   }
 }
 
-/* static */ /* inline */ mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) {
+mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) {
   mli_t i;
   if (m->sz == 0)
     return -1;
@@ -3011,7 +3041,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   return -1;
 }
 
-/* static */ /* inline */ mli_t get_head_multiline_hybrid(const ml_t *m,
+mli_t get_head_multiline_hybrid(const ml_t *m,
     const bi_t line_idx, re_t *h, mli_t *h_idx, const ci_t coldim) {
   mli_t i;
   if (m->sz == 0)
@@ -3032,7 +3062,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
 /* HEADER STUFF PUT HERE */
 
-/* static */ /* inline */ void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_fl_t *map) {
+void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_fl_t *map) {
   /*  initialize map arrays and */
   /*  set initial values to __GB_MINUS_ONE_8 */
   map->pc = (ci_t *)malloc(col_size * sizeof(ci_t));
@@ -3054,7 +3084,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   memset(map->npri, __GB_MINUS_ONE_8, row_size * sizeof(ri_t));
 }
 
-/* static */ /* inline */ void init_fl_map(sm_t *M, map_fl_t *map) {
+void init_fl_map(sm_t *M, map_fl_t *map) {
   /*  initialize map arrays and */
   /*  set initial values to __GB_MINUS_ONE_8 */
 
@@ -3079,14 +3109,14 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   memset(map->npri, __GB_MINUS_ONE_8, M->nrows * sizeof(ri_t));
 }
 
-/* static */ /* inline */ void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
+void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,
     const bi_t init_buffer_A, mli_t *buffer_A) {
   *buffer_A +=  init_buffer_A;
   A->ml[mli].idx = (mli_t*) realloc(A->ml[mli].idx, (*buffer_A) * sizeof(mli_t));
   A->ml[mli].val = (re_t*)  realloc(A->ml[mli].val, 2 * (*buffer_A) * sizeof(re_t));
 }
 
-/* static */ /* inline */ void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
+void realloc_block_rows(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
     const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A) {
   *buffer_A +=  init_buffer_A;
   A->blocks[rbi][bir][lib].idx = realloc(
@@ -3097,7 +3127,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
       2 * (*buffer_A) * sizeof(re_t));
 }
 
-/* static */ /* inline */ void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
+void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
     const bi_t cvb) {
   uint32_t i ;
   int j, k, l;
@@ -3111,6 +3141,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
     rounded_cvb_half  +=  1;
   for (i=0; i<rounded_cvb_half; ++i) {
     /*  allocate memory for swapping data */
+    /* XXX LEAK HERE (when computing reduced form */
     bi_t *tmp_idx_ptr = (bi_t *)malloc(A->blocks[rbi][clA-1][i].sz * sizeof(bi_t));
     re_t *tmp_val_ptr = (re_t *)malloc(2 * A->blocks[rbi][clA-1][i].sz * sizeof(re_t));
     /*  swap data */
@@ -3179,7 +3210,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   }
 }
 
-/* static */ /* inline */ void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
+void insert_row_data_ml_1_1(sm_fl_ml_t *A, const sm_t *M,
     const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1) {
   A->ml[mli].idx[A->ml[mli].sz]       = eil;
   A->ml[mli].val[2*A->ml[mli].sz]     = M->rows[bi1][i1];
@@ -3187,7 +3218,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   A->ml[mli].sz++;
 }
 
-/* static */ /* inline */ void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
+void insert_row_data_ml_1_2(sm_fl_ml_t *A, const sm_t *M,
     const mli_t mli, const ci_t eil, const ci_t bi2, const ci_t i2) {
   /* printf("sz %d -- %d\n", A->ml[mli].sz, eil); */
   A->ml[mli].idx[A->ml[mli].sz]       = eil;
@@ -3196,7 +3227,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   A->ml[mli].sz++;
 }
 
-/* static */ /* inline */ void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
+void insert_row_data_ml_2(sm_fl_ml_t *A, const sm_t *M,
     const mli_t mli, const ci_t eil, const ci_t bi1, const ci_t i1,
     const ci_t bi2, const ci_t i2) {
   A->ml[mli].idx[A->ml[mli].sz]       = eil;
@@ -3206,7 +3237,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 }
 
 
-/* static */ /* inline */ void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
+void insert_block_row_data_ml_1_1(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
     const ci_t bi1, const ci_t i1) {
   A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
@@ -3215,7 +3246,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   A->blocks[rbi][bir][lib].sz++;
 }
 
-/* static */ /* inline */ void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
+void insert_block_row_data_ml_1_2(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
     const ci_t bi2, const ci_t i2) {
   A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
@@ -3224,7 +3255,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   A->blocks[rbi][bir][lib].sz++;
 }
 
-/* static */ /* inline */ void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
+void insert_block_row_data_ml_2(sbm_fl_t *A, const sm_t *M,
     const bi_t rbi, const bi_t bir, const bi_t lib, const bi_t eil,
     const ci_t bi1, const ci_t i1, const ci_t bi2, const ci_t i2) {
   A->blocks[rbi][bir][lib].idx[A->blocks[rbi][bir][lib].sz]       = eil;
@@ -3235,4 +3266,4 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
 
 /* vim:sts=2:sw=2:ts=2:et:
- */
+*/

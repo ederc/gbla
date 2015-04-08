@@ -101,7 +101,7 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);
  * \param multiline submatrix A
  */
 
-/* static */ /* inline */ void compute_density_ml_submatrix(sm_fl_ml_t *A) ;
+ void compute_density_ml_submatrix(sm_fl_ml_t *A) ;
 
 /**
  * \brief Computes number of nonzero elements in block submatrix A and A's density.
@@ -110,7 +110,9 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);
  * \param block submatrix A
  */
 
-/* static */ /* inline */ void compute_density_block_submatrix(sbm_fl_t *A) ;
+ void compute_density_block_submatrix(sbm_fl_t *A) ;
+
+
 
 /**
  * \brief Prints memory usage by getting information from /proc/self/stat.

@@ -566,7 +566,7 @@ void print_mem_usage() {
 
 /* STATIC STUFF */
 
-/* static */ /* inline */ void compute_density_ml_submatrix(sm_fl_ml_t *A) {
+ void compute_density_ml_submatrix(sm_fl_ml_t *A) {
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
   uint32_t i, j;
   for (i=0; i<rlA; ++i) {
@@ -581,10 +581,10 @@ void print_mem_usage() {
       }
     }
   }
-  A->density  = (double) (A->nnz * 100) / (A->nrows * (nnz_t)A->ncols);
+ A->density  = compute_density(A->nnz, A->nrows, A->ncols);
 }
 
-/* static */ /* inline */ void compute_density_block_submatrix(sbm_fl_t *A) {
+ void compute_density_block_submatrix(sbm_fl_t *A) {
   const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   uint32_t i, j, k, l;
@@ -604,7 +604,7 @@ void print_mem_usage() {
       }
     }
   }
-  A->density  = (double) (A->nnz * 100) / (A->nrows * (nnz_t)A->ncols);
+ A->density  = compute_density(A->nnz, A->nrows, A->ncols);
 }
 
 

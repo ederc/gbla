@@ -34,8 +34,8 @@
  * \brief Structure of a waiting list element
  */
 typedef struct wle_t {
-  ri_t idx; /*!<  row index */
-  ri_t lp;  /*!<  row index of last pivot that idx was reduced with */
+	ri_t idx; /*!<  row index */
+	ri_t lp;  /*!<  row index of last pivot that idx was reduced with */
 } wle_t;
 
 /**
@@ -45,11 +45,11 @@ typedef struct wle_t {
  * \note We use a mutiline concept for the row index lists.
  */
 typedef struct wl_t {
-  wle_t *list;  /*!<  row indices of rows in waiting list */
-  ri_t sidx;    /*!<  smallest row index in rows */
-  ri_t slp;     /*!<  last pivot row index by which sidx is
-                      reduced by already */
-  ri_t sz;      /*!<  size of waiting list */
+	wle_t *list;  /*!<  row indices of rows in waiting list */
+	ri_t sidx;    /*!<  smallest row index in rows */
+	ri_t slp;     /*!<  last pivot row index by which sidx is
+									reduced by already */
+	ri_t sz;      /*!<  size of waiting list */
 } wl_t;
 
 /**
@@ -61,7 +61,7 @@ typedef struct wl_t {
  *
  * \return *b.idx - *a.idx
  */
-/* static */ /* inline */ int cmp_wle(const void *a, const void *b) ;
+int cmp_wle(const void *a, const void *b) ;
 
 /**
  * \brief Adds a new row to end of waiting list
@@ -72,8 +72,8 @@ typedef struct wl_t {
  *
  * \param row index of last pivot row_idx was reduced by last_piv_reduced_by
  */
-/* static */ /* inline */ void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
-    const ri_t last_piv_reduced_by) ;
+void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
+		const ri_t last_piv_reduced_by) ;
 
 /**
  * \brief Copies entry from sparse block sparse_block to dense block dense_block
@@ -87,8 +87,8 @@ typedef struct wl_t {
  *
  * \param block width bwidth
  */
-/* static */ /* inline */ void copy_sparse_to_dense_block(
-    mbl_t *sparse_block, re_l_t **dense_block, int bheight, int bwidth) ;
+void copy_sparse_to_dense_block(
+		mbl_t *sparse_block, re_l_t **dense_block, int bheight, int bwidth) ;
 
 /**
  * \brief Copies entry from dense block to sparse rows
@@ -105,8 +105,8 @@ typedef struct wl_t {
  * \param modulus resp. field characteristic modulus
  */
 void copy_dense_block_to_sparse(
-    re_l_t **dense_block, mbl_t **sparse_block, int bheight, int bwidth,
-    mod_t modulus);
+		re_l_t **dense_block, mbl_t **sparse_block, int bheight, int bwidth,
+		mod_t modulus);
 
 /**
  * \brief Computes a dense AXPY for one row
@@ -125,14 +125,14 @@ void copy_dense_block_to_sparse(
  *
  * \param dense value 2 holder for delayed modulus dense_val2
  */
-/* static */ /* inline */ void dense_scal_mul_sub_1_row_vect_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const mbl_t multiline,
-              const bi_t line_idx,
-              const bi_t  bwidth,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) ;
+void dense_scal_mul_sub_1_row_vect_array(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const mbl_t multiline,
+		const bi_t line_idx,
+		const bi_t  bwidth,
+		re_l_t *dense_val1,
+		re_l_t *dense_val2) ;
 
 /**
  * \brief Computes a dense AXPY for one row using full multilines
@@ -153,14 +153,14 @@ void copy_dense_block_to_sparse(
  *
  * \param offset for first nonzero coefficient in multiline
  */
-/* static */ /* inline */ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const ml_t multiline,
-              const bi_t line_idx,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2,
-              const ci_t offset) ;
+void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const ml_t multiline,
+		const bi_t line_idx,
+		re_l_t *dense_val1,
+		re_l_t *dense_val2,
+		const ci_t offset) ;
 
 /**
  * \brief Computes a dense AXPY for two rows for multilines
@@ -181,16 +181,16 @@ void copy_dense_block_to_sparse(
  *
  * \param offset for first nonzero coefficient in multiline
  */
-/* static */ /* inline */ void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const ml_t multiline,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2,
-              const ci_t offset1,
-              const ci_t offset2) ;
+void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const re_m_t Av1_col2,
+		const re_m_t Av2_col2,
+		const ml_t multiline,
+		re_l_t *dense_val1,
+		re_l_t *dense_val2,
+		const ci_t offset1,
+		const ci_t offset2) ;
 
 /**
  * \brief Computes a sparse AXPY for one row for full multilines
@@ -207,13 +207,13 @@ void copy_dense_block_to_sparse(
  *
  * \param dense value 2 holder for delayed modulus dense_val2
  */
-/* static */ /* inline */ void sparse_scal_mul_sub_1_row_vect_array_multiline(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const ml_t multiline,
-              const bi_t line_idx,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) ;
+void sparse_scal_mul_sub_1_row_vect_array_multiline(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const ml_t multiline,
+		const bi_t line_idx,
+		re_l_t *dense_val1,
+		re_l_t *dense_val2) ;
 
 /**
  * \brief Computes a sparse AXPY for one row
@@ -230,13 +230,13 @@ void copy_dense_block_to_sparse(
  *
  * \param dense value 2 holder for delayed modulus dense_val2
  */
-/* static */ /* inline */ void sparse_scal_mul_sub_1_row_vect_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const mbl_t multiline,
-              const bi_t line_idx,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) ;
+void sparse_scal_mul_sub_1_row_vect_array(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const mbl_t multiline,
+		const bi_t line_idx,
+		re_l_t *dense_val1,
+		re_l_t *dense_val2) ;
 
 /**
  * \brief Computes a dense AXPY for two rows
@@ -257,15 +257,15 @@ void copy_dense_block_to_sparse(
  *
  * \param dense value 2 holder for delayed modulus dense_val2
  */
-/* static */ /* inline */ void dense_scal_mul_sub_2_rows_vect_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const mbl_t multiline,
-              const bi_t  bwidth,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) ;
+void dense_scal_mul_sub_2_rows_vect_array(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const re_m_t Av1_col2,
+		const re_m_t Av2_col2,
+		const mbl_t multiline,
+		const bi_t  bwidth,
+		re_l_t *dense_val1,
+		re_l_t *dense_val2) ;
 
 /**
  * \brief Computes a sparse AXPY for two rows
@@ -284,14 +284,14 @@ void copy_dense_block_to_sparse(
  *
  * \param dense value 2 holder for delayed modulus dense_val2
  */
-/* static */ /* inline */ void sparse_scal_mul_sub_2_rows_vect_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const mbl_t multiline,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) ;
+void sparse_scal_mul_sub_2_rows_vect_array(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const re_m_t Av1_col2,
+		const re_m_t Av2_col2,
+		const mbl_t multiline,
+		re_l_t *dense_val1,
+		re_l_t *dense_val2) ;
 
 /**
  * \brief Computes a sparse AXPY for two rows for multilines
@@ -310,14 +310,14 @@ void copy_dense_block_to_sparse(
  *
  * \param dense value 2 holder for delayed modulus dense_val2
  */
-/* static */ /* inline */ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const ml_t multiline,
-              re_l_t *dense_val1,
-              re_l_t *dense_val2) ;
+void sparse_scal_mul_sub_2_rows_vect_array_multiline(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const re_m_t Av1_col2,
+		const re_m_t Av2_col2,
+		const ml_t multiline,
+		re_l_t *dense_val1,
+		re_l_t *dense_val2) ;
 
 /**
  * \brief Computes a dense AXPY for one dense row (in triangular A^-1B situation)
@@ -334,13 +334,13 @@ void copy_dense_block_to_sparse(
  *
  * \param dense array 2 holder for delayed modulus dense_array2
  */
-/* static */ /* inline */ void dense_scal_mul_sub_1_row_array_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const bi_t bwidth,
-              const re_l_t *dense_array_source,
-              re_l_t *dense_array1,
-              re_l_t *dense_array2) ;
+void dense_scal_mul_sub_1_row_array_array(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const bi_t bwidth,
+		const re_l_t *dense_array_source,
+		re_l_t *dense_array1,
+		re_l_t *dense_array2) ;
 
 /**
  * \brief Computes a dense AXPY for two dense rows (in triangular A^-1B situation)
@@ -363,16 +363,16 @@ void copy_dense_block_to_sparse(
  *
  * \param dense array 2 holder for delayed modulus dense_array2
  */
-/* static */ /* inline */ void dense_scal_mul_sub_2_rows_array_array(
-              const re_m_t Av1_col1,
-              const re_m_t Av2_col1,
-              const re_m_t Av1_col2,
-              const re_m_t Av2_col2,
-              const bi_t bwidth,
-              const re_l_t *dense_array_source1,
-              const re_l_t *dense_array_source2,
-              re_l_t *dense_array1,
-              re_l_t *dense_array2);
+void dense_scal_mul_sub_2_rows_array_array(
+		const re_m_t Av1_col1,
+		const re_m_t Av2_col1,
+		const re_m_t Av1_col2,
+		const re_m_t Av2_col2,
+		const bi_t bwidth,
+		const re_l_t *dense_array_source1,
+		const re_l_t *dense_array_source2,
+		re_l_t *dense_array1,
+		re_l_t *dense_array2);
 
 /**
  * \brief Modular reduction of dense row array
@@ -383,7 +383,7 @@ void copy_dense_block_to_sparse(
  *
  * \param modulus resp. field characteristic modulus
  */
-/* static */ /* inline */ void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus);
+void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus);
 
 /**
  * \brief Gets first nonzero entry in multiline m at line index line_idx and
@@ -399,7 +399,7 @@ void copy_dense_block_to_sparse(
  *
  * \return index value corresponding to h from input matrix M
  */
-/* static */ /* inline */ mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) ;
+mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) ;
 
 /**
  * \brief Gets first nonzero entry in multiline m at line index line_idx and
@@ -415,8 +415,8 @@ void copy_dense_block_to_sparse(
  *
  * \return index value corresponding to h from input matrix M
  */
-/* static */ /* inline */ mli_t get_head_multiline_hybrid(const ml_t *m,
-    const bi_t line_idx, re_t *h, mli_t *h_idx, const ci_t coldim) ;
+mli_t get_head_multiline_hybrid(const ml_t *m,
+		const bi_t line_idx, re_t *h, mli_t *h_idx, const ci_t coldim) ;
 
 /**
  * \brief Gets first nonzero entry in dense array. Reduces to zero on the go if
@@ -432,8 +432,8 @@ void copy_dense_block_to_sparse(
  *
  * \return index value corresponding to head value index in dense array
  */
-/* static */ /* inline */ int get_head_dense_array(re_l_t *dense_array,
-    re_t *val, const ci_t coldim, const mod_t modulus) ;
+int get_head_dense_array(re_l_t *dense_array,
+		re_t *val, const ci_t coldim, const mod_t modulus) ;
 
 /**
  * \brief Computes inverse value of x modulo y:
@@ -445,7 +445,7 @@ void copy_dense_block_to_sparse(
  *
  * \param y
  */
-/* static */ /* inline */ void inverse_val(re_t *x, const mod_t modulus) ;
+void inverse_val(re_t *x, const mod_t modulus) ;
 
 /**
  * \brief Normalizes dense array and returns index of head element in array
@@ -458,8 +458,8 @@ void copy_dense_block_to_sparse(
  *
  * \return index value corresponding to head value index in dense array
  */
-/* static */ /* inline */ int normalize_dense_array(re_l_t *dense_array,
-    const ci_t coldim, const mod_t modulus);
+int normalize_dense_array(re_l_t *dense_array,
+		const ci_t coldim, const mod_t modulus);
 
 /**
  * \brief Normalizes multiline vector.
@@ -468,7 +468,7 @@ void copy_dense_block_to_sparse(
  *
  * \param field characteristic modulus
  */
-/* static */ /* inline */ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) ;
+void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) ;
 
 /**
  * \brief Copies two dense arrays to a dense multiline for further processing.
@@ -486,9 +486,9 @@ void copy_dense_block_to_sparse(
  *
  * \param array size resp. column dimension coldim
  */
-/* static */ /* inline */ void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
-    const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
-    const mod_t modulus) ;
+void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
+		const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
+		const mod_t modulus) ;
 
 /**
  * \brief Copies two dense arrays to a multiline for further processing.
@@ -504,9 +504,9 @@ void copy_dense_block_to_sparse(
  *
  * \param array size resp. column dimension coldim
  */
-/* static */ /* inline */ void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
-    const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
-    const mod_t modulus) ;
+void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
+		const re_l_t *dense_2, const int start_pos, ml_t *m, const ci_t coldim,
+		const mod_t modulus) ;
 
 /**
  * \brief Copies one dense array to a dense multiline for further processing.
@@ -521,21 +521,21 @@ void copy_dense_block_to_sparse(
  *
  * \param array size resp. column dimension coldim
  */
-/* static */ /* inline */ void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_1,
-    const int start_pos, ml_t *m, const ci_t coldim, const mod_t modulus) ;
+void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_1,
+		const int start_pos, ml_t *m, const ci_t coldim, const mod_t modulus) ;
 
 #if 0
-/* static */ /* inline */ void copy_dense_arrays_to_dense_multiline(const re_l_t *dense_1,
-    const re_l_t *dense_2, ml_t *m, const ci_t coldim, const mod_t modulus) {
+void copy_dense_arrays_to_dense_multiline(const re_l_t *dense_1,
+		const re_l_t *dense_2, ml_t *m, const ci_t coldim, const mod_t modulus) {
 
-  ci_t i;
-  re_l_t tmp_1, tmp_2;
-  for (i=0; i<coldim; ++i) {
-    tmp_1 = MODP(dense_1[i] , modulus);
-    tmp_2 = MODP(dense_2[i] , modulus);
-      m->val[2*i]   = (re_t)tmp_1;
-      m->val[2*i+1] = (re_t)tmp_2;
-  }
+	ci_t i;
+	re_l_t tmp_1, tmp_2;
+	for (i=0; i<coldim; ++i) {
+		tmp_1 = MODP(dense_1[i] , modulus);
+		tmp_2 = MODP(dense_2[i] , modulus);
+		m->val[2*i]   = (re_t)tmp_1;
+		m->val[2*i+1] = (re_t)tmp_2;
+	}
 }
 #endif
 
@@ -550,8 +550,8 @@ void copy_dense_block_to_sparse(
  *
  * \param array size resp. column dimension coldim
  */
-/* static */ /* inline */ void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
-    re_l_t *dense_2, const ci_t coldim) ;
+void copy_multiline_to_dense_array(const ml_t m, re_l_t *dense_1,
+		re_l_t *dense_2, const ci_t coldim) ;
 
 /**
  * \brief Returns smallest row index in waiting list for echelonization.
@@ -560,8 +560,8 @@ void copy_dense_block_to_sparse(
  *
  * \return 1 if waiting list is not empty, 0 else
  */
-/* static */ /* inline */ int get_smallest_waiting_row(wl_t *waiting_global,
-    ri_t *wl_idx, ri_t *wl_lp) ;
+int get_smallest_waiting_row(wl_t *waiting_global,
+		ri_t *wl_idx, ri_t *wl_lp) ;
 
 #if GBLA_WITH_FFLAS
 /**
@@ -574,12 +574,12 @@ void copy_dense_block_to_sparse(
  *
  * \param characteristic of underlying field modulus
  */
-/* static */ /* inline */ void copyMetaData(DNS *A, sbm_fl_t *B, mod_t modulus) {
-  A->row  = (dimen_t)B->nrows;
-  A->col  = (dimen_t)B->ncols;
-  A->ld   = ALIGN(A->col);
-  A->mod  = (elemt_t)modulus;
-  A->nnz  = (index_t)B->nnz;
+void copyMetaData(DNS *A, sbm_fl_t *B, mod_t modulus) {
+	A->row  = (dimen_t)B->nrows;
+	A->col  = (dimen_t)B->ncols;
+	A->ld   = ALIGN(A->col);
+	A->mod  = (elemt_t)modulus;
+	A->nnz  = (index_t)B->nnz;
 }
 #endif
 
@@ -599,7 +599,7 @@ void copy_dense_block_to_sparse(
  * \param characteristic of underlying field modulus
  */
 void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B,
-    const ri_t bheight, const int inv_scalars, const mod_t modulus);
+		const ri_t bheight, const int inv_scalars, const mod_t modulus);
 
 /**
  * \brief Reduces dense block block_B with triangular sparse block block_A.
@@ -615,7 +615,7 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_B
  * \param invert scalars? inv_scalars
  */
 void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_B,
-    const ri_t bheight, int inv_scalars, const mod_t modulus);
+		const ri_t bheight, int inv_scalars, const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix A to the unit
@@ -649,7 +649,7 @@ int elim_fl_A_block(sbm_fl_t **A, sbm_fl_t *B, const mod_t modulus, int nthrds);
  * \return 0 if success, 1 if failure
  */
 int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
-    const ri_t nbrows_A, const mod_t modulus);
+		const ri_t nbrows_A, const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix C to zero.
@@ -670,7 +670,7 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const int inv_scalars,
-    const mod_t modulus, const int nthrds);
+		const mod_t modulus, const int nthrds);
 
 /**
  * \brief Different block tasks when reducing block submatrix C.
@@ -692,8 +692,8 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const int inv_scalar
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-    const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-    const int inv_scalars, const mod_t modulus);
+		const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+		const int inv_scalars, const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix D to an
@@ -774,7 +774,7 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
  * \return number of real pivots found
  */
 ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
-    const mod_t modulus);
+		const mod_t modulus);
 
 /**
  * \brief Echelonizes the multiline rows of A from row index from up to row
@@ -788,11 +788,11 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
  * \return 0 if success, 1 if failure
  */
 int echelonize_rows_task(sm_fl_ml_t *A, const ri_t ml_ncols,
-    /* ri_t global_next_row_to_reduce, ri_t global_last_piv, */
-    /* wl_t *waiting_global, */
-    const mod_t modulus
-    /* , omp_lock_t echelonize_lock */
-    );
+		/* ri_t global_next_row_to_reduce, ri_t global_last_piv, */
+		/* wl_t *waiting_global, */
+		const mod_t modulus
+		/* , omp_lock_t echelonize_lock */
+		);
 
 /**
  * \brief Echelonizes one multiline row (represented by dense_array_1 and
@@ -812,9 +812,9 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t ml_ncols,
  * \param field characteristic modulus
  */
 void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
-    re_l_t *dense_array_2,
-    const ri_t first_piv, const ri_t last_piv,
-    const mod_t modulus);
+		re_l_t *dense_array_2,
+		const ri_t first_piv, const ri_t last_piv,
+		const mod_t modulus);
 
 /**
  * \brief Restores the two dense arrays in a multiline row in D after
@@ -837,10 +837,10 @@ void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
  * i.e. ml = A->ml[curr_row_to_reduce] curr_row_to_reduce
  */
 void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
-    re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
-    const int reduce, const ri_t curr_row_to_reduce);
+		re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
+		const int reduce, const ri_t curr_row_to_reduce);
 
 #endif /* GB_ELIMINATION_H */
 
 /* vim:sts=2:sw=2:ts=2:
- */
+*/
