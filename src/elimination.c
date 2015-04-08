@@ -15,6 +15,13 @@
 
 #include "elimination.h"
 
+#ifndef min
+#define min(a,b) \
+          ({ __typeof__ (a) _a = (a); \
+                    __typeof__ (b) _b = (b); \
+                    _a < _b ? _a : _b; })
+#endif
+
 #define DDEBUG 0
 #define DDEBUG_C 0
 #define DDEBUG_D 0
@@ -28,6 +35,16 @@
 
 #ifdef GBLA_USE_AVX
 #include <immintrin.h>
+
+#define NOTALIGNED(a) \
+  ((long)(a) % ALIGNT)
+
+#if (!defined(NDEBUG) || defined(DEBUG) || defined(DDEBUG))
+#define CHECK_ALIGN(a) \
+  if ( NOTALIGNED(a) ) printf("not aligned %d\n", __LINE__)
+#else
+#define CHECK_ALIGN(a) (a)
+#endif
 
 #ifdef HAVE_AVX
 #define ELEM_4  __m256d
@@ -46,8 +63,8 @@
 
 #define SET1_4(a) \
   _mm256_set1_pd(a)
-#define SET_4(b,c) \
-  _mm256_set_pd(b,c)
+#define SET_4(a,b,c,d) \
+  _mm256_set_pd((d), (c), (b), (a))
 
 /* can do better if FMA */
 
@@ -1941,6 +1958,7 @@ void dense_scal_mul_sub_1_row_array_array(
 #ifdef GBLA_USE_AVX
   if (Av1_col1 == 0) { /*  only one of them can be zero */
     ELEM_4 Av21 = SET1_4(Av2_col1);
+    CHECK_ALIGN(dense_array2);
     /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
        for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
     for (i=0; i<bwidth; i+=4) {
@@ -1950,6 +1968,7 @@ void dense_scal_mul_sub_1_row_array_array(
        }    */
   } else {
     if (Av2_col1 == 0) { /*  only second one is zero */
+    CHECK_ALIGN(dense_array1);
       ELEM_4 Av11 = SET1_4(Av1_col1);
       /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
          for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
@@ -1959,6 +1978,8 @@ void dense_scal_mul_sub_1_row_array_array(
            }      */
     }
     } else { /*  both are nonzero */
+    CHECK_ALIGN(dense_array1);
+    CHECK_ALIGN(dense_array2);
       ELEM_4 Av21 = SET1_4(Av2_col1);
       ELEM_4 Av11 = SET1_4(Av1_col1);
       /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
@@ -2004,7 +2025,7 @@ void dense_scal_mul_sub_1_row_array_array(
 #endif
 }
 
-/** TODO XXX use fflas avx fast stuff */
+/** TODO check align of dense_array[i0] */
 void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t modulus) {
 #ifdef GBLA_USE_AVX
   ELEM_4 P = SET1_4(modulus);
@@ -2015,6 +2036,7 @@ void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t
   ELEM_4 Q,T ;
 
   bi_t i;
+  CHECK_ALIGN(dense_array);
   for (i=0; i<bwidth/4*4; i+=4) {
     ELEM_4 C = LOAD_4(dense_array+i);
     FLOAT_MOD_4(C, P, INVP, Q);
@@ -2032,7 +2054,7 @@ void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t
 #endif
 }
 
-/** TODO XXX use fflas avx fast stuff */
+/** TODO check align of dense_array[i0] */
 int normalize_dense_array(re_l_t *dense_array,
     const ci_t coldim, const mod_t modulus) {
   re_t val;
@@ -2043,10 +2065,41 @@ int normalize_dense_array(re_l_t *dense_array,
     return h1;
 
   inverse_val(&val, modulus);
+
+#ifdef GBLA_USE_AVX_NO
+
+  ELEM_4 P = SET1_4(modulus);
+  ELEM_4 INVP = SET1_4(1./(double)modulus);
+  ELEM_4 NEGP = SET1_4(-(double)modulus);
+  ELEM_4 MIN = ZERO_4();
+  ELEM_4 MAX = SET1_4(modulus-1);
+  ELEM_4 Q,T ;
+  ELEM_4 VAL = SET1_4(val);
+
+  i = h1 ;
+  while ( i < coldim && NOTALIGNED(dense_array+i) ) {
+    dense_array[i]  =  MODP(dense_array[i]*val,modulus);
+    ++i;
+  }
+  CHECK_ALIGN(dense_array+i);
+  for (; i<(coldim)/4*4; i+=4) {
+    ELEM_4 C = MUL_4(LOAD_4(dense_array+i),VAL);
+    FLOAT_MOD_4(C, P, INVP, Q);
+    NORML_MOD_4(C, P, NEGP, MIN, MAX, Q, T);
+    STORE_4(dense_array+i, C);
+  }
+
+
+ for (; i<coldim; ++i) {
+    dense_array[i]  =  MODP(dense_array[i]*val,modulus);
+  }
+
+#else
   for (i=h1; i<coldim; ++i) {
     dense_array[i]  *=  val;
     dense_array[i]  =  MODP(dense_array[i],modulus);
   }
+#endif
   return h1;
 }
 
@@ -2590,12 +2643,42 @@ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
       }
       /*  normalize h1 and h2 */
     } else {
+#ifdef GBLA_USE_AVX
+      ELEM_4 P = SET1_4(modulus);
+      ELEM_4 INVP = SET1_4(1./(double)modulus);
+      ELEM_4 NEGP = SET1_4(-(double)modulus);
+      ELEM_4 MIN = ZERO_4();
+      ELEM_4 MAX = SET1_4(modulus-1);
+      ELEM_4 Q,T ;
+      ELEM_4 H12= SET_4(h1,h2,h1,h2);
+
+      idx = 0 ;
+      while (idx < 2*m->sz &&  NOTALIGNED(m->val+idx)  ) {
+        m->val[idx  ] = MODP(m->val[idx  ] * h1, modulus);
+        m->val[idx+1] = MODP(m->val[idx+1] * h2, modulus);
+        idx+=2;
+      }
+      CHECK_ALIGN(m->val+idx);
+      for (; idx<2*(m->sz/4*4); idx+=4) {
+        ELEM_4 C = MUL_4(LOAD_4(m->val+idx),H12);
+        FLOAT_MOD_4(C, P, INVP, Q);
+        NORML_MOD_4(C, P, NEGP, MIN, MAX, Q, T);
+        STORE_4(m->val+idx, C);
+      }
+
+      for (; idx<2*m->sz; idx+=2) {
+        m->val[idx  ] = MODP(m->val[idx  ] * h1, modulus);
+        m->val[idx+1] = MODP(m->val[idx+1] * h2, modulus);
+      }
+#else
       for (idx=0; idx<m->sz; ++idx) {
         tmp_val         = (re_l_t)m->val[2*idx] * h1;
         m->val[2*idx]   = MODP(tmp_val, modulus);
         tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
         m->val[2*idx+1] = MODP(tmp_val, modulus);
       }
+
+#endif
     }
   }
 }
@@ -2707,7 +2790,16 @@ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
 #endif
 }
 
+/* void check_inverse(re_t x, re_t x1, mod_t modulus)
+{
+  int64_t p = (int64_t)x * (int64_t)x1 ;
+  assert (p % (int64_t) modulus == 1);
+}                                                     */
+
+
 void inverse_val(re_t *x, const mod_t modulus) {
+  assert(*x);
+  if ( *x == 1 ) return ;
   assert((int32_t)modulus > 0);
   int32_t u1 = 1, u2 = 0;
   int32_t v1 = 0, v3 = (int32_t)modulus;
@@ -2725,15 +2817,18 @@ void inverse_val(re_t *x, const mod_t modulus) {
   }
   if (u1 < 0) {
     u1  +=  modulus;
-    *x  =   u1;
+    /* check_inverse(*x,u1,modulus); */
+    *x  =   (re_t)u1;
     return;
   }
   if (u1 > (int32_t)modulus) {
     u1  -=  modulus;
-    *x  =   u1;
+    /* check_inverse(*x,u1,modulus); */
+    *x  =   (re_t) u1;
     return;
   }
-  *x  = u1;
+  /* check_inverse(*x,u1,modulus); */
+  *x  = (re_t)u1;
   return;
 }
 
@@ -2788,7 +2883,7 @@ void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
   ci_t i;
   re_l_t tmp_1, tmp_2;
   for (i=start_pos; i<coldim; ++i) {
-    tmp_1 = MODP(dense_1[i], modulus);
+    tmp_1 = MODP( dense_1[i], modulus);
     tmp_2 = MODP( dense_2[i], modulus);
     /* printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2); */
     if (tmp_1 != 0 || tmp_2 != 0) {
@@ -2845,54 +2940,99 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
   register re_m_t v__;
 
-#ifdef GBLA_USE_AVX_XXX
+#ifdef GBLA_USE_AVX
   /*  both cannot be zero at the same time */
   /* printf("mlsize %d\n",multiline.sz); */
   if (Av1_col1 != 0 && Av2_col1 != 0) {
-    for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-      for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
-        v__ = p_val[2*(i+j)];
+    j=0;
+    ELEM_4 Av11 = SET1_4(Av1_col1);
+    ELEM_4 Av21 = SET1_4(Av2_col1);
+    /* for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+       for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {                */
+    i = offset ;
+    while ( i < multiline.sz && NOTALIGNED(dense_val1+i)) {
+      v__ = p_val[2*(i+j)];
 
-        dense_val1[i+j] +=  v__ * Av1_col1;
-        dense_val2[i+j] +=  v__ * Av2_col1;
-      }
+      dense_val1[i+j] +=  v__ * Av1_col1;
+      dense_val2[i+j] +=  v__ * Av2_col1;
+      ++i ;
     }
-    for (; i<multiline.sz; ++i) {
-      v__ = p_val[2*i];
+    CHECK_ALIGN(dense_val1);
+    CHECK_ALIGN(dense_val2);
+    for ( ; i<multiline.sz/4*4; i+=4) {
+      ELEM_4 V = SET_4(p_val[2*(i+j)],p_val[2*(i+j)+2],p_val[2*(i+j)+4],p_val[2*(i+j)+6]);
+      STORE_4(dense_val1+i+j,FMADD_4(LOAD_4(dense_val1+i+j),V,Av11));
+      STORE_4(dense_val2+i+j,FMADD_4(LOAD_4(dense_val2+i+j),V,Av21));
+    }
+    for ( ; i < multiline.sz; ++i) {
+      v__ = p_val[2*(i+j)];
 
-      dense_val1[i] +=  v__ * Av1_col1;
-      dense_val2[i] +=  v__ * Av2_col1;
+      dense_val1[i+j] +=  v__ * Av1_col1;
+      dense_val2[i+j] +=  v__ * Av2_col1;
     }
+
+    /* }
+       }      */
   } else { /*  one of them is zero */
     if (Av1_col1 == 0) {
-      for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-        for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
-          v__ = p_val[2*(i+j)];
+    j=0;
+    /* ELEM_4 Av11 = SET1_4(Av1_col1); */
+    ELEM_4 Av21 = SET1_4(Av2_col1);
+    /* for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+       for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {                */
+    i = offset ;
+    while ( i < multiline.sz && NOTALIGNED(dense_val2+i) ) {
+      v__ = p_val[2*(i+j)];
 
-          dense_val2[i+j] +=  v__ * Av2_col1;
-        }
-      }
-      for (; i<multiline.sz; ++i) {
-        v__ = p_val[2*i];
+      /* dense_val1[i+j] +=  v__ * Av1_col1; */
+      dense_val2[i+j] +=  v__ * Av2_col1;
+      ++i ;
+    }
+    CHECK_ALIGN(dense_val2);
+    for ( ; i<multiline.sz/4*4; i+=4) {
+      ELEM_4 V = SET_4(p_val[2*(i+j)],p_val[2*(i+j)+2],p_val[2*(i+j)+4],p_val[2*(i+j)+6]);
+      /* STORE_4(dense_val1+i+j,FMADD_4(LOAD_4(dense_val1+i+j),V,Av11)); */
+      STORE_4(dense_val2+i+j,FMADD_4(LOAD_4(dense_val2+i+j),V,Av21));
+    }
+    for ( ; i < multiline.sz; ++i) {
+      v__ = p_val[2*(i+j)];
 
-        dense_val1[i] +=  v__ * Av1_col1;
-        dense_val2[i] +=  v__ * Av2_col1;
-      }
+      /* dense_val1[i+j] +=  v__ * Av1_col1; */
+      dense_val2[i+j] +=  v__ * Av2_col1;
+    }
+
+    /* }
+       }      */
     } else {
       if (Av2_col1 == 0) {
-        for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-          for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
-            v__ = p_val[2*(i+j)];
+    j=0;
+    ELEM_4 Av11 = SET1_4(Av1_col1);
+    /* ELEM_4 Av21 = SET1_4(Av2_col1); */
+    /* for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
+       for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {                */
+    i = offset ;
+    while ( i < multiline.sz &&  NOTALIGNED(dense_val1+i)) {
+      v__ = p_val[2*(i+j)];
 
-            dense_val1[i+j] +=  v__ * Av1_col1;
-          }
-        }
-        for (; i<multiline.sz; ++i) {
-          v__ = p_val[2*i];
+      dense_val1[i+j] +=  v__ * Av1_col1;
+      /* dense_val2[i+j] +=  v__ * Av2_col1; */
+      ++i ;
+    }
+    CHECK_ALIGN(dense_val1);
+    for ( ; i<multiline.sz/4*4; i+=4) {
+      ELEM_4 V = SET_4(p_val[2*(i+j)],p_val[2*(i+j)+2],p_val[2*(i+j)+4],p_val[2*(i+j)+6]);
+      STORE_4(dense_val1+i+j,FMADD_4(LOAD_4(dense_val1+i+j),V,Av11));
+      /* STORE_4(dense_val2+i+j,FMADD_4(LOAD_4(dense_val2+i+j),V,Av21)); */
+    }
+    for ( ; i < multiline.sz; ++i) {
+      v__ = p_val[2*(i+j)];
 
-          dense_val1[i] +=  v__ * Av1_col1;
-          dense_val2[i] +=  v__ * Av2_col1;
-        }
+      dense_val1[i+j] +=  v__ * Av1_col1;
+      /* dense_val2[i+j] +=  v__ * Av2_col1; */
+    }
+
+    /* }
+       }      */
       }
     }
   }
@@ -2926,7 +3066,7 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
       for (; i<multiline.sz; ++i) {
         v__ = p_val[2*i];
 
-        dense_val1[i] +=  v__ * Av1_col1;
+        /* dense_val1[i] +=  v__ * Av1_col1; */
         dense_val2[i] +=  v__ * Av2_col1;
       }
     } else {
@@ -2942,7 +3082,7 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
           v__ = p_val[2*i];
 
           dense_val1[i] +=  v__ * Av1_col1;
-          dense_val2[i] +=  v__ * Av2_col1;
+          /* dense_val2[i] +=  v__ * Av2_col1; */
         }
       }
     }

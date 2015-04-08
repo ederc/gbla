@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-// Defines determined during configuration of gb.
+/* Defines determined during configuration of gb. */
 #define __GB_HAVE_MM_MALLOC		@GB_HAVE_MM_MALLOC@
 #define __GB_HAVE_POSIX_MEMALIGN	@GB_HAVE_POSIX_MEMALIGN@
 #define __GB_HAVE_SSE2		@GB_HAVE_SSE2@
@@ -17,11 +17,11 @@
 #define __GB_HAVE_LIBPNG              @GB_HAVE_LIBPNG@
 
 #define __GB_CC                       "@CC@"
-#define __GB_CFLAGS                   "@SIMD_CFLAGS@ @OPENMP_CFLAGS@ @CFLAGS@"
-#define __GB_SIMD_CFLAGS              "@SIMD_CFLAGS@"
+#define __GB_CFLAGS                   "@SIMD_FLAGS@ @OPENMP_CFLAGS@ @CFLAGS@"
+#define __GB_SIMD_CFLAGS              "@SIMD_FLAGS@"
 #define __GB_OPENMP_CFLAGS            "@OPENMP_CFLAGS@"
 
-// Helper macros.
+/* Helper macros. */
 #define __GB_USE_MM_MALLOC		(__GB_HAVE_MM_MALLOC && __GB_HAVE_SSE2)
 #define __GB_USE_POSIX_MEMALIGN	(__GB_HAVE_POSIX_MEMALIGN && __GB_HAVE_SSE2)
 #define __GB_DD_QUIET			(@GB_DEBUG_MZD@ && !@GB_DEBUG_DUMP@)
@@ -38,5 +38,5 @@
 
 static const uint32_t __GB_MINUS_ONE_32 = (uint32_t) -1;
 static const uint16_t __GB_MINUS_ONE_16 = (uint16_t) -1;
-static const uint8_t __GB_MINUS_ONE_8   = (uint8_t) -1;
+static const uint8_t  __GB_MINUS_ONE_8  = (uint8_t)  -1;
 #endif

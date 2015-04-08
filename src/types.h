@@ -23,8 +23,8 @@
 #ifndef GB_TYPES_H
 #define GB_TYPES_H
 
-// #define GBLA_USE_DOUBLE
-// #define GBLA_USE_AVX
+/* #define GBLA_USE_DOUBLE */
+/* #define GBLA_USE_AVX */
 
 /*  #include <stdint.h> */
 
@@ -70,6 +70,7 @@ typedef uint64_t  nnz_t;
 #ifdef GBLA_USE_DOUBLE
 #define MODP(a,b) \
 	fmod((a),(b))
+	/* static double MODP(double a, double b) { assert(a>=0) ; assert(b>0) ; double c = fmod(a,b) ; assert(c >=0) ; return c; } */
 #define CAST(a) \
 	(double) (a)
 #else
@@ -80,7 +81,7 @@ typedef uint64_t  nnz_t;
 #endif
 
 
-#endif
+#endif /* GB_TYPES_H */
 
-/* vim:sts=2:sw=2:ts=2:
+/* vim:sts=2:sw=2:ts=2:ft=c:
  */
