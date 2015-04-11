@@ -23,7 +23,11 @@
 #ifndef GB_TYPES_H
 #define GB_TYPES_H
 
-/* #define GBLA_USE_DOUBLE */
+/* #define GBLA_USE_DOUBLE XXX */
+/* #define GBLA_USE_INT16 XXX */
+#define GBLA_USE_UINT16 OK
+/* #define GBLA_USE_UINT32 OK */
+/* #define GBLA_USE_INT32 */
 /* #define GBLA_USE_AVX */
 
 /*  #include <stdint.h> */
@@ -47,7 +51,8 @@ typedef double re_l_t;
 typedef double re_m_t;
 /** type of field characteristic */
 typedef double mod_t;
-#else
+#endif
+#ifdef GBLA_USE_UINT16
 /** matrix row entry type */
 typedef uint16_t  re_t;
 /// matrix row entry type enlarged (half) for delayed modulus
@@ -57,6 +62,37 @@ typedef uint64_t  re_l_t;
 /// type of field characteristic
 typedef uint32_t  mod_t;
 #endif
+#ifdef GBLA_USE_INT16
+/** matrix row entry type */
+typedef int16_t  re_t;
+/** matrix row entry type enlarged for delayed modulus */
+typedef int64_t  re_l_t;
+/** matrix row entry type enlarged (half) for delayed modulus */
+typedef int32_t  re_m_t;
+/** type of field characteristic */
+typedef int32_t  mod_t;
+#endif
+#ifdef GBLA_USE_UINT32
+/** matrix row entry type */
+typedef uint32_t re_t;
+/** matrix row entry type enlarged for delayed modulus */
+typedef uint64_t re_l_t;
+/** matrix row entry type enlarged (half) for delayed modulus */
+typedef uint64_t re_m_t;
+/** type of field characteristic */
+typedef uint64_t mod_t;
+#endif
+#ifdef GBLA_USE_UINT32
+/** matrix row entry type */
+typedef int32_t re_t;
+/** matrix row entry type enlarged for delayed modulus */
+typedef int64_t re_l_t;
+/** matrix row entry type enlarged (half) for delayed modulus */
+typedef int64_t re_m_t;
+/** type of field characteristic */
+typedef int64_t mod_t;
+#endif
+
 /** row and column index types */
 typedef uint32_t  ci_t;
 typedef uint32_t  ri_t;
@@ -73,11 +109,35 @@ typedef uint64_t  nnz_t;
 	/* static double MODP(double a, double b) { assert(a>=0) ; assert(b>0) ; double c = fmod(a,b) ; assert(c >=0) ; return c; } */
 #define CAST(a) \
 	(double) (a)
-#else
+#endif
+
+#ifdef GBLA_USE_UINT16
 #define MODP(a,b) \
 	(a) % (b)
 #define CAST(a) \
 	(a) & 0x000000000000ffff
+#endif
+
+#ifdef GBLA_USE_INT16
+#define MODP(a,b) \
+	(a) % (b)
+#define CAST(a) \
+	(a)
+#endif
+
+
+#ifdef GBLA_USE_UINT32
+#define MODP(a,b) \
+	(a) % (b)
+#define CAST(a) \
+	(a) & 0x00000000ffffffff
+#endif
+
+#ifdef GBLA_USE_INT32
+#define MODP(a,b) \
+	(a) % (b)
+#define CAST(a) \
+	(a) & 0x00000000ffffffff
 #endif
 
 
