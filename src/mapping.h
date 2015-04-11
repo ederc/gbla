@@ -441,6 +441,67 @@ static inline void swap_and_cut(sb_fl_t *A) {
 }
 
 /**
+ * \brief Inserts elements from input matrix M in sparse submatrix A.
+ *
+ * \param sparse block submatrix A
+ *
+ * \param original matrix M
+ *
+ * \param shift to calculate correct coordinates of the corresponding block in A
+ * and inside the block itself shift
+ *
+ * \param current row block index rbi
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ */
+static inline void insert_in_sb(sb_fl_t *A, const sm_t *M, const ci_t shift, const ri_t rbi,
+    const ri_t lib, const ri_t bi, const ci_t ri)
+{
+  const bi_t bir  = shift / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  const bi_t eil  = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
+  bi_t i, j, k;
+  // allocate memory if needed, initialized to zero
+  if (A->blocks[rbi][bir].row == NULL) {
+    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+    A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+    A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+    A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].pos[k]  = NULL;
+      A->blocks[rbi][bir].sz[k]   = 0;
+      A->blocks[rbi][bir].buf[k]  = 0;
+    }
+  }
+  if (A->blocks[rbi][bir].row[lib] == NULL) {
+    A->blocks[rbi][bir].row[lib]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
+    A->blocks[rbi][bir].pos[lib]  = (bi_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(bi_t));
+    A->blocks[rbi][bir].buf[lib]  = 2 * __GBLA_SIMD_INNER_SIZE;
+  }
+  // allocate new memory if we are already full
+  if (A->blocks[rbi][bir].sz[lib] == A->blocks[rbi][bir].buf[lib]) {
+    A->blocks[rbi][bir].buf[lib]  *=  2;
+    A->blocks[rbi][bir].row[lib]  =   realloc(A->blocks[rbi][bir].row[lib],
+        A->blocks[rbi][bir].buf[lib] * sizeof(re_t));
+    A->blocks[rbi][bir].pos[lib]  =   realloc(A->blocks[rbi][bir].pos[lib],
+        A->blocks[rbi][bir].buf[lib] * sizeof(bi_t));
+  }
+  // set values
+  A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]] = 
+    (re_t)M->rows[bi][ri];
+  A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]] = eil;
+  //printf("%u | %u , %u , %u , %u | %u\n",rbi, bir, lib, A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]], A->blocks[rbi][bir].sz[lib],A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]]);
+  A->blocks[rbi][bir].sz[lib]++;
+}
+
+/**
  * \brief Inserts elements from input matrix M in sparse submatrix A, invert
  * their values w.r.t. to addition and M->mod
  *
@@ -1008,6 +1069,62 @@ static inline void free_input_matrix(sm_t **M_in, const uint32_t *rihb, const ui
  * mappings from M given by rihb, crb and rbi:
  * parts of M --> A|B
  *
+ * \note This procedure does not invert the entries in A. This is used for
+ * constructing C when we keep A.
+ *
+ * \param original matrix M
+ *
+ * \param sparse block submatrix A (left side)
+ *
+ * \param dense block submatrix B (right side)
+ *
+ * \param splicer mapping map  that stores pivots and non pivots
+ *
+ * \param row indices in horizonal block rihb
+ *
+ * \param current row block crb
+ *
+ * \param row block index rbi
+ */
+static inline void write_sparse_dense_blocks_matrix_no_inversion(const sm_t *M,
+    sb_fl_t *A, dbm_fl_t *B, const map_fl_t *map, ri_t *rihb, const ri_t cvb,
+    const ri_t rbi)
+{
+  bi_t  lib;    // line index in block
+  bi_t  length; // local helper for block line length arithmetic
+  ci_t  it, ri;
+
+  // memory for block entries is already allocated in splice_fl_matrix()
+
+  // current loop variable i, block indices 1 (rihb[i])
+  ri_t i, j, k, l, bi;
+
+  // column loops
+  const ci_t clA  = get_number_sparse_col_blocks(A);
+  const ci_t clB  = get_number_dense_col_blocks(B);
+
+  for (i=0; i<cvb; ++i) {
+    bi  = rihb[i];
+    ri  = 0;
+
+    // loop over rows i and i+1 of M and splice correspondingly into A & B
+    while (ri < M->rwidth[bi]) {
+      it  = M->pos[bi][ri];
+      if (map->pc[it] != __GB_MINUS_ONE_32)
+        insert_in_sb(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
+      else
+        insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
+      ri++;
+    }
+  }
+}
+
+/**
+ * \brief Writes corresponding entries of original matrix M into the sparse block
+ * submatrix A and the dense block submatrix B. The entries are defined by the
+ * mappings from M given by rihb, crb and rbi:
+ * parts of M --> A|B
+ *
  * \param original matrix M
  *
  * \param sparse block submatrix A (left side)
@@ -1273,6 +1390,69 @@ static inline void write_dense_blocks_matrix_diagonalize(const sm_t *M,
       ri++;
     }
   }
+}
+
+/**
+ * \brief Fills sparse submatrix A and dense submatrix B with values from M with
+ * respect to the splicing stored in map. This version is for keeping A, i.e.
+ * the entries inserted to C are not inverted w.r.t. M->mod.
+ *
+ * \param input matrix M
+ *
+ * \param left side sparse block matrix A
+ *
+ * \param right side dense block matrix B
+ *
+ * \param splicer map map
+ *
+ * \param range in map, either pivots or non-pivots range
+ *
+ * \param array storing indices piv_start_idx
+ *
+ * \param flag for destructing input matrix splices on the fly
+ * destruct_input_matrix
+ *
+ * \param number of threads for parallel computations nthreads
+ */
+static inline void fill_sparse_dense_submatrices_no_inversion(sm_t *M, sb_fl_t *A,
+    dbm_fl_t *B, const map_fl_t *map, const ri_t *range, const ri_t *piv_start_idx,
+    const int destruct_input_matrix, const int nthreads)
+{
+  int i;
+  ri_t block_idx;
+
+  omp_set_dynamic(0);
+#pragma omp parallel private(block_idx, i) num_threads(nthreads)
+  {
+    ri_t rihb[__GBLA_SIMD_BLOCK_SIZE];  // rows indices horizontal block
+    bi_t cvb  = 0;          // current vector in block
+
+#pragma omp for schedule(dynamic) nowait
+    for (block_idx = 0; block_idx <= A->nrows/__GBLA_SIMD_BLOCK_SIZE; ++block_idx) {
+      // construct block submatrices A & B
+      // Note: In the for loop we always construct block "block+1" and not block
+      // "block".
+      // TODO: Try to improve this rather strange looping.
+      for (i = ((int)piv_start_idx[block_idx]-1);
+          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+        if (range[i] != __GB_MINUS_ONE_32) {
+          rihb[cvb] = range[i];
+          cvb++;
+        }
+        if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
+          write_sparse_dense_blocks_matrix_no_inversion(
+              M, A, B, map, rihb, cvb, block_idx);
+
+          // TODO: Destruct input matrix on the go
+          if (destruct_input_matrix)
+            free_input_matrix(&M, rihb, cvb);
+          cvb = 0;
+        }
+      }
+    }
+  }
+  // swap entries in A and cut memory at the same time
+  swap_and_cut(A);
 }
 
 /**
@@ -1616,6 +1796,45 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
                       int block_dim, int rows_multiline,
                       int nthreads, int destruct_input_matrix, int verbose,
                       int map_defined);
+
+/**
+ * \brief Constructs the subdivision of M into ABCD in the
+ * Faugère-Lachartre style
+ *
+ *                 A | B
+ * M     ---->     --+--
+ *                 C | D
+ * In the subdivision the following dimensions hold:
+ * A->nrows = B->nrows = map->npiv // number of pivots found
+ * C->nrows = D->nrows = M->nrows - map->npiv // non-pivots
+ * A->ncols = C->ncols = map->npiv
+ * B->ncols = D->ncols = M->ncols - map->npiv
+ *
+ * \note Sparse-dense version without multilines in order to exploit SIMD instructions.
+ *
+ *  \param original matrix M
+ *
+ *  \param sparse block submatrix A
+ *
+ *  \param dense block submatrix B
+ *
+ *  \param sparse block submatrix C
+ *
+ *  \param dense block submatrix D
+ *
+ *  \param indexer mapping map
+ *
+ *  \param checks if map was already defined outside map_defined
+ *
+ *  \param destructing input matrix on the go? destruct_input_matrix
+ *
+ *  \param level of verbosity
+ *
+ *  \param number of threads to be used nthreads
+ */
+void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *C,
+    dbm_fl_t *D, map_fl_t *map, const int map_defined,
+    const int destruct_input_matrix, const int verbose, const int nthreads);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
