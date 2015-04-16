@@ -287,10 +287,11 @@ int elim_fl_A_sparse_dense_block(sb_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int
   }
   // free A
   free_sparse_submatrix(&A, nthrds);
+  *A_in = A;
   return 0;
 }
 
-int elim_fl_A_sparse_dense_blocks_task(sb_fl_t *A, dbm_fl_t *B,
+int elim_fl_A_sparse_dense_blocks_task(const sb_fl_t *A, dbm_fl_t *B,
     const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus)
 {
   bi_t i, ctr;
@@ -512,7 +513,7 @@ int elim_fl_A_dense_block(dbm_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int nthrd
   return 0;
 }
 
-int elim_fl_A_dense_blocks_task(dbm_fl_t *A, dbm_fl_t *B,
+int elim_fl_A_dense_blocks_task(const dbm_fl_t *A, dbm_fl_t *B,
     const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus)
 {
   bi_t i, ctr;
@@ -2393,6 +2394,72 @@ int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
   return 0;
 }
 
+int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulus,
+    const int nthrds)
+{
+  sm_fl_t *A= *A_in;
+  ci_t i, rc;
+  ri_t j, k;
+  const ri_t rlC  = C->nrows;
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<rlC; ++i) {
+#pragma omp task
+      {
+        rc  = elim_fl_C_sparse_dense_keep_A_tasks(C, A, i, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+  // free A
+  free_sparse_matrix(&A, nthrds);
+  *A_in = A;
+  return 0;
+}
+
+int elim_fl_C_sparse_dense_keep_A_tasks(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx, const mod_t modulus)
+{
+  ci_t i;
+  const ci_t c_ncols    = C->ncols;
+  const ci_t start_idx  = C->pos[idx][0];
+  ci_t nze_ctr          = 0;
+  re_l_t *wide_row;
+  re_m_t multiplier;
+  init_wide_rows(&wide_row, c_ncols);
+  memset(wide_row, 0, c_ncols * sizeof(re_l_t));
+  
+  copy_sparse_to_wide_row(wide_row, C, idx);
+  for (i=start_idx; i<c_ncols-1; ++i) {
+    multiplier = MODP(wide_row[i], modulus);
+    if (multiplier != 0) {
+      multiplier  = (re_m_t)(modulus - multiplier);
+      update_wide_row(wide_row, A, multiplier, i);
+      nze_ctr++;
+    }     
+    wide_row[i] = multiplier;
+  }
+  multiplier          = MODP(wide_row[c_ncols-1], modulus);
+  if (multiplier != 0) {
+    multiplier  = (re_m_t)(modulus - multiplier);
+    nze_ctr++;
+  }
+  wide_row[c_ncols-1] = multiplier;
+  if (multiplier != 0)
+
+  nze_ctr = 0;
+  for (int ii=0; ii<c_ncols; ++ii) {
+    if (wide_row[ii] != 0)
+      nze_ctr++;
+  }
+
+  copy_wide_to_sparse_row(&C, wide_row, idx, nze_ctr);
+
+  return 0;
+}
+
 int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus) {
 
   ci_t i;
@@ -2421,7 +2488,6 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
   copy_multiline_to_dense_array(C->ml[row_idx], dense_array_C_1,
       dense_array_C_2, coldim);
-
   for (i=start_idx; i<coldim; ++i) {
     Cp1 = i;
     Cv1_col1  = MODP(dense_array_C_1[i], modulus);

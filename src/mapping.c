@@ -1165,7 +1165,7 @@ void splice_fl_matrix_hybrid_dense(sm_t *M, hbm_fl_t *A, dbm_fl_t *B, hbm_fl_t *
   piv_start_idx = NULL;
 }
 
-void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *C,
+void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sm_fl_t *A, dbm_fl_t *B, sm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
     const int destruct_input_matrix, const int verbose, const int nthreads) {
 
@@ -1174,9 +1174,9 @@ void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_f
     construct_fl_map(M, map);
 
   // initialize submatrices
-  init_sb(A, map->npiv, map->npiv);
+  init_sm(A, map->npiv, map->npiv);
   init_dbm(B, map->npiv, M->ncols - map->npiv);
-  init_sb(C, M->nrows - map->npiv, map->npiv);
+  init_sm(C, M->nrows - map->npiv, map->npiv);
   init_dbm(D, M->nrows - map->npiv, M->ncols - map->npiv);
 
 #if GB_DEBUG
@@ -1187,15 +1187,15 @@ void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_f
 
   // write data in A and B, i.e. fill upper part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->pri, M->ncols, A->nrows);
-  fill_sparse_dense_submatrices(M, A, B, map, map->pri, piv_start_idx, destruct_input_matrix,
-      nthreads);
+  fill_sparse_dense_submatrices_keep_A(M, A, B, map, map->pri, piv_start_idx,
+      destruct_input_matrix, nthreads);
 
   free(piv_start_idx);
   piv_start_idx = NULL;
   // write data in C and D, i.e. fill upper part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
-  fill_sparse_dense_submatrices_no_inversion(M, C, D, map, map->npri,
-      piv_start_idx, destruct_input_matrix, nthreads);
+  fill_sparse_dense_submatrices_keep_A(M, C, D, map, map->npri, piv_start_idx,
+      destruct_input_matrix, nthreads);
 
   free(piv_start_idx);
   piv_start_idx = NULL;

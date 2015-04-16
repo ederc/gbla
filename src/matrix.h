@@ -54,6 +54,7 @@ typedef struct sm_t {
                         address of first position of nonzero entry in row i */
   ci_t *rwidth;   /*!<  width of row: M->rwidth[i] gives number of nonzero
                         entries in row i */
+  ci_t *buf;      /*!<  stores buffer of memory allocated for the given row*/
 } sm_t;
 
 
@@ -80,6 +81,22 @@ typedef struct sb_fl_t {
   sbl_t **blocks;   /*!<  address of blocks: M->blocks[i][j] gives address of
                           block. */
 } sb_fl_t;
+
+/**
+ * \brief Sparse matrix structure for Faugère-Lachartre decompositions.
+ * For non multiline implementation using small sparse blocks for the A part.
+ */
+
+typedef struct sm_fl_t {
+  ri_t nrows;       /*!<  number of rows */
+  ci_t ncols;       /*!<  number of columns */
+  nnz_t nnz;        /*!<  number of nonzero elements */
+  double density;   /*!<  density of this submatrix */
+  re_t **row;       /*!< row entries */
+  ci_t **pos;       /*!< position in row */
+  ci_t *sz;         /*!< size of row */
+  ci_t *buf;        /*!< memory buffer already allocated */
+} sm_fl_t;
 
 /**
  * \brief A dense block is a block of size  __GBLA_SIMD_BLOCK_SIZE^2 of
@@ -307,6 +324,35 @@ inline ci_t get_number_sparse_col_blocks(const sb_fl_t *A)
 }
 
 /**
+ * \brief Initializes sparse submatrices
+ *
+ * \param sparse submatrix A
+ *
+ * \param number of rows nrows
+ *
+ * \param number of columns ncols
+ */
+inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
+{
+  int i;
+
+  // initialize meta data for block submatrices
+  A->nrows  = nrows;  // row dimension
+  A->ncols  = ncols;  // col dimension
+  A->nnz    = 0;      // number nonzero elements
+
+  // allocate memory for rows
+  A->row  = (re_t **)malloc(nrows * sizeof(re_t *));
+  A->pos  = (ci_t **)malloc(nrows * sizeof(ci_t *));
+  A->sz   = (ci_t *)calloc(nrows, sizeof(ci_t));
+  A->buf  = (ci_t *)calloc(nrows, sizeof(ci_t));
+  for (i=0; i<nrows; ++i) {
+    A->row[i] = NULL;
+    A->pos[i] = NULL;
+  }
+}
+
+/**
  * \brief Initializes sparse block submatrices
  *
  * \param sparse block submatrix A
@@ -419,6 +465,35 @@ inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
       A->blocks[i][j].val = NULL;
     }
   }
+}
+
+/**
+ * \brief Frees given sparse submatrix A
+ *
+ * \param sparse submatrix A
+ *
+ * \param number of threads for parallel computation
+ */
+inline void free_sparse_matrix(sm_fl_t **A_in, int nthrds)
+{
+  sm_fl_t *A      = *A_in;
+  ri_t i, j, k, l;
+  // free A
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i, j, k, l)
+    for (i=0; i<A->nrows; ++i) {
+      free(A->row[i]);
+      free(A->pos[i]);
+    }
+  }
+  free(A->row);
+  free(A->pos);
+  free(A->sz);
+  free(A->buf);
+  free(A);
+  A = NULL;
+  *A_in  = A;
 }
 
 /**

@@ -94,6 +94,21 @@ static inline void init_wide_blocks(re_l_t ***wide_block)
 }
 
 /**
+ * \brief Initializes wide (=uint64_t) row for cumulative multiplications and
+ * additions.
+ *
+ * \param wide row wide_row
+ *
+ * \param lebngth of row
+ */
+static inline void init_wide_rows(re_l_t **wide_row, ci_t length)
+{
+  re_l_t *wr = *wide_row;
+  posix_memalign((void **)&wr, 16, length * sizeof(re_l_t));
+  *wide_row  = wr;
+}
+
+/**
  * \brief Set wide block array to zero.
  *
  * \param wide block array wide_blocks
@@ -226,6 +241,84 @@ static inline void copy_dense_to_wide_block(re_t *dense_block,
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j)
       wide_block[i][j]  = dense_block[i*__GBLA_SIMD_BLOCK_SIZE+j];
+}
+
+/**
+ * \brief Copies entries from sparse matrix A to dense wide row
+ * wide_row for elimination purposes.
+ *
+ * \param sparse matrix A
+ *
+ * \param row index in sparse matrix idx
+ *
+ * \param wide row wide_row
+ */
+static inline void copy_sparse_to_wide_row(re_l_t *wide_row, const sm_fl_t *A,
+    const ri_t idx)
+{
+  int i;
+  for (i=0; i<A->sz[idx]-3; i = i+4) {
+    wide_row[A->pos[idx][i]]    = (re_l_t)A->row[idx][i];
+    wide_row[A->pos[idx][i+1]]  = (re_l_t)A->row[idx][i+1];
+    wide_row[A->pos[idx][i+2]]  = (re_l_t)A->row[idx][i+2];
+    wide_row[A->pos[idx][i+3]]  = (re_l_t)A->row[idx][i+3];
+  }
+  for (; i<A->sz[idx]; ++i)
+    wide_row[A->pos[idx][i]]    = (re_l_t)A->row[idx][i];
+}
+
+/**   
+ * \brief Copies entries from wide dense row to a sparse matrix row
+ *
+ * \param sparse matrix C
+ *
+ * \param wide row wide_row
+ *
+ * \param row index in sparse matrix idx
+ *
+ * \param counter of nonzero entries in wide_row nze_ctr
+ */
+static inline void copy_wide_to_sparse_row(sm_fl_t **C_in, const re_l_t *wide_row,
+    const ri_t idx, const ci_t nze_ctr)
+{
+  sm_fl_t *C  = *C_in;
+  ci_t i;
+  ci_t c_ncols = C->ncols;
+  C->row[idx] = realloc(C->row[idx], nze_ctr * sizeof(re_t));
+  C->pos[idx] = realloc(C->pos[idx], nze_ctr * sizeof(ci_t));
+  C->sz[idx]  = 0;
+  C->buf[idx] = nze_ctr;
+
+  for (i=0; i<c_ncols-3; i=i+4) {
+    if (wide_row[i] != 0) {
+      C->row[idx][C->sz[idx]] = (re_t)wide_row[i];
+      C->pos[idx][C->sz[idx]] = i;
+      C->sz[idx]++;
+    }
+    if (wide_row[i+1] != 0) {
+      C->row[idx][C->sz[idx]] = (re_t)wide_row[i+1];
+      C->pos[idx][C->sz[idx]] = i+1;
+      C->sz[idx]++;
+    }
+    if (wide_row[i+2] != 0) {
+      C->row[idx][C->sz[idx]] = (re_t)wide_row[i+2];
+      C->pos[idx][C->sz[idx]] = i+2;
+      C->sz[idx]++;
+    }
+    if (wide_row[i+3] != 0) {
+      C->row[idx][C->sz[idx]] = (re_t)wide_row[i+3];
+      C->pos[idx][C->sz[idx]] = i+3;
+      C->sz[idx]++;
+    }
+  }
+  for (; i<c_ncols; ++i) {
+    if (wide_row[i] != 0) {
+      C->row[idx][C->sz[idx]] = (re_t)wide_row[i];
+      C->pos[idx][C->sz[idx]] = i;
+      C->sz[idx]++;
+    }
+  }
+  *C_in = C;
 }
 
 /**
@@ -557,6 +650,35 @@ static inline void red_hybrid_rectangular(dbl_t **block_A, dbl_t **block_B,
 }
 
 /**
+ * \brief Takes wide_row and updates it with multiples of a row from A
+ * corresponding to the column position pos defined by the first non zero entry
+ * in wide_row.
+ *
+ * \param wide row storing the result wide_row
+ * 
+ * \param sparse block matrix to update wide row A
+ *
+ * \param column position in wide_row resp. corresponding row index in A pos
+ */
+static inline void update_wide_row(re_l_t *wide_row, const sm_fl_t *A,
+  const re_m_t multiplier, const ci_t idx)
+{
+  ci_t i;
+  const ri_t row_idx  = A->nrows - idx - 1;
+  register re_m_t a_elt;
+  register ci_t a_idx;
+  
+  // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
+  // cancel out the element at this position in wide_row
+  for (i=0; i<A->sz[row_idx]; ++i) {
+    a_idx = A->pos[row_idx][i];
+    a_elt = A->row[row_idx][i];
+    wide_row[a_idx] += multiplier * a_elt;
+  }
+}
+
+
+/**
  * \brief Use sparse blocks from A to update dense blocks in B.
  * Delay modulus operations by storing results in wide blocks.
  * 
@@ -569,21 +691,9 @@ static inline void red_hybrid_rectangular(dbl_t **block_A, dbl_t **block_B,
 static inline void red_sparse_triangular(const sbl_t *block_A,
   re_l_t **wide_block, const mod_t modulus)
 {
-  //printf("INDENSE\n");
   bi_t i, j, k, l;
   register re_m_t a, b ,c, d, e, f, g, h;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-
-    /*
-    for (j=0; j<block_A->sz[i]-1; ++j) {
-      a = block_A->row[i][j];
-      //printf("%lu - %u | %u\n",a,i,j);
-      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-        wide_block[i][k]  +=
-          (a * wide_block[block_A->pos[i][j]][k]);
-      }
-    }
-    */
     for (j=0; j<block_A->sz[i]-8; j = j+8) {
       a = block_A->row[i][j];
       b = block_A->row[i][j+1];
@@ -593,7 +703,6 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
       f = block_A->row[i][j+5];
       g = block_A->row[i][j+6];
       h = block_A->row[i][j+7];
-      //printf("%lu - %u | %u\n",a,i,j);
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           (a * wide_block[block_A->pos[i][j]][k] +
@@ -608,7 +717,6 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
     }
     for (;j<block_A->sz[i]-1; ++j) {
       a = block_A->row[i][j];
-      //printf("%lu - %u | %u\n",a,i,j);
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           a * wide_block[block_A->pos[i][j]][k];
@@ -1250,7 +1358,7 @@ int elim_fl_A_sparse_dense_block(sb_fl_t **A, dbm_fl_t *B, const mod_t modulus,
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_A_sparse_dense_blocks_task(sb_fl_t *A, dbm_fl_t *B,
+int elim_fl_A_sparse_dense_blocks_task(const sb_fl_t *A, dbm_fl_t *B,
     const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus);
 
 /**
@@ -1356,7 +1464,7 @@ int elim_fl_A_dense_block(dbm_fl_t **A, dbm_fl_t *B, const mod_t modulus, int nt
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_A_dense_blocks_task(dbm_fl_t *A, dbm_fl_t *B,
+int elim_fl_A_dense_blocks_task(const dbm_fl_t *A, dbm_fl_t *B,
     const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus);
 
 /**
@@ -1398,6 +1506,41 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
  */
 int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C, dbm_fl_t *D, const int inv_scalars,
     const mod_t modulus, const int nthrds);
+
+/**
+ * \brief Different tasks of elimination of C operating on one row of C only.
+ * Updating all row entries via corresponding multiples from A.
+ *
+ * \param sparse submatrix C (left lower side)
+ *
+ * \param sparse submatrix A (left upper side)
+ *
+ * \param row index in C idx
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_keep_A_tasks(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx, const mod_t modulus);
+
+/**
+ * \brief Elimination procedure which reduces the sparse submatrix C to zero.
+ * For this an intermediate dense wide representation is used. Multiplies
+ * corresponding elements from A and prepares C for updating D with B later on.
+ *
+ * \param sparse submatrix C (left lower side)
+ *
+ * \param sparse submatrix A (left upper side)
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A, const mod_t modulus,
+    const int nthrds);
 
 /**
  * \brief Different block tasks when reducing denes block submatrix C.
