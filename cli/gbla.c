@@ -415,6 +415,22 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
+  /*  copying sparse matrix C to a sparse block matrix C_block */
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART copying sparse C to sparse block representation ...\n");
+  }
+  sb_fl_t *C_block = copy_sparse_to_block_matrix(C, nthreads);
+  free_sparse_matrix(&C,nthreads);
+  if (verbose > 1) {
+    printf("<<<<\tDONE  copying sparse C to sparse block representation.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
 #if __GB_CLI_DEBUG_1
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);

@@ -619,6 +619,83 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
   *A_in  = A;
 }
 
+static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
+    const int nthrds)
+{
+  sb_fl_t *out  = (sb_fl_t *)malloc(sizeof(sb_fl_t));
+  init_sb(out, A->nrows, A->ncols);
+
+  const ri_t blocks_per_col = get_number_sparse_row_blocks(out);
+  const ci_t blocks_per_row = get_number_sparse_col_blocks(out);
+
+#pragma omp parallel num_threads(nthrds)
+  {
+    bi_t *block_length  = (bi_t *)calloc(blocks_per_row, sizeof(bi_t));
+    bi_t col_idx;
+    ri_t i, j;
+    ci_t k, l, m, n;
+    bi_t tmp1, tmp2;
+    ci_t ctr;
+    ri_t max;
+#pragma omp for   
+    for (i=0; i<blocks_per_col; ++i) {
+      max = A->nrows < (i+1)*__GBLA_SIMD_BLOCK_SIZE ? A->nrows : (i+1)*__GBLA_SIMD_BLOCK_SIZE;
+      for (j=i*__GBLA_SIMD_BLOCK_SIZE; j<max; ++j) {
+        memset(block_length, 0, blocks_per_row * sizeof(bi_t));
+        // get lengths for the sparse block rows
+        for (k=0; k<A->sz[j]-1; ++k) {
+          tmp1  = A->pos[j][k] / __GBLA_SIMD_BLOCK_SIZE;
+          tmp2  = A->pos[j][k+1] / __GBLA_SIMD_BLOCK_SIZE;
+          if (tmp1 == tmp2)
+            block_length[tmp1]++;
+        }
+        if (tmp1 == tmp2)
+          block_length[tmp1]++;
+        else
+          block_length[tmp2]++;
+        
+        col_idx = j % __GBLA_SIMD_BLOCK_SIZE;
+        // allocate memory
+        for (l=0; l<blocks_per_row; ++l) {
+          if (block_length[l] != 0) {
+            if (out->blocks[i][l].row == NULL) {
+              out->blocks[i][l].row = (re_t **)malloc(
+                  __GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+              out->blocks[i][l].pos = (bi_t **)malloc(
+                  __GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+              out->blocks[i][l].sz = (bi_t *)malloc(
+                  __GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+              for (m=0; m<__GBLA_SIMD_BLOCK_SIZE; ++m) {
+                out->blocks[i][l].row[m]  = NULL;
+                out->blocks[i][l].pos[m]  = NULL;
+                out->blocks[i][l].sz[m]   = 0;
+              }
+            }
+          // memory for row j % __GBLA_SIMD_BLOCK_SIZE
+          out->blocks[i][l].row[col_idx]  = (re_t *)malloc(
+              block_length[l] * sizeof(re_t));
+          out->blocks[i][l].pos[col_idx]  = (bi_t *)malloc(
+              block_length[l] * sizeof(bi_t));
+          }
+        }
+
+        // copy elements
+        ctr = 0;
+        for (l=0; l<blocks_per_row; ++l) {
+          for (m=ctr; m<(ctr+block_length[l]); ++m) {
+            out->blocks[i][l].row[col_idx][out->blocks[i][l].sz[col_idx]] =
+              A->row[j][m];
+            out->blocks[i][l].pos[col_idx][out->blocks[i][l].sz[col_idx]] =
+              A->pos[j][m] % __GBLA_SIMD_BLOCK_SIZE;
+            out->blocks[i][l].sz[col_idx]++;
+          }
+          ctr +=  block_length[l];
+        }
+      }
+    }    
+  }
+  return out;
+}
 /**
  * \brief Copies data from block matrix in to input sparse matrix format. If deleteIn
  * is set the input block matrix in is deleted.
@@ -689,6 +766,7 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
 #endif
 
 double compute_density(nnz_t nnz, ri_t nrows, ri_t ncols) ;
+
 
 /* vim:sts=2:sw=2:ts=2:
  */
