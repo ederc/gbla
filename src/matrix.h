@@ -643,9 +643,12 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
       for (j=i*__GBLA_SIMD_BLOCK_SIZE; j<max; ++j) {
         memset(block_length, 0, blocks_per_row * sizeof(bi_t));
         // get lengths for the sparse block rows
-        for (k=0; k<A->sz[j]-1; ++k) {
-          tmp1  = A->pos[j][k] / __GBLA_SIMD_BLOCK_SIZE;
-          tmp2  = A->pos[j][k+1] / __GBLA_SIMD_BLOCK_SIZE;
+        /*
+        tmp2  = (A->ncols - 1 - A->pos[j][0]) / __GBLA_SIMD_BLOCK_SIZE;
+        for (k=1; k<A->sz[j]; ++k) {
+          tmp1  = tmp2;
+          tmp2  = (A->ncols - 1 - A->pos[j][k]) / __GBLA_SIMD_BLOCK_SIZE;
+          printf("tmp1 %d -- tmp2 %d\n",tmp1,tmp2);
           if (tmp1 == tmp2)
             block_length[tmp1]++;
         }
@@ -653,7 +656,11 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
           block_length[tmp1]++;
         else
           block_length[tmp2]++;
-        
+        */
+        for (k=0; k<A->sz[j]; ++k) {
+          block_length[(A->ncols - 1 - A->pos[j][k]) / __GBLA_SIMD_BLOCK_SIZE]++;
+        }
+
         col_idx = j % __GBLA_SIMD_BLOCK_SIZE;
         // allocate memory
         for (l=0; l<blocks_per_row; ++l) {
@@ -680,20 +687,40 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
         }
 
         // copy elements
-        ctr = 0;
+        // we loop at "+1" in order to not get into trouble with comparing
+        // unsigned ints with 0 at the very end. thus we decrement "m" to "m-1"
+        // in each loop.
+        ctr = A->sz[j];
         for (l=0; l<blocks_per_row; ++l) {
-          for (m=ctr; m<(ctr+block_length[l]); ++m) {
+          for (m=ctr; m>(ctr-block_length[l]); --m) {
             out->blocks[i][l].row[col_idx][out->blocks[i][l].sz[col_idx]] =
-              A->row[j][m];
+              A->row[j][m-1];
             out->blocks[i][l].pos[col_idx][out->blocks[i][l].sz[col_idx]] =
-              A->pos[j][m] % __GBLA_SIMD_BLOCK_SIZE;
+              (bi_t)((A->ncols - 1 -A->pos[j][m-1]) % __GBLA_SIMD_BLOCK_SIZE);
             out->blocks[i][l].sz[col_idx]++;
           }
-          ctr +=  block_length[l];
+          ctr -=  block_length[l];
         }
       }
     }    
   }
+  /*
+  printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+  for (int ii=0; ii<blocks_per_col; ++ii) {
+    for (int jj=0; jj<blocks_per_row; ++jj) {
+      if (out->blocks[ii][jj].row != NULL) {
+        printf("%d .. %d\n", ii, jj);
+        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+          for (int ll=0; ll<out->blocks[ii][jj].sz[kk]; ++ll) {
+            printf("%d | %d || ", out->blocks[ii][jj].row[kk][ll], out->blocks[ii][jj].pos[kk][ll]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+  */
   return out;
 }
 /**
