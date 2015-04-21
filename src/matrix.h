@@ -712,6 +712,7 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
         }
       }
     }    
+    free(block_length);
   }
   /*
   printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
