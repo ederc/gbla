@@ -619,6 +619,15 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
   *A_in  = A;
 }
 
+/**
+ * \brief Copies sparse matrix A to a sparse block matrix
+ *
+ * \param sparse submatrix A
+ *
+ * \param number of threads for parallel computation
+ *
+ * \return sparse block matrix
+ */
 static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
     const int nthrds)
 {
@@ -723,6 +732,105 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
   */
   return out;
 }
+
+/**
+ * \brief Copies sparse matrix A to a dense block matrix
+ *
+ * \param sparse submatrix A
+ *
+ * \param number of threads for parallel computation
+ *
+ * \return dense block matrix
+ */
+static inline dbm_fl_t *copy_sparse_to_dense_block_matrix(const sm_fl_t *A,
+    const int nthrds)
+{
+  dbm_fl_t *out  = (dbm_fl_t *)malloc(sizeof(dbm_fl_t));
+  init_dbm(out, A->nrows, A->ncols);
+
+  const ri_t blocks_per_col = get_number_dense_row_blocks(out);
+  const ci_t blocks_per_row = get_number_dense_col_blocks(out);
+
+#pragma omp parallel num_threads(nthrds)
+  {
+    bi_t *block_length  = (bi_t *)calloc(blocks_per_row, sizeof(bi_t));
+    bi_t col_idx;
+    ri_t i, j;
+    ci_t k, l, m, n;
+    bi_t tmp1, tmp2;
+    ci_t ctr;
+    ri_t max;
+#pragma omp for   
+    for (i=0; i<blocks_per_col; ++i) {
+      max = A->nrows < (i+1)*__GBLA_SIMD_BLOCK_SIZE ? A->nrows : (i+1)*__GBLA_SIMD_BLOCK_SIZE;
+      for (j=i*__GBLA_SIMD_BLOCK_SIZE; j<max; ++j) {
+        memset(block_length, 0, blocks_per_row * sizeof(bi_t));
+        // get lengths for the sparse block rows
+        /*
+        tmp2  = (A->ncols - 1 - A->pos[j][0]) / __GBLA_SIMD_BLOCK_SIZE;
+        for (k=1; k<A->sz[j]; ++k) {
+          tmp1  = tmp2;
+          tmp2  = (A->ncols - 1 - A->pos[j][k]) / __GBLA_SIMD_BLOCK_SIZE;
+          printf("tmp1 %d -- tmp2 %d\n",tmp1,tmp2);
+          if (tmp1 == tmp2)
+            block_length[tmp1]++;
+        }
+        if (tmp1 == tmp2)
+          block_length[tmp1]++;
+        else
+          block_length[tmp2]++;
+        */
+        for (k=0; k<A->sz[j]; ++k) {
+          block_length[(A->ncols - 1 - A->pos[j][k]) / __GBLA_SIMD_BLOCK_SIZE]++;
+        }
+
+        col_idx = j % __GBLA_SIMD_BLOCK_SIZE;
+        // allocate memory
+        for (l=0; l<blocks_per_row; ++l) {
+          if (block_length[l] != 0) {
+            if (out->blocks[i][l].val == NULL) {
+              out->blocks[i][l].val = (re_t *)malloc(
+                  __GBLA_SIMD_BLOCK_SIZE_RECT * sizeof(re_t));
+            }
+          }
+        }
+
+        // copy elements
+        // we loop at "+1" in order to not get into trouble with comparing
+        // unsigned ints with 0 at the very end. thus we decrement "m" to "m-1"
+        // in each loop.
+        ctr = A->sz[j];
+        for (l=0; l<blocks_per_row; ++l) {
+          for (m=ctr; m>(ctr-block_length[l]); --m) {
+            out->blocks[i][l].val[(col_idx * __GBLA_SIMD_BLOCK_SIZE)+
+            ((A->ncols - 1 -A->pos[j][m-1]) % __GBLA_SIMD_BLOCK_SIZE)] =
+              A->row[j][m-1];
+          }
+          ctr -=  block_length[l];
+        }
+      }
+    }    
+  }
+  /*
+  printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+  for (int ii=0; ii<blocks_per_col; ++ii) {
+    for (int jj=0; jj<blocks_per_row; ++jj) {
+      if (out->blocks[ii][jj].row != NULL) {
+        printf("%d .. %d\n", ii, jj);
+        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+          for (int ll=0; ll<out->blocks[ii][jj].sz[kk]; ++ll) {
+            printf("%d | %d || ", out->blocks[ii][jj].row[kk][ll], out->blocks[ii][jj].pos[kk][ll]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+  */
+  return out;
+}
+
 /**
  * \brief Copies data from block matrix in to input sparse matrix format. If deleteIn
  * is set the input block matrix in is deleted.

@@ -429,6 +429,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   }
   */
   /*  copying sparse matrix C to a sparse block matrix C_block */
+#if 1
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     printf("---------------------------------------------------------------------\n");
@@ -482,6 +483,61 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
+#else
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART copying sparse C to dense block representation ...\n");
+  }
+  dbm_fl_t *C_block = copy_sparse_to_dense_block_matrix(C, nthreads);
+  free_sparse_matrix(&C,nthreads);
+  if (verbose > 1) {
+    printf("<<<<\tDONE  copying sparse C to dense block representation.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+  /*
+  // column loops
+  const uint32_t clC  = (uint32_t) ceil((float)C_block->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  // row loops
+  const uint32_t rlC  = (uint32_t) ceil((float)C_block->nrows / __GBLA_SIMD_BLOCK_SIZE);
+
+  for (int ii=0; ii<rlC; ++ii) {
+    for (int jj=0; jj<clC; ++jj) {
+      if (C_block->blocks[ii][jj].row != NULL) {
+        printf("%d .. %d\n", ii, jj);
+        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+          for (int ll=0; ll<C_block->blocks[ii][jj].sz[kk]; ++ll) {
+            printf("%d | %d || ", C_block->blocks[ii][jj].row[kk][ll], C_block->blocks[ii][jj].pos[kk][ll]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+  */
+  // reducing submatrix C to zero using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    printf("---------------------------------------------------------------------\n");
+    printf(">>>>\tSTART reducing C to zero ...\n");
+  }
+  if (elim_fl_C_dense_block(B, &C_block, D, 1, M->mod, nthreads)) {
+    printf("Error while reducing C.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    printf("<<<<\tDONE  reducing C to zero.\n");
+    printf("TIME\t%.3f sec\n",
+        walltime(t_load_start) / (1000000));
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+#endif
 #if __GB_CLI_DEBUG_D
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
