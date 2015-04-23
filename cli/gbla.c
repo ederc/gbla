@@ -345,7 +345,10 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
   map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
 
-  splice_fl_matrix_sparse_dense_keep_A(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
+  if (nthreads > 8)
+    splice_fl_matrix_sparse_dense_keep_A(M, A, B, C, D, map, 0, free_mem, verbose, 8);
+  else
+    splice_fl_matrix_sparse_dense_keep_A(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
 
   if (verbose > 1) {
     printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
@@ -588,7 +591,10 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
   map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
   map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
 
-  splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
+  if (nthreads > 8)
+    splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, verbose, 8);
+  else
+    splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
 
   if (verbose > 1) {
     printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
