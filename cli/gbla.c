@@ -339,7 +339,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   }
   // construct splicing of matrix M into A, B, C and D
   sm_fl_t *A      = (sm_fl_t *)malloc(sizeof(sm_fl_t));
-  dbm_fl_t *B     = (dbm_fl_t *)malloc(sizeof(dbm_fl_t));
+  sb_fl_t *B      = (sb_fl_t *)malloc(sizeof(sb_fl_t));
   sm_fl_t *C      = (sm_fl_t *)malloc(sizeof(sm_fl_t));
   dbm_fl_t *D     = (dbm_fl_t *)malloc(sizeof(dbm_fl_t));
   map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
@@ -525,7 +525,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing C to zero ...\n");
   }
-  if (elim_fl_C_dense_block(B, &C_block, D, 1, M->mod, nthreads)) {
+  if (elim_fl_C_sparse_dense_block(C_block, &B, D, 1, M->mod, nthreads)) {
     printf("Error while reducing C.\n");
     return 1;
   }

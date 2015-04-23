@@ -284,11 +284,16 @@ static inline void copy_wide_to_sparse_row(sm_fl_t **C_in, const re_l_t *wide_ro
   sm_fl_t *C  = *C_in;
   ci_t i;
   ci_t c_ncols = C->ncols;
+  //printf("realloc %u | %u\n",idx,nze_ctr);
+  //printf("%u\n",idx);
+  //printf("%u | %p | %p\n",idx,C->row[idx],C->pos[idx]);
   C->row[idx] = realloc(C->row[idx], nze_ctr * sizeof(re_t));
+  //printf("--\n");
   C->pos[idx] = realloc(C->pos[idx], nze_ctr * sizeof(ci_t));
+  //printf("---\n");
   C->sz[idx]  = 0;
   C->buf[idx] = nze_ctr;
-
+  /*
   for (i=0; i<c_ncols-3; i=i+4) {
     if (wide_row[i] != 0) {
       C->row[idx][C->sz[idx]] = (re_t)wide_row[i];
@@ -311,6 +316,8 @@ static inline void copy_wide_to_sparse_row(sm_fl_t **C_in, const re_l_t *wide_ro
       C->sz[idx]++;
     }
   }
+  */
+  i=0;
   for (; i<c_ncols; ++i) {
     if (wide_row[i] != 0) {
       C->row[idx][C->sz[idx]] = (re_t)wide_row[i];
@@ -686,7 +693,7 @@ static inline void update_wide_row(re_l_t *wide_row, const sm_fl_t *A,
  * corresponding to the column position pos defined by the first non zero entry
  * in wide_row.
  *
- * \param wide row storing the result wide_row
+ * \param wide row storing the result wide_row1
  * 
  * \param sparse block matrix to update wide row A
  *
@@ -708,6 +715,37 @@ static inline void update_wide_rows(re_l_t *wide_row1, re_l_t *wide_row2,
     a_elt = A->row[row_idx][i];
     wide_row1[a_idx] += multiplier1 * a_elt;
     wide_row2[a_idx] += multiplier2 * a_elt;
+  }
+}
+
+/**
+ * \brief Takes three wide rows and updates it with multiples of a row from A
+ * corresponding to the column position pos defined by the first non zero entry
+ * in wide_row.
+ *
+ * \param wide row storing the result wide_row1
+ * 
+ * \param sparse block matrix to update wide row A
+ *
+ * \param column position in wide_row resp. corresponding row index in A pos
+ */
+static inline void update_wide_rows_three(re_l_t *wide_row1, re_l_t *wide_row2,
+    re_l_t *wide_row3, const sm_fl_t *A, const re_m_t multiplier1,
+    const re_m_t multiplier2, const re_m_t multiplier3, const ci_t idx)
+{
+  ci_t i;
+  const ri_t row_idx  = A->nrows - idx - 1;
+  register re_m_t a_elt;
+  register ci_t a_idx;
+  
+  // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
+  // cancel out the element at this position in wide_row
+  for (i=0; i<A->sz[row_idx]; ++i) {
+    a_idx = A->pos[row_idx][i];
+    a_elt = A->row[row_idx][i];
+    wide_row1[a_idx] += multiplier1 * a_elt;
+    wide_row2[a_idx] += multiplier2 * a_elt;
+    wide_row3[a_idx] += multiplier3 * a_elt;
   }
 }
 
@@ -1540,6 +1578,27 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
  */
 int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C, dbm_fl_t *D, const int inv_scalars,
     const mod_t modulus, const int nthrds);
+
+/**
+ * \brief Different tasks of elimination of C operating on three rows of C only.
+ * Updating all row entries via corresponding multiples from A.
+ *
+ * \param sparse submatrix C (left lower side)
+ *
+ * \param sparse submatrix A (left upper side)
+ *
+ * \param first row index in C idx1
+ *
+ * \param second row index in C idx2
+ *
+ * \param second row index in C idx3
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_keep_A_tasks_three(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx1, const ri_t idx2, const ri_t idx3, const mod_t modulus);
 
 /**
  * \brief Different tasks of elimination of C operating on two rows of C only.

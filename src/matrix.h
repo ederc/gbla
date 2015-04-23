@@ -344,8 +344,10 @@ inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
   // allocate memory for rows
   A->row  = (re_t **)malloc(nrows * sizeof(re_t *));
   A->pos  = (ci_t **)malloc(nrows * sizeof(ci_t *));
-  A->sz   = (ci_t *)calloc(nrows, sizeof(ci_t));
-  A->buf  = (ci_t *)calloc(nrows, sizeof(ci_t));
+  A->sz   = (ci_t *)malloc(nrows * sizeof(ci_t));
+  A->buf  = (ci_t *)malloc(nrows * sizeof(ci_t));
+  memset(A->sz, 0, nrows * sizeof(ci_t));
+  memset(A->buf, 0, nrows * sizeof(ci_t));
   for (i=0; i<nrows; ++i) {
     A->row[i] = NULL;
     A->pos[i] = NULL;
