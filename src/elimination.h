@@ -665,26 +665,39 @@ static inline void red_hybrid_rectangular(dbl_t **block_A, dbl_t **block_B,
  * corresponding to the column position pos defined by the first non zero entry
  * in wide_row.
  *
- * \param wide row storing the result wide_row
+ * \param wide row storing the result wide_row1
  * 
  * \param sparse block matrix to update wide row A
  *
- * \param column position in wide_row resp. corresponding row index in A pos
+ * \param multiplier from C multiplier1
+ *
+ * \param column position in wide_row resp. corresponding row index in A idx
  */
-static inline void update_wide_row(re_l_t *wide_row, const sm_fl_t *A,
-  const re_m_t multiplier, const ci_t idx)
+static inline void update_wide_row(re_l_t *wide_row1, const sm_fl_t *A,
+  const re_m_t multiplier1, const ci_t idx)
 {
   ci_t i;
   const ri_t row_idx  = A->nrows - idx - 1;
-  register re_m_t a_elt;
-  register ci_t a_idx;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
   
   // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
   // cancel out the element at this position in wide_row
-  for (i=0; i<A->sz[row_idx]; ++i) {
-    a_idx = A->pos[row_idx][i];
-    a_elt = A->row[row_idx][i];
-    wide_row[a_idx] += multiplier * a_elt;
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += multiplier1 * a_elt1;
+      wide_row1[a_idx2] += multiplier1 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += multiplier1 * a_elt1;
   }
 }
 
@@ -694,8 +707,14 @@ static inline void update_wide_row(re_l_t *wide_row, const sm_fl_t *A,
  * in wide_row.
  *
  * \param wide row storing the result wide_row1
+ *
+ * \param wide row storing the result wide_row2
  * 
  * \param sparse block matrix to update wide row A
+ *
+ * \param multiplier from C multiplier1
+ *
+ * \param multiplier from C multiplier2
  *
  * \param column position in wide_row resp. corresponding row index in A pos
  */
@@ -705,16 +724,29 @@ static inline void update_wide_rows(re_l_t *wide_row1, re_l_t *wide_row2,
 {
   ci_t i;
   const ri_t row_idx  = A->nrows - idx - 1;
-  register re_m_t a_elt;
-  register ci_t a_idx;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
   
   // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
   // cancel out the element at this position in wide_row
-  for (i=0; i<A->sz[row_idx]; ++i) {
-    a_idx = A->pos[row_idx][i];
-    a_elt = A->row[row_idx][i];
-    wide_row1[a_idx] += multiplier1 * a_elt;
-    wide_row2[a_idx] += multiplier2 * a_elt;
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += multiplier1 * a_elt1;
+      wide_row1[a_idx2] += multiplier1 * a_elt2;
+      wide_row2[a_idx1] += multiplier2 * a_elt1;
+      wide_row2[a_idx2] += multiplier2 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += multiplier1 * a_elt1;
+    wide_row2[a_idx1] += multiplier2 * a_elt1;
   }
 }
 
@@ -724,8 +756,18 @@ static inline void update_wide_rows(re_l_t *wide_row1, re_l_t *wide_row2,
  * in wide_row.
  *
  * \param wide row storing the result wide_row1
+ *
+ * \param wide row storing the result wide_row2
+ *
+ * \param wide row storing the result wide_row3
  * 
  * \param sparse block matrix to update wide row A
+ *
+ * \param multiplier from C multiplier1
+ *
+ * \param multiplier from C multiplier2
+ *
+ * \param multiplier from C multiplier3
  *
  * \param column position in wide_row resp. corresponding row index in A pos
  */
@@ -735,17 +777,32 @@ static inline void update_wide_rows_three(re_l_t *wide_row1, re_l_t *wide_row2,
 {
   ci_t i;
   const ri_t row_idx  = A->nrows - idx - 1;
-  register re_m_t a_elt;
-  register ci_t a_idx;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
   
   // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
   // cancel out the element at this position in wide_row
-  for (i=0; i<A->sz[row_idx]; ++i) {
-    a_idx = A->pos[row_idx][i];
-    a_elt = A->row[row_idx][i];
-    wide_row1[a_idx] += multiplier1 * a_elt;
-    wide_row2[a_idx] += multiplier2 * a_elt;
-    wide_row3[a_idx] += multiplier3 * a_elt;
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += multiplier1 * a_elt1;
+      wide_row1[a_idx2] += multiplier1 * a_elt2;
+      wide_row2[a_idx1] += multiplier2 * a_elt1;
+      wide_row2[a_idx2] += multiplier2 * a_elt2;
+      wide_row3[a_idx1] += multiplier3 * a_elt1;
+      wide_row3[a_idx2] += multiplier3 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += multiplier1 * a_elt1;
+    wide_row2[a_idx1] += multiplier2 * a_elt1;
+    wide_row3[a_idx1] += multiplier3 * a_elt1;
   }
 }
 
