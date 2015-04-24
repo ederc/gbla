@@ -474,10 +474,12 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf(">>>>\tSTART reducing C to zero ...\n");
   }
+  /*
   if (elim_fl_C_sparse_dense_block(B, &C_block, D, 1, M->mod, nthreads)) {
     printf("Error while reducing C.\n");
     return 1;
   }
+  */
   if (verbose > 1) {
     printf("<<<<\tDONE  reducing C to zero.\n");
     printf("TIME\t%.3f sec\n",

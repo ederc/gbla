@@ -2394,6 +2394,16 @@ int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
   return 0;
 }
 
+// choose the variant to be used in the following (only one of them should be 1,
+// all others have to be 0
+#define ONE 0
+#define TWO 0
+#define THREE 0
+#define FOUR 0
+#define SIX 0
+#define EIGHT 1
+#define TEN 0
+
 int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulus,
     const int nthrds)
 {
@@ -2401,8 +2411,8 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
   ci_t i, rc;
   ri_t j, k;
   const ri_t rlC  = C->nrows;
-#if 1
-  /*
+  
+#if ONE
 #pragma omp parallel num_threads(nthrds)
   {
 #pragma omp for
@@ -2415,7 +2425,36 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
     }
 #pragma omp taskwait
   }
-  */
+#endif
+#if TWO
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<rlC; i=i+2) {
+#pragma omp task
+      {
+        rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, i, i+1, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+#endif
+#if THREE
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<rlC; i=i+3) {
+#pragma omp task
+      {
+        rc  = elim_fl_C_sparse_dense_keep_A_tasks_three(C, A, i, i+1, i+2, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+#endif
+#if FOUR
 #pragma omp parallel num_threads(nthrds)
   {
 #pragma omp for
@@ -2428,15 +2467,44 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
     }
 #pragma omp taskwait
   }
-#else
+#endif
+#if SIX
 #pragma omp parallel num_threads(nthrds)
   {
 #pragma omp for
     // each task takes one block column of B
-    for (i=0; i<rlC; i=i+2) {
+    for (i=0; i<rlC; i=i+6) {
 #pragma omp task
       {
-        rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, i, i+1, modulus);
+        rc  = elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, i, i+1, i+2, i+3, i+4, i+5, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+#endif
+#if EIGHT
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<rlC; i=i+8) {
+#pragma omp task
+      {
+        rc  = elim_fl_C_sparse_dense_keep_A_tasks_eight(C, A, i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+#endif
+#if TEN
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=0; i<rlC; i=i+10) {
+#pragma omp task
+      {
+        rc  = elim_fl_C_sparse_dense_keep_A_tasks_ten(C, A, i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, i+8, i+9, modulus);
       }
     }
 #pragma omp taskwait
@@ -2515,6 +2583,808 @@ int elim_fl_C_sparse_dense_keep_A_tasks_double(sm_fl_t *C, const sm_fl_t *A,
   return 0;
 }
 
+int elim_fl_C_sparse_dense_keep_A_tasks_six(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx0, const ri_t idx1, const ri_t idx2, const ri_t idx3,
+    const ri_t idx4, const ri_t idx5, const mod_t modulus)
+{
+  if (idx1 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, idx0, modulus);
+    return ret;
+  }
+  if (idx2 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, idx0, idx1, modulus);
+    return ret;
+  }
+  if (idx3 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_three(C, A, idx0, idx1, idx2, modulus);
+    return ret;
+  }
+  if (idx4 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    return ret;
+  }
+  if (idx5 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, idx4, modulus);
+    return ret;
+  }
+
+  ci_t i;
+  int j;
+  const ci_t c_ncols    = C->ncols;
+  ci_t min_01   = C->pos[idx0][0] < C->pos[idx1][0] ? C->pos[idx0][0] : C->pos[idx1][0];
+  ci_t min_23   = C->pos[idx2][0] < C->pos[idx3][0] ? C->pos[idx2][0] : C->pos[idx3][0];
+  ci_t min_45   = C->pos[idx4][0] < C->pos[idx5][0] ? C->pos[idx4][0] : C->pos[idx5][0];
+  ci_t min_0123  = min_01 < min_23 ? min_01 : min_23;
+  const ci_t start_idx = min_0123 < min_45 ? min_0123 : min_45;
+  ci_t nze_ctr[6] = {0};
+  re_l_t **wide_row = (re_l_t **)malloc(6 * sizeof(re_l_t *));
+  re_m_t multiplier[6];
+  init_wide_rows(&wide_row[0], c_ncols);
+  init_wide_rows(&wide_row[1], c_ncols);
+  init_wide_rows(&wide_row[2], c_ncols);
+  init_wide_rows(&wide_row[3], c_ncols);
+  init_wide_rows(&wide_row[4], c_ncols);
+  init_wide_rows(&wide_row[5], c_ncols);
+  memset(wide_row[0], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[1], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[2], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[3], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[4], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[5], 0, c_ncols * sizeof(re_l_t));
+
+  re_l_t **rows   = (re_l_t **)malloc(6 * sizeof(re_l_t *));
+  re_m_t *mults   = (re_m_t *)malloc(6 * sizeof(re_m_t));
+  int *row_to_id  = (int *)malloc(6 * sizeof(int));
+  int ctr;
+
+  copy_sparse_to_wide_row(wide_row[0], C, idx0);
+  copy_sparse_to_wide_row(wide_row[1], C, idx1);
+  copy_sparse_to_wide_row(wide_row[2], C, idx2);
+  copy_sparse_to_wide_row(wide_row[3], C, idx3);
+  copy_sparse_to_wide_row(wide_row[4], C, idx4);
+  copy_sparse_to_wide_row(wide_row[5], C, idx5);
+  for (i=start_idx; i<c_ncols-1; ++i) {
+    ctr = 0;
+    multiplier[0] = MODP(wide_row[0][i], modulus);
+    multiplier[1] = MODP(wide_row[1][i], modulus);
+    multiplier[2] = MODP(wide_row[2][i], modulus);
+    multiplier[3] = MODP(wide_row[3][i], modulus);
+    multiplier[4] = MODP(wide_row[4][i], modulus);
+    multiplier[5] = MODP(wide_row[5][i], modulus);
+
+    wide_row[0][i] = 0;
+    wide_row[1][i] = 0;
+    wide_row[2][i] = 0;
+    wide_row[3][i] = 0;
+    wide_row[4][i] = 0;
+    wide_row[5][i] = 0;
+
+    if (multiplier[0] == 0 && multiplier[1] == 0 && multiplier[2] == 0 && multiplier[3] == 0 &&
+        multiplier[4] == 0 && multiplier[5] == 0)
+      continue;
+    if (multiplier[0] != 0) {
+      rows[ctr]       = wide_row[0];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[0]);
+      row_to_id[ctr]  = 0;
+      ++nze_ctr[0];
+      ++ctr;
+    }
+    if (multiplier[1] != 0) {
+      rows[ctr]       = wide_row[1];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[1]);
+      row_to_id[ctr]  = 1;
+      ++nze_ctr[1];
+      ++ctr;
+    }
+    if (multiplier[2] != 0) {
+      rows[ctr]       = wide_row[2];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[2]);
+      row_to_id[ctr]  = 2;
+      ++nze_ctr[2];
+      ++ctr;
+    }
+    if (multiplier[3] != 0) {
+      rows[ctr]       = wide_row[3];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[3]);
+      row_to_id[ctr]  = 3;
+      ++nze_ctr[3];
+      ++ctr;
+    }
+    if (multiplier[4] != 0) {
+      rows[ctr]       = wide_row[4];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[4]);
+      row_to_id[ctr]  = 4;
+      ++nze_ctr[4];
+      ++ctr;
+    }
+    if (multiplier[5] != 0) {
+      rows[ctr]       = wide_row[5];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[5]);
+      row_to_id[ctr]  = 5;
+      ++nze_ctr[5];
+      ++ctr;
+    }
+    if (ctr == 6)
+      update_wide_rows_six(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5], A,
+          mults[0], mults[1], mults[2], mults[3], mults[4], mults[5], i);
+    if (ctr == 5)
+      update_wide_rows_five(rows[0], rows[1], rows[2], rows[3], rows[4], A,
+          mults[0], mults[1], mults[2], mults[3], mults[4], i);
+    if (ctr == 4)
+      update_wide_rows_four(rows[0], rows[1], rows[2], rows[3], A, mults[0],
+          mults[1], mults[2], mults[3], i);
+    if (ctr == 3)
+      update_wide_rows_three(rows[0], rows[1], rows[2], A, mults[0],
+          mults[1], mults[2], i);
+    if (ctr == 2)
+      update_wide_rows(rows[0], rows[1], A, mults[0], mults[1], i);
+    if (ctr == 1)
+      update_wide_row(rows[0], A, mults[0], i);
+
+    for (j=0; j<ctr; ++j) {
+      wide_row[row_to_id[j]]     = rows[j]; 
+      wide_row[row_to_id[j]][i]  = mults[j]; 
+    }
+  }
+  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
+  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
+  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
+  multiplier[3] = MODP(wide_row[3][c_ncols-1], modulus);
+  multiplier[4] = MODP(wide_row[4][c_ncols-1], modulus);
+  multiplier[5] = MODP(wide_row[5][c_ncols-1], modulus);
+  if (multiplier[0] != 0) {
+    multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
+    nze_ctr[0]++;
+  }
+  if (multiplier[1] != 0) {
+    multiplier[1]  = (re_m_t)(modulus - multiplier[1]);
+    nze_ctr[1]++;
+  }
+  if (multiplier[2] != 0) {
+    multiplier[2]  = (re_m_t)(modulus - multiplier[2]);
+    nze_ctr[2]++;
+  }
+  if (multiplier[3] != 0) {
+    multiplier[3]  = (re_m_t)(modulus - multiplier[3]);
+    nze_ctr[3]++;
+  }
+  if (multiplier[4] != 0) {
+    multiplier[4]  = (re_m_t)(modulus - multiplier[4]);
+    nze_ctr[4]++;
+  }
+  if (multiplier[5] != 0) {
+    multiplier[5]  = (re_m_t)(modulus - multiplier[5]);
+    nze_ctr[5]++;
+  }
+  wide_row[0][c_ncols-1] = multiplier[0];
+  wide_row[1][c_ncols-1] = multiplier[1];
+  wide_row[2][c_ncols-1] = multiplier[2];
+  wide_row[3][c_ncols-1] = multiplier[3];
+  wide_row[4][c_ncols-1] = multiplier[4];
+  wide_row[5][c_ncols-1] = multiplier[5];
+
+  //printf("idx %u -- nze[0] = %u\n",idx0, nze_ctr[0]);
+  copy_wide_to_sparse_row(&C, wide_row[0], idx0, nze_ctr[0]);
+  //printf("idx %u -- nze[1] = %u\n", idx1, nze_ctr[1]);
+  copy_wide_to_sparse_row(&C, wide_row[1], idx1, nze_ctr[1]);
+  //printf("idx %u -- nze[2] = %u\n", idx2, nze_ctr[2]);
+  copy_wide_to_sparse_row(&C, wide_row[2], idx2, nze_ctr[2]);
+  //printf("idx %u -- nze[3] = %u\n", idx3, nze_ctr[3]);
+  copy_wide_to_sparse_row(&C, wide_row[3], idx3, nze_ctr[3]);
+  copy_wide_to_sparse_row(&C, wide_row[4], idx3, nze_ctr[4]);
+  copy_wide_to_sparse_row(&C, wide_row[5], idx3, nze_ctr[5]);
+
+  free(wide_row[0]);
+  free(wide_row[1]);
+  free(wide_row[2]);
+  free(wide_row[3]);
+  free(wide_row[4]);
+  free(wide_row[5]);
+  free(wide_row);
+
+  free(rows);
+  free(row_to_id);
+
+  return 0;
+}
+
+int elim_fl_C_sparse_dense_keep_A_tasks_eight(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx0, const ri_t idx1, const ri_t idx2, const ri_t idx3,
+    const ri_t idx4, const ri_t idx5, const ri_t idx6, const ri_t idx7,
+    const mod_t modulus)
+{
+  if (idx1 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, idx0, modulus);
+    return ret;
+  }
+  if (idx2 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, idx0, idx1, modulus);
+    return ret;
+  }
+  if (idx3 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_three(C, A, idx0, idx1, idx2, modulus);
+    return ret;
+  }
+  if (idx4 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    return ret;
+  }
+  if (idx5 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, idx4, modulus);
+    return ret;
+  }
+  if (idx6 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, idx4, idx5, modulus);
+    return ret;
+  }
+  if (idx7 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_three(C, A, idx4, idx5, idx6, modulus);
+    return ret;
+  }
+
+  ci_t i;
+  int j;
+  const ci_t c_ncols    = C->ncols;
+  ci_t min_01   = C->pos[idx0][0] < C->pos[idx1][0] ? C->pos[idx0][0] : C->pos[idx1][0];
+  ci_t min_23   = C->pos[idx2][0] < C->pos[idx3][0] ? C->pos[idx2][0] : C->pos[idx3][0];
+  ci_t min_45   = C->pos[idx4][0] < C->pos[idx5][0] ? C->pos[idx4][0] : C->pos[idx5][0];
+  ci_t min_67   = C->pos[idx6][0] < C->pos[idx7][0] ? C->pos[idx6][0] : C->pos[idx7][0];
+  ci_t min_0123  = min_01 < min_23 ? min_01 : min_23;
+  ci_t min_4567  = min_45 < min_67 ? min_45 : min_67;
+  const ci_t start_idx = min_0123 < min_4567 ? min_0123 : min_4567;
+  ci_t nze_ctr[8] = {0};
+  re_l_t **wide_row = (re_l_t **)malloc(8 * sizeof(re_l_t *));
+  re_m_t multiplier[8];
+  init_wide_rows(&wide_row[0], c_ncols);
+  init_wide_rows(&wide_row[1], c_ncols);
+  init_wide_rows(&wide_row[2], c_ncols);
+  init_wide_rows(&wide_row[3], c_ncols);
+  init_wide_rows(&wide_row[4], c_ncols);
+  init_wide_rows(&wide_row[5], c_ncols);
+  init_wide_rows(&wide_row[6], c_ncols);
+  init_wide_rows(&wide_row[7], c_ncols);
+  memset(wide_row[0], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[1], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[2], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[3], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[4], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[5], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[6], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[7], 0, c_ncols * sizeof(re_l_t));
+
+  re_l_t **rows   = (re_l_t **)malloc(8 * sizeof(re_l_t *));
+  re_m_t *mults   = (re_m_t *)malloc(8 * sizeof(re_m_t));
+  int *row_to_id  = (int *)malloc(8 * sizeof(int));
+  int ctr;
+
+  copy_sparse_to_wide_row(wide_row[0], C, idx0);
+  copy_sparse_to_wide_row(wide_row[1], C, idx1);
+  copy_sparse_to_wide_row(wide_row[2], C, idx2);
+  copy_sparse_to_wide_row(wide_row[3], C, idx3);
+  copy_sparse_to_wide_row(wide_row[4], C, idx4);
+  copy_sparse_to_wide_row(wide_row[5], C, idx5);
+  copy_sparse_to_wide_row(wide_row[6], C, idx6);
+  copy_sparse_to_wide_row(wide_row[7], C, idx7);
+  for (i=start_idx; i<c_ncols-1; ++i) {
+    ctr = 0;
+    multiplier[0] = MODP(wide_row[0][i], modulus);
+    multiplier[1] = MODP(wide_row[1][i], modulus);
+    multiplier[2] = MODP(wide_row[2][i], modulus);
+    multiplier[3] = MODP(wide_row[3][i], modulus);
+    multiplier[4] = MODP(wide_row[4][i], modulus);
+    multiplier[5] = MODP(wide_row[5][i], modulus);
+    multiplier[6] = MODP(wide_row[6][i], modulus);
+    multiplier[7] = MODP(wide_row[7][i], modulus);
+
+    wide_row[0][i] = 0;
+    wide_row[1][i] = 0;
+    wide_row[2][i] = 0;
+    wide_row[3][i] = 0;
+    wide_row[4][i] = 0;
+    wide_row[5][i] = 0;
+    wide_row[6][i] = 0;
+    wide_row[7][i] = 0;
+
+    if (multiplier[0] == 0 && multiplier[1] == 0 && multiplier[2] == 0 && multiplier[3] == 0 &&
+        multiplier[4] == 0 && multiplier[5] == 0 && multiplier[6] == 0 && multiplier[7] == 0)
+      continue;
+    if (multiplier[0] != 0) {
+      rows[ctr]       = wide_row[0];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[0]);
+      row_to_id[ctr]  = 0;
+      ++nze_ctr[0];
+      ++ctr;
+    }
+    if (multiplier[1] != 0) {
+      rows[ctr]       = wide_row[1];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[1]);
+      row_to_id[ctr]  = 1;
+      ++nze_ctr[1];
+      ++ctr;
+    }
+    if (multiplier[2] != 0) {
+      rows[ctr]       = wide_row[2];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[2]);
+      row_to_id[ctr]  = 2;
+      ++nze_ctr[2];
+      ++ctr;
+    }
+    if (multiplier[3] != 0) {
+      rows[ctr]       = wide_row[3];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[3]);
+      row_to_id[ctr]  = 3;
+      ++nze_ctr[3];
+      ++ctr;
+    }
+    if (multiplier[4] != 0) {
+      rows[ctr]       = wide_row[4];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[4]);
+      row_to_id[ctr]  = 4;
+      ++nze_ctr[4];
+      ++ctr;
+    }
+    if (multiplier[5] != 0) {
+      rows[ctr]       = wide_row[5];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[5]);
+      row_to_id[ctr]  = 5;
+      ++nze_ctr[5];
+      ++ctr;
+    }
+    if (multiplier[6] != 0) {
+      rows[ctr]       = wide_row[6];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[6]);
+      row_to_id[ctr]  = 6;
+      ++nze_ctr[6];
+      ++ctr;
+    }
+    if (multiplier[7] != 0) {
+      rows[ctr]       = wide_row[7];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[7]);
+      row_to_id[ctr]  = 7;
+      ++nze_ctr[7];
+      ++ctr;
+    }
+    if (ctr == 8)
+      update_wide_rows_eight(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5],
+          rows[6], rows[7], A, mults[0], mults[1], mults[2], mults[3], mults[4],
+          mults[5], mults[6], mults[7], i);
+    if (ctr == 7)
+      update_wide_rows_seven(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5],
+          rows[6], A, mults[0], mults[1], mults[2], mults[3], mults[4], mults[5],
+          mults[6], i);
+    if (ctr == 6)
+      update_wide_rows_six(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5], A,
+          mults[0], mults[1], mults[2], mults[3], mults[4], mults[5], i);
+    if (ctr == 5)
+      update_wide_rows_five(rows[0], rows[1], rows[2], rows[3], rows[4], A,
+          mults[0], mults[1], mults[2], mults[3], mults[4], i);
+    if (ctr == 4)
+      update_wide_rows_four(rows[0], rows[1], rows[2], rows[3], A, mults[0],
+          mults[1], mults[2], mults[3], i);
+    if (ctr == 3)
+      update_wide_rows_three(rows[0], rows[1], rows[2], A, mults[0],
+          mults[1], mults[2], i);
+    if (ctr == 2)
+      update_wide_rows(rows[0], rows[1], A, mults[0], mults[1], i);
+    if (ctr == 1)
+      update_wide_row(rows[0], A, mults[0], i);
+
+    for (j=0; j<ctr; ++j) {
+      wide_row[row_to_id[j]]     = rows[j]; 
+      wide_row[row_to_id[j]][i]  = mults[j]; 
+    }
+  }
+  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
+  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
+  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
+  multiplier[3] = MODP(wide_row[3][c_ncols-1], modulus);
+  multiplier[4] = MODP(wide_row[4][c_ncols-1], modulus);
+  multiplier[5] = MODP(wide_row[5][c_ncols-1], modulus);
+  multiplier[6] = MODP(wide_row[6][c_ncols-1], modulus);
+  multiplier[7] = MODP(wide_row[7][c_ncols-1], modulus);
+  if (multiplier[0] != 0) {
+    multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
+    nze_ctr[0]++;
+  }
+  if (multiplier[1] != 0) {
+    multiplier[1]  = (re_m_t)(modulus - multiplier[1]);
+    nze_ctr[1]++;
+  }
+  if (multiplier[2] != 0) {
+    multiplier[2]  = (re_m_t)(modulus - multiplier[2]);
+    nze_ctr[2]++;
+  }
+  if (multiplier[3] != 0) {
+    multiplier[3]  = (re_m_t)(modulus - multiplier[3]);
+    nze_ctr[3]++;
+  }
+  if (multiplier[4] != 0) {
+    multiplier[4]  = (re_m_t)(modulus - multiplier[4]);
+    nze_ctr[4]++;
+  }
+  if (multiplier[5] != 0) {
+    multiplier[5]  = (re_m_t)(modulus - multiplier[5]);
+    nze_ctr[5]++;
+  }
+  if (multiplier[6] != 0) {
+    multiplier[6]  = (re_m_t)(modulus - multiplier[6]);
+    nze_ctr[6]++;
+  }
+  if (multiplier[7] != 0) {
+    multiplier[7]  = (re_m_t)(modulus - multiplier[7]);
+    nze_ctr[7]++;
+  }
+  wide_row[0][c_ncols-1] = multiplier[0];
+  wide_row[1][c_ncols-1] = multiplier[1];
+  wide_row[2][c_ncols-1] = multiplier[2];
+  wide_row[3][c_ncols-1] = multiplier[3];
+  wide_row[4][c_ncols-1] = multiplier[4];
+  wide_row[5][c_ncols-1] = multiplier[5];
+  wide_row[6][c_ncols-1] = multiplier[6];
+  wide_row[7][c_ncols-1] = multiplier[7];
+
+  //printf("idx %u -- nze[0] = %u\n",idx0, nze_ctr[0]);
+  copy_wide_to_sparse_row(&C, wide_row[0], idx0, nze_ctr[0]);
+  //printf("idx %u -- nze[1] = %u\n", idx1, nze_ctr[1]);
+  copy_wide_to_sparse_row(&C, wide_row[1], idx1, nze_ctr[1]);
+  //printf("idx %u -- nze[2] = %u\n", idx2, nze_ctr[2]);
+  copy_wide_to_sparse_row(&C, wide_row[2], idx2, nze_ctr[2]);
+  //printf("idx %u -- nze[3] = %u\n", idx3, nze_ctr[3]);
+  copy_wide_to_sparse_row(&C, wide_row[3], idx3, nze_ctr[3]);
+  copy_wide_to_sparse_row(&C, wide_row[4], idx3, nze_ctr[4]);
+  copy_wide_to_sparse_row(&C, wide_row[5], idx3, nze_ctr[5]);
+  copy_wide_to_sparse_row(&C, wide_row[6], idx3, nze_ctr[6]);
+  copy_wide_to_sparse_row(&C, wide_row[7], idx3, nze_ctr[7]);
+
+  free(wide_row[0]);
+  free(wide_row[1]);
+  free(wide_row[2]);
+  free(wide_row[3]);
+  free(wide_row[4]);
+  free(wide_row[5]);
+  free(wide_row[6]);
+  free(wide_row[7]);
+  free(wide_row);
+
+  free(rows);
+  free(row_to_id);
+
+  return 0;
+}
+
+int elim_fl_C_sparse_dense_keep_A_tasks_ten(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx0, const ri_t idx1, const ri_t idx2, const ri_t idx3,
+    const ri_t idx4, const ri_t idx5, const ri_t idx6, const ri_t idx7,
+    const ri_t idx8, const ri_t idx9, const mod_t modulus)
+{
+  if (idx1 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, idx0, modulus);
+    return ret;
+  }
+  if (idx2 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, idx0, idx1, modulus);
+    return ret;
+  }
+  if (idx3 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_three(C, A, idx0, idx1, idx2, modulus);
+    return ret;
+  }
+  if (idx4 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    return ret;
+  }
+  if (idx5 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, idx4, modulus);
+    return ret;
+  }
+  if (idx6 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, idx4, idx5, modulus);
+    return ret;
+  }
+  if (idx7 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_three(C, A, idx4, idx5, idx6, modulus);
+    return ret;
+  }
+  if (idx8 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx4, idx5, idx6, idx7, modulus);
+    return ret;
+  }
+  if (idx9 >= C->nrows) {
+    int ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx0, idx1, idx2, idx3, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, idx4, idx5, idx6, idx7, modulus);
+    ret = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, idx8, modulus);
+    return ret;
+  }
+
+  ci_t i;
+  int j;
+  const ci_t c_ncols    = C->ncols;
+  ci_t min_01   = C->pos[idx0][0] < C->pos[idx1][0] ? C->pos[idx0][0] : C->pos[idx1][0];
+  ci_t min_23   = C->pos[idx2][0] < C->pos[idx3][0] ? C->pos[idx2][0] : C->pos[idx3][0];
+  ci_t min_45   = C->pos[idx4][0] < C->pos[idx5][0] ? C->pos[idx4][0] : C->pos[idx5][0];
+  ci_t min_67   = C->pos[idx6][0] < C->pos[idx7][0] ? C->pos[idx6][0] : C->pos[idx7][0];
+  ci_t min_89   = C->pos[idx8][0] < C->pos[idx9][0] ? C->pos[idx8][0] : C->pos[idx9][0];
+  ci_t min_0123  = min_01 < min_23 ? min_01 : min_23;
+  ci_t min_4567  = min_45 < min_67 ? min_45 : min_67;
+  ci_t min_01234567  = min_0123 < min_4567 ? min_0123 : min_4567;
+  const ci_t start_idx  = min_01234567 < min_89 ? min_01234567 : min_89;
+  ci_t nze_ctr[10] = {0};
+  re_l_t **wide_row = (re_l_t **)malloc(10 * sizeof(re_l_t *));
+  re_m_t multiplier[10];
+  init_wide_rows(&wide_row[0], c_ncols);
+  init_wide_rows(&wide_row[1], c_ncols);
+  init_wide_rows(&wide_row[2], c_ncols);
+  init_wide_rows(&wide_row[3], c_ncols);
+  init_wide_rows(&wide_row[4], c_ncols);
+  init_wide_rows(&wide_row[5], c_ncols);
+  init_wide_rows(&wide_row[6], c_ncols);
+  init_wide_rows(&wide_row[7], c_ncols);
+  init_wide_rows(&wide_row[8], c_ncols);
+  init_wide_rows(&wide_row[9], c_ncols);
+  memset(wide_row[0], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[1], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[2], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[3], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[4], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[5], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[6], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[7], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[8], 0, c_ncols * sizeof(re_l_t));
+  memset(wide_row[9], 0, c_ncols * sizeof(re_l_t));
+
+  re_l_t **rows   = (re_l_t **)malloc(10 * sizeof(re_l_t *));
+  re_m_t *mults   = (re_m_t *)malloc(10 * sizeof(re_m_t));
+  int *row_to_id  = (int *)malloc(10 * sizeof(int));
+  int ctr;
+
+  copy_sparse_to_wide_row(wide_row[0], C, idx0);
+  copy_sparse_to_wide_row(wide_row[1], C, idx1);
+  copy_sparse_to_wide_row(wide_row[2], C, idx2);
+  copy_sparse_to_wide_row(wide_row[3], C, idx3);
+  copy_sparse_to_wide_row(wide_row[4], C, idx4);
+  copy_sparse_to_wide_row(wide_row[5], C, idx5);
+  copy_sparse_to_wide_row(wide_row[6], C, idx6);
+  copy_sparse_to_wide_row(wide_row[7], C, idx7);
+  copy_sparse_to_wide_row(wide_row[8], C, idx8);
+  copy_sparse_to_wide_row(wide_row[9], C, idx9);
+  for (i=start_idx; i<c_ncols-1; ++i) {
+    ctr = 0;
+    multiplier[0] = MODP(wide_row[0][i], modulus);
+    multiplier[1] = MODP(wide_row[1][i], modulus);
+    multiplier[2] = MODP(wide_row[2][i], modulus);
+    multiplier[3] = MODP(wide_row[3][i], modulus);
+    multiplier[4] = MODP(wide_row[4][i], modulus);
+    multiplier[5] = MODP(wide_row[5][i], modulus);
+    multiplier[6] = MODP(wide_row[6][i], modulus);
+    multiplier[7] = MODP(wide_row[7][i], modulus);
+    multiplier[8] = MODP(wide_row[8][i], modulus);
+    multiplier[9] = MODP(wide_row[9][i], modulus);
+
+    wide_row[0][i] = 0;
+    wide_row[1][i] = 0;
+    wide_row[2][i] = 0;
+    wide_row[3][i] = 0;
+    wide_row[4][i] = 0;
+    wide_row[5][i] = 0;
+    wide_row[6][i] = 0;
+    wide_row[7][i] = 0;
+    wide_row[8][i] = 0;
+    wide_row[9][i] = 0;
+
+    if (multiplier[0] == 0 && multiplier[1] == 0 && multiplier[2] == 0 && multiplier[3] == 0 &&
+        multiplier[4] == 0 && multiplier[5] == 0 && multiplier[6] == 0 && multiplier[7] == 0 &&
+        multiplier[8] == 0 && multiplier[9] == 0)
+      continue;
+    if (multiplier[0] != 0) {
+      rows[ctr]       = wide_row[0];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[0]);
+      row_to_id[ctr]  = 0;
+      ++nze_ctr[0];
+      ++ctr;
+    }
+    if (multiplier[1] != 0) {
+      rows[ctr]       = wide_row[1];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[1]);
+      row_to_id[ctr]  = 1;
+      ++nze_ctr[1];
+      ++ctr;
+    }
+    if (multiplier[2] != 0) {
+      rows[ctr]       = wide_row[2];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[2]);
+      row_to_id[ctr]  = 2;
+      ++nze_ctr[2];
+      ++ctr;
+    }
+    if (multiplier[3] != 0) {
+      rows[ctr]       = wide_row[3];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[3]);
+      row_to_id[ctr]  = 3;
+      ++nze_ctr[3];
+      ++ctr;
+    }
+    if (multiplier[4] != 0) {
+      rows[ctr]       = wide_row[4];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[4]);
+      row_to_id[ctr]  = 4;
+      ++nze_ctr[4];
+      ++ctr;
+    }
+    if (multiplier[5] != 0) {
+      rows[ctr]       = wide_row[5];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[5]);
+      row_to_id[ctr]  = 5;
+      ++nze_ctr[5];
+      ++ctr;
+    }
+    if (multiplier[6] != 0) {
+      rows[ctr]       = wide_row[6];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[6]);
+      row_to_id[ctr]  = 6;
+      ++nze_ctr[6];
+      ++ctr;
+    }
+    if (multiplier[7] != 0) {
+      rows[ctr]       = wide_row[7];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[7]);
+      row_to_id[ctr]  = 7;
+      ++nze_ctr[7];
+      ++ctr;
+    }
+    if (multiplier[8] != 0) {
+      rows[ctr]       = wide_row[8];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[8]);
+      row_to_id[ctr]  = 8;
+      ++nze_ctr[8];
+      ++ctr;
+    }
+    if (multiplier[9] != 0) {
+      rows[ctr]       = wide_row[9];
+      mults[ctr]      = (re_m_t)(modulus - multiplier[9]);
+      row_to_id[ctr]  = 9;
+      ++nze_ctr[9];
+      ++ctr;
+    }
+    if (ctr == 10)
+      update_wide_rows_ten(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5],
+          rows[6], rows[7], rows[8], rows[9], A, mults[0], mults[1], mults[2], mults[3],
+          mults[4], mults[5], mults[6], mults[7], mults[8], mults[9], i);
+    if (ctr == 9)
+      update_wide_rows_nine(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5],
+          rows[6], rows[7], rows[8], A, mults[0], mults[1], mults[2], mults[3],
+          mults[4], mults[5], mults[6], mults[7], mults[8], i);
+    if (ctr == 8)
+      update_wide_rows_eight(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5],
+          rows[6], rows[7], A, mults[0], mults[1], mults[2], mults[3], mults[4],
+          mults[5], mults[6], mults[7], i);
+    if (ctr == 7)
+      update_wide_rows_seven(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5],
+          rows[6], A, mults[0], mults[1], mults[2], mults[3], mults[4], mults[5],
+          mults[6], i);
+    if (ctr == 6)
+      update_wide_rows_six(rows[0], rows[1], rows[2], rows[3], rows[4], rows[5], A,
+          mults[0], mults[1], mults[2], mults[3], mults[4], mults[5], i);
+    if (ctr == 5)
+      update_wide_rows_five(rows[0], rows[1], rows[2], rows[3], rows[4], A,
+          mults[0], mults[1], mults[2], mults[3], mults[4], i);
+    if (ctr == 4)
+      update_wide_rows_four(rows[0], rows[1], rows[2], rows[3], A, mults[0],
+          mults[1], mults[2], mults[3], i);
+    if (ctr == 3)
+      update_wide_rows_three(rows[0], rows[1], rows[2], A, mults[0],
+          mults[1], mults[2], i);
+    if (ctr == 2)
+      update_wide_rows(rows[0], rows[1], A, mults[0], mults[1], i);
+    if (ctr == 1)
+      update_wide_row(rows[0], A, mults[0], i);
+
+    for (j=0; j<ctr; ++j) {
+      wide_row[row_to_id[j]]     = rows[j]; 
+      wide_row[row_to_id[j]][i]  = mults[j]; 
+    }
+  }
+  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
+  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
+  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
+  multiplier[3] = MODP(wide_row[3][c_ncols-1], modulus);
+  multiplier[4] = MODP(wide_row[4][c_ncols-1], modulus);
+  multiplier[5] = MODP(wide_row[5][c_ncols-1], modulus);
+  multiplier[6] = MODP(wide_row[6][c_ncols-1], modulus);
+  multiplier[7] = MODP(wide_row[7][c_ncols-1], modulus);
+  multiplier[8] = MODP(wide_row[8][c_ncols-1], modulus);
+  multiplier[9] = MODP(wide_row[9][c_ncols-1], modulus);
+  if (multiplier[0] != 0) {
+    multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
+    nze_ctr[0]++;
+  }
+  if (multiplier[1] != 0) {
+    multiplier[1]  = (re_m_t)(modulus - multiplier[1]);
+    nze_ctr[1]++;
+  }
+  if (multiplier[2] != 0) {
+    multiplier[2]  = (re_m_t)(modulus - multiplier[2]);
+    nze_ctr[2]++;
+  }
+  if (multiplier[3] != 0) {
+    multiplier[3]  = (re_m_t)(modulus - multiplier[3]);
+    nze_ctr[3]++;
+  }
+  if (multiplier[4] != 0) {
+    multiplier[4]  = (re_m_t)(modulus - multiplier[4]);
+    nze_ctr[4]++;
+  }
+  if (multiplier[5] != 0) {
+    multiplier[5]  = (re_m_t)(modulus - multiplier[5]);
+    nze_ctr[5]++;
+  }
+  if (multiplier[6] != 0) {
+    multiplier[6]  = (re_m_t)(modulus - multiplier[6]);
+    nze_ctr[6]++;
+  }
+  if (multiplier[7] != 0) {
+    multiplier[7]  = (re_m_t)(modulus - multiplier[7]);
+    nze_ctr[7]++;
+  }
+  if (multiplier[8] != 0) {
+    multiplier[8]  = (re_m_t)(modulus - multiplier[8]);
+    nze_ctr[8]++;
+  }
+  if (multiplier[9] != 0) {
+    multiplier[9]  = (re_m_t)(modulus - multiplier[9]);
+    nze_ctr[9]++;
+  }
+  wide_row[0][c_ncols-1] = multiplier[0];
+  wide_row[1][c_ncols-1] = multiplier[1];
+  wide_row[2][c_ncols-1] = multiplier[2];
+  wide_row[3][c_ncols-1] = multiplier[3];
+  wide_row[4][c_ncols-1] = multiplier[4];
+  wide_row[5][c_ncols-1] = multiplier[5];
+  wide_row[6][c_ncols-1] = multiplier[6];
+  wide_row[7][c_ncols-1] = multiplier[7];
+  wide_row[8][c_ncols-1] = multiplier[8];
+  wide_row[9][c_ncols-1] = multiplier[9];
+
+  //printf("idx %u -- nze[0] = %u\n",idx0, nze_ctr[0]);
+  copy_wide_to_sparse_row(&C, wide_row[0], idx0, nze_ctr[0]);
+  //printf("idx %u -- nze[1] = %u\n", idx1, nze_ctr[1]);
+  copy_wide_to_sparse_row(&C, wide_row[1], idx1, nze_ctr[1]);
+  //printf("idx %u -- nze[2] = %u\n", idx2, nze_ctr[2]);
+  copy_wide_to_sparse_row(&C, wide_row[2], idx2, nze_ctr[2]);
+  //printf("idx %u -- nze[3] = %u\n", idx3, nze_ctr[3]);
+  copy_wide_to_sparse_row(&C, wide_row[3], idx3, nze_ctr[3]);
+  copy_wide_to_sparse_row(&C, wide_row[4], idx3, nze_ctr[4]);
+  copy_wide_to_sparse_row(&C, wide_row[5], idx3, nze_ctr[5]);
+  copy_wide_to_sparse_row(&C, wide_row[6], idx3, nze_ctr[6]);
+  copy_wide_to_sparse_row(&C, wide_row[7], idx3, nze_ctr[7]);
+  copy_wide_to_sparse_row(&C, wide_row[8], idx3, nze_ctr[8]);
+  copy_wide_to_sparse_row(&C, wide_row[9], idx3, nze_ctr[9]);
+
+  free(wide_row[0]);
+  free(wide_row[1]);
+  free(wide_row[2]);
+  free(wide_row[3]);
+  free(wide_row[4]);
+  free(wide_row[5]);
+  free(wide_row[6]);
+  free(wide_row[7]);
+  free(wide_row[8]);
+  free(wide_row[9]);
+  free(wide_row);
+
+  free(rows);
+  free(row_to_id);
+
+  return 0;
+}
+
 int elim_fl_C_sparse_dense_keep_A_tasks_four(sm_fl_t *C, const sm_fl_t *A,
     const ri_t idx0, const ri_t idx1, const ri_t idx2, const ri_t idx3,
     const mod_t modulus)
@@ -2538,7 +3408,7 @@ int elim_fl_C_sparse_dense_keep_A_tasks_four(sm_fl_t *C, const sm_fl_t *A,
   ci_t min_01   = C->pos[idx0][0] < C->pos[idx1][0] ? C->pos[idx0][0] : C->pos[idx1][0];
   ci_t min_012  = C->pos[idx2][0] < min_01 ? C->pos[idx2][0] : min_01;
   const ci_t start_idx  = C->pos[idx3][0] < min_012 ? C->pos[idx3][0] : min_012;
-  ci_t nze_ctr[4];
+  ci_t nze_ctr[4] = {0};
   re_l_t **wide_row = (re_l_t **)malloc(4 * sizeof(re_l_t *));
   re_m_t multiplier[4];
   init_wide_rows(&wide_row[0], c_ncols);
@@ -2565,7 +3435,7 @@ int elim_fl_C_sparse_dense_keep_A_tasks_four(sm_fl_t *C, const sm_fl_t *A,
     multiplier[1] = MODP(wide_row[1][i], modulus);
     multiplier[2] = MODP(wide_row[2][i], modulus);
     multiplier[3] = MODP(wide_row[3][i], modulus);
-#if 1
+
     wide_row[0][i] = 0;
     wide_row[1][i] = 0;
     wide_row[2][i] = 0;
@@ -2641,9 +3511,13 @@ int elim_fl_C_sparse_dense_keep_A_tasks_four(sm_fl_t *C, const sm_fl_t *A,
   wide_row[2][c_ncols-1] = multiplier[2];
   wide_row[3][c_ncols-1] = multiplier[3];
 
+  //printf("idx %u -- nze[0] = %u\n",idx0, nze_ctr[0]);
   copy_wide_to_sparse_row(&C, wide_row[0], idx0, nze_ctr[0]);
+  //printf("idx %u -- nze[1] = %u\n", idx1, nze_ctr[1]);
   copy_wide_to_sparse_row(&C, wide_row[1], idx1, nze_ctr[1]);
+  //printf("idx %u -- nze[2] = %u\n", idx2, nze_ctr[2]);
   copy_wide_to_sparse_row(&C, wide_row[2], idx2, nze_ctr[2]);
+  //printf("idx %u -- nze[3] = %u\n", idx3, nze_ctr[3]);
   copy_wide_to_sparse_row(&C, wide_row[3], idx3, nze_ctr[3]);
 
   free(wide_row[0]);
@@ -2654,96 +3528,6 @@ int elim_fl_C_sparse_dense_keep_A_tasks_four(sm_fl_t *C, const sm_fl_t *A,
 
   free(rows);
   free(row_to_id);
-#else
-    if (multiplier[0] == 0 && multiplier[1] == 0 && multiplier[2] == 0) {
-      wide_row[0][i] = multiplier[0];
-      wide_row[1][i] = multiplier[1];
-      wide_row[2][i] = multiplier[2];
-      continue;
-    }
-    if (multiplier1 != 0 && multiplier2 != 0 && multiplier3 != 0) {
-      multiplier1  = (re_m_t)(modulus - multiplier1);
-      multiplier2  = (re_m_t)(modulus - multiplier2);
-      multiplier3  = (re_m_t)(modulus - multiplier3);
-      update_wide_rows_three(wide_row1, wide_row2, wide_row3, A,
-          multiplier1, multiplier2, multiplier3, i);
-      nze_ctr1++;
-      nze_ctr2++;
-      nze_ctr3++;
-    } else {
-      if (multiplier1 != 0) {
-        if (multiplier2 != 0 && multiplier3 == 0) {
-          multiplier1  = (re_m_t)(modulus - multiplier1);
-          multiplier2  = (re_m_t)(modulus - multiplier2);
-          update_wide_rows(wide_row1, wide_row2, A, multiplier1, multiplier2, i);
-          nze_ctr1++;
-          nze_ctr2++;
-        }
-        if (multiplier2 == 0 && multiplier3 != 0) {
-          multiplier1  = (re_m_t)(modulus - multiplier1);
-          multiplier3  = (re_m_t)(modulus - multiplier3);
-          update_wide_rows(wide_row1, wide_row3, A, multiplier1, multiplier3, i);
-          nze_ctr1++;
-          nze_ctr3++;
-        }
-        if (multiplier2 == 0 && multiplier3 == 0) {
-          multiplier1  = (re_m_t)(modulus - multiplier1);
-          update_wide_row(wide_row1, A, multiplier1, i);
-          nze_ctr1++;
-        }
-      } else {
-        if (multiplier2 != 0 && multiplier3 != 0) {
-          multiplier2  = (re_m_t)(modulus - multiplier2);
-          multiplier3  = (re_m_t)(modulus - multiplier3);
-          update_wide_rows(wide_row2, wide_row3, A, multiplier2, multiplier3, i);
-          nze_ctr2++;
-          nze_ctr3++;
-        }
-        if (multiplier2 != 0 && multiplier3 == 0) {
-          multiplier2  = (re_m_t)(modulus - multiplier2);
-          update_wide_row(wide_row2, A, multiplier2, i);
-          nze_ctr2++;
-        }
-        if (multiplier2 == 0 && multiplier3 != 0) {
-          multiplier3  = (re_m_t)(modulus - multiplier3);
-          update_wide_row(wide_row3, A, multiplier3, i);
-          nze_ctr3++;
-        }
-     }
-    }
-    wide_row1[i] = multiplier1;
-    wide_row2[i] = multiplier2;
-    wide_row3[i] = multiplier3;
-  }
-  multiplier1          = MODP(wide_row1[c_ncols-1], modulus);
-  multiplier2          = MODP(wide_row2[c_ncols-1], modulus);
-  multiplier3          = MODP(wide_row3[c_ncols-1], modulus);
-  if (multiplier1 != 0) {
-    multiplier1  = (re_m_t)(modulus - multiplier1);
-    nze_ctr1++;
-  }
-  if (multiplier2 != 0) {
-    multiplier2  = (re_m_t)(modulus - multiplier2);
-    nze_ctr2++;
-  }
-  if (multiplier3 != 0) {
-    multiplier3  = (re_m_t)(modulus - multiplier3);
-    nze_ctr3++;
-  }
-  wide_row1[c_ncols-1] = multiplier1;
-  wide_row2[c_ncols-1] = multiplier2;
-  wide_row3[c_ncols-1] = multiplier3;
-  copy_wide_to_sparse_row(&C, wide_row1, idx1, nze_ctr1);
-  copy_wide_to_sparse_row(&C, wide_row2, idx2, nze_ctr2);
-  copy_wide_to_sparse_row(&C, wide_row3, idx3, nze_ctr3);
-
-  free(wide_row1);
-  free(wide_row2);
-  free(wide_row3);
-
-  free(rows);
-  free(row_to_id);
-#endif
 
   return 0;
 }

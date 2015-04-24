@@ -256,12 +256,14 @@ static inline void copy_dense_to_wide_block(re_t *dense_block,
 static inline void copy_sparse_to_wide_row(re_l_t *wide_row, const sm_fl_t *A,
     const ri_t idx)
 {
-  int i;
-  for (i=0; i<A->sz[idx]-3; i = i+4) {
-    wide_row[A->pos[idx][i]]    = (re_l_t)A->row[idx][i];
-    wide_row[A->pos[idx][i+1]]  = (re_l_t)A->row[idx][i+1];
-    wide_row[A->pos[idx][i+2]]  = (re_l_t)A->row[idx][i+2];
-    wide_row[A->pos[idx][i+3]]  = (re_l_t)A->row[idx][i+3];
+  ci_t i = 0;
+  if (A->sz[idx] > 3) {
+    for (; i<A->sz[idx]-3; i = i+4) {
+      wide_row[A->pos[idx][i]]    = (re_l_t)A->row[idx][i];
+      wide_row[A->pos[idx][i+1]]  = (re_l_t)A->row[idx][i+1];
+      wide_row[A->pos[idx][i+2]]  = (re_l_t)A->row[idx][i+2];
+      wide_row[A->pos[idx][i+3]]  = (re_l_t)A->row[idx][i+3];
+    }
   }
   for (; i<A->sz[idx]; ++i)
     wide_row[A->pos[idx][i]]    = (re_l_t)A->row[idx][i];
@@ -810,6 +812,594 @@ static inline void update_wide_rows_three(re_l_t *wide_row1, re_l_t *wide_row2,
     wide_row1[a_idx1] += m1 * a_elt1;
     wide_row2[a_idx1] += m2 * a_elt1;
     wide_row3[a_idx1] += m3 * a_elt1;
+  }
+}
+
+/**
+ * \brief Takes ten wide rows and updates it with multiples of a row from A
+ * corresponding to the column position pos defined by the first non zero entry
+ * in wide_row.
+ *
+ * \param wide row storing the result wide_row1
+ *
+ * \param wide row storing the result wide_row2
+ *
+ * \param wide row storing the result wide_row3
+ *
+ * \param wide row storing the result wide_row4
+ *
+ * \param wide row storing the result wide_row5
+ *
+ * \param wide row storing the result wide_row6
+ *
+ * \param wide row storing the result wide_row7
+ *
+ * \param wide row storing the result wide_row8
+ *
+ * \param wide row storing the result wide_row9
+ *
+ * \param wide row storing the result wide_row10
+ * 
+ * \param sparse block matrix to update wide row A
+ *
+ * \param multiplier from C multiplier1
+ *
+ * \param multiplier from C multiplier2
+ *
+ * \param multiplier from C multiplier3
+ *
+ * \param multiplier from C multiplier4
+ *
+ * \param multiplier from C multiplier5
+ *
+ * \param multiplier from C multiplier6
+ *
+ * \param multiplier from C multiplier7
+ *
+ * \param multiplier from C multiplier8
+ *
+ * \param multiplier from C multiplier9
+ *
+ * \param multiplier from C multiplier10
+ *
+ * \param column position in wide_row resp. corresponding row index in A pos
+ */
+static inline void update_wide_rows_ten(re_l_t *wide_row1, re_l_t *wide_row2,
+    re_l_t *wide_row3, re_l_t *wide_row4, re_l_t *wide_row5, re_l_t *wide_row6,
+    re_l_t *wide_row7, re_l_t *wide_row8, re_l_t *wide_row9, re_l_t *wide_row10,
+    const sm_fl_t *A,
+    const re_m_t multiplier1, const re_m_t multiplier2, const re_m_t multiplier3,
+    const re_m_t multiplier4, const re_m_t multiplier5, const re_m_t multiplier6,
+    const re_m_t multiplier7, const re_m_t multiplier8, const re_m_t multiplier9,
+    const re_m_t multiplier10, const ci_t idx)
+{
+  ci_t i;
+  const ri_t row_idx  = A->nrows - idx - 1;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
+  register const re_m_t m2  = multiplier2;
+  register const re_m_t m3  = multiplier3;
+  register const re_m_t m4  = multiplier4;
+  register const re_m_t m5  = multiplier5;
+  register const re_m_t m6  = multiplier6;
+  register const re_m_t m7  = multiplier7;
+  register const re_m_t m8  = multiplier8;
+  register const re_m_t m9  = multiplier9;
+  register const re_m_t m10 = multiplier10;
+  
+  // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
+  // cancel out the element at this position in wide_row
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row3[a_idx1] += m3 * a_elt1;
+      wide_row3[a_idx2] += m3 * a_elt2;
+      wide_row4[a_idx1] += m4 * a_elt1;
+      wide_row4[a_idx2] += m4 * a_elt2;
+      wide_row5[a_idx1] += m5 * a_elt1;
+      wide_row5[a_idx2] += m5 * a_elt2;
+      wide_row6[a_idx1] += m6 * a_elt1;
+      wide_row6[a_idx2] += m6 * a_elt2;
+      wide_row7[a_idx1] += m7 * a_elt1;
+      wide_row7[a_idx2] += m7 * a_elt2;
+      wide_row8[a_idx1] += m8 * a_elt1;
+      wide_row8[a_idx2] += m8 * a_elt2;
+      wide_row9[a_idx1] += m9 * a_elt1;
+      wide_row9[a_idx2] += m9 * a_elt2;
+      wide_row10[a_idx1] += m10 * a_elt1;
+      wide_row10[a_idx2] += m10 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += m1 * a_elt1;
+    wide_row2[a_idx1] += m2 * a_elt1;
+    wide_row3[a_idx1] += m3 * a_elt1;
+    wide_row4[a_idx1] += m4 * a_elt1;
+    wide_row5[a_idx1] += m5 * a_elt1;
+    wide_row6[a_idx1] += m6 * a_elt1;
+    wide_row7[a_idx1] += m7 * a_elt1;
+    wide_row8[a_idx1] += m8 * a_elt1;
+    wide_row9[a_idx1] += m9 * a_elt1;
+    wide_row10[a_idx1] += m10 * a_elt1;
+  }
+}
+
+/**
+ * \brief Takes nine wide rows and updates it with multiples of a row from A
+ * corresponding to the column position pos defined by the first non zero entry
+ * in wide_row.
+ *
+ * \param wide row storing the result wide_row1
+ *
+ * \param wide row storing the result wide_row2
+ *
+ * \param wide row storing the result wide_row3
+ *
+ * \param wide row storing the result wide_row4
+ *
+ * \param wide row storing the result wide_row5
+ *
+ * \param wide row storing the result wide_row6
+ *
+ * \param wide row storing the result wide_row7
+ *
+ * \param wide row storing the result wide_row8
+ *
+ * \param wide row storing the result wide_row9
+ * 
+ * \param sparse block matrix to update wide row A
+ *
+ * \param multiplier from C multiplier1
+ *
+ * \param multiplier from C multiplier2
+ *
+ * \param multiplier from C multiplier3
+ *
+ * \param multiplier from C multiplier4
+ *
+ * \param multiplier from C multiplier5
+ *
+ * \param multiplier from C multiplier6
+ *
+ * \param multiplier from C multiplier7
+ *
+ * \param multiplier from C multiplier8
+ *
+ * \param multiplier from C multiplier9
+ *
+ * \param column position in wide_row resp. corresponding row index in A pos
+ */
+static inline void update_wide_rows_nine(re_l_t *wide_row1, re_l_t *wide_row2,
+    re_l_t *wide_row3, re_l_t *wide_row4, re_l_t *wide_row5, re_l_t *wide_row6,
+    re_l_t *wide_row7, re_l_t *wide_row8, re_l_t *wide_row9, const sm_fl_t *A,
+    const re_m_t multiplier1, const re_m_t multiplier2, const re_m_t multiplier3,
+    const re_m_t multiplier4, const re_m_t multiplier5, const re_m_t multiplier6,
+    const re_m_t multiplier7, const re_m_t multiplier8, const re_m_t multiplier9,
+    const ci_t idx)
+{
+  ci_t i;
+  const ri_t row_idx  = A->nrows - idx - 1;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
+  register const re_m_t m2  = multiplier2;
+  register const re_m_t m3  = multiplier3;
+  register const re_m_t m4  = multiplier4;
+  register const re_m_t m5  = multiplier5;
+  register const re_m_t m6  = multiplier6;
+  register const re_m_t m7  = multiplier7;
+  register const re_m_t m8  = multiplier8;
+  register const re_m_t m9  = multiplier9;
+  
+  // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
+  // cancel out the element at this position in wide_row
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row3[a_idx1] += m3 * a_elt1;
+      wide_row3[a_idx2] += m3 * a_elt2;
+      wide_row4[a_idx1] += m4 * a_elt1;
+      wide_row4[a_idx2] += m4 * a_elt2;
+      wide_row5[a_idx1] += m5 * a_elt1;
+      wide_row5[a_idx2] += m5 * a_elt2;
+      wide_row6[a_idx1] += m6 * a_elt1;
+      wide_row6[a_idx2] += m6 * a_elt2;
+      wide_row7[a_idx1] += m7 * a_elt1;
+      wide_row7[a_idx2] += m7 * a_elt2;
+      wide_row8[a_idx1] += m8 * a_elt1;
+      wide_row8[a_idx2] += m8 * a_elt2;
+      wide_row9[a_idx1] += m9 * a_elt1;
+      wide_row9[a_idx2] += m9 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += m1 * a_elt1;
+    wide_row2[a_idx1] += m2 * a_elt1;
+    wide_row3[a_idx1] += m3 * a_elt1;
+    wide_row4[a_idx1] += m4 * a_elt1;
+    wide_row5[a_idx1] += m5 * a_elt1;
+    wide_row6[a_idx1] += m6 * a_elt1;
+    wide_row7[a_idx1] += m7 * a_elt1;
+    wide_row8[a_idx1] += m8 * a_elt1;
+    wide_row9[a_idx1] += m9 * a_elt1;
+  }
+}
+
+/**
+ * \brief Takes eight wide rows and updates it with multiples of a row from A
+ * corresponding to the column position pos defined by the first non zero entry
+ * in wide_row.
+ *
+ * \param wide row storing the result wide_row1
+ *
+ * \param wide row storing the result wide_row2
+ *
+ * \param wide row storing the result wide_row3
+ *
+ * \param wide row storing the result wide_row4
+ *
+ * \param wide row storing the result wide_row5
+ *
+ * \param wide row storing the result wide_row6
+ *
+ * \param wide row storing the result wide_row7
+ *
+ * \param wide row storing the result wide_row8
+ * 
+ * \param sparse block matrix to update wide row A
+ *
+ * \param multiplier from C multiplier1
+ *
+ * \param multiplier from C multiplier2
+ *
+ * \param multiplier from C multiplier3
+ *
+ * \param multiplier from C multiplier4
+ *
+ * \param multiplier from C multiplier5
+ *
+ * \param multiplier from C multiplier6
+ *
+ * \param multiplier from C multiplier7
+ *
+ * \param multiplier from C multiplier8
+ *
+ * \param column position in wide_row resp. corresponding row index in A pos
+ */
+static inline void update_wide_rows_eight(re_l_t *wide_row1, re_l_t *wide_row2,
+    re_l_t *wide_row3, re_l_t *wide_row4, re_l_t *wide_row5, re_l_t *wide_row6,
+    re_l_t *wide_row7, re_l_t *wide_row8, const sm_fl_t *A, const re_m_t multiplier1,
+    const re_m_t multiplier2, const re_m_t multiplier3, const re_m_t multiplier4,
+    const re_m_t multiplier5, const re_m_t multiplier6, const re_m_t multiplier7,
+    const re_m_t multiplier8, const ci_t idx)
+{
+  ci_t i;
+  const ri_t row_idx  = A->nrows - idx - 1;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
+  register const re_m_t m2  = multiplier2;
+  register const re_m_t m3  = multiplier3;
+  register const re_m_t m4  = multiplier4;
+  register const re_m_t m5  = multiplier5;
+  register const re_m_t m6  = multiplier6;
+  register const re_m_t m7  = multiplier7;
+  register const re_m_t m8  = multiplier8;
+  
+  // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
+  // cancel out the element at this position in wide_row
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row3[a_idx1] += m3 * a_elt1;
+      wide_row3[a_idx2] += m3 * a_elt2;
+      wide_row4[a_idx1] += m4 * a_elt1;
+      wide_row4[a_idx2] += m4 * a_elt2;
+      wide_row5[a_idx1] += m5 * a_elt1;
+      wide_row5[a_idx2] += m5 * a_elt2;
+      wide_row6[a_idx1] += m6 * a_elt1;
+      wide_row6[a_idx2] += m6 * a_elt2;
+      wide_row7[a_idx1] += m7 * a_elt1;
+      wide_row7[a_idx2] += m7 * a_elt2;
+      wide_row8[a_idx1] += m8 * a_elt1;
+      wide_row8[a_idx2] += m8 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += m1 * a_elt1;
+    wide_row2[a_idx1] += m2 * a_elt1;
+    wide_row3[a_idx1] += m3 * a_elt1;
+    wide_row4[a_idx1] += m4 * a_elt1;
+    wide_row5[a_idx1] += m5 * a_elt1;
+    wide_row6[a_idx1] += m6 * a_elt1;
+    wide_row7[a_idx1] += m7 * a_elt1;
+    wide_row8[a_idx1] += m8 * a_elt1;
+  }
+}
+
+/**
+ * \brief Takes seven wide rows and updates it with multiples of a row from A
+ * corresponding to the column position pos defined by the first non zero entry
+ * in wide_row.
+ *
+ * \param wide row storing the result wide_row1
+ *
+ * \param wide row storing the result wide_row2
+ *
+ * \param wide row storing the result wide_row3
+ *
+ * \param wide row storing the result wide_row4
+ *
+ * \param wide row storing the result wide_row5
+ *
+ * \param wide row storing the result wide_row6
+ *
+ * \param wide row storing the result wide_row7
+ * 
+ * \param sparse block matrix to update wide row A
+ *
+ * \param multiplier from C multiplier1
+ *
+ * \param multiplier from C multiplier2
+ *
+ * \param multiplier from C multiplier3
+ *
+ * \param multiplier from C multiplier4
+ *
+ * \param multiplier from C multiplier5
+ *
+ * \param multiplier from C multiplier6
+ *
+ * \param multiplier from C multiplier7
+ *
+ * \param column position in wide_row resp. corresponding row index in A pos
+ */
+static inline void update_wide_rows_seven(re_l_t *wide_row1, re_l_t *wide_row2,
+    re_l_t *wide_row3, re_l_t *wide_row4, re_l_t *wide_row5, re_l_t *wide_row6,
+    re_l_t *wide_row7, const sm_fl_t *A, const re_m_t multiplier1,
+    const re_m_t multiplier2, const re_m_t multiplier3, const re_m_t multiplier4,
+    const re_m_t multiplier5, const re_m_t multiplier6, const re_m_t multiplier7,
+    const ci_t idx)
+{
+  ci_t i;
+  const ri_t row_idx  = A->nrows - idx - 1;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
+  register const re_m_t m2  = multiplier2;
+  register const re_m_t m3  = multiplier3;
+  register const re_m_t m4  = multiplier4;
+  register const re_m_t m5  = multiplier5;
+  register const re_m_t m6  = multiplier6;
+  register const re_m_t m7  = multiplier7;
+  
+  // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
+  // cancel out the element at this position in wide_row
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row3[a_idx1] += m3 * a_elt1;
+      wide_row3[a_idx2] += m3 * a_elt2;
+      wide_row4[a_idx1] += m4 * a_elt1;
+      wide_row4[a_idx2] += m4 * a_elt2;
+      wide_row5[a_idx1] += m5 * a_elt1;
+      wide_row5[a_idx2] += m5 * a_elt2;
+      wide_row6[a_idx1] += m6 * a_elt1;
+      wide_row6[a_idx2] += m6 * a_elt2;
+      wide_row7[a_idx1] += m7 * a_elt1;
+      wide_row7[a_idx2] += m7 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += m1 * a_elt1;
+    wide_row2[a_idx1] += m2 * a_elt1;
+    wide_row3[a_idx1] += m3 * a_elt1;
+    wide_row4[a_idx1] += m4 * a_elt1;
+    wide_row5[a_idx1] += m5 * a_elt1;
+    wide_row6[a_idx1] += m6 * a_elt1;
+    wide_row7[a_idx1] += m7 * a_elt1;
+  }
+}
+
+/**
+ * \brief Takes six wide rows and updates it with multiples of a row from A
+ * corresponding to the column position pos defined by the first non zero entry
+ * in wide_row.
+ *
+ * \param wide row storing the result wide_row1
+ *
+ * \param wide row storing the result wide_row2
+ *
+ * \param wide row storing the result wide_row3
+ *
+ * \param wide row storing the result wide_row4
+ *
+ * \param wide row storing the result wide_row5
+ *
+ * \param wide row storing the result wide_row6
+ * 
+ * \param sparse block matrix to update wide row A
+ *
+ * \param multiplier from C multiplier1
+ *
+ * \param multiplier from C multiplier2
+ *
+ * \param multiplier from C multiplier3
+ *
+ * \param multiplier from C multiplier4
+ *
+ * \param multiplier from C multiplier5
+ *
+ * \param multiplier from C multiplier6
+ *
+ * \param column position in wide_row resp. corresponding row index in A pos
+ */
+static inline void update_wide_rows_six(re_l_t *wide_row1, re_l_t *wide_row2,
+    re_l_t *wide_row3, re_l_t *wide_row4, re_l_t *wide_row5, re_l_t *wide_row6,
+    const sm_fl_t *A, const re_m_t multiplier1, const re_m_t multiplier2,
+    const re_m_t multiplier3, const re_m_t multiplier4, const re_m_t multiplier5,
+    const re_m_t multiplier6, const ci_t idx)
+{
+  ci_t i;
+  const ri_t row_idx  = A->nrows - idx - 1;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
+  register const re_m_t m2  = multiplier2;
+  register const re_m_t m3  = multiplier3;
+  register const re_m_t m4  = multiplier4;
+  register const re_m_t m5  = multiplier5;
+  register const re_m_t m6  = multiplier6;
+  
+  // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
+  // cancel out the element at this position in wide_row
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row3[a_idx1] += m3 * a_elt1;
+      wide_row3[a_idx2] += m3 * a_elt2;
+      wide_row4[a_idx1] += m4 * a_elt1;
+      wide_row4[a_idx2] += m4 * a_elt2;
+      wide_row5[a_idx1] += m5 * a_elt1;
+      wide_row5[a_idx2] += m5 * a_elt2;
+      wide_row6[a_idx1] += m6 * a_elt1;
+      wide_row6[a_idx2] += m6 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += m1 * a_elt1;
+    wide_row2[a_idx1] += m2 * a_elt1;
+    wide_row3[a_idx1] += m3 * a_elt1;
+    wide_row4[a_idx1] += m4 * a_elt1;
+    wide_row5[a_idx1] += m5 * a_elt1;
+    wide_row6[a_idx1] += m6 * a_elt1;
+  }
+}
+
+/**
+ * \brief Takes five wide rows and updates it with multiples of a row from A
+ * corresponding to the column position pos defined by the first non zero entry
+ * in wide_row.
+ *
+ * \param wide row storing the result wide_row1
+ *
+ * \param wide row storing the result wide_row2
+ *
+ * \param wide row storing the result wide_row3
+ *
+ * \param wide row storing the result wide_row4
+ *
+ * \param wide row storing the result wide_row5
+ * 
+ * \param sparse block matrix to update wide row A
+ *
+ * \param multiplier from C multiplier1
+ *
+ * \param multiplier from C multiplier2
+ *
+ * \param multiplier from C multiplier3
+ *
+ * \param multiplier from C multiplier4
+ *
+ * \param multiplier from C multiplier5
+ *
+ * \param column position in wide_row resp. corresponding row index in A pos
+ */
+static inline void update_wide_rows_five(re_l_t *wide_row1, re_l_t *wide_row2,
+    re_l_t *wide_row3, re_l_t *wide_row4, re_l_t *wide_row5, const sm_fl_t *A,
+    const re_m_t multiplier1, const re_m_t multiplier2, const re_m_t multiplier3,
+    const re_m_t multiplier4, const re_m_t multiplier5, const ci_t idx)
+{
+  ci_t i;
+  const ri_t row_idx  = A->nrows - idx - 1;
+  register re_m_t a_elt1, a_elt2;
+  register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
+  register const re_m_t m2  = multiplier2;
+  register const re_m_t m3  = multiplier3;
+  register const re_m_t m4  = multiplier4;
+  register const re_m_t m5  = multiplier5;
+  
+  // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
+  // cancel out the element at this position in wide_row
+  i = 0;
+  if (A->sz[row_idx] > 1) {
+    for (; i<A->sz[row_idx]-1; i=i+2) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row3[a_idx1] += m3 * a_elt1;
+      wide_row3[a_idx2] += m3 * a_elt2;
+      wide_row4[a_idx1] += m4 * a_elt1;
+      wide_row4[a_idx2] += m4 * a_elt2;
+      wide_row5[a_idx1] += m5 * a_elt1;
+      wide_row5[a_idx2] += m5 * a_elt2;
+    }
+  }
+  for (; i<A->sz[row_idx]; ++i) {
+    a_idx1  = A->pos[row_idx][i];
+    a_elt1  = A->row[row_idx][i];
+    wide_row1[a_idx1] += m1 * a_elt1;
+    wide_row2[a_idx1] += m2 * a_elt1;
+    wide_row3[a_idx1] += m3 * a_elt1;
+    wide_row4[a_idx1] += m4 * a_elt1;
+    wide_row5[a_idx1] += m5 * a_elt1;
   }
 }
 
@@ -1710,6 +2300,104 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
  */
 int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C, dbm_fl_t *D, const int inv_scalars,
     const mod_t modulus, const int nthrds);
+
+/**
+ * \brief Different tasks of elimination of C operating on ten six of C only.
+ * Updating all row entries via corresponding multiples from A.
+ *
+ * \param sparse submatrix C (left lower side)
+ *
+ * \param sparse submatrix A (left upper side)
+ *
+ * \param first row index in C idx1
+ *
+ * \param second row index in C idx2
+ *
+ * \param second row index in C idx3
+ *
+ * \param second row index in C idx4
+ *
+ * \param second row index in C idx5
+ *
+ * \param second row index in C idx6
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_keep_A_tasks_six(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx1, const ri_t idx2, const ri_t idx3, const ri_t idx4,
+    const ri_t idx5, const ri_t idx6, const mod_t modulus);
+
+/**
+ * \brief Different tasks of elimination of C operating on eight rows of C only.
+ * Updating all row entries via corresponding multiples from A.
+ *
+ * \param sparse submatrix C (left lower side)
+ *
+ * \param sparse submatrix A (left upper side)
+ *
+ * \param first row index in C idx1
+ *
+ * \param second row index in C idx2
+ *
+ * \param second row index in C idx3
+ *
+ * \param second row index in C idx4
+ *
+ * \param second row index in C idx5
+ *
+ * \param second row index in C idx6
+ *
+ * \param second row index in C idx7
+ *
+ * \param second row index in C idx8
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_keep_A_tasks_eight(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx1, const ri_t idx2, const ri_t idx3, const ri_t idx4,
+    const ri_t idx5, const ri_t idx6, const ri_t idx7, const ri_t idx8,
+    const mod_t modulus);
+
+/**
+ * \brief Different tasks of elimination of C operating on ten rows of C only.
+ * Updating all row entries via corresponding multiples from A.
+ *
+ * \param sparse submatrix C (left lower side)
+ *
+ * \param sparse submatrix A (left upper side)
+ *
+ * \param first row index in C idx1
+ *
+ * \param second row index in C idx2
+ *
+ * \param second row index in C idx3
+ *
+ * \param second row index in C idx4
+ *
+ * \param second row index in C idx5
+ *
+ * \param second row index in C idx6
+ *
+ * \param second row index in C idx7
+ *
+ * \param second row index in C idx8
+ *
+ * \param second row index in C idx9
+ *
+ * \param second row index in C idx10
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_keep_A_tasks_ten(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx1, const ri_t idx2, const ri_t idx3, const ri_t idx4,
+    const ri_t idx5, const ri_t idx6, const ri_t idx7, const ri_t idx8,
+    const ri_t idx9, const ri_t idx10, const mod_t modulus);
 
 /**
  * \brief Different tasks of elimination of C operating on four rows of C only.
