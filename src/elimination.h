@@ -680,6 +680,7 @@ static inline void update_wide_row(re_l_t *wide_row1, const sm_fl_t *A,
   const ri_t row_idx  = A->nrows - idx - 1;
   register re_m_t a_elt1, a_elt2;
   register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
   
   // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
   // cancel out the element at this position in wide_row
@@ -690,14 +691,14 @@ static inline void update_wide_row(re_l_t *wide_row1, const sm_fl_t *A,
       a_elt1  = A->row[row_idx][i];
       a_idx2  = A->pos[row_idx][i+1];
       a_elt2  = A->row[row_idx][i+1];
-      wide_row1[a_idx1] += multiplier1 * a_elt1;
-      wide_row1[a_idx2] += multiplier1 * a_elt2;
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
     }
   }
   for (; i<A->sz[row_idx]; ++i) {
     a_idx1  = A->pos[row_idx][i];
     a_elt1  = A->row[row_idx][i];
-    wide_row1[a_idx1] += multiplier1 * a_elt1;
+    wide_row1[a_idx1] += m1 * a_elt1;
   }
 }
 
@@ -726,6 +727,9 @@ static inline void update_wide_rows(re_l_t *wide_row1, re_l_t *wide_row2,
   const ri_t row_idx  = A->nrows - idx - 1;
   register re_m_t a_elt1, a_elt2;
   register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
+  register const re_m_t m2  = multiplier2;
+
   
   // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
   // cancel out the element at this position in wide_row
@@ -736,17 +740,17 @@ static inline void update_wide_rows(re_l_t *wide_row1, re_l_t *wide_row2,
       a_elt1  = A->row[row_idx][i];
       a_idx2  = A->pos[row_idx][i+1];
       a_elt2  = A->row[row_idx][i+1];
-      wide_row1[a_idx1] += multiplier1 * a_elt1;
-      wide_row1[a_idx2] += multiplier1 * a_elt2;
-      wide_row2[a_idx1] += multiplier2 * a_elt1;
-      wide_row2[a_idx2] += multiplier2 * a_elt2;
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row2[a_idx2] += m2 * a_elt2;
     }
   }
   for (; i<A->sz[row_idx]; ++i) {
     a_idx1  = A->pos[row_idx][i];
     a_elt1  = A->row[row_idx][i];
-    wide_row1[a_idx1] += multiplier1 * a_elt1;
-    wide_row2[a_idx1] += multiplier2 * a_elt1;
+    wide_row1[a_idx1] += m1 * a_elt1;
+    wide_row2[a_idx1] += m2 * a_elt1;
   }
 }
 
@@ -779,6 +783,9 @@ static inline void update_wide_rows_three(re_l_t *wide_row1, re_l_t *wide_row2,
   const ri_t row_idx  = A->nrows - idx - 1;
   register re_m_t a_elt1, a_elt2;
   register ci_t a_idx1, a_idx2;
+  register const re_m_t m1  = multiplier1;
+  register const re_m_t m2  = multiplier2;
+  register const re_m_t m3  = multiplier3;
   
   // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
   // cancel out the element at this position in wide_row
@@ -789,20 +796,20 @@ static inline void update_wide_rows_three(re_l_t *wide_row1, re_l_t *wide_row2,
       a_elt1  = A->row[row_idx][i];
       a_idx2  = A->pos[row_idx][i+1];
       a_elt2  = A->row[row_idx][i+1];
-      wide_row1[a_idx1] += multiplier1 * a_elt1;
-      wide_row1[a_idx2] += multiplier1 * a_elt2;
-      wide_row2[a_idx1] += multiplier2 * a_elt1;
-      wide_row2[a_idx2] += multiplier2 * a_elt2;
-      wide_row3[a_idx1] += multiplier3 * a_elt1;
-      wide_row3[a_idx2] += multiplier3 * a_elt2;
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row3[a_idx1] += m3 * a_elt1;
+      wide_row3[a_idx2] += m3 * a_elt2;
     }
   }
   for (; i<A->sz[row_idx]; ++i) {
     a_idx1  = A->pos[row_idx][i];
     a_elt1  = A->row[row_idx][i];
-    wide_row1[a_idx1] += multiplier1 * a_elt1;
-    wide_row2[a_idx1] += multiplier2 * a_elt1;
-    wide_row3[a_idx1] += multiplier3 * a_elt1;
+    wide_row1[a_idx1] += m1 * a_elt1;
+    wide_row2[a_idx1] += m2 * a_elt1;
+    wide_row3[a_idx1] += m3 * a_elt1;
   }
 }
 
