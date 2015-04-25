@@ -319,7 +319,7 @@ int main(int argc, char *argv[]) {
   if (verbose > 1) {
     printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     printf(">>>>\tREDUCTION COMPLETED\n");
-    printf("TIME\t%.3f sec\n",
+    printf("TIME\t%5.3f sec\n",
         walltime(t_complete) / (1000000));
     print_mem_usage();
     printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -334,8 +334,9 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   // all submatrices of block type
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART splicing and mapping of input matrix ...\n");
+    //printf("---------------------------------------------------------------------\n");
+    printf("%-50s", "Splicing and mapping of input matrix ...");
+    fflush(stdout);
   }
   // construct splicing of matrix M into A, B, C and D
   sm_fl_t *A      = (sm_fl_t *)malloc(sizeof(sm_fl_t));
@@ -351,13 +352,16 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     splice_fl_matrix_sparse_dense_keep_A(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
 
   if (verbose > 1) {
-    printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
-    printf("TIME\t%.3f sec\n",
+    //printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
+    printf("%9.3f sec\n",
         walltime(t_load_start) / (1000000));
+  }
+  if (verbose > 2) {
     print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
     printf("Number of pivots found: %d\n", map->npiv);
+    printf("---------------------------------------------------------------------\n");
     printf("A [%9d x %9d]\n",
         A->nrows, A->ncols);
     printf("B [%9d x %9d]\n",
@@ -404,20 +408,23 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   // reducing submatrix A using methods of Faugère & Lachartre
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART reducing A ...\n");
+    //printf("---------------------------------------------------------------------\n");
+    printf("%-50s","Storing A in C ...");
+    fflush(stdout);
   }
   if (elim_fl_C_sparse_dense_keep_A(C, &A, M->mod, nthreads)) {
     printf("Error while reducing A.\n");
     return 1;
   }
   if (verbose > 1) {
-    printf("<<<<\tDONE  reducing A.\n");
-    printf("TIME\t%.3f sec\n",
+    //printf("<<<<\tDONE  reducing A.\n");
+    printf("%9.3f sec\n",
         walltime(t_load_start) / (1000000));
+  }
+  if (verbose > 2) {
     print_mem_usage();
-    printf("---------------------------------------------------------------------\n");
-    printf("\n");
+    //printf("---------------------------------------------------------------------\n");
+    //printf("\n");
   }
   /*
   printf("==================================\n");
@@ -435,15 +442,18 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
 #if 1
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART copying sparse C to sparse block representation ...\n");
+    //printf("---------------------------------------------------------------------\n");
+    printf("%-50s", "Copying C to sparse block representation ...");
+    fflush(stdout);
   }
   sb_fl_t *C_block = copy_sparse_to_block_matrix(C, nthreads);
   free_sparse_matrix(&C,nthreads);
   if (verbose > 1) {
-    printf("<<<<\tDONE  copying sparse C to sparse block representation.\n");
-    printf("TIME\t%.3f sec\n",
+    //printf("<<<<\tDONE  copying sparse C to sparse block representation.\n");
+    printf("%9.3f sec\n",
         walltime(t_load_start) / (1000000));
+  }
+  if (verbose > 2) {
     print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
@@ -471,19 +481,20 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   // reducing submatrix C to zero using methods of Faugère & Lachartre
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART reducing C to zero ...\n");
+    //printf("---------------------------------------------------------------------\n");
+    printf("%-50s","Reducing C to zero ...");
+    fflush(stdout);
   }
-  /*
-  if (elim_fl_C_sparse_dense_block(B, &C_block, D, 1, M->mod, nthreads)) {
+  if (elim_fl_C_sparse_sparse_block(B, &C_block, D, 0, M->mod, nthreads)) {
     printf("Error while reducing C.\n");
     return 1;
   }
-  */
   if (verbose > 1) {
-    printf("<<<<\tDONE  reducing C to zero.\n");
-    printf("TIME\t%.3f sec\n",
+    //printf("<<<<\tDONE  reducing C to zero.\n");
+    printf("%9.3f sec\n",
         walltime(t_load_start) / (1000000));
+  }
+  if (verbose > 2) {
     print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
@@ -2367,8 +2378,35 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-
-
+  /*
+  // column loops
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  // row loops
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
+ printf("++++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (int ii=0; ii<rlD; ++ii) {
+    for (int jj=0; jj<clD; ++jj) {
+      if (D->blocks[ii][jj] != NULL) {
+        for (int kk=0; kk<block_dimension/2; ++kk) {
+          printf("%d .. %d .. %d\n",ii,jj,kk);
+          if (D->blocks[ii][jj][kk].dense == 0) {
+            for (int ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", D->blocks[ii][jj][kk].idx[ll]);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
+          } else {
+            for (int ll=0; ll<D->blocks[ii][jj][kk].sz; ++ll) {
+              printf("%d -- ", ll);
+              printf("%d %d ", D->blocks[ii][jj][kk].val[2*ll], D->blocks[ii][jj][kk].val[2*ll+1]);
+            }
+            printf("\n");
+          }
+        }
+      }
+    }
+  }
+  */
   /*  echelonize D using methods of Faugère & Lachartre */
 
   /*  We need to do at least two rounds on D, possibly even reducing B further */
