@@ -2384,6 +2384,32 @@ int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C, dbm_fl_t *D, const in
     const mod_t modulus, const int nthrds);
 
 /**
+ * \brief Different tasks of elimination of C operating on ten five of C only.
+ * Updating all row entries via corresponding multiples from A.
+ *
+ * \param sparse submatrix C (left lower side)
+ *
+ * \param sparse submatrix A (left upper side)
+ *
+ * \param first row index in C idx1
+ *
+ * \param second row index in C idx2
+ *
+ * \param second row index in C idx3
+ *
+ * \param second row index in C idx4
+ *
+ * \param second row index in C idx5
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_sparse_dense_keep_A_tasks_five(sm_fl_t *C, const sm_fl_t *A,
+    const ri_t idx1, const ri_t idx2, const ri_t idx3, const ri_t idx4,
+    const ri_t idx5, const mod_t modulus);
+
+/**
  * \brief Different tasks of elimination of C operating on ten six of C only.
  * Updating all row entries via corresponding multiples from A.
  *

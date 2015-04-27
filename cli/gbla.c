@@ -459,6 +459,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("\n");
   }
   /*
+  printf("CCCC\n");
   // column loops
   const uint32_t clC  = (uint32_t) ceil((float)C_block->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -555,6 +556,8 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   }
 #endif
 #if __GB_CLI_DEBUG_D
+  printf("DDDD\n");
+  // column loops
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -2298,6 +2301,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("\n");
   }
   /*
+  printf("CCCCCC11111111111111\n");
   for (int ii=0; ii<C->nrows / 2; ++ii) {
     printf("%d .. \n",ii);
     printf("size %d\n", C->ml[ii].sz * 2);
@@ -2333,6 +2337,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("\n");
   }
   /*
+  printf("CCCC\n");
   const uint32_t clC  = (uint32_t) ceil((float)C_block->ncols / C_block->bwidth);
   const uint32_t rlC  = (uint32_t) ceil((float)C_block->nrows / C_block->bheight);
 
@@ -2379,6 +2384,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("\n");
   }
   /*
+  printf("DDDD\n");
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
   // row loops
