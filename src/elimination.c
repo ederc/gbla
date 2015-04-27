@@ -3288,10 +3288,10 @@ int elim_fl_C_sparse_dense_keep_A_tasks_eight(sm_fl_t *C, const sm_fl_t *A,
   copy_wide_to_sparse_row(&C, wide_row[2], idx2, nze_ctr[2]);
   //printf("idx %u -- nze[3] = %u\n", idx3, nze_ctr[3]);
   copy_wide_to_sparse_row(&C, wide_row[3], idx3, nze_ctr[3]);
-  copy_wide_to_sparse_row(&C, wide_row[4], idx3, nze_ctr[4]);
-  copy_wide_to_sparse_row(&C, wide_row[5], idx3, nze_ctr[5]);
-  copy_wide_to_sparse_row(&C, wide_row[6], idx3, nze_ctr[6]);
-  copy_wide_to_sparse_row(&C, wide_row[7], idx3, nze_ctr[7]);
+  copy_wide_to_sparse_row(&C, wide_row[4], idx4, nze_ctr[4]);
+  copy_wide_to_sparse_row(&C, wide_row[5], idx5, nze_ctr[5]);
+  copy_wide_to_sparse_row(&C, wide_row[6], idx6, nze_ctr[6]);
+  copy_wide_to_sparse_row(&C, wide_row[7], idx7, nze_ctr[7]);
 
   free(wide_row[0]);
   free(wide_row[1]);
@@ -3613,12 +3613,12 @@ int elim_fl_C_sparse_dense_keep_A_tasks_ten(sm_fl_t *C, const sm_fl_t *A,
   copy_wide_to_sparse_row(&C, wide_row[2], idx2, nze_ctr[2]);
   //printf("idx %u -- nze[3] = %u\n", idx3, nze_ctr[3]);
   copy_wide_to_sparse_row(&C, wide_row[3], idx3, nze_ctr[3]);
-  copy_wide_to_sparse_row(&C, wide_row[4], idx3, nze_ctr[4]);
-  copy_wide_to_sparse_row(&C, wide_row[5], idx3, nze_ctr[5]);
-  copy_wide_to_sparse_row(&C, wide_row[6], idx3, nze_ctr[6]);
-  copy_wide_to_sparse_row(&C, wide_row[7], idx3, nze_ctr[7]);
-  copy_wide_to_sparse_row(&C, wide_row[8], idx3, nze_ctr[8]);
-  copy_wide_to_sparse_row(&C, wide_row[9], idx3, nze_ctr[9]);
+  copy_wide_to_sparse_row(&C, wide_row[4], idx4, nze_ctr[4]);
+  copy_wide_to_sparse_row(&C, wide_row[5], idx5, nze_ctr[5]);
+  copy_wide_to_sparse_row(&C, wide_row[6], idx6, nze_ctr[6]);
+  copy_wide_to_sparse_row(&C, wide_row[7], idx7, nze_ctr[7]);
+  copy_wide_to_sparse_row(&C, wide_row[8], idx8, nze_ctr[8]);
+  copy_wide_to_sparse_row(&C, wide_row[9], idx9, nze_ctr[9]);
 
   free(wide_row[0]);
   free(wide_row[1]);
