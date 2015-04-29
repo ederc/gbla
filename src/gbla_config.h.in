@@ -32,7 +32,7 @@
 #define __GB_ROUND_DOWN(x, s) ((x) & ~((s)-1))
 
 // Note: It must hold that __GBLA_SIMD_BLOCK_SIZE % __GBLA_SIMD_INNER_SIZE == 0
-#define __GBLA_COLUMN_B  1
+#define __GBLA_COLUMN_B  0
 #define __GBLA_SIMD_INNER_SIZE  4
 #define __GBLA_SIMD_BLOCK_SIZE  256
 #define __GBLA_SIMD_INNER_BLOCKS_PER_ROW  ((__GBLA_SIMD_BLOCK_SIZE) / (__GBLA_SIMD_INNER_SIZE))
