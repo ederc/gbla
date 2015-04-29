@@ -519,6 +519,8 @@ STEP_0:
       while (k < block_B->sz[j]) {
         pos = block_B->pos[j][k];
 STEP_1:
+        if (l >= block_A->sz[i])
+          return;
         while (block_A->pos[i][l] < pos)
           ++l;
         if (l >= block_A->sz[i])
@@ -533,6 +535,8 @@ STEP_1:
         // else: block_A->pos[i][l] > block_B->pos[j][k]
         pos = block_A->pos[i][l];
         ++k;
+        if (k >= block_B->sz[j])
+          return;
         while (block_B->pos[j][k] < pos)
           ++k;
         if (k >= block_B->sz[j])

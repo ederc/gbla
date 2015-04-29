@@ -766,7 +766,7 @@ int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
     // do all rectangular blocks
     for (k=0; k<nbcols_C; ++k) {
       if ((C->blocks[j][k].row != NULL) && (B->blocks[k][block_col_idx_D].row != NULL)) {
-        printf("%u | %u | %u\n",j,k,block_col_idx_D);
+        //printf("%u | %u | %u\n",j,k,block_col_idx_D);
         red_sparse_sparse_rectangular(&C->blocks[j][k],
             &B->blocks[k][block_col_idx_D], wide_block);
       }
