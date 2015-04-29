@@ -444,6 +444,125 @@ static inline void red_hybrid_dense_rectangular(dbl_t **block_A, const re_t *blo
   }
 }
 
+#if __GBLA_COLUMN_B
+/**
+ * \brief Use dense blocks from A to update sparse blocks in B.
+ * Delay modulus operations by storing results in wide blocks.
+ *
+ * \note B is stored by column.
+ *
+ * \param dense block from A block_A
+ *
+ * \param sparse block from B block_B
+ *
+ * \param wide block storing the result wide_block
+ */
+static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t *block_B,
+  re_l_t **wide_block)
+{
+  bi_t i, j, k;
+  register re_m_t a1, a2, a3, a4;
+  register re_m_t b1, b2, b3, b4;
+  register bi_t b;
+#if 0
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    j = 0;
+    if (block_B->sz[i] > 3)  {
+      for (;j<block_B->sz[i]-3; j=j+4) {
+        b1  = block_B->row[i][j];
+        b2  = block_B->row[i][j+1];
+        b3  = block_B->row[i][j+2];
+        b4  = block_B->row[i][j+3];
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+          a1  = block_A[k * __GBLA_SIMD_BLOCK_SIZE + block_B->pos[i][j]];
+          a2  = block_A[k * __GBLA_SIMD_BLOCK_SIZE + block_B->pos[i][j+1]];
+          a3  = block_A[k * __GBLA_SIMD_BLOCK_SIZE + block_B->pos[i][j+2]];
+          a4  = block_A[k * __GBLA_SIMD_BLOCK_SIZE + block_B->pos[i][j+3]];
+
+          wide_block[k][i]  +=  a1 * b1 + a2 * b2 + a3 * b3 + a4 * b4;
+        }
+      }
+    }
+    for (j=0;j<block_B->sz[i]; ++j) {
+      b1  = block_B->row[i][j];
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        a1  = block_A[k * __GBLA_SIMD_BLOCK_SIZE + block_B->pos[i][j]];
+
+        wide_block[k][i]  +=  a1 * b1;
+      }
+    }
+  }
+#else
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      //printf("i %u -- b %u\n", i, j);
+      for (k=0; k<block_B->sz[j]; ++k) {
+        a1  = block_A[i * __GBLA_SIMD_BLOCK_SIZE + block_B->pos[j][k]];
+        b1  = block_B->row[j][k];
+        wide_block[i][j]  +=  a1 * b1;
+        /*
+        if (i==16 && j==0) {
+          printf("wb[16][0]  =  %u || %u * %u at pos %u\n", wide_block[i][j], a1, b1, k);
+        }
+        */
+      }
+    }
+  }
+}
+#endif
+#endif
+
+
+#if __GBLA_COLUMN_B
+/**
+ * \brief Use compressed sparse blocks from A to update sparse blocks in B.
+ * Delay modulus operations by storing results in wide blocks.
+ *
+ * \note B is stored by column.
+ *
+ * \param sparse block from A block_A
+ *
+ * \param sparse block from B block_B
+ *
+ * \param wide block storing the result wide_block
+ */
+static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl_t *block_B,
+  re_l_t **wide_block)
+{
+  bi_t i, j, k;
+  register re_m_t a;
+  register re_m_t b1, b2, b3, b4;
+  register bi_t b;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    j = 0;
+    for (;j<block_A->sz[i]; ++j) {
+      a = block_A->row[i][j];
+      b = block_A->pos[i][j];
+      k = 0;
+      if (block_B->sz[b] > 3) {
+        for (; k<block_B->sz[b]-3; k=k+4) {
+          b1  = (re_m_t)block_B->row[b][k];
+          b2  = (re_m_t)block_B->row[b][k+1];
+          b3  = (re_m_t)block_B->row[b][k+2];
+          b4  = (re_m_t)block_B->row[b][k+3];
+          wide_block[i][block_B->pos[b][k]]  +=
+            a * b1;
+          wide_block[i][block_B->pos[b][k+1]]  +=
+            a * b2;
+          wide_block[i][block_B->pos[b][k+2]]  +=
+            a * b3;
+          wide_block[i][block_B->pos[b][k+3]]  +=
+            a * b4;
+        }
+      }
+      for (; k<block_B->sz[b]; ++k) {
+        wide_block[i][block_B->pos[b][k]]  +=
+          a * (re_m_t)block_B->row[b][k];
+      }
+    }
+  }
+}
+#else
 /**
  * \brief Use compressed sparse blocks from A to update sparse blocks in B.
  * Delay modulus operations by storing results in wide blocks.
@@ -472,10 +591,13 @@ static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl
     }
 #else
     j = 0;
+    //printf("A sz[%u] = %u\n", i, block_A->sz[i]);
     for (;j<block_A->sz[i]; ++j) {
       a = block_A->row[i][j];
       b = block_A->pos[i][j];
       k = 0;
+      //printf("i %u -- b %u\n", i, b);
+      //printf("A sz[%u] = %u gives a = %u | B sz[%u] = %u\n", i, block_A->sz[i], a, b, block_B->sz[b]);
       if (block_B->sz[b] > 3) {
         for (; k<block_B->sz[b]-3; k=k+4) {
           b1  = (re_m_t)block_B->row[b][k];
@@ -484,6 +606,11 @@ static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl
           b4  = (re_m_t)block_B->row[b][k+3];
           wide_block[i][block_B->pos[b][k]]  +=
             a * b1;
+          /*
+        if (i==16 && block_B->pos[b][k]==0) {
+          printf("wb[16][0]  =  %u || %u * %u\n", wide_block[i][block_B->pos[b][k]], a, b1);
+        }
+        */
           wide_block[i][block_B->pos[b][k+1]]  +=
             a * b2;
           wide_block[i][block_B->pos[b][k+2]]  +=
@@ -495,11 +622,18 @@ static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl
       for (; k<block_B->sz[b]; ++k) {
         wide_block[i][block_B->pos[b][k]]  +=
           a * (re_m_t)block_B->row[b][k];
+        /*
+        if (i==16 && block_B->pos[b][k]==0) {
+          printf("wb[16][0]  =  %u || %u * %u\n", wide_block[i][block_B->pos[b][k]], a,block_B->row[b][k]);
+        }
+        */
       }
     }
 #endif
   }
 }
+#endif
+
 
 /**
  * \brief Use compressed dense blocks from A to update dense blocks in B.
@@ -2340,6 +2474,28 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
 		const ri_t nbrows_A, const mod_t modulus);
 
 /**
+ * \brief Elimination procedure which reduces the dense block submatrix C to zero.
+ * Corresponding changes in dense block submatrix D are carried out using sparse block
+ * submatrix B in column style, too.
+ *
+ * \param sparse block submatrix B (right upper side)
+ *
+ * \param dense block submatrix C (left lower side)
+ *
+ * \param dense block submatrix D (right lower side)
+ *
+ * \param inverse scalars? inv_scalars
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \param number of threads nthrds
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C, dbm_fl_t *D, const int inv_scalars,
+    const mod_t modulus, const int nthrds);
+
+/**
  * \brief Elimination procedure which reduces the sparse block submatrix C to zero.
  * Corresponding changes in dense block submatrix D are carried out using dense block
  * submatrixB, too.
@@ -2605,6 +2761,29 @@ int elim_fl_C_sparse_dense_keep_A_tasks_single(sm_fl_t *C, const sm_fl_t *A,
  */
 int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A, const mod_t modulus,
     const int nthrds);
+
+/**
+ * \brief Different block tasks when reducing sparse block submatrix C.
+ *
+ * \param sparse block submatrix in column style B (right upper side)
+ *
+ * \param dense block submatrix C (left lower side)
+ *
+ * \param dense block submatrix D (right lower side)
+ *
+ * \param column index of blocks in D block_col_idx_D
+ *
+ * \param number of block rows in C nblock_rows_C
+ *
+ * \param inverse scalars? inv_scalars
+ *
+ * \param characteristic of underlying field modulus
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
+    const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+    const int inv_scalars, const mod_t modulus);
 
 /**
  * \brief Different block tasks when reducing sparse block submatrix C.

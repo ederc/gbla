@@ -577,6 +577,67 @@ static inline void insert_in_sm(sm_fl_t *A, const sm_t *M, const ci_t shift, con
 }
 
 /**
+ * \brief Inserts elements from input matrix M in sparse submatrix A in columns.
+ *
+ * \param sparse block submatrix A
+ *
+ * \param original matrix M
+ *
+ * \param shift to calculate correct coordinates of the corresponding block in A
+ * and inside the block itself shift
+ *
+ * \param current row block index rbi
+ *
+ * \param current line in block lib
+ *
+ * \param position of the element in line of the block eil
+ *
+ * \param row index of corresponding element in M bi1
+ *
+ * \param index in row bi1 of corresponding element in M i1
+ *
+ */
+static inline void insert_in_sb_by_column(sb_fl_t *A, const sm_t *M, const ci_t shift, const ri_t rbi,
+    const ri_t lib, const ri_t bi, const ci_t ri)
+{
+  const bi_t bir  = shift / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  const bi_t eil  = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
+  bi_t i, j, k;
+  // allocate memory if needed, initialized to zero
+  if (A->blocks[rbi][bir].row == NULL) {
+    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+    A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+    A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+    A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].pos[k]  = NULL;
+      A->blocks[rbi][bir].sz[k]   = 0;
+      A->blocks[rbi][bir].buf[k]  = 0;
+    }
+  }
+  if (A->blocks[rbi][bir].row[eil] == NULL) {
+    A->blocks[rbi][bir].row[eil]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
+    A->blocks[rbi][bir].pos[eil]  = (bi_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(bi_t));
+    A->blocks[rbi][bir].buf[eil]  = 2 * __GBLA_SIMD_INNER_SIZE;
+  } else {
+    if (A->blocks[rbi][bir].sz[eil] == A->blocks[rbi][bir].buf[eil]) {
+      A->blocks[rbi][bir].buf[eil]  *=  2;
+      A->blocks[rbi][bir].row[eil]  =   realloc(A->blocks[rbi][bir].row[eil],
+          A->blocks[rbi][bir].buf[eil] * sizeof(re_t));
+      A->blocks[rbi][bir].pos[eil]  =   realloc(A->blocks[rbi][bir].pos[eil],
+          A->blocks[rbi][bir].buf[eil] * sizeof(bi_t));
+    }
+  }
+  // set values
+  A->blocks[rbi][bir].row[eil][A->blocks[rbi][bir].sz[eil]] = 
+    (re_t)M->rows[bi][ri];
+  A->blocks[rbi][bir].pos[eil][A->blocks[rbi][bir].sz[eil]] = lib;
+  //printf("%u | %u , %u , %u , %u | %u\n",rbi, bir, lib, A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]], A->blocks[rbi][bir].sz[lib],A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]]);
+  A->blocks[rbi][bir].sz[eil]++;
+}
+
+/**
  * \brief Inserts elements from input matrix M in sparse submatrix A.
  *
  * \param sparse block submatrix A
@@ -1347,7 +1408,11 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A(
       if (map->pc[it] != __GB_MINUS_ONE_32)
         insert_in_sm(A, M, map->pc[it], rbi, i, bi, ri); 
       else
-      insert_in_sb(B, M, map->npc[it], rbi, i, bi, ri); 
+#if __GBLA_COLUMN_B
+        insert_in_sb_by_column(B, M, map->npc[it], rbi, i, bi, ri); 
+#else
+        insert_in_sb(B, M, map->npc[it], rbi, i, bi, ri); 
+#endif
     ri++;
   }
 }

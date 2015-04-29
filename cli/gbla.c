@@ -372,6 +372,70 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
+  /*
+  printf("BBBB\n");
+  // column loops
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  // row loops
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
+#if 0
+  for (int ii=0; ii<rlB; ++ii) {
+    for (int jj=0; jj<clB; ++jj) {
+      if (B->blocks[ii][jj].row != NULL) {
+        printf("%d .. %d\n", ii, jj);
+        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+          for (int ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+            for (int mm=0; mm<B->blocks[ii][jj].sz[ll]; ++mm) {
+              if (B->blocks[ii][jj].pos[ll][mm] == kk) {
+                printf("%d | %d || ", B->blocks[ii][jj].row[ll][mm], ll);
+              }
+            }
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+#else
+  for (int ii=0; ii<rlB; ++ii) {
+    for (int jj=0; jj<clB; ++jj) {
+      if (B->blocks[ii][jj].row != NULL) {
+        printf("%d .. %d\n", ii, jj);
+        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+          for (int ll=0; ll<B->blocks[ii][jj].sz[kk]; ++ll) {
+            if (ll>0 && B->blocks[ii][jj].pos[kk][ll-1] > B->blocks[ii][jj].pos[kk][ll]) {
+              printf("\n\nll %d --> %u > %u\n\n",ll,B->blocks[ii][jj].pos[kk][ll-1],B->blocks[ii][jj].pos[kk][ll]);
+            }
+            printf("%d | %d || ", B->blocks[ii][jj].row[kk][ll], B->blocks[ii][jj].pos[kk][ll]);
+          }
+          printf("\n");
+        }
+      }
+    }
+  }
+#endif
+  printf("-------------------DDDD-------------------------\n");
+  // column loops
+  // column loops
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  // row loops
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  printf("+++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (int ii=0; ii<rlD; ++ii) {
+  for (int jj=0; jj<clD; ++jj) {
+  if (D->blocks[ii][jj].val != NULL) {
+  printf("%d .. %d\n", ii, jj);
+  for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+  for (int ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+  printf("%d | ", D->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+  }
+  printf("\n");
+  }
+  printf("\n");
+  }
+  }
+  }
+*/
 #if __GB_CLI_DEBUG_A
   // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -439,7 +503,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   }
   */
   /*  copying sparse matrix C to a sparse block matrix C_block */
-#if 1
+#if 0
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
@@ -503,35 +567,39 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
 #else
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART copying sparse C to dense block representation ...\n");
+    //printf("---------------------------------------------------------------------\n");
+    printf("%-50s", "Copying C to dense block representation ...");
+    fflush(stdout);
   }
   dbm_fl_t *C_block = copy_sparse_to_dense_block_matrix(C, nthreads);
   free_sparse_matrix(&C,nthreads);
   if (verbose > 1) {
-    printf("<<<<\tDONE  copying sparse C to dense block representation.\n");
-    printf("TIME\t%.3f sec\n",
+    printf("%9.3f sec\n",
         walltime(t_load_start) / (1000000));
+  }
+  if (verbose > 2) {
     print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-  /*
-  // column loops
+//#if __GB_CLI_DEBUG_D
+/*
+  printf("CCC\n");
   const uint32_t clC  = (uint32_t) ceil((float)C_block->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
   const uint32_t rlC  = (uint32_t) ceil((float)C_block->nrows / __GBLA_SIMD_BLOCK_SIZE);
-
+  printf("+++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
   for (int ii=0; ii<rlC; ++ii) {
     for (int jj=0; jj<clC; ++jj) {
-      if (C_block->blocks[ii][jj].row != NULL) {
-        printf("%d .. %d\n", ii, jj);
-        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
-          for (int ll=0; ll<C_block->blocks[ii][jj].sz[kk]; ++ll) {
-            printf("%d | %d || ", C_block->blocks[ii][jj].row[kk][ll], C_block->blocks[ii][jj].pos[kk][ll]);
+      if (C_block->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (int ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", C_block->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
           }
           printf("\n");
-        }
       }
     }
   }
@@ -539,17 +607,20 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   // reducing submatrix C to zero using methods of Faugère & Lachartre
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
-    printf("---------------------------------------------------------------------\n");
-    printf(">>>>\tSTART reducing C to zero ...\n");
+    //printf("---------------------------------------------------------------------\n");
+    printf("%-50s","Reducing C to zero ...");
+    fflush(stdout);
   }
-  if (elim_fl_C_sparse_dense_block(C_block, &B, D, 1, M->mod, nthreads)) {
+  if (elim_fl_C_dense_sparse_block(B, &C_block, D, 1, M->mod, nthreads)) {
     printf("Error while reducing C.\n");
     return 1;
   }
   if (verbose > 1) {
-    printf("<<<<\tDONE  reducing C to zero.\n");
-    printf("TIME\t%.3f sec\n",
+    //printf("<<<<\tDONE  reducing C to zero.\n");
+    printf("%9.3f sec\n",
         walltime(t_load_start) / (1000000));
+  }
+  if (verbose > 2) {
     print_mem_usage();
     printf("---------------------------------------------------------------------\n");
     printf("\n");
@@ -557,8 +628,6 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
 #endif
 #if __GB_CLI_DEBUG_D
   printf("DDDD\n");
-  // column loops
-  // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / __GBLA_SIMD_BLOCK_SIZE);
@@ -2383,7 +2452,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-  /*
   printf("DDDD\n");
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
@@ -2412,7 +2480,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
       }
     }
   }
-  */
   /*  echelonize D using methods of Faugère & Lachartre */
 
   /*  We need to do at least two rounds on D, possibly even reducing B further */

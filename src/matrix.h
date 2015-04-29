@@ -792,8 +792,8 @@ static inline dbm_fl_t *copy_sparse_to_dense_block_matrix(const sm_fl_t *A,
         for (l=0; l<blocks_per_row; ++l) {
           if (block_length[l] != 0) {
             if (out->blocks[i][l].val == NULL) {
-              out->blocks[i][l].val = (re_t *)malloc(
-                  __GBLA_SIMD_BLOCK_SIZE_RECT * sizeof(re_t));
+              out->blocks[i][l].val = (re_t *)calloc(
+                  __GBLA_SIMD_BLOCK_SIZE_RECT, sizeof(re_t));
             }
           }
         }
