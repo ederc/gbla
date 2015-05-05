@@ -626,7 +626,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("\n");
   }
 #endif
-#if __GB_CLI_DEBUG_D
+//#if __GB_CLI_DEBUG_D
   printf("DDDD\n");
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -654,7 +654,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
       }
     }
   }
-#endif
+//#endif
 
   return 0;
 }
