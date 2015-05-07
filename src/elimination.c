@@ -599,7 +599,7 @@ int elim_fl_A_dense_blocks_task(const dbm_fl_t *A, dbm_fl_t *B,
   return 0;
 }
 
-#if __GBLA_COLUMN_B
+//#if __GBLA_COLUMN_B
 int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
     const int inv_scalars, const mod_t modulus, const int nthrds) {
 
@@ -626,7 +626,7 @@ int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
   free_dense_submatrix(&C, nthrds);
   return 0;
 }
-#endif
+//#endif
 
 int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
     const int inv_scalars, const mod_t modulus, const int nthrds) {
@@ -709,7 +709,7 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
   return 0;
 }
 
-#if __GBLA_COLUMN_B
+//#if __GBLA_COLUMN_B
 int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
   const int inv_scalars, const mod_t modulus) {
@@ -744,7 +744,7 @@ int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
 
   return 0;
 }
-#endif
+//#endif
 
 int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
