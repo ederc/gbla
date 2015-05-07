@@ -503,7 +503,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   }
   */
   /*  copying sparse matrix C to a sparse block matrix C_block */
-#if 1
+#if 0
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
