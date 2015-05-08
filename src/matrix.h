@@ -686,28 +686,24 @@ inline void free_intermediate_submatrix(ibm_fl_t **A_in, int nthrds)
   ci_t i;
   bi_t k;
   // free A
-#pragma omp parallel num_threads(nthrds)
-  {
-#pragma omp for private(i,j)
-    for (j=0; j<rlA; ++j) {
-      for (i=0; i<clA; ++i) {
-        if (A->blocks[j][i].val != NULL) {
-          free(A->blocks[j][i].val);
-          A->blocks[j][i].val  = NULL;
-        }
-        if (A->blocks[j][i].row != NULL) {
-          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-            free(A->blocks[j][i].row[k]);
-            free(A->blocks[j][i].pos[k]);
-          }
-          free(A->blocks[j][i].row);
-          free(A->blocks[j][i].pos);
-          free(A->blocks[j][i].sz);
-        }
+  for (j=0; j<rlA; ++j) {
+    for (i=0; i<clA; ++i) {
+      if (A->blocks[j][i].val != NULL) {
+        free(A->blocks[j][i].val);
+        A->blocks[j][i].val  = NULL;
       }
-      free(A->blocks[j]);
-      A->blocks[j]  = NULL;
+      if (A->blocks[j][i].row != NULL) {
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          free(A->blocks[j][i].row[k]);
+          free(A->blocks[j][i].pos[k]);
+        }
+        free(A->blocks[j][i].row);
+        free(A->blocks[j][i].pos);
+        free(A->blocks[j][i].sz);
+      }
     }
+    free(A->blocks[j]);
+    A->blocks[j]  = NULL;
   }
   free(A->blocks);
   A->blocks = NULL;
@@ -991,7 +987,6 @@ static inline ibm_fl_t *copy_sparse_to_intermediate_block_matrix(const sm_fl_t *
             //free(out->blocks[i][j].sz);
             //out->blocks[i][j].row[k]  = NULL;
             //out->blocks[i][j].pos[k]  = NULL;
-            //out->blocks[i][j].sz      = NULL;
           }
           free(out->blocks[i][j].row);
           free(out->blocks[i][j].pos);
