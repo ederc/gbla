@@ -99,6 +99,16 @@ typedef struct sm_fl_t {
 } sm_fl_t;
 
 /**
+ * \brief An intermediate block representation that can be sparse or dense.
+ */
+typedef struct ibl_t {
+  re_t *val;  /*!< rows, NULL if sparse */
+  re_t **row; /*!< entries in sparse row, NULL if dense */
+  bi_t **pos; /*!< positions, NULL if dense */
+  bi_t *sz;   /*!< length of sparse rows, NULL if dense*/
+} ibl_t;
+
+/**
  * \brief A dense block is a block of size  __GBLA_SIMD_BLOCK_SIZE^2 of
  * matrix entries.
  */
@@ -148,6 +158,21 @@ enum ba_t {
   dtrl  /*!<  down-to-top, right-to-left */
 };
 
+
+/**
+ * \brief Mixed block matrix structure for Faugère-Lachartre decompositions.
+ * For non multiline implementation using small dense and sparse blocks for
+ * exploiting SIMD inctructions.
+ */
+
+typedef struct ibm_fl_t {
+  ri_t nrows;       /*!<  number of rows */
+  ci_t ncols;       /*!<  number of columns */
+  nnz_t nnz;        /*!<  number of nonzero elements */
+  double density;   /*!<  density of this submatrix */
+  ibl_t **blocks;   /*!<  address of blocks: M->blocks[i][j] gives address of
+                          block. */
+} ibm_fl_t;
 
 /**
  * \brief Dense block matrix structure for Faugère-Lachartre decompositions.
@@ -250,6 +275,30 @@ typedef struct sm_fl_ml_t {
                           multiline i. There are nrows/__GB_NROWS_MULTILINE
                           multilines. */
 } sm_fl_ml_t;
+
+/**
+ * \brief returns number of row blocks for intermediate block submatrix A
+ *
+ * \param intermediate block submatrix A
+ *
+ * \return number of row blocks for A
+ */
+inline ri_t get_number_intermediate_row_blocks(const ibm_fl_t *A)
+{
+  return (ri_t) ceil((float) A->nrows / __GBLA_SIMD_BLOCK_SIZE);
+}
+
+/**
+ * \brief returns number of column blocks for intermediate block submatrix A
+ *
+ * \param intermediate block submatrix A
+ *
+ * \return number of column blocks for A
+ */
+inline ci_t get_number_intermediate_col_blocks(const ibm_fl_t *A)
+{
+  return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
+}
 
 /**
  * \brief returns number of row blocks for hybrid block submatrix A
@@ -437,6 +486,42 @@ inline void init_hbm(hbm_fl_t *A, const ri_t nrows, const ri_t ncols)
 }
 
 /**
+ * \brief Initializes intermediate block submatrices
+ *
+ * \param intermediate block submatrix A
+ *
+ * \param number of rows nrows
+ *
+ * \param number of columns ncols
+ */
+inline void init_ibm(ibm_fl_t *A, const ri_t nrows, const ri_t ncols)
+{
+  int i, j;
+
+  // initialize meta data for block submatrices
+  A->nrows  = nrows;  // row dimension
+  A->ncols  = ncols;  // col dimension
+  A->nnz    = 0;      // number nonzero elements
+
+  // allocate memory for blocks
+
+  // row and column loops
+  const ci_t clA  = get_number_intermediate_col_blocks(A);
+  const ri_t rlA  = get_number_intermediate_row_blocks(A);
+
+  A->blocks = (ibl_t **)malloc(rlA * sizeof(ibl_t *));
+  for (i=0; i<rlA; ++i) {
+    A->blocks[i]  = (ibl_t *)malloc(clA * sizeof(ibl_t));
+    for (j=0; j<clA; ++j) {
+      A->blocks[i][j].val = NULL;
+      A->blocks[i][j].row = NULL;
+      A->blocks[i][j].pos = NULL;
+      A->blocks[i][j].sz  = NULL;
+    }
+  }
+}
+
+/**
  * \brief Initializes dense block submatrices
  *
  * \param dense block submatrix A
@@ -576,6 +661,52 @@ inline void free_hybrid_submatrix(hbm_fl_t **A_in, int nthrds)
       }
       free(A->blocks[i]);
       A->blocks[i]  = NULL;
+    }
+  }
+  free(A->blocks);
+  A->blocks = NULL;
+  free(A);
+  A = NULL;
+  *A_in  = A;
+}
+
+/**
+ * \brief Frees given intermediate block submatrix A
+ *
+ * \param intermediate block submatrix A
+ *
+ * \param number of threads for parallel computation
+ */
+inline void free_intermediate_submatrix(ibm_fl_t **A_in, int nthrds)
+{
+  ibm_fl_t *A     = *A_in;
+  const ci_t clA  = get_number_intermediate_col_blocks(A);
+  const ri_t rlA  = get_number_intermediate_row_blocks(A);
+  ri_t j;
+  ci_t i;
+  bi_t k;
+  // free A
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(i,j)
+    for (j=0; j<rlA; ++j) {
+      for (i=0; i<clA; ++i) {
+        if (A->blocks[j][i].val != NULL) {
+          free(A->blocks[j][i].val);
+          A->blocks[j][i].val  = NULL;
+        }
+        if (A->blocks[j][i].row != NULL) {
+          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+            free(A->blocks[j][i].row[k]);
+            free(A->blocks[j][i].pos[k]);
+          }
+          free(A->blocks[j][i].row);
+          free(A->blocks[j][i].pos);
+          free(A->blocks[j][i].sz);
+        }
+      }
+      free(A->blocks[j]);
+      A->blocks[j]  = NULL;
     }
   }
   free(A->blocks);
@@ -733,6 +864,146 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
   }
   printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
   */
+  return out;
+}
+
+/**
+ * \brief Copies sparse matrix A to a intermediate block matrix
+ *
+ * \param sparse submatrix A
+ *
+ * \param number of threads for parallel computation
+ *
+ * \return intermediate block matrix
+ */
+static inline ibm_fl_t *copy_sparse_to_intermediate_block_matrix(const sm_fl_t *A,
+    const int nthrds)
+{
+  ibm_fl_t *out  = (ibm_fl_t *)malloc(sizeof(ibm_fl_t));
+  init_ibm(out, A->nrows, A->ncols);
+
+  const ri_t blocks_per_col = get_number_intermediate_row_blocks(out);
+  const ci_t blocks_per_row = get_number_intermediate_col_blocks(out);
+
+#pragma omp parallel num_threads(nthrds)
+  {
+    bi_t *block_length  = (bi_t *)calloc(blocks_per_row, sizeof(bi_t));
+    bi_t col_idx;
+    ri_t i, j;
+    ci_t k, l, m, n;
+    bi_t tmp1, tmp2;
+    ci_t ctr;
+    ri_t max;
+#pragma omp for   
+    for (i=0; i<blocks_per_col; ++i) {
+      max = A->nrows < (i+1)*__GBLA_SIMD_BLOCK_SIZE ? A->nrows : (i+1)*__GBLA_SIMD_BLOCK_SIZE;
+      for (j=i*__GBLA_SIMD_BLOCK_SIZE; j<max; ++j) {
+        memset(block_length, 0, blocks_per_row * sizeof(bi_t));
+        // get lengths for the sparse block rows
+        /*
+        tmp2  = (A->ncols - 1 - A->pos[j][0]) / __GBLA_SIMD_BLOCK_SIZE;
+        for (k=1; k<A->sz[j]; ++k) {
+          tmp1  = tmp2;
+          tmp2  = (A->ncols - 1 - A->pos[j][k]) / __GBLA_SIMD_BLOCK_SIZE;
+          printf("tmp1 %d -- tmp2 %d\n",tmp1,tmp2);
+          if (tmp1 == tmp2)
+            block_length[tmp1]++;
+        }
+        if (tmp1 == tmp2)
+          block_length[tmp1]++;
+        else
+          block_length[tmp2]++;
+        */
+        for (k=0; k<A->sz[j]; ++k) {
+          block_length[(A->ncols - 1 - A->pos[j][k]) / __GBLA_SIMD_BLOCK_SIZE]++;
+        }
+
+        col_idx = j % __GBLA_SIMD_BLOCK_SIZE;
+        // allocate memory
+        for (l=0; l<blocks_per_row; ++l) {
+          if (block_length[l] != 0) {
+            if (out->blocks[i][l].row == NULL) {
+              out->blocks[i][l].row = (re_t **)malloc(
+                  __GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+              out->blocks[i][l].pos = (bi_t **)malloc(
+                  __GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+              out->blocks[i][l].sz = (bi_t *)malloc(
+                  __GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+              for (m=0; m<__GBLA_SIMD_BLOCK_SIZE; ++m) {
+                out->blocks[i][l].row[m]  = NULL;
+                out->blocks[i][l].pos[m]  = NULL;
+                out->blocks[i][l].sz[m]   = 0;
+              }
+            }
+          // memory for row j % __GBLA_SIMD_BLOCK_SIZE
+          out->blocks[i][l].row[col_idx]  = (re_t *)malloc(
+              block_length[l] * sizeof(re_t));
+          out->blocks[i][l].pos[col_idx]  = (bi_t *)malloc(
+              block_length[l] * sizeof(bi_t));
+          }
+        }
+
+        // copy elements
+        // we loop at "+1" in order to not get into trouble with comparing
+        // unsigned ints with 0 at the very end. thus we decrement "m" to "m-1"
+        // in each loop.
+        ctr = A->sz[j];
+        for (l=0; l<blocks_per_row; ++l) {
+          for (m=ctr; m>(ctr-block_length[l]); --m) {
+            out->blocks[i][l].row[col_idx][out->blocks[i][l].sz[col_idx]] =
+              A->row[j][m-1];
+            out->blocks[i][l].pos[col_idx][out->blocks[i][l].sz[col_idx]] =
+              (bi_t)((A->ncols - 1 -A->pos[j][m-1]) % __GBLA_SIMD_BLOCK_SIZE);
+            out->blocks[i][l].sz[col_idx]++;
+          }
+          ctr -=  block_length[l];
+        }
+      }
+    }    
+    free(block_length);
+  }
+#pragma omp parallel num_threads(nthrds)
+  {
+    ri_t i, j;
+    ci_t k, l, m;
+    unsigned long nnz;
+#pragma omp for   
+  // now switch blocks that are dense to dense representation
+  for (i=0; i<blocks_per_col; ++i) {
+    for (j=0; j<blocks_per_row; ++j) {
+      if (out->blocks[i][j].sz != NULL) {
+        nnz = 0;
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          nnz +=  out->blocks[i][j].sz[k];
+        }
+        if (nnz > __GBLA_SIMD_BLOCK_SIZE_RECT/2) {
+          out->blocks[i][j].val = (re_t *)calloc(
+              __GBLA_SIMD_BLOCK_SIZE_RECT, sizeof(re_t));
+          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+            //printf("sz[%u][%u][%u]\n",i,j,k);
+            //printf("= %p\n",out->blocks[i][j].sz);
+            for (l=0; l<out->blocks[i][j].sz[k]; ++l) {
+              out->blocks[i][j].val[k * __GBLA_SIMD_BLOCK_SIZE + out->blocks[i][j].pos[k][l]] =
+                out->blocks[i][j].row[k][l];
+            }
+            free(out->blocks[i][j].row[k]);
+            free(out->blocks[i][j].pos[k]);
+            //free(out->blocks[i][j].sz);
+            //out->blocks[i][j].row[k]  = NULL;
+            //out->blocks[i][j].pos[k]  = NULL;
+            //out->blocks[i][j].sz      = NULL;
+          }
+          free(out->blocks[i][j].row);
+          free(out->blocks[i][j].pos);
+          free(out->blocks[i][j].sz);
+          out->blocks[i][j].row = NULL;
+          out->blocks[i][j].pos = NULL;
+          out->blocks[i][j].sz  = NULL;
+        }
+      }
+    }
+  }
+}
   return out;
 }
 

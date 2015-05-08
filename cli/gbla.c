@@ -23,6 +23,10 @@
 #define __GB_CLI_DEBUG_A  0
 #define __GB_CLI_DEBUG_D  0
 
+#define SPARSE        0
+#define INTERMEDIATE  1
+#define DENSE         0
+
 void print_help() {
   printf("\n");
   printf("NAME\n");
@@ -503,7 +507,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   }
   */
   /*  copying sparse matrix C to a sparse block matrix C_block */
-#if 0
+#if SPARSE
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
@@ -564,7 +568,79 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-#else
+#endif
+#if INTERMEDIATE
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    //printf("---------------------------------------------------------------------\n");
+    printf("%-50s", "Copying C to intermediate block representation ...");
+    fflush(stdout);
+  }
+  ibm_fl_t *C_block = copy_sparse_to_intermediate_block_matrix(C, nthreads);
+  free_sparse_matrix(&C,nthreads);
+  if (verbose > 1) {
+    printf("%9.3f sec\n",
+        walltime(t_load_start) / (1000000));
+  }
+  if (verbose > 2) {
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+//#if __GB_CLI_DEBUG_D
+  /*
+  printf("CCC\n");
+  const uint32_t clC  = (uint32_t) ceil((float)C_block->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  // row loops
+  const uint32_t rlC  = (uint32_t) ceil((float)C_block->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  printf("+++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+  for (int ii=0; ii<rlC; ++ii) {
+    for (int jj=0; jj<clC; ++jj) {
+      if (C_block->blocks[ii][jj].row != NULL) {
+        printf("%d .. %d\n", ii, jj);
+        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+          for (int ll=0; ll<C_block->blocks[ii][jj].sz[kk]; ++ll) {
+            printf("%d | %d || ", C_block->blocks[ii][jj].row[kk][ll], C_block->blocks[ii][jj].pos[kk][ll]);
+          }
+          printf("\n");
+        }
+      }
+      if (C_block->blocks[ii][jj].val != NULL) {
+          printf("%d .. %d\n", ii, jj);
+          for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+            for (int ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
+              printf("%d | ", C_block->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
+            }
+            printf("\n");
+          }
+          printf("\n");
+      }
+    }
+  }
+  */
+  // reducing submatrix C to zero using methods of Faugère & Lachartre
+  if (verbose > 1) {
+    gettimeofday(&t_load_start, NULL);
+    //printf("---------------------------------------------------------------------\n");
+    printf("%-50s","Reducing C to zero ...");
+    fflush(stdout);
+  }
+  if (elim_fl_C_intermediate_block(B, &C_block, D, 1, M->mod, nthreads)) {
+    printf("Error while reducing C.\n");
+    return 1;
+  }
+  if (verbose > 1) {
+    //printf("<<<<\tDONE  reducing C to zero.\n");
+    printf("%9.3f sec\n",
+        walltime(t_load_start) / (1000000));
+  }
+  if (verbose > 2) {
+    print_mem_usage();
+    printf("---------------------------------------------------------------------\n");
+    printf("\n");
+  }
+#endif
+#if DENSE
   if (verbose > 1) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");

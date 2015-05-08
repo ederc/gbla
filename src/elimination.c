@@ -600,6 +600,32 @@ int elim_fl_A_dense_blocks_task(const dbm_fl_t *A, dbm_fl_t *B,
 }
 
 //#if __GBLA_COLUMN_B
+int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C_in, dbm_fl_t *D,
+    const int inv_scalars, const mod_t modulus, const int nthrds) {
+
+  ibm_fl_t *C = *C_in;
+
+  ci_t i, rc;
+  ri_t j, k;
+  const ci_t clD  = get_number_dense_col_blocks(D);
+  const ci_t clC  = get_number_intermediate_col_blocks(C);
+  const ri_t rlC  = get_number_intermediate_row_blocks(C);
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for
+    // each task takes one block column of B
+    for (i=clD; i>0; --i) {
+#pragma omp task
+      {
+        rc  = elim_fl_C_intermediate_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+      }
+    }
+#pragma omp taskwait
+  }
+  // free C
+  free_intermediate_submatrix(&C, nthrds);
+  return 0;
+}
 int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
     const int inv_scalars, const mod_t modulus, const int nthrds) {
 
@@ -710,6 +736,47 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
 }
 
 //#if __GBLA_COLUMN_B
+int elim_fl_C_intermediate_blocks_task(sb_fl_t *B, ibm_fl_t *C, dbm_fl_t *D,
+  const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+  const int inv_scalars, const mod_t modulus) {
+  bi_t i;
+  ri_t j, k;
+  re_l_t **wide_block;
+  
+  init_wide_blocks(&wide_block);
+  for (j=0; j<nbrows_C; ++j) {
+    const ri_t first_block_idx  = 0;
+
+    set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
+
+    // copy sparse block data to dense representation
+    if (D->blocks[j][block_col_idx_D].val != NULL) {
+      copy_dense_to_wide_block(D->blocks[j][block_col_idx_D].val, wide_block);
+    }
+    // do all rectangular blocks
+    for (k=0; k<nbcols_C; ++k) {
+      if (B->blocks[k][block_col_idx_D].row != NULL) {
+        if (C->blocks[j][k].val != NULL) {
+        //printf("%u | %u | %u\n",j,k,block_col_idx_D);
+          red_dense_sparse_rectangular(C->blocks[j][k].val,
+              &B->blocks[k][block_col_idx_D], wide_block);
+        }
+        if (C->blocks[j][k].sz != NULL) {
+        //printf("%u | %u | %u\n",j,k,block_col_idx_D);
+          red_intermediate_sparse_sparse_rectangular(&C->blocks[j][k],
+              &B->blocks[k][block_col_idx_D], wide_block);
+        }
+      }
+    }
+    // cut down elements mod field characteristic
+    modulo_wide_block(&wide_block, modulus);
+
+    copy_wide_to_dense_block(wide_block, &D->blocks[j][block_col_idx_D].val);
+  }
+  free_wide_block(&wide_block);
+
+  return 0;
+}
 int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
   const int inv_scalars, const mod_t modulus) {
@@ -2529,9 +2596,9 @@ int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
 #define THREE 0
 #define FOUR 0
 #define FIVE 0
-#define SIX 1
+#define SIX 0
 #define EIGHT 0
-#define TEN 0
+#define TEN 1
 
 int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulus,
     const int nthrds)
