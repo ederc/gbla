@@ -2596,9 +2596,9 @@ int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
 #define THREE 0
 #define FOUR 0
 #define FIVE 0
-#define SIX 0
+#define SIX 1
 #define EIGHT 0
-#define TEN 1
+#define TEN 0
 
 int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulus,
     const int nthrds)
