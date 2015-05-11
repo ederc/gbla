@@ -87,8 +87,9 @@ static inline void init_wide_blocks(re_l_t ***wide_block)
   wb = (re_l_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_l_t *));
   uint64_t size = __GBLA_SIMD_BLOCK_SIZE * sizeof(re_l_t);
   bi_t i;
+  int ret;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    posix_memalign((void **)&wb[i], 16, size);
+    ret = posix_memalign((void **)&wb[i], 16, size);
   }
   *wide_block  = wb;
 }
@@ -104,7 +105,8 @@ static inline void init_wide_blocks(re_l_t ***wide_block)
 static inline void init_wide_rows(re_l_t **wide_row, ci_t length)
 {
   re_l_t *wr = *wide_row;
-  posix_memalign((void **)&wr, 16, length * sizeof(re_l_t));
+  int ret;
+  ret = posix_memalign((void **)&wr, 16, length * sizeof(re_l_t));
   *wide_row  = wr;
 }
 

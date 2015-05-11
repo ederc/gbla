@@ -255,17 +255,18 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
     map_fl_t *map, const ci_t coldim, int free_matrices,
     int M_freed, int A_freed, int D_freed, int nthrds) {
 
+  int ret;
   uint8_t *vec_free_B2, *vec_free_D2;
   /*  1 pivot from A and otherwise at most D->ncols = B->ncols elements */
   /*  ==> no reallocations! */
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    posix_memalign((void *)&vec_free_B2, ALIGNT, (B2->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_B2, ALIGNT, (B2->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_B2, 0, (B2->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    posix_memalign((void *)&vec_free_D2, ALIGNT, (D2->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_D2, ALIGNT, (D2->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D2, 0, (D2->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
@@ -484,17 +485,18 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
     int M_freed, int A_freed, int D_freed, int nthrds) {
 
+  int ret;
   uint8_t *vec_free_AB, *vec_free_D;
   /*  1 pivot from A and otherwise at most D->ncols = B->ncols elements */
   /*  ==> no reallocations! */
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_AB, 0, (B->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D, 0, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
@@ -671,17 +673,18 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
     int M_freed, int A_freed, int D_freed, int nthrds) {
 
+  int ret;
   uint8_t *vec_free_AB, *vec_free_D;
   /*  we need size of A->ml and otherwise at most D->ncols = B->ncols elements */
   /*  ==> no reallocations! */
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_AB, 0, (B->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D, 0, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
