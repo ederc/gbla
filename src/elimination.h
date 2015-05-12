@@ -470,6 +470,7 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
   for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
     register const bi_t *posB  = block_B->pos[j];
     k = 0;
+#if 0
     if (block_B->sz[j]-k > 15) {
       for (; k<block_B->sz[j]-15; k=k+16) {
         /* register const re_m_t */ b1  = block_B->row[j][k];
@@ -537,6 +538,7 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
         }
       }
     }
+#endif
     if (block_B->sz[j]-k > 7) {
       for (; k<block_B->sz[j]-7; k=k+8) {
         /* register const re_m_t */ b1  = block_B->row[j][k];
