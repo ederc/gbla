@@ -1576,10 +1576,11 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_test(
   // current loop variable i, block indices 1 (rihb[i])
   ri_t i, j, k, l, bi;
 
-  ci_t itA[16];
-  ci_t itB[16];
-  ci_t riA[16];
-  ci_t riB[16];
+#define BUFFER  64
+  ci_t itA[BUFFER];
+  ci_t itB[BUFFER];
+  ci_t riA[BUFFER];
+  ci_t riB[BUFFER];
   bi_t ctrA, ctrB;
   for (i=0; i<cvb; ++i) {
     bi  = rihb[i];
@@ -1600,11 +1601,11 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_test(
         ++ctrB;
         ++ri;
       }
-      if (ctrA == 16) {
+      if (ctrA == BUFFER) {
         insert_many_in_sm(A, M, map->pc, itA, riA, ctrA, rbi, i, bi); 
         ctrA  = 0;
       }
-      if (ctrB == 16) {
+      if (ctrB == BUFFER) {
 #if __GBLA_COLUMN_B
         insert_many_in_sb_by_column(B, M, map->npc, itB, riB, ctrB, rbi, i, bi); 
 #else
