@@ -2574,7 +2574,7 @@ static inline void fill_sparse_dense_submatrices(sm_t *M, sb_fl_t *A, dbm_fl_t *
           cvb++;
         }
         if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
-          write_sparse_dense_blocks_matrix(M, A, B, map, rihb, cvb, block_idx);
+          write_sparse_dense_blocks_matrix_test(M, A, B, map, rihb, cvb, block_idx);
 
           // TODO: Destruct input matrix on the go
           if (destruct_input_matrix)
@@ -2585,7 +2585,7 @@ static inline void fill_sparse_dense_submatrices(sm_t *M, sb_fl_t *A, dbm_fl_t *
     }
   }
   // swap entries in A and cut memory at the same time
-  swap_and_cut(A);
+  //swap_and_cut(A);
 }
 
 /**
