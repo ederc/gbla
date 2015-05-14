@@ -33,6 +33,8 @@
 #include <math.h>
 #include <omp.h>
 
+#define BUFFER  256
+
 /**
  * \brief Indexer for subdividing sparse matrix into 4 parts as described by
  * Faugère and Lachartre in http://dx.doi.org/10.1145/1837210.1837225.
@@ -755,59 +757,124 @@ static inline void insert_many_in_sb_by_column(sb_fl_t *A, const sm_t *M, const 
 
 /**
  * \brief Inserts several elements from input matrix M in sparse submatrix A at
+ * once with inverted values w.r.t. M->mod.
+ *
+ * \param sparse block submatrix A
+ *
+ * \param original matrix M
+ *
+ * \param array of column positions pos
+ *
+ * \param array of row indices ri
+ *
+ * \param length of pos resp. ri length
+ *
+ * \param current row block index rbi
+ *
+ * \param current line in block lib
+ *
+ * \param row index of corresponding element in M bi
+ */
+static inline void insert_many_in_sb_inv(sb_fl_t *A, const sm_t *M, const ci_t *pos,
+    const ci_t *ri, const bi_t length, const ri_t rbi, const ri_t lib, const ri_t bi)
+{
+  bi_t i, k;
+  
+  register bi_t eil;
+  // bir is the same for all elements in col
+  //printf("pos[0] = %u\n",pos[0]);
+  register const bi_t bir  = pos[0] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  //printf("bir %u\n",bir);
+  //printf("pos[0] = %u | %u\n",pos[0], length);
+  //printf("bir %u\n",bir);
+  //printf("rbi %u\n",rbi);
+  //printf("lib %u\n",lib);
+  // allocate memory
+  if (A->blocks[rbi][bir].row == NULL) {
+    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+    A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+    A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+    A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].pos[k]  = NULL;
+      A->blocks[rbi][bir].sz[k]   = 0;
+      A->blocks[rbi][bir].buf[k]  = 0;
+    }
+  }
+  A->blocks[rbi][bir].row[lib]  = (re_t *)malloc(length * sizeof(re_t));
+  A->blocks[rbi][bir].pos[lib]  = (bi_t *)malloc(length * sizeof(bi_t));
+  // insert entries in this block
+  //printf("length %u | %u | %u | %u\n",length,bir,lib,A->blocks[rbi][bir].sz[lib]);
+  for (i=0; i<length; ++i) {
+    eil  = pos[i] % __GBLA_SIMD_BLOCK_SIZE; // index in block line
+    // set values
+    //if (A->blocks[rbi][bir].sz[lib]>=length)
+      //printf("!!! %u\n",A->blocks[rbi][bir].sz[lib]);
+    A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]] = 
+      (re_t)((re_m_t)M->mod - M->rows[bi][ri[i]]);
+    A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]] = eil;
+    A->blocks[rbi][bir].sz[lib]++;
+  }
+}
+
+/**
+ * \brief Inserts several elements from input matrix M in sparse submatrix A at
  * once.
  *
  * \param sparse block submatrix A
  *
  * \param original matrix M
  *
- * \param shift to calculate correct coordinates of the corresponding block in A
- * and inside the block itself shift
+ * \param array of column positions pos
+ *
+ * \param array of row indices ri
+ *
+ * \param length of pos resp. ri length
  *
  * \param current row block index rbi
  *
  * \param current line in block lib
  *
- * \param position of the element in line of the block eil
- *
- * \param row index of corresponding element in M bi1
- *
- * \param index in row bi1 of corresponding element in M i1
- *
+ * \param row index of corresponding element in M bi
  */
-static inline void insert_many_in_sb(sb_fl_t *A, const sm_t *M, const ci_t *col, const ci_t *pos,
+static inline void insert_many_in_sb(sb_fl_t *A, const sm_t *M, const ci_t *pos,
     const ci_t *ri, const bi_t length, const ri_t rbi, const ri_t lib, const ri_t bi)
 {
   bi_t i, k;
+  
+  register bi_t eil;
+  // bir is the same for all elements in col
+  register const bi_t bir  = pos[0] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  // allocate memory if needed, initialized to zero
+  if (A->blocks[rbi][bir].row == NULL) {
+    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+    A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+    A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+    A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].pos[k]  = NULL;
+      A->blocks[rbi][bir].sz[k]   = 0;
+      A->blocks[rbi][bir].buf[k]  = 0;
+    }
+  }
+  if (A->blocks[rbi][bir].row[lib] == NULL) {
+    A->blocks[rbi][bir].row[lib]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
+    A->blocks[rbi][bir].pos[lib]  = (bi_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(bi_t));
+    A->blocks[rbi][bir].buf[lib]  = 2 * __GBLA_SIMD_INNER_SIZE;
+  } else {
+    if (A->blocks[rbi][bir].sz[lib] == A->blocks[rbi][bir].buf[lib]) {
+      A->blocks[rbi][bir].buf[lib]  *=  2;
+      A->blocks[rbi][bir].row[lib]  =   realloc(A->blocks[rbi][bir].row[lib],
+          A->blocks[rbi][bir].buf[lib] * sizeof(re_t));
+      A->blocks[rbi][bir].pos[lib]  =   realloc(A->blocks[rbi][bir].pos[lib],
+          A->blocks[rbi][bir].buf[lib] * sizeof(bi_t));
+    }
+  }
+  // insert entries in this block
   for (i=0; i<length; ++i) {
-    const bi_t bir  = col[pos[i]] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
-    const bi_t eil  = col[pos[i]] % __GBLA_SIMD_BLOCK_SIZE; // index in block line
-    // allocate memory if needed, initialized to zero
-    if (A->blocks[rbi][bir].row == NULL) {
-      A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
-      A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
-      A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
-      A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
-      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-        A->blocks[rbi][bir].row[k]  = NULL;
-        A->blocks[rbi][bir].pos[k]  = NULL;
-        A->blocks[rbi][bir].sz[k]   = 0;
-        A->blocks[rbi][bir].buf[k]  = 0;
-      }
-    }
-    if (A->blocks[rbi][bir].row[lib] == NULL) {
-      A->blocks[rbi][bir].row[lib]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
-      A->blocks[rbi][bir].pos[lib]  = (bi_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(bi_t));
-      A->blocks[rbi][bir].buf[lib]  = 2 * __GBLA_SIMD_INNER_SIZE;
-    } else {
-      if (A->blocks[rbi][bir].sz[lib] == A->blocks[rbi][bir].buf[lib]) {
-        A->blocks[rbi][bir].buf[lib]  *=  2;
-        A->blocks[rbi][bir].row[lib]  =   realloc(A->blocks[rbi][bir].row[lib],
-            A->blocks[rbi][bir].buf[lib] * sizeof(re_t));
-        A->blocks[rbi][bir].pos[lib]  =   realloc(A->blocks[rbi][bir].pos[lib],
-            A->blocks[rbi][bir].buf[lib] * sizeof(bi_t));
-      }
-    }
+    eil  = pos[i] % __GBLA_SIMD_BLOCK_SIZE; // index in block line
     // set values
     A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]] = 
       (re_t)M->rows[bi][ri[i]];
@@ -997,6 +1064,50 @@ static inline void insert_in_hbm_inv(hbm_fl_t *A, const sm_t *M, const ci_t shif
   // set values
   A->blocks[rbi][bir][lib][eil/__GBLA_SIMD_INNER_SIZE].val[eil%__GBLA_SIMD_INNER_SIZE]  = 
     (re_t)((re_m_t)M->mod - M->rows[bi][ri]);
+}
+
+/**
+ * \brief Inserts several elements from input matrix M in dense submatrix A at
+ * once.
+ *
+ * \param sparse block submatrix A
+ *
+ * \param original matrix M
+ *
+ * \param array of column positions pos
+ *
+ * \param array of row indices ri
+ *
+ * \param length of pos resp. ri length
+ *
+ * \param current row block index rbi
+ *
+ * \param current line in block lib
+ *
+ * \param row index of corresponding element in M bi
+ */
+static inline void insert_many_in_dbm(dbm_fl_t *A, const sm_t *M, const ci_t *pos,
+    const ci_t *ri, const bi_t length, const ri_t rbi, const ri_t lib, const ri_t bi)
+{
+  bi_t i;
+  register bi_t eil;
+  // bir is the same for all entries added next
+  //printf("-pos[0] = %u | %u\n",pos[0], length);
+  register const bi_t bir = pos[0] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  //printf("-bir %u\n",bir);
+  //printf("-rbi %u\n",rbi);
+  //printf("-lib %u\n",lib);
+  // allocate memory if needed, initialized to zero
+  //printf("A->blocks[0][4].val = %p | %p\n", A->blocks[0][4].val, A->blocks[0][4]);
+  //printf("A->blocks[0][5].val = %p | %p\n", A->blocks[0][5].val, A->blocks[0][5]);
+  if (A->blocks[rbi][bir].val == NULL)
+    A->blocks[rbi][bir].val = (re_t *)calloc(
+        __GBLA_SIMD_BLOCK_SIZE_RECT, sizeof(re_t));
+  for (i=0; i<length; ++i) {
+    eil = pos[i] % __GBLA_SIMD_BLOCK_SIZE; // index in block line
+    // set values
+    insert_dense_block_data(A, M, rbi, bir, lib, eil, bi, ri[i]);
+  }
 }
 
 /**
@@ -1511,6 +1622,100 @@ static inline void write_sparse_dense_blocks_matrix_no_inversion(const sm_t *M,
  *
  * \param row block index rbi
  */
+static inline void write_sparse_dense_blocks_matrix_test(const sm_t *M, sb_fl_t *A,
+    dbm_fl_t *B, const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
+{
+  bi_t  lib;    // line index in block
+  bi_t  length; // local helper for block line length arithmetic
+  ci_t  it, ri;
+
+  // memory for block entries is already allocated in splice_fl_matrix()
+
+  // current loop variable i, block indices 1 (rihb[i])
+  ri_t i, j, k, l, bi;
+
+  ci_t itA[BUFFER];
+  ci_t itB[BUFFER];
+  ci_t riA[BUFFER];
+  ci_t riB[BUFFER];
+  bi_t ctrA, ctrB;
+  ci_t old_col_posA;
+  ci_t old_col_posB;
+  for (i=0; i<cvb; ++i) {
+    bi  = rihb[i];
+    ri  = 0;
+
+    ctrA  = ctrB  = 0;
+    old_col_posA  = old_col_posB  = UINT32_MAX;
+    // loop over rows i and i+1 of M and splice correspondingly into A & B
+    while (ri < M->rwidth[bi]) {
+      it  = M->pos[bi][ri];
+      if (map->pc[it] != __GB_MINUS_ONE_32) {
+        if (old_col_posA != ((A->ncols-1-map->pc[it]) / __GBLA_SIMD_BLOCK_SIZE)) {
+          if (ctrA != 0) {
+            insert_many_in_sb_inv(A, M, itA, riA, ctrA, rbi, i, bi); 
+            ctrA  = 0;
+          }
+          //printf("ocpA %u | ctrA %u\n",old_col_posA, ctrA);
+          itA[ctrA]     = A->ncols-1-map->pc[it];
+          old_col_posA  = (A->ncols-1-map->pc[it]) / __GBLA_SIMD_BLOCK_SIZE;
+          //printf("-> ocpA %u | itA %u\n",old_col_posA, itA[ctrA]);
+          riA[ctrA]     = ri;
+          ++ctrA;
+          ++ri;
+        } else {
+          itA[ctrA]  = A->ncols-1-map->pc[it];
+          riA[ctrA]  = ri;
+          ++ctrA;
+          ++ri;
+        }
+      } else {
+        if (old_col_posB != (map->npc[it] / __GBLA_SIMD_BLOCK_SIZE)) {
+          if (ctrB != 0) {
+            insert_many_in_dbm(B, M, itB, riB, ctrB, rbi, i, bi); 
+            ctrB  = 0;
+          }
+          itB[ctrB]     = map->npc[it];
+          old_col_posB  = map->npc[it] / __GBLA_SIMD_BLOCK_SIZE;
+          riB[ctrB]     = ri;
+          ++ctrB;
+          ++ri;
+        } else {
+          itB[ctrB]  = map->npc[it];
+          riB[ctrB]  = ri;
+          ++ctrB;
+          ++ri;
+        }
+      }
+    }
+    // check possible lefovers
+    if (ctrA > 0)
+      insert_many_in_sb_inv(A, M, itA, riA, ctrA, rbi, i, bi); 
+    if (ctrB > 0)
+      insert_many_in_dbm(B, M, itB, riB, ctrB, rbi, i, bi); 
+  }
+}
+
+/**
+ * \brief Writes corresponding entries of original matrix M into the sparse block
+ * submatrix A and the dense block submatrix B. The entries are defined by the
+ * mappings from M given by rihb, crb and rbi:
+ * parts of M --> A|B
+ *
+ * \param original matrix M
+ *
+ * \param sparse block submatrix A (left side)
+ *
+ * \param dense block submatrix B (right side)
+ *
+ * \param splicer mapping map  that stores pivots and non pivots
+ *
+ * \param row indices in horizonal block rihb
+ *
+ * \param current row block crb
+ *
+ * \param row block index rbi
+ */
 static inline void write_sparse_dense_blocks_matrix(const sm_t *M, sb_fl_t *A,
     dbm_fl_t *B, const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
 {
@@ -1576,7 +1781,6 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_test(
   // current loop variable i, block indices 1 (rihb[i])
   ri_t i, j, k, l, bi;
 
-#define BUFFER  64
   ci_t itA[BUFFER];
   ci_t itB[BUFFER];
   ci_t riA[BUFFER];
@@ -2180,7 +2384,7 @@ static inline void fill_sparse_sparse_submatrices_keep_A(sm_t *M, sm_fl_t *A,
             cvb++;
           }
           if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
-            write_sparse_sparse_blocks_matrix_keep_A_test(
+            write_sparse_sparse_blocks_matrix_keep_A(
                 M, A, B, map, rihb, cvb, block_idx);
 
             // TODO: Destruct input matrix on the go
