@@ -2600,9 +2600,9 @@ int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
 #define ONE 0
 #define TWO 0
 #define THREE 0
-#define FOUR 0
+#define FOUR 4
 #define FIVE 0
-#define SIX 1
+#define SIX 0
 #define EIGHT 0
 #define TEN 0
 
