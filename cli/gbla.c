@@ -739,7 +739,8 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
 }
 
 int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
-    int verbose, int reduce_completely, int dense_reducer) {
+    int verbose, int reduce_completely, int dense_reducer)
+{
   struct timeval t_load_start;
   // all submatrices of block type
   if (verbose > 1) {
@@ -986,8 +987,9 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-#if __GB_CLI_DEBUG_D
-  // column loops
+
+#if __GB_CLI_DEBUG_D_TEST
+  printf("DDDD\n");
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / __GBLA_SIMD_BLOCK_SIZE);
@@ -1015,7 +1017,6 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
     }
   }
 #endif
-
 
   return 0;
 }
@@ -2143,7 +2144,9 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-#if __GB_CLI_DEBUG_1
+
+#if __GB_CLI_DEBUG_D_TEST
+  printf("DDDD\n");
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
   // row loops
