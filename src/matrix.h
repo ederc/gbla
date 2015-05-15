@@ -396,10 +396,11 @@ inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
   A->sz   = (ci_t *)malloc(nrows * sizeof(ci_t));
   A->buf  = (ci_t *)malloc(nrows * sizeof(ci_t));
   memset(A->sz, 0, nrows * sizeof(ci_t));
-  memset(A->buf, 0, nrows * sizeof(ci_t));
+  // allocate memory already, we will have at least one entry in each row!
   for (i=0; i<nrows; ++i) {
-    A->row[i] = NULL;
-    A->pos[i] = NULL;
+    A->row[i] = (re_t *)malloc(2 * __GBLA_SIMD_BLOCK_SIZE * sizeof(re_t));
+    A->pos[i] = (ci_t *)malloc(2 * __GBLA_SIMD_BLOCK_SIZE * sizeof(ci_t));
+    A->buf[i] = 2 * __GBLA_SIMD_BLOCK_SIZE;
   }
 }
 
