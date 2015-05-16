@@ -790,9 +790,9 @@ static inline void insert_many_in_sb_inv(sb_fl_t *A, const sm_t *M, const ci_t *
     // set values
     //if (A->blocks[rbi][bir].sz[lib]>=length)
       //printf("!!! %u\n",A->blocks[rbi][bir].sz[lib]);
-    A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]] = 
+    A->blocks[rbi][bir].row[lib][length - A->blocks[rbi][bir].sz[lib] - 1] = 
       (re_t)((re_m_t)M->mod - M->rows[bi][ri[i]]);
-    A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]] = eil;
+    A->blocks[rbi][bir].pos[lib][length - A->blocks[rbi][bir].sz[lib] - 1] = eil;
     A->blocks[rbi][bir].sz[lib]++;
   }
 }
@@ -2555,7 +2555,7 @@ static inline void fill_sparse_dense_submatrices_keep_A(sm_t *M, sm_fl_t *A,
           cvb++;
         }
         if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
-          write_sparse_dense_blocks_matrix_keep_A_many(
+          write_sparse_dense_blocks_matrix_keep_A(
           //write_sparse_dense_blocks_matrix_keep_A(
               M, A, B, map, rihb, cvb, block_idx);
 
@@ -2620,7 +2620,7 @@ static inline void fill_sparse_sparse_submatrices_keep_A(sm_t *M, sm_fl_t *A,
             cvb++;
           }
           if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
-            write_sparse_sparse_blocks_matrix_keep_A_many_test(
+            write_sparse_sparse_blocks_matrix_keep_A(
             //write_sparse_sparse_blocks_matrix_keep_A(
                 M, A, B, map, rihb, cvb, block_idx);
 
