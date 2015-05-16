@@ -1775,7 +1775,7 @@ static inline void write_sparse_dense_blocks_matrix(const sm_t *M, sb_fl_t *A,
  *
  * \param row block index rbi
  */
-static inline void write_sparse_sparse_blocks_matrix_keep_A_many_test(
+static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
     const sm_t *M, sm_fl_t *A, sb_fl_t *B, const map_fl_t *map, ri_t *rihb,
     const ri_t cvb, const ri_t rbi)
 {
@@ -1931,118 +1931,6 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many_test(
   free(dense_blocks);
 }
 
-
-/**
- * \brief Writes corresponding entries of original matrix M into the sparse block
- * submatrix A and the sparse block submatrix B. The entries are defined by the
- * mappings from M given by rihb, crb and rbi:
- * parts of M --> A|B
- *
- * \note This procedure does not invert the entries in A. This is used for
- * constructing C when we keep A. Moreover, the blocks in A are also filled by
- * left to right order (instead of right to left order in block version).
- * It buffers entries for one full block row and writes then the whole block row
- * at once.
- *
- * \param original matrix M
- *
- * \param sparse submatrix A (left side)
- *
- * \param sparse block submatrix B (right side)
- *
- * \param splicer mapping map  that stores pivots and non pivots
- *
- * \param row indices in horizonal block rihb
- *
- * \param current row block crb
- *
- * \param row block index rbi
- */
-static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
-    const sm_t *M, sm_fl_t *A, sb_fl_t *B, const map_fl_t *map, ri_t *rihb,
-    const ri_t cvb, const ri_t rbi)
-{
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
-  ci_t  it, ri;
-
-  // memory for block entries is already allocated in splice_fl_matrix()
-
-  // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
-
-  ci_t itA[BUFFER];
-  ci_t itB[BUFFER];
-  ci_t riA[BUFFER];
-  ci_t riB[BUFFER];
-  bi_t ctrA, ctrB;
-  ci_t old_col_posA;
-  ci_t old_col_posB;
-
-  // allocate memory for row block splice of B in order to not reallocate too
-  // often
-  for (i=0; i<cvb; ++i) {
-    bi  = rihb[i];
-    ri  = 0;
-
-    ctrA  = ctrB  = 0;
-    old_col_posA  = old_col_posB  = UINT32_MAX;
-    // loop over rows i and i+1 of M and splice correspondingly into A & B
-    while (ri < M->rwidth[bi]) {
-      it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32) {
-        if (old_col_posA != ((map->pc[it]) / __GBLA_SIMD_BLOCK_SIZE)) {
-          if (ctrA != 0) {
-            insert_many_in_sm(A, M, itA, riA, ctrA, rbi, i, bi); 
-            ctrA  = 0;
-          }
-          itA[ctrA]     = map->pc[it];
-          old_col_posA  = (map->pc[it]) / __GBLA_SIMD_BLOCK_SIZE;
-          riA[ctrA]     = ri;
-          ++ctrA;
-          ++ri;
-        } else {
-          itA[ctrA]  = map->pc[it];
-          riA[ctrA]  = ri;
-          ++ctrA;
-          ++ri;
-        }
-      } else {
-        if (old_col_posB != (map->npc[it] / __GBLA_SIMD_BLOCK_SIZE)) {
-          if (ctrB != 0) {
-#if __GBLA_COLUMN_B
-            //insert_many_in_sb(B, M, itB, riB, ctrB, rbi, i, bi); 
-            insert_many_in_sb_by_column(B, M, itB, riB, ctrB, rbi, i, bi); 
-#else
-            insert_many_in_sb(B, M, itB, riB, ctrB, rbi, i, bi); 
-#endif
-            ctrB  = 0;
-          }
-          itB[ctrB]     = map->npc[it];
-          old_col_posB  = map->npc[it] / __GBLA_SIMD_BLOCK_SIZE;
-          riB[ctrB]     = ri;
-          ++ctrB;
-          ++ri;
-        } else {
-          itB[ctrB]  = map->npc[it];
-          riB[ctrB]  = ri;
-          ++ctrB;
-          ++ri;
-        }
-      }
-    }
-    // check possible lefovers
-    if (ctrA > 0)
-      insert_many_in_sm(A, M, itA, riA, ctrA, rbi, i, bi); 
-    if (ctrB > 0)
-#if __GBLA_COLUMN_B
-      //insert_many_in_sb(B, M, itB, riB, ctrB, rbi, i, bi); 
-      insert_many_in_sb_by_column(B, M, itB, riB, ctrB, rbi, i, bi); 
-#else
-      insert_many_in_sb(B, M, itB, riB, ctrB, rbi, i, bi); 
-#endif
-  }
-}
 
 /**
  * \brief Writes corresponding entries of original matrix M into the sparse block
@@ -2555,7 +2443,7 @@ static inline void fill_sparse_dense_submatrices_keep_A(sm_t *M, sm_fl_t *A,
           cvb++;
         }
         if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
-          write_sparse_dense_blocks_matrix_keep_A(
+          write_sparse_dense_blocks_matrix_keep_A_many(
           //write_sparse_dense_blocks_matrix_keep_A(
               M, A, B, map, rihb, cvb, block_idx);
 
@@ -2620,7 +2508,7 @@ static inline void fill_sparse_sparse_submatrices_keep_A(sm_t *M, sm_fl_t *A,
             cvb++;
           }
           if (cvb == __GBLA_SIMD_BLOCK_SIZE || i == 0) {
-            write_sparse_sparse_blocks_matrix_keep_A(
+            write_sparse_sparse_blocks_matrix_keep_A_many(
             //write_sparse_sparse_blocks_matrix_keep_A(
                 M, A, B, map, rihb, cvb, block_idx);
 
