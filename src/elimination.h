@@ -2378,8 +2378,10 @@ static inline void update_wide_rows_four(re_l_t *wide_row1, re_l_t *wide_row2,
 {
   ci_t i;
   const ri_t row_idx  = A->nrows - idx - 1;
-  register re_m_t a_elt1, a_elt2;
-  register ci_t a_idx1, a_idx2;
+  register re_m_t a_elt1, a_elt2, a_elt3, a_elt4;
+  register re_m_t a_elt5, a_elt6, a_elt7, a_elt8;
+  register ci_t a_idx1, a_idx2, a_idx3, a_idx4;
+  register ci_t a_idx5, a_idx6, a_idx7, a_idx8;
   register const re_m_t m1  = multiplier1;
   register const re_m_t m2  = multiplier2;
   register const re_m_t m3  = multiplier3;
@@ -2388,20 +2390,94 @@ static inline void update_wide_rows_four(re_l_t *wide_row1, re_l_t *wide_row2,
   // we do not need to update with A->blocks[bir][bir].row[rib][0] since we
   // cancel out the element at this position in wide_row
   i = 0;
-  if (A->sz[row_idx] > 1) {
-    for (; i<A->sz[row_idx]-1; i=i+2) {
+ /*
+  if (A->sz[row_idx] > 7) {
+    for (; i<A->sz[row_idx]-7; i=i+8) {
       a_idx1  = A->pos[row_idx][i];
       a_elt1  = A->row[row_idx][i];
       a_idx2  = A->pos[row_idx][i+1];
       a_elt2  = A->row[row_idx][i+1];
+      a_idx3  = A->pos[row_idx][i+2];
+      a_elt3  = A->row[row_idx][i+2];
+      a_idx4  = A->pos[row_idx][i+3];
+      a_elt4  = A->row[row_idx][i+3];
+      a_idx5  = A->pos[row_idx][i+4];
+      a_elt5  = A->row[row_idx][i+4];
+      a_idx6  = A->pos[row_idx][i+5];
+      a_elt6  = A->row[row_idx][i+5];
+      a_idx7  = A->pos[row_idx][i+6];
+      a_elt7  = A->row[row_idx][i+6];
+      a_idx8  = A->pos[row_idx][i+7];
+      a_elt8  = A->row[row_idx][i+7];
+
       wide_row1[a_idx1] += m1 * a_elt1;
       wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row1[a_idx3] += m1 * a_elt3;
+      wide_row1[a_idx4] += m1 * a_elt4;
+      wide_row1[a_idx5] += m1 * a_elt5;
+      wide_row1[a_idx6] += m1 * a_elt6;
+      wide_row1[a_idx7] += m1 * a_elt7;
+      wide_row1[a_idx8] += m1 * a_elt8;
+      
       wide_row2[a_idx1] += m2 * a_elt1;
       wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row2[a_idx3] += m2 * a_elt3;
+      wide_row2[a_idx4] += m2 * a_elt4;
+      wide_row2[a_idx5] += m2 * a_elt5;
+      wide_row2[a_idx6] += m2 * a_elt6;
+      wide_row2[a_idx7] += m2 * a_elt7;
+      wide_row2[a_idx8] += m2 * a_elt8;
+
       wide_row3[a_idx1] += m3 * a_elt1;
       wide_row3[a_idx2] += m3 * a_elt2;
+      wide_row3[a_idx3] += m3 * a_elt3;
+      wide_row3[a_idx4] += m3 * a_elt4;
+      wide_row3[a_idx5] += m3 * a_elt5;
+      wide_row3[a_idx6] += m3 * a_elt6;
+      wide_row3[a_idx7] += m3 * a_elt7;
+      wide_row3[a_idx8] += m3 * a_elt8;
+
       wide_row4[a_idx1] += m4 * a_elt1;
       wide_row4[a_idx2] += m4 * a_elt2;
+      wide_row4[a_idx3] += m4 * a_elt3;
+      wide_row4[a_idx4] += m4 * a_elt4;
+      wide_row4[a_idx5] += m4 * a_elt5;
+      wide_row4[a_idx6] += m4 * a_elt6;
+      wide_row4[a_idx7] += m4 * a_elt7;
+      wide_row4[a_idx8] += m4 * a_elt8;
+    }
+  }
+  */
+  if (A->sz[row_idx] > 3) {
+    for (; i<A->sz[row_idx]-3; i=i+4) {
+      a_idx1  = A->pos[row_idx][i];
+      a_elt1  = A->row[row_idx][i];
+      a_idx2  = A->pos[row_idx][i+1];
+      a_elt2  = A->row[row_idx][i+1];
+      a_idx3  = A->pos[row_idx][i+2];
+      a_elt3  = A->row[row_idx][i+2];
+      a_idx4  = A->pos[row_idx][i+3];
+      a_elt4  = A->row[row_idx][i+3];
+
+      wide_row1[a_idx1] += m1 * a_elt1;
+      wide_row1[a_idx2] += m1 * a_elt2;
+      wide_row1[a_idx3] += m1 * a_elt3;
+      wide_row1[a_idx4] += m1 * a_elt4;
+      
+      wide_row2[a_idx1] += m2 * a_elt1;
+      wide_row2[a_idx2] += m2 * a_elt2;
+      wide_row2[a_idx3] += m2 * a_elt3;
+      wide_row2[a_idx4] += m2 * a_elt4;
+
+      wide_row3[a_idx1] += m3 * a_elt1;
+      wide_row3[a_idx2] += m3 * a_elt2;
+      wide_row3[a_idx3] += m3 * a_elt3;
+      wide_row3[a_idx4] += m3 * a_elt4;
+
+      wide_row4[a_idx1] += m4 * a_elt1;
+      wide_row4[a_idx2] += m4 * a_elt2;
+      wide_row4[a_idx3] += m4 * a_elt3;
+      wide_row4[a_idx4] += m4 * a_elt4;
     }
   }
   for (; i<A->sz[row_idx]; ++i) {
