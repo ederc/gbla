@@ -1038,7 +1038,9 @@ static inline void insert_in_hbm_inv(hbm_fl_t *A, const sm_t *M, const ci_t shif
  * \brief Inserts several elements from input matrix M in temporary dense blocks at
  * once.
  *
- * \param array of dense blocks
+ * \param array of dense blocks db
+ *
+ * \param array keeping track of column sizes col_sizes
  *
  * \param original matrix M
  *
@@ -1054,7 +1056,7 @@ static inline void insert_in_hbm_inv(hbm_fl_t *A, const sm_t *M, const ci_t shif
  *
  * \param row index of corresponding element in M bi
  */
-static inline void insert_many_in_dense_blocks(re_t **db, const sm_t *M, const ci_t *pos,
+static inline void insert_many_in_dense_blocks(re_t **db, bi_t **col_sizes, const sm_t *M, const ci_t *pos,
     const ci_t *ri, const bi_t length, const ri_t rbi, const ri_t lib, const ri_t bi)
 {
   bi_t i;
@@ -1064,7 +1066,13 @@ static inline void insert_many_in_dense_blocks(re_t **db, const sm_t *M, const c
   // set values
   for (i=0; i<length; ++i) {
     eil = pos[i] % __GBLA_SIMD_BLOCK_SIZE; // index in block line
+#if __GBLA_COLUMN_B
     db[bir][(lib*__GBLA_SIMD_BLOCK_SIZE)+eil] = M->rows[bi][ri[i]];
+    col_sizes[bir][eil]++;
+#else
+    db[bir][(lib*__GBLA_SIMD_BLOCK_SIZE)+eil] = M->rows[bi][ri[i]];
+    col_sizes[bir][lib]++;
+#endif
   }
 }
 
@@ -1800,9 +1808,14 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
   // store entries in B first dense and by row
   re_t **dense_blocks = (re_t **)malloc(clB *
       sizeof(re_t *));
-  for (i=0; i<clB; ++i)
+  bi_t **db_col_sizes = (bi_t **)malloc(clB *
+      sizeof(bi_t *));
+  for (i=0; i<clB; ++i) {
     dense_blocks[i] = (re_t *)calloc(__GBLA_SIMD_BLOCK_SIZE_RECT,
       sizeof(re_t));
+    db_col_sizes[i] = (bi_t *)calloc(__GBLA_SIMD_BLOCK_SIZE,
+      sizeof(bi_t));
+  }
   // allocate memory for row block splice of B in order to not reallocate too
   // often
   for (i=0; i<cvb; ++i) {
@@ -1834,7 +1847,7 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
       } else {
         if (old_col_posB != (map->npc[it] / __GBLA_SIMD_BLOCK_SIZE)) {
           if (ctrB != 0) {
-            insert_many_in_dense_blocks(dense_blocks, M, itB, riB, ctrB, rbi, i, bi);
+            insert_many_in_dense_blocks(dense_blocks, db_col_sizes, M, itB, riB, ctrB, rbi, i, bi);
             ctrB  = 0;
           }
           itB[ctrB]     = map->npc[it];
@@ -1854,11 +1867,12 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
     if (ctrA > 0)
       insert_many_in_sm(A, M, itA, riA, ctrA, rbi, i, bi); 
     if (ctrB > 0)
-      insert_many_in_dense_blocks(dense_blocks, M, itB, riB, ctrB, rbi, i, bi);
+      insert_many_in_dense_blocks(dense_blocks, db_col_sizes, M, itB, riB, ctrB, rbi, i, bi);
   }
 
   // write data from dense blocks into B
 #if __GBLA_COLUMN_B
+#if 0
   for (i=0; i<clB; ++i) {
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
       ctrB  = 0;
@@ -1890,8 +1904,47 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
       }
     }
   }
-
 #else
+  bi_t allocate_memory;
+  for (i=0; i<clB; ++i) {
+    allocate_memory = 0;
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      if (db_col_sizes[i][j] != 0) {
+        allocate_memory = 1;
+        break;
+      }
+    }
+    if (allocate_memory == 1) {
+      if (B->blocks[rbi][i].row == NULL) {
+        B->blocks[rbi][i].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+        B->blocks[rbi][i].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+        B->blocks[rbi][i].sz = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          B->blocks[rbi][i].row[k]  = NULL;
+          B->blocks[rbi][i].pos[k]  = NULL;
+          B->blocks[rbi][i].sz[k]   = 0;
+        }
+      }
+    }
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      ctrB  = db_col_sizes[i][j];
+      if (ctrB  != 0) {
+        B->blocks[rbi][i].row[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
+        B->blocks[rbi][i].pos[j]  = (bi_t *)malloc(ctrB * sizeof(bi_t));
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          if (dense_blocks[i][k*__GBLA_SIMD_BLOCK_SIZE + j] != 0) {
+            B->blocks[rbi][i].row[j][B->blocks[rbi][i].sz[j]] =
+              dense_blocks[i][k*__GBLA_SIMD_BLOCK_SIZE + j];
+            B->blocks[rbi][i].pos[j][B->blocks[rbi][i].sz[j]] = k;
+            B->blocks[rbi][i].sz[j]++;
+          }
+        }
+      }
+    }
+  }
+#endif
+#else
+#if 0
   for (i=0; i<clB; ++i) {
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
       ctrB  = 0;
@@ -1923,12 +1976,53 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
       }
     }
   }
+#else
+  bi_t allocate_memory;
+  for (i=0; i<clB; ++i) {
+    allocate_memory = 0;
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      if (db_col_sizes[i][j] != 0) {
+        allocate_memory = 1;
+        break;
+      }
+    }
+    if (allocate_memory == 1) {
+      if (B->blocks[rbi][i].row == NULL) {
+        B->blocks[rbi][i].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+        B->blocks[rbi][i].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
+        B->blocks[rbi][i].sz = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          B->blocks[rbi][i].row[k]  = NULL;
+          B->blocks[rbi][i].pos[k]  = NULL;
+          B->blocks[rbi][i].sz[k]   = 0;
+        }
+      }
+    }
+    for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+      ctrB  = db_col_sizes[i][j];
+      if (ctrB  != 0) {
+        B->blocks[rbi][i].row[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
+        B->blocks[rbi][i].pos[j]  = (bi_t *)malloc(ctrB * sizeof(bi_t));
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          if (dense_blocks[i][j*__GBLA_SIMD_BLOCK_SIZE + k] != 0) {
+            B->blocks[rbi][i].row[j][B->blocks[rbi][i].sz[j]] =
+              dense_blocks[i][j*__GBLA_SIMD_BLOCK_SIZE + k];
+            B->blocks[rbi][i].pos[j][B->blocks[rbi][i].sz[j]] = k;
+            B->blocks[rbi][i].sz[j]++;
+          }
+        }
+      }
+    }
+  }
 #endif
-
+#endif
   // free dense_blocks
-  for (i=0; i<clB; ++i)
+  for (i=0; i<clB; ++i) {
     free(dense_blocks[i]);
+    free(db_col_sizes[i]);
+  }
   free(dense_blocks);
+  free(db_col_sizes);
 }
 
 
