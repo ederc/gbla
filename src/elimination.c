@@ -2614,6 +2614,115 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
   ri_t j, k;
   const ri_t rlC  = C->nrows;
   
+  // TRY 10 LINES AT ONCE
+  if (rlC > 3000) {
+    int mod10 = 0, mod6 = 0, mod4 = 0, mod2 = 0;
+    if (rlC > 9)
+      mod2  = mod4  = mod6  = mod10  = rlC - rlC % 10;
+    if (rlC-mod10 > 5)
+      mod2  = mod4  = mod6  = rlC - ((mod10-rlC) % 6);
+    if (rlC-mod6 > 3)
+      mod2  = mod4  = rlC - ((mod6-rlC) % 4);
+    if (rlC-mod4 > 1)
+      mod2  = rlC - ((mod4-rlC) % 2);
+#pragma omp parallel num_threads(nthrds) private(i)
+    {
+#pragma omp single
+      {
+        //#pragma omp task untied
+        if (rlC > 9) {
+          for (i=0; i<rlC-9; i=i+10) {
+#pragma omp task untied
+            rc  = elim_fl_C_sparse_dense_keep_A_tasks_ten(C, A, i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, i+8, i+9, modulus);
+          }
+        }
+        if (rlC-mod10 > 5) {
+#pragma omp task untied
+          rc  = elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, mod10, mod10+1, mod10+2, mod10+3, mod10+4, mod10+5, modulus);
+        }
+        if (rlC-mod6 > 3) {
+#pragma omp task untied
+          rc  = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod6, mod6+1, mod6+2, mod6+3, modulus);
+        }
+        if (rlC-mod4 > 1) {
+#pragma omp task untied
+          rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+        }
+        if (rlC-mod2 > 0) {
+#pragma omp task untied
+          rc  = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+        }
+      }
+#pragma omp taskwait
+    }
+  } else {
+    // TRY 6 LINES AT ONCE
+    if (rlC > 1000) {
+      int mod6 = 0, mod4 = 0, mod2 = 0;
+      if (rlC > 5)
+        mod2  = mod4  = mod6  = rlC - -rlC % 6;
+      if (rlC-mod6 > 3)
+        mod2  = mod4  = rlC - ((mod6-rlC) % 4);
+      if (rlC-mod4 > 1)
+        mod2  = rlC - ((mod4-rlC) % 2);
+#pragma omp parallel num_threads(nthrds) private(i)
+      {
+#pragma omp single
+        {
+          //#pragma omp task untied
+          if (rlC > 5) {
+            for (i=0; i<rlC-5; i=i+6) {
+#pragma omp task untied
+              rc  = elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, i, i+1, i+2, i+3, i+4, i+5, modulus);
+            }
+          }
+          if (rlC-mod6 > 3) {
+#pragma omp task untied
+            rc  = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod6, mod6+1, mod6+2, mod6+3, modulus);
+          }
+          if (rlC-mod4 > 1) {
+#pragma omp task untied
+            rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+          }
+          if (rlC-mod2 > 0) {
+#pragma omp task untied
+            rc  = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+          }
+        }
+#pragma omp taskwait
+      }
+    } else {
+    // TRY 4 LINES AT ONCE
+      int mod4 = 0, mod2 = 0;
+      if (rlC > 3)
+        mod2  = mod4  = rlC - rlC % 4;
+      if (rlC-mod4 > 1)
+        mod2  = rlC - ((mod4-rlC) % 2);
+#pragma omp parallel num_threads(nthrds) private(i)
+      {
+#pragma omp single
+        {
+          //#pragma omp task untied
+          if (rlC > 3) {
+            for (i=0; i<rlC-3; i=i+4) {
+#pragma omp task untied
+              rc  = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, i, i+1, i+2, i+3, modulus);
+            }
+          }
+          if (rlC-mod4 > 1) {
+#pragma omp task untied
+            rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+          }
+          if (rlC-mod2 > 0) {
+#pragma omp task untied
+            rc  = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+          }
+        }
+#pragma omp taskwait
+      }
+    }
+  }
+/*
 #if ONE
 #pragma omp parallel num_threads(nthrds)
   {
@@ -2628,7 +2737,6 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
 #pragma omp taskwait
   }
 #endif
-  /*
 #if TWO
 #pragma omp parallel num_threads(nthrds)
   {
@@ -2699,7 +2807,6 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
 #pragma omp taskwait
   }
 #endif
-*/
 #if EIGHT
 #pragma omp parallel num_threads(nthrds)
   {
@@ -2842,6 +2949,8 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
 #pragma omp taskwait
 }
 #endif
+*/
+
   // free A
   free_sparse_matrix(&A, nthrds);
   *A_in = A;
