@@ -428,18 +428,18 @@ static inline void swap_and_cut(sb_fl_t *A) {
   for (i=0; i<rlA; ++i) {
     if (A->blocks[i] != NULL) {
       for (j=0; j<clA; ++j) {
-        if (A->blocks[i][j].row != NULL) {
+        if (A->blocks[i][j].val != NULL) {
           for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
             sz  = A->blocks[i][j].sz[k];
             re_t *temp_row  = (re_t *)malloc(sz * sizeof(re_t));
             bi_t *temp_pos  = (bi_t *)malloc(sz * sizeof(bi_t));
             for (l=0; l<sz; ++l) {
-              temp_row[l] = A->blocks[i][j].row[k][sz-l-1];
+              temp_row[l] = A->blocks[i][j].val[k][sz-l-1];
               temp_pos[l] = A->blocks[i][j].pos[k][sz-l-1];
             }
-            free(A->blocks[i][j].row[k]);
+            free(A->blocks[i][j].val[k]);
             free(A->blocks[i][j].pos[k]);
-            A->blocks[i][j].row[k]  = temp_row;
+            A->blocks[i][j].val[k]  = temp_row;
             A->blocks[i][j].pos[k]  = temp_pos;
           }
         }
@@ -462,10 +462,10 @@ static inline void cut_blocks(sb_fl_t *A) {
   for (i=0; i<rlA; ++i) {
     if (A->blocks[i] != NULL) {
       for (j=0; j<clA; ++j) {
-        if (A->blocks[i][j].row != NULL) {
+        if (A->blocks[i][j].val != NULL) {
           for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
             sz  = A->blocks[i][j].sz[k];
-            A->blocks[i][j].row[k] = realloc(A->blocks[i][j].row[k],sz * sizeof(re_t));
+            A->blocks[i][j].val[k] = realloc(A->blocks[i][j].val[k],sz * sizeof(re_t));
             A->blocks[i][j].pos[k] = realloc(A->blocks[i][j].pos[k],sz * sizeof(re_t));
           }
         }
@@ -643,33 +643,33 @@ static inline void insert_in_sb_by_column(sb_fl_t *A, const sm_t *M, const ci_t 
   const bi_t eil  = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
   bi_t i, j, k;
   // allocate memory if needed, initialized to zero
-  if (A->blocks[rbi][bir].row == NULL) {
-    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+  if (A->blocks[rbi][bir].val == NULL) {
+    A->blocks[rbi][bir].val= (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
     A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
     A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].val[k]  = NULL;
       A->blocks[rbi][bir].pos[k]  = NULL;
       A->blocks[rbi][bir].sz[k]   = 0;
       A->blocks[rbi][bir].buf[k]  = 0;
     }
   }
-  if (A->blocks[rbi][bir].row[eil] == NULL) {
-    A->blocks[rbi][bir].row[eil]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
+  if (A->blocks[rbi][bir].val[eil] == NULL) {
+    A->blocks[rbi][bir].val[eil]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
     A->blocks[rbi][bir].pos[eil]  = (bi_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf[eil]  = 2 * __GBLA_SIMD_INNER_SIZE;
   } else {
     if (A->blocks[rbi][bir].sz[eil] == A->blocks[rbi][bir].buf[eil]) {
       A->blocks[rbi][bir].buf[eil]  *=  2;
-      A->blocks[rbi][bir].row[eil]  =   realloc(A->blocks[rbi][bir].row[eil],
+      A->blocks[rbi][bir].val[eil]  =   realloc(A->blocks[rbi][bir].val[eil],
           A->blocks[rbi][bir].buf[eil] * sizeof(re_t));
       A->blocks[rbi][bir].pos[eil]  =   realloc(A->blocks[rbi][bir].pos[eil],
           A->blocks[rbi][bir].buf[eil] * sizeof(bi_t));
     }
   }
   // set values
-  A->blocks[rbi][bir].row[eil][A->blocks[rbi][bir].sz[eil]] = 
+  A->blocks[rbi][bir].val[eil][A->blocks[rbi][bir].sz[eil]] = 
     (re_t)M->rows[bi][ri];
   A->blocks[rbi][bir].pos[eil][A->blocks[rbi][bir].sz[eil]] = lib;
   A->blocks[rbi][bir].sz[eil]++;
@@ -703,13 +703,13 @@ static inline void insert_many_in_sb_by_column(sb_fl_t *A, const sm_t *M, const 
   // bir is the same for all elements
   const register bi_t bir  = pos[i] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
   // allocate memory if needed, initialized to zero
-  if (A->blocks[rbi][bir].row == NULL) {
-    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+  if (A->blocks[rbi][bir].val == NULL) {
+    A->blocks[rbi][bir].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
     A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
     A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-      A->blocks[rbi][bir].row[k]  = (re_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t));
+      A->blocks[rbi][bir].val[k]  = (re_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t));
       A->blocks[rbi][bir].pos[k]  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
       A->blocks[rbi][bir].sz[k]   = 0;
       //A->blocks[rbi][bir].buf[k]  = 0;
@@ -733,7 +733,7 @@ static inline void insert_many_in_sb_by_column(sb_fl_t *A, const sm_t *M, const 
     }
     */
     // set values
-    A->blocks[rbi][bir].row[eil][A->blocks[rbi][bir].sz[eil]] = 
+    A->blocks[rbi][bir].val[eil][A->blocks[rbi][bir].sz[eil]] = 
       (re_t)M->rows[bi][ri[i]];
     A->blocks[rbi][bir].pos[eil][A->blocks[rbi][bir].sz[eil]] = lib;
     A->blocks[rbi][bir].sz[eil]++;
@@ -769,19 +769,19 @@ static inline void insert_many_in_sb_inv(sb_fl_t *A, const sm_t *M, const ci_t *
   // bir is the same for all elements
   register const bi_t bir  = pos[0] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
   // allocate memory
-  if (A->blocks[rbi][bir].row == NULL) {
-    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+  if (A->blocks[rbi][bir].val == NULL) {
+    A->blocks[rbi][bir].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
     A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
     A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].val[k]  = NULL;
       A->blocks[rbi][bir].pos[k]  = NULL;
       A->blocks[rbi][bir].sz[k]   = 0;
       A->blocks[rbi][bir].buf[k]  = 0;
     }
   }
-  A->blocks[rbi][bir].row[lib]  = (re_t *)malloc(length * sizeof(re_t));
+  A->blocks[rbi][bir].val[lib]  = (re_t *)malloc(length * sizeof(re_t));
   A->blocks[rbi][bir].pos[lib]  = (bi_t *)malloc(length * sizeof(bi_t));
   // insert entries in this block
   //printf("length %u | %u | %u | %u\n",length,bir,lib,A->blocks[rbi][bir].sz[lib]);
@@ -790,7 +790,7 @@ static inline void insert_many_in_sb_inv(sb_fl_t *A, const sm_t *M, const ci_t *
     // set values
     //if (A->blocks[rbi][bir].sz[lib]>=length)
       //printf("!!! %u\n",A->blocks[rbi][bir].sz[lib]);
-    A->blocks[rbi][bir].row[lib][length - A->blocks[rbi][bir].sz[lib] - 1] = 
+    A->blocks[rbi][bir].val[lib][length - A->blocks[rbi][bir].sz[lib] - 1] = 
       (re_t)((re_m_t)M->mod - M->rows[bi][ri[i]]);
     A->blocks[rbi][bir].pos[lib][length - A->blocks[rbi][bir].sz[lib] - 1] = eil;
     A->blocks[rbi][bir].sz[lib]++;
@@ -826,25 +826,25 @@ static inline void insert_many_in_sb(sb_fl_t *A, const sm_t *M, const ci_t *pos,
   // bir is the same for all elements in col
   register const bi_t bir  = pos[0] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
   // allocate memory if needed, initialized to zero
-  if (A->blocks[rbi][bir].row == NULL) {
-    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+  if (A->blocks[rbi][bir].val == NULL) {
+    A->blocks[rbi][bir].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
     A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
     A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].val[k]  = NULL;
       A->blocks[rbi][bir].pos[k]  = NULL;
       A->blocks[rbi][bir].sz[k]   = 0;
       A->blocks[rbi][bir].buf[k]  = 0;
     }
   }
-  A->blocks[rbi][bir].row[lib]  = (re_t *)malloc(length * sizeof(re_t));
+  A->blocks[rbi][bir].val[lib]  = (re_t *)malloc(length * sizeof(re_t));
   A->blocks[rbi][bir].pos[lib]  = (bi_t *)malloc(length * sizeof(bi_t));
   // insert entries in this block
   for (i=0; i<length; ++i) {
     eil  = pos[i] % __GBLA_SIMD_BLOCK_SIZE; // index in block line
     // set values
-    A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]] = 
+    A->blocks[rbi][bir].val[lib][A->blocks[rbi][bir].sz[lib]] = 
       (re_t)M->rows[bi][ri[i]];
     A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]] = eil;
     A->blocks[rbi][bir].sz[lib]++;
@@ -879,33 +879,33 @@ static inline void insert_in_sb(sb_fl_t *A, const sm_t *M, const ci_t shift, con
   const bi_t eil  = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
   bi_t i, j, k;
   // allocate memory if needed, initialized to zero
-  if (A->blocks[rbi][bir].row == NULL) {
-    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+  if (A->blocks[rbi][bir].val == NULL) {
+    A->blocks[rbi][bir].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
     A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
     A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].val[k]  = NULL;
       A->blocks[rbi][bir].pos[k]  = NULL;
       A->blocks[rbi][bir].sz[k]   = 0;
       A->blocks[rbi][bir].buf[k]  = 0;
     }
   }
-  if (A->blocks[rbi][bir].row[lib] == NULL) {
-    A->blocks[rbi][bir].row[lib]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
+  if (A->blocks[rbi][bir].val[lib] == NULL) {
+    A->blocks[rbi][bir].val[lib]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
     A->blocks[rbi][bir].pos[lib]  = (bi_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf[lib]  = 2 * __GBLA_SIMD_INNER_SIZE;
   } else {
     if (A->blocks[rbi][bir].sz[lib] == A->blocks[rbi][bir].buf[lib]) {
       A->blocks[rbi][bir].buf[lib]  *=  2;
-      A->blocks[rbi][bir].row[lib]  =   realloc(A->blocks[rbi][bir].row[lib],
+      A->blocks[rbi][bir].val[lib]  =   realloc(A->blocks[rbi][bir].val[lib],
           A->blocks[rbi][bir].buf[lib] * sizeof(re_t));
       A->blocks[rbi][bir].pos[lib]  =   realloc(A->blocks[rbi][bir].pos[lib],
           A->blocks[rbi][bir].buf[lib] * sizeof(bi_t));
     }
   }
   // set values
-  A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]] = 
+  A->blocks[rbi][bir].val[lib][A->blocks[rbi][bir].sz[lib]] = 
     (re_t)M->rows[bi][ri];
   A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]] = eil;
   A->blocks[rbi][bir].sz[lib]++;
@@ -940,34 +940,34 @@ static inline void insert_in_sb_inv(sb_fl_t *A, const sm_t *M, const ci_t shift,
   const bi_t eil  = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
   bi_t i, j, k;
   // allocate memory if needed, initialized to zero
-  if (A->blocks[rbi][bir].row == NULL) {
-    A->blocks[rbi][bir].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+  if (A->blocks[rbi][bir].val == NULL) {
+    A->blocks[rbi][bir].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
     A->blocks[rbi][bir].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
     A->blocks[rbi][bir].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
     for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-      A->blocks[rbi][bir].row[k]  = NULL;
+      A->blocks[rbi][bir].val[k]  = NULL;
       A->blocks[rbi][bir].pos[k]  = NULL;
       A->blocks[rbi][bir].sz[k]   = 0;
       A->blocks[rbi][bir].buf[k]  = 0;
     }
   }
-  if (A->blocks[rbi][bir].row[lib] == NULL) {
-    A->blocks[rbi][bir].row[lib]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
+  if (A->blocks[rbi][bir].val[lib] == NULL) {
+    A->blocks[rbi][bir].val[lib]  = (re_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(re_t));
     A->blocks[rbi][bir].pos[lib]  = (bi_t *)malloc(2 * __GBLA_SIMD_INNER_SIZE * sizeof(bi_t));
     A->blocks[rbi][bir].buf[lib]  = 2 * __GBLA_SIMD_INNER_SIZE;
   } else {
     // allocate new memory if we are already full
     if (A->blocks[rbi][bir].sz[lib] == A->blocks[rbi][bir].buf[lib]) {
       A->blocks[rbi][bir].buf[lib]  *=  2;
-      A->blocks[rbi][bir].row[lib]  =   realloc(A->blocks[rbi][bir].row[lib],
+      A->blocks[rbi][bir].val[lib]  =   realloc(A->blocks[rbi][bir].val[lib],
           A->blocks[rbi][bir].buf[lib] * sizeof(re_t));
       A->blocks[rbi][bir].pos[lib]  =   realloc(A->blocks[rbi][bir].pos[lib],
           A->blocks[rbi][bir].buf[lib] * sizeof(bi_t));
     }
   }
   // set values
-  A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]] = 
+  A->blocks[rbi][bir].val[lib][A->blocks[rbi][bir].sz[lib]] = 
     (re_t)((re_m_t)M->mod - M->rows[bi][ri]);
   A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]] = eil;
   //printf("%u | %u , %u , %u , %u | %u\n",rbi, bir, lib, A->blocks[rbi][bir].row[lib][A->blocks[rbi][bir].sz[lib]], A->blocks[rbi][bir].sz[lib],A->blocks[rbi][bir].pos[lib][A->blocks[rbi][bir].sz[lib]]);
@@ -1881,21 +1881,21 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
           ++ctrB;
       }
       if (ctrB > 0) {
-        if (B->blocks[rbi][i].row == NULL) {
-          B->blocks[rbi][i].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+        if (B->blocks[rbi][i].val == NULL) {
+          B->blocks[rbi][i].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
           B->blocks[rbi][i].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
           B->blocks[rbi][i].sz = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
           for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-            B->blocks[rbi][i].row[k]  = NULL;
+            B->blocks[rbi][i].val[k]  = NULL;
             B->blocks[rbi][i].pos[k]  = NULL;
             B->blocks[rbi][i].sz[k]   = 0;
           }
         }
-        B->blocks[rbi][i].row[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
+        B->blocks[rbi][i].val[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
         B->blocks[rbi][i].pos[j]  = (bi_t *)malloc(ctrB * sizeof(bi_t));
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
           if (dense_blocks[i][k*__GBLA_SIMD_BLOCK_SIZE + j] != 0) {
-            B->blocks[rbi][i].row[j][B->blocks[rbi][i].sz[j]] =
+            B->blocks[rbi][i].val[j][B->blocks[rbi][i].sz[j]] =
               dense_blocks[i][k*__GBLA_SIMD_BLOCK_SIZE + j];
             B->blocks[rbi][i].pos[j][B->blocks[rbi][i].sz[j]] = k;
             B->blocks[rbi][i].sz[j]++;
@@ -1915,12 +1915,12 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
       }
     }
     if (allocate_memory == 1) {
-      if (B->blocks[rbi][i].row == NULL) {
-        B->blocks[rbi][i].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+      if (B->blocks[rbi][i].val == NULL) {
+        B->blocks[rbi][i].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
         B->blocks[rbi][i].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
         B->blocks[rbi][i].sz = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-          B->blocks[rbi][i].row[k]  = NULL;
+          B->blocks[rbi][i].val[k]  = NULL;
           B->blocks[rbi][i].pos[k]  = NULL;
           B->blocks[rbi][i].sz[k]   = 0;
         }
@@ -1929,11 +1929,11 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
       ctrB  = db_col_sizes[i][j];
       if (ctrB  != 0) {
-        B->blocks[rbi][i].row[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
+        B->blocks[rbi][i].val[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
         B->blocks[rbi][i].pos[j]  = (bi_t *)malloc(ctrB * sizeof(bi_t));
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
           if (dense_blocks[i][k*__GBLA_SIMD_BLOCK_SIZE + j] != 0) {
-            B->blocks[rbi][i].row[j][B->blocks[rbi][i].sz[j]] =
+            B->blocks[rbi][i].val[j][B->blocks[rbi][i].sz[j]] =
               dense_blocks[i][k*__GBLA_SIMD_BLOCK_SIZE + j];
             B->blocks[rbi][i].pos[j][B->blocks[rbi][i].sz[j]] = k;
             B->blocks[rbi][i].sz[j]++;
@@ -1953,21 +1953,21 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
           ++ctrB;
       }
       if (ctrB > 0) {
-        if (B->blocks[rbi][i].row == NULL) {
-          B->blocks[rbi][i].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+        if (B->blocks[rbi][i].val == NULL) {
+          B->blocks[rbi][i].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
           B->blocks[rbi][i].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
           B->blocks[rbi][i].sz = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
           for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-            B->blocks[rbi][i].row[k]  = NULL;
+            B->blocks[rbi][i].val[k]  = NULL;
             B->blocks[rbi][i].pos[k]  = NULL;
             B->blocks[rbi][i].sz[k]   = 0;
           }
         }
-        B->blocks[rbi][i].row[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
+        B->blocks[rbi][i].val[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
         B->blocks[rbi][i].pos[j]  = (bi_t *)malloc(ctrB * sizeof(bi_t));
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
           if (dense_blocks[i][j*__GBLA_SIMD_BLOCK_SIZE + k] != 0) {
-            B->blocks[rbi][i].row[j][B->blocks[rbi][i].sz[j]] =
+            B->blocks[rbi][i].val[j][B->blocks[rbi][i].sz[j]] =
               dense_blocks[i][j*__GBLA_SIMD_BLOCK_SIZE + k];
             B->blocks[rbi][i].pos[j][B->blocks[rbi][i].sz[j]] = k;
             B->blocks[rbi][i].sz[j]++;
@@ -1987,12 +1987,12 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
       }
     }
     if (allocate_memory == 1) {
-      if (B->blocks[rbi][i].row == NULL) {
-        B->blocks[rbi][i].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+      if (B->blocks[rbi][i].val == NULL) {
+        B->blocks[rbi][i].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
         B->blocks[rbi][i].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
         B->blocks[rbi][i].sz = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-          B->blocks[rbi][i].row[k]  = NULL;
+          B->blocks[rbi][i].val[k]  = NULL;
           B->blocks[rbi][i].pos[k]  = NULL;
           B->blocks[rbi][i].sz[k]   = 0;
         }
@@ -2001,11 +2001,11 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
       ctrB  = db_col_sizes[i][j];
       if (ctrB  != 0) {
-        B->blocks[rbi][i].row[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
+        B->blocks[rbi][i].val[j]  = (re_t *)malloc(ctrB * sizeof(re_t));
         B->blocks[rbi][i].pos[j]  = (bi_t *)malloc(ctrB * sizeof(bi_t));
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
           if (dense_blocks[i][j*__GBLA_SIMD_BLOCK_SIZE + k] != 0) {
-            B->blocks[rbi][i].row[j][B->blocks[rbi][i].sz[j]] =
+            B->blocks[rbi][i].val[j][B->blocks[rbi][i].sz[j]] =
               dense_blocks[i][j*__GBLA_SIMD_BLOCK_SIZE + k];
             B->blocks[rbi][i].pos[j][B->blocks[rbi][i].sz[j]] = k;
             B->blocks[rbi][i].sz[j]++;

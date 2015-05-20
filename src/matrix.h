@@ -62,7 +62,7 @@ typedef struct sm_t {
  * \brief A sparse matrix block
  */
 typedef struct sbl_t {
-  re_t **row; /*!< row entries */
+  re_t **val; /*!< row or column entries */
   bi_t **pos; /*!< position in row */
   bi_t *sz;   /*!< size of row */
   bi_t *buf;  /*!< memory buffer already allocated */
@@ -433,12 +433,12 @@ inline void init_sb(sb_fl_t *A, const ri_t nrows, const ri_t ncols)
   for (i=0; i<rlA; ++i) {
     A->blocks[i]  = (sbl_t *)malloc(clA * sizeof(sbl_t));
     for (j=0; j<clA; ++j) {
-      A->blocks[i][j].row = NULL;
+      A->blocks[i][j].val = NULL;
       A->blocks[i][j].pos = NULL;
       A->blocks[i][j].sz  = NULL;
       A->blocks[i][j].buf = NULL;
       /*
-      A->blocks[i][j].row = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
+      A->blocks[i][j].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
       A->blocks[i][j].pos = (bi_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
       A->blocks[i][j].sz  = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
       A->blocks[i][j].buf = (bi_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
@@ -603,12 +603,12 @@ inline void free_sparse_submatrix(sb_fl_t **A_in, int nthrds)
 #pragma omp for private(i, j, k, l)
     for (i=0; i<rlA; ++i) {
       for (j=0; j<clA; ++j) {
-        if (A->blocks[i][j].row != NULL) {
+        if (A->blocks[i][j].val != NULL) {
           for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-            free(A->blocks[i][j].row[k]);
+            free(A->blocks[i][j].val[k]);
             free(A->blocks[i][j].pos[k]);
           }
-          free(A->blocks[i][j].row);
+          free(A->blocks[i][j].val);
           free(A->blocks[i][j].pos);
           free(A->blocks[i][j].sz);
           free(A->blocks[i][j].buf);
@@ -804,21 +804,21 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
         // allocate memory
         for (l=0; l<blocks_per_row; ++l) {
           if (block_length[l] != 0) {
-            if (out->blocks[i][l].row == NULL) {
-              out->blocks[i][l].row = (re_t **)malloc(
+            if (out->blocks[i][l].val == NULL) {
+              out->blocks[i][l].val = (re_t **)malloc(
                   __GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
               out->blocks[i][l].pos = (bi_t **)malloc(
                   __GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t *));
               out->blocks[i][l].sz = (bi_t *)malloc(
                   __GBLA_SIMD_BLOCK_SIZE * sizeof(bi_t));
               for (m=0; m<__GBLA_SIMD_BLOCK_SIZE; ++m) {
-                out->blocks[i][l].row[m]  = NULL;
+                out->blocks[i][l].val[m]  = NULL;
                 out->blocks[i][l].pos[m]  = NULL;
                 out->blocks[i][l].sz[m]   = 0;
               }
             }
           // memory for row j % __GBLA_SIMD_BLOCK_SIZE
-          out->blocks[i][l].row[col_idx]  = (re_t *)malloc(
+          out->blocks[i][l].val[col_idx]  = (re_t *)malloc(
               block_length[l] * sizeof(re_t));
           out->blocks[i][l].pos[col_idx]  = (bi_t *)malloc(
               block_length[l] * sizeof(bi_t));
@@ -832,7 +832,7 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
         ctr = A->sz[j];
         for (l=0; l<blocks_per_row; ++l) {
           for (m=ctr; m>(ctr-block_length[l]); --m) {
-            out->blocks[i][l].row[col_idx][out->blocks[i][l].sz[col_idx]] =
+            out->blocks[i][l].val[col_idx][out->blocks[i][l].sz[col_idx]] =
               A->row[j][m-1];
             out->blocks[i][l].pos[col_idx][out->blocks[i][l].sz[col_idx]] =
               (bi_t)((A->ncols - 1 -A->pos[j][m-1]) % __GBLA_SIMD_BLOCK_SIZE);

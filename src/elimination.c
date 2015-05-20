@@ -328,7 +328,7 @@ int elim_fl_A_sparse_dense_blocks_task(const sb_fl_t *A, dbm_fl_t *B,
          }
          }
          */
-      if ((A->blocks[j][k].row != NULL) && (B->blocks[k][block_col_idx_B].val != NULL)) {
+      if ((A->blocks[j][k].val != NULL) && (B->blocks[k][block_col_idx_B].val != NULL)) {
         ctr = 1;
         red_sparse_dense_rectangular(&A->blocks[j][k],
             B->blocks[k][block_col_idx_B].val, wide_block);
@@ -755,7 +755,7 @@ int elim_fl_C_intermediate_blocks_task(sb_fl_t *B, ibm_fl_t *C, dbm_fl_t *D,
     }
     // do all rectangular blocks
     for (k=0; k<nbcols_C; ++k) {
-      if (B->blocks[k][block_col_idx_D].row != NULL) {
+      if (B->blocks[k][block_col_idx_D].val != NULL) {
         if (C->blocks[j][k].val != NULL) {
         //printf("%u | %u | %u\n",j,k,block_col_idx_D);
           red_dense_sparse_rectangular(C->blocks[j][k].val,
@@ -796,7 +796,7 @@ int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
     }
     // do all rectangular blocks
     for (k=0; k<nbcols_C; ++k) {
-      if ((C->blocks[j][k].val != NULL) && (B->blocks[k][block_col_idx_D].row != NULL)) {
+      if ((C->blocks[j][k].val != NULL) && (B->blocks[k][block_col_idx_D].val != NULL)) {
         //printf("%u | %u | %u\n",j,k,block_col_idx_D);
         red_dense_sparse_rectangular(C->blocks[j][k].val,
             &B->blocks[k][block_col_idx_D], wide_block);
@@ -832,7 +832,7 @@ int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
     }
     // do all rectangular blocks
     for (k=0; k<nbcols_C; ++k) {
-      if ((C->blocks[j][k].row != NULL) && (B->blocks[k][block_col_idx_D].row != NULL)) {
+      if ((C->blocks[j][k].val != NULL) && (B->blocks[k][block_col_idx_D].val != NULL)) {
         //printf("%u | %u | %u\n",j,k,block_col_idx_D);
         red_sparse_sparse_rectangular(&C->blocks[j][k],
             &B->blocks[k][block_col_idx_D], wide_block);
@@ -867,7 +867,7 @@ int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
     }
     // do all rectangular blocks
     for (k=0; k<nbcols_C; ++k) {
-      if ((C->blocks[j][k].row != NULL) && (B->blocks[k][block_col_idx_D].val != NULL)) {
+      if ((C->blocks[j][k].val != NULL) && (B->blocks[k][block_col_idx_D].val != NULL)) {
         red_sparse_dense_rectangular(&C->blocks[j][k],
             B->blocks[k][block_col_idx_D].val, wide_block);
       }

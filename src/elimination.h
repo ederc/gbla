@@ -371,7 +371,7 @@ not_zero:
 }
 
 /**
- * \brief Modular reduction of wide block row
+ * \brief Modular reduction of wide block row resp. column
  *
  * \param wide block wide_block
  *
@@ -379,7 +379,7 @@ not_zero:
  *
  * \param modulus resp. field characteristic modulus
  */
-static inline void modulo_wide_block_row(re_l_t **wide_block, const bi_t row_idx,
+static inline void modulo_wide_block_val(re_l_t **wide_block, const bi_t row_idx,
     const mod_t modulus) {
   bi_t i;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
@@ -473,22 +473,22 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
 #if 0
     if (block_B->sz[j]-k > 15) {
       for (; k<block_B->sz[j]-15; k=k+16) {
-        /* register const re_m_t */ b1  = block_B->row[j][k];
-        /* register const re_m_t */ b2  = block_B->row[j][k+1];
-        /* register const re_m_t */ b3  = block_B->row[j][k+2];
-        /* register const re_m_t */ b4  = block_B->row[j][k+3];
-        /* register const re_m_t */ b5  = block_B->row[j][k+4];
-        /* register const re_m_t */ b6  = block_B->row[j][k+5];
-        /* register const re_m_t */ b7  = block_B->row[j][k+6];
-        /* register const re_m_t */ b8  = block_B->row[j][k+7];
-        /* register const re_m_t */ b9  = block_B->row[j][k+8];
-        /* register const re_m_t */ b10 = block_B->row[j][k+9];
-        /* register const re_m_t */ b11 = block_B->row[j][k+10];
-        /* register const re_m_t */ b12 = block_B->row[j][k+11];
-        /* register const re_m_t */ b13 = block_B->row[j][k+12];
-        /* register const re_m_t */ b14 = block_B->row[j][k+13];
-        /* register const re_m_t */ b15 = block_B->row[j][k+14];
-        /* register const re_m_t */ b16 = block_B->row[j][k+15];
+        /* register const re_m_t */ b1  = block_B->val[j][k];
+        /* register const re_m_t */ b2  = block_B->val[j][k+1];
+        /* register const re_m_t */ b3  = block_B->val[j][k+2];
+        /* register const re_m_t */ b4  = block_B->val[j][k+3];
+        /* register const re_m_t */ b5  = block_B->val[j][k+4];
+        /* register const re_m_t */ b6  = block_B->val[j][k+5];
+        /* register const re_m_t */ b7  = block_B->val[j][k+6];
+        /* register const re_m_t */ b8  = block_B->val[j][k+7];
+        /* register const re_m_t */ b9  = block_B->val[j][k+8];
+        /* register const re_m_t */ b10 = block_B->val[j][k+9];
+        /* register const re_m_t */ b11 = block_B->val[j][k+10];
+        /* register const re_m_t */ b12 = block_B->val[j][k+11];
+        /* register const re_m_t */ b13 = block_B->val[j][k+12];
+        /* register const re_m_t */ b14 = block_B->val[j][k+13];
+        /* register const re_m_t */ b15 = block_B->val[j][k+14];
+        /* register const re_m_t */ b16 = block_B->val[j][k+15];
         for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; i=i+1) {
           a1  = block_A[i * __GBLA_SIMD_BLOCK_SIZE + posB[k]];
           wide_block[i][j]  +=  (re_l_t)a1 * b1;
@@ -541,14 +541,14 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
 #endif
     if (block_B->sz[j]-k > 7) {
       for (; k<block_B->sz[j]-7; k=k+8) {
-        /* register const re_m_t */ b1  = block_B->row[j][k];
-        /* register const re_m_t */ b2  = block_B->row[j][k+1];
-        /* register const re_m_t */ b3  = block_B->row[j][k+2];
-        /* register const re_m_t */ b4  = block_B->row[j][k+3];
-        /* register const re_m_t */ b5  = block_B->row[j][k+4];
-        /* register const re_m_t */ b6  = block_B->row[j][k+5];
-        /* register const re_m_t */ b7  = block_B->row[j][k+6];
-        /* register const re_m_t */ b8  = block_B->row[j][k+7];
+        /* register const re_m_t */ b1  = block_B->val[j][k];
+        /* register const re_m_t */ b2  = block_B->val[j][k+1];
+        /* register const re_m_t */ b3  = block_B->val[j][k+2];
+        /* register const re_m_t */ b4  = block_B->val[j][k+3];
+        /* register const re_m_t */ b5  = block_B->val[j][k+4];
+        /* register const re_m_t */ b6  = block_B->val[j][k+5];
+        /* register const re_m_t */ b7  = block_B->val[j][k+6];
+        /* register const re_m_t */ b8  = block_B->val[j][k+7];
         for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; i=i+1) {
           a1  = block_A[i * __GBLA_SIMD_BLOCK_SIZE + posB[k]];
           wide_block[i][j]  +=  (re_l_t)a1 * b1;
@@ -583,10 +583,10 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
     }
     if (block_B->sz[j]-k > 3) {
       for (; k<block_B->sz[j]-3; k=k+4) {
-        /* register const re_m_t */ b1  = block_B->row[j][k];
-        /* register const re_m_t */ b2  = block_B->row[j][k+1];
-        /* register const re_m_t */ b3  = block_B->row[j][k+2];
-        /* register const re_m_t */ b4  = block_B->row[j][k+3];
+        /* register const re_m_t */ b1  = block_B->val[j][k];
+        /* register const re_m_t */ b2  = block_B->val[j][k+1];
+        /* register const re_m_t */ b3  = block_B->val[j][k+2];
+        /* register const re_m_t */ b4  = block_B->val[j][k+3];
         for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
           a1  = block_A[i * __GBLA_SIMD_BLOCK_SIZE + posB[k]];
           wide_block[i][j]  +=  (re_l_t)a1 * b1;
@@ -600,7 +600,7 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
       }
     }
     for (; k<block_B->sz[j]; ++k) {
-      /* register const re_m_t */ b1  = block_B->row[j][k];
+      /* register const re_m_t */ b1  = block_B->val[j][k];
       for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
         a1  = block_A[i * __GBLA_SIMD_BLOCK_SIZE + posB[k]];
         if (a1 != 0)
@@ -626,14 +626,14 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
       /*
       if (ctr>7) {
         for (l=0; l<ctr-7; l=l+8) {
-          b1 = block_B->row[j][indices[l]];
-          b2 = block_B->row[j][indices[l+1]];
-          b3 = block_B->row[j][indices[l+2]];
-          b4 = block_B->row[j][indices[l+3]];
-          b5 = block_B->row[j][indices[l+4]];
-          b6 = block_B->row[j][indices[l+5]];
-          b7 = block_B->row[j][indices[l+6]];
-          b8 = block_B->row[j][indices[l+7]];
+          b1 = block_B->val[j][indices[l]];
+          b2 = block_B->val[j][indices[l+1]];
+          b3 = block_B->val[j][indices[l+2]];
+          b4 = block_B->val[j][indices[l+3]];
+          b5 = block_B->val[j][indices[l+4]];
+          b6 = block_B->val[j][indices[l+5]];
+          b7 = block_B->val[j][indices[l+6]];
+          b8 = block_B->val[j][indices[l+7]];
           wide_block[i][j]  +=
             (re_l_t)block_A[i*__GBLA_SIMD_BLOCK_SIZE + block_B->pos[j][indices[l]]] * b1 +
             (re_l_t)block_A[i*__GBLA_SIMD_BLOCK_SIZE + block_B->pos[j][indices[l+1]]] * b2 +
@@ -657,8 +657,8 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
       */
       if (ctr>1) {
         for (l=0; l<ctr-1; l=l+2) {
-          b1 = block_B->row[j][indices[l]];
-          b2 = block_B->row[j][indices[l+1]];
+          b1 = block_B->val[j][indices[l]];
+          b2 = block_B->val[j][indices[l+1]];
           wide_block[i][j]  +=
             (re_l_t)block_A[i*__GBLA_SIMD_BLOCK_SIZE + block_B->pos[j][indices[l]]] * b1 +
             (re_l_t)block_A[i*__GBLA_SIMD_BLOCK_SIZE + block_B->pos[j][indices[l+1]]] * b2;
@@ -668,7 +668,7 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
         }
       }
       for (; l<ctr; ++l) {
-        b1 = block_B->row[j][indices[l]];
+        b1 = block_B->val[j][indices[l]];
         wide_block[i][j]  +=
           (re_l_t)block_A[i*__GBLA_SIMD_BLOCK_SIZE + block_B->pos[j][indices[l]]] * b1;
         wide_block[i+1][j]  +=
@@ -1044,7 +1044,7 @@ STEP_1:
               ++k;
             if (k == block_A->sz[i]) {
               for (m=0; m<ctr; ++m)
-                wide_block[i][j]  +=  (re_l_t)block_A->row[i][posA[ctr]] * block_B->row[j][posB[ctr]];
+                wide_block[i][j]  +=  (re_l_t)block_A->row[i][posA[ctr]] * block_B->val[j][posB[ctr]];
               ++j;
               goto STEP_0;
             } else {
@@ -1056,7 +1056,7 @@ STEP_1:
               ++l;
             if (l == block_B->sz[j]) {
               for (m=0; m<ctr; ++m)
-                wide_block[i][j]  +=  (re_l_t)block_A->row[i][posA[ctr]] * block_B->row[j][posB[ctr]];
+                wide_block[i][j]  +=  (re_l_t)block_A->row[i][posA[ctr]] * block_B->val[j][posB[ctr]];
               ++j;
               goto STEP_0;
             } else {
@@ -1089,7 +1089,7 @@ STEP_0:
         }
         if (block_A->pos[i][l]  ==  block_B->pos[j][k]) {
           a[ctr]  = block_A->row[i][l];
-          b[ctr]  = block_B->row[j][k];
+          b[ctr]  = block_B->val[j][k];
           ++ctr;
           if (ctr == 4) {
             wb  +=  (re_l_t)a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
@@ -1239,7 +1239,7 @@ STEP_1:
               ++k;
             if (k == block_A->sz[i]) {
               for (m=0; m<ctr; ++m)
-                wide_block[i][j]  +=  (re_l_t)block_A->row[i][posA[ctr]] * block_B->row[j][posB[ctr]];
+                wide_block[i][j]  +=  (re_l_t)block_A->val[i][posA[ctr]] * block_B->val[j][posB[ctr]];
               ++j;
               goto STEP_0;
             } else {
@@ -1251,7 +1251,7 @@ STEP_1:
               ++l;
             if (l == block_B->sz[j]) {
               for (m=0; m<ctr; ++m)
-                wide_block[i][j]  +=  (re_l_t)block_A->row[i][posA[ctr]] * block_B->row[j][posB[ctr]];
+                wide_block[i][j]  +=  (re_l_t)block_A->val[i][posA[ctr]] * block_B->val[j][posB[ctr]];
               ++j;
               goto STEP_0;
             } else {
@@ -1283,8 +1283,8 @@ STEP_0:
           goto STEP_0;
         }
         if (block_A->pos[i][l]  ==  block_B->pos[j][k]) {
-          a[ctr]  = block_A->row[i][l];
-          b[ctr]  = block_B->row[j][k];
+          a[ctr]  = block_A->val[i][l];
+          b[ctr]  = block_B->val[j][k];
           ++ctr;
           if (ctr == 4) {
             wb  +=  (re_l_t)a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
@@ -1322,24 +1322,24 @@ static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl
   register re_m_t b1, b2, b3, b4, b5, b6, b7, b8;
   bi_t pos1;
   bi_t *pos_B1;
-  re_t *row_B1;
+  re_t *val_B1;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     j = 0;
     for (;j<block_A->sz[i]; ++j) {
-      a1 = block_A->row[i][j];
+      a1 = block_A->val[i][j];
       pos1 = block_A->pos[i][j];
       k = 0;
-      row_B1 = block_B->row[pos1];
+      val_B1 = block_B->val[pos1];
       if (block_B->sz[pos1] > 7) {
         for (; k<block_B->sz[pos1]-7; k=k+8) {
-          b1  = (re_m_t)row_B1[k];
-          b2  = (re_m_t)row_B1[k+1];
-          b3  = (re_m_t)row_B1[k+2];
-          b4  = (re_m_t)row_B1[k+3];
-          b5  = (re_m_t)row_B1[k+4];
-          b6  = (re_m_t)row_B1[k+5];
-          b7  = (re_m_t)row_B1[k+6];
-          b8  = (re_m_t)row_B1[k+7];
+          b1  = (re_m_t)val_B1[k];
+          b2  = (re_m_t)val_B1[k+1];
+          b3  = (re_m_t)val_B1[k+2];
+          b4  = (re_m_t)val_B1[k+3];
+          b5  = (re_m_t)val_B1[k+4];
+          b6  = (re_m_t)val_B1[k+5];
+          b7  = (re_m_t)val_B1[k+6];
+          b8  = (re_m_t)val_B1[k+7];
           wide_block[i][block_B->pos[pos1][k]]  +=
             (re_l_t)a1 * b1;
           wide_block[i][block_B->pos[pos1][k+1]]  +=
@@ -1360,10 +1360,10 @@ static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl
       }
       if (block_B->sz[pos1] > 3) {
         for (; k<block_B->sz[pos1]-3; k=k+4) {
-          b1  = (re_m_t)row_B1[k];
-          b2  = (re_m_t)row_B1[k+1];
-          b3  = (re_m_t)row_B1[k+2];
-          b4  = (re_m_t)row_B1[k+3];
+          b1  = (re_m_t)val_B1[k];
+          b2  = (re_m_t)val_B1[k+1];
+          b3  = (re_m_t)val_B1[k+2];
+          b4  = (re_m_t)val_B1[k+3];
           wide_block[i][block_B->pos[pos1][k]]  +=
             (re_l_t)a1 * b1;
           wide_block[i][block_B->pos[pos1][k+1]]  +=
@@ -1376,7 +1376,7 @@ static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl
       }
       for (; k<block_B->sz[pos1]; ++k) {
         wide_block[i][block_B->pos[pos1][k]]  +=
-          (re_l_t)a1 * (re_m_t)row_B1[k];
+          (re_l_t)a1 * (re_m_t)val_B1[k];
       }
     }
   }
@@ -1402,7 +1402,7 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
 #if 0
     for (j=0; j<block_A->sz[i]; ++j) {
-      a = block_A->row[i][j];
+      a = block_A->val[i][j];
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           (a * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k]);
@@ -1412,14 +1412,14 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
     j = 0;
     if (block_A->sz[i] > 7) {
       for (; j<block_A->sz[i]-7; j = j+8) {
-        a = block_A->row[i][j];
-        b = block_A->row[i][j+1];
-        c = block_A->row[i][j+2];
-        d = block_A->row[i][j+3];
-        e = block_A->row[i][j+4];
-        f = block_A->row[i][j+5];
-        g = block_A->row[i][j+6];
-        h = block_A->row[i][j+7];
+        a = block_A->val[i][j];
+        b = block_A->val[i][j+1];
+        c = block_A->val[i][j+2];
+        d = block_A->val[i][j+3];
+        e = block_A->val[i][j+4];
+        f = block_A->val[i][j+5];
+        g = block_A->val[i][j+6];
+        h = block_A->val[i][j+7];
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
           wide_block[i][k]  +=
             (a * (re_l_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k] +
@@ -1434,7 +1434,7 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
       }
     }
     for (;j<block_A->sz[i]; ++j) {
-      a = block_A->row[i][j];
+      a = block_A->val[i][j];
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           a * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k];
@@ -1556,7 +1556,7 @@ static inline void red_hybrid_triangular(dbl_t **block_A,
         }
       }
     }
-    modulo_wide_block_row(wide_block, i, modulus);
+    modulo_wide_block_val(wide_block, i, modulus);
   }
 }
 
@@ -2508,14 +2508,14 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
   register re_m_t a, b ,c, d, e, f, g, h;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     for (j=0; j<block_A->sz[i]-8; j = j+8) {
-      a = block_A->row[i][j];
-      b = block_A->row[i][j+1];
-      c = block_A->row[i][j+2];
-      d = block_A->row[i][j+3];
-      e = block_A->row[i][j+4];
-      f = block_A->row[i][j+5];
-      g = block_A->row[i][j+6];
-      h = block_A->row[i][j+7];
+      a = block_A->val[i][j];
+      b = block_A->val[i][j+1];
+      c = block_A->val[i][j+2];
+      d = block_A->val[i][j+3];
+      e = block_A->val[i][j+4];
+      f = block_A->val[i][j+5];
+      g = block_A->val[i][j+6];
+      h = block_A->val[i][j+7];
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           (a * wide_block[block_A->pos[i][j]][k] +
@@ -2529,13 +2529,13 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
       }
     }
     for (;j<block_A->sz[i]-1; ++j) {
-      a = block_A->row[i][j];
+      a = block_A->val[i][j];
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           a * wide_block[block_A->pos[i][j]][k];
       }
     }
-    modulo_wide_block_row(wide_block, i, modulus);
+    modulo_wide_block_val(wide_block, i, modulus);
   }
 }
 
@@ -2576,7 +2576,7 @@ static inline void red_dense_triangular(const re_t *block_A,
         //printf("---> %lu\n",wide_block[83][0]);
       }
     }
-    modulo_wide_block_row(wide_block, i, modulus);
+    modulo_wide_block_val(wide_block, i, modulus);
   }
 }
 
