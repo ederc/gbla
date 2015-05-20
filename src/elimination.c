@@ -2600,11 +2600,11 @@ int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
 #define ONE 0
 #define TWO 0
 #define THREE 0
-#define FOUR 1
+#define FOUR 0
 #define FIVE 0
 #define SIX 0
 #define EIGHT 0
-#define TEN 0
+#define TEN 1
 
 int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulus,
     const int nthrds)
@@ -2628,6 +2628,7 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
 #pragma omp taskwait
   }
 #endif
+  /*
 #if TWO
 #pragma omp parallel num_threads(nthrds)
   {
@@ -2656,7 +2657,6 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
 #pragma omp taskwait
   }
 #endif
-  /*
 #if FOUR
 #pragma omp parallel num_threads(nthrds)
   {
@@ -2713,6 +2713,29 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
     }
 #pragma omp taskwait
   }
+#endif
+#if TWO
+    int mod2 = 0;
+    if (rlC > 1)
+      mod2  = rlC - rlC % 2;
+#pragma omp parallel num_threads(nthrds) private(i)
+{
+#pragma omp single
+  {
+//#pragma omp task untied
+    if (rlC > 1) {
+      for (i=0; i<rlC-1; i=i+2) {
+        #pragma omp task untied
+        rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, i, i+1, modulus);
+      }
+    }
+    if (rlC-mod2 > 0) {
+      #pragma omp task untied
+      rc  = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+    }
+  }
+#pragma omp taskwait
+}
 #endif
 #if FOUR
     int mod4 = 0, mod2 = 0;
