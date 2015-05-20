@@ -2615,7 +2615,7 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
   const ri_t rlC  = C->nrows;
   
   // TRY 10 LINES AT ONCE
-  if (rlC > 3000) {
+  if (rlC > 5000) {
     int mod10 = 0, mod6 = 0, mod4 = 0, mod2 = 0;
     if (rlC > 9)
       mod2  = mod4  = mod6  = mod10  = rlC - rlC % 10;
@@ -2657,7 +2657,7 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
     }
   } else {
     // TRY 6 LINES AT ONCE
-    if (rlC > 1000) {
+    if (rlC > 3000) {
       int mod6 = 0, mod4 = 0, mod2 = 0;
       if (rlC > 5)
         mod2  = mod4  = mod6  = rlC - -rlC % 6;
