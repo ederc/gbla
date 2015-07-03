@@ -26,9 +26,14 @@
 #include "src/config.h"
 #include <mapping.h>
 #include <matrix.h>
+#include <immintrin.h>
 #if GBLA_WITH_FFLAS
 #include "../draft/echelon.h"
 #endif
+
+#undef AVX
+#undef SSE
+#define NOSSE
 
 /**
  * \brief Structure of a waiting list element
@@ -1397,30 +1402,221 @@ static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl
 static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t *block_B,
   re_l_t **wide_block)
 {
+#if 0
+#ifdef NOSSE
   bi_t i, j, k;
   register re_m_t a, b, c, d, e, f, g, h;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-#if 0
     for (j=0; j<block_A->sz[i]; ++j) {
       a = block_A->val[i][j];
+      //printf("a %u || %u | %u\n",a,i,j);
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
           (a * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k]);
+          //printf("wb[%u][%u] = %lu | %ld\n",i,k,wide_block[i][k],wide_block[i][k]);
       }
     }
-#else
+  }
+#endif
+#ifdef AVX
+  bi_t i, j, k;
+  register re_m_t A;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     j = 0;
+    register __m256i a, b, c;
+    int64_t   i1,i2,i3,i4;
+    uint64_t  u1,u2,u3,u4;
+    uint64_t  uu[4];
+    for (; j<block_A->sz[i]; ++j) {
+      //for (; j<block_A->sz[i]-3; j=j+4) {
+      /*
+         printf("val[%u][%u] = %u\n",i,j,block_A->val[i][j]);
+         printf("val[%u][%u] = %u\n",i,j+1,block_A->val[i][j+1]);
+         printf("val[%u][%u] = %u\n",i,j+2,block_A->val[i][j+2]);
+         printf("val[%u][%u] = %u\n",i,j+3,block_A->val[i][j+3]);
+         */
+      b = _mm256_set1_epi64x(
+          (int64_t)block_A->val[i][j]
+          );
+      /*
+         i1  = _mm256_extract_epi64(b,0);
+         i2  = _mm256_extract_epi64(b,1);
+         i3  = _mm256_extract_epi64(b,2);
+         i4  = _mm256_extract_epi64(b,3);
+
+         printf("i1 %ld\n",i1);
+         printf("i2 %ld\n",i2);
+         printf("i3 %ld\n",i3);
+         printf("i4 %ld\n",i4);
+
+         u1  = (uint64_t)_mm256_extract_epi64(b,0);
+         u2  = (uint64_t)_mm256_extract_epi64(b,1);
+         u3  = (uint64_t)_mm256_extract_epi64(b,2);
+         u4  = (uint64_t)_mm256_extract_epi64(b,3);
+
+         printf("u1 %lu\n",u1);
+         printf("u2 %lu\n",u2);
+         printf("u3 %lu\n",u3);
+         printf("u4 %lu\n",u4);
+
+         _mm256_storeu_si256((__m256i *)(uint64_t *)&uu, a);
+         printf("uu1 %lu\n",uu[0]);
+         printf("uu2 %lu\n",uu[1]);
+         printf("uu3 %lu\n",uu[2]);
+         printf("uu4 %lu\n",uu[3]);
+         */
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+        a = _mm256_setr_epi64x(
+            (int64_t)wide_block[i][k],
+            (int64_t)wide_block[i][k+1],
+            (int64_t)wide_block[i][k+2],
+            (int64_t)wide_block[i][k+3]
+            );
+        c = _mm256_setr_epi64x(
+            (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k],
+            (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k+1],
+            (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k+2],
+            (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k+3]
+            );
+        a = _mm256_add_epi64(a, _mm256_mullo_epi32(b,c));
+        //_mm256_storeu_si256((re_l_t *)wide_block[i]+k, a);
+        wide_block[i][k]    = (uint64_t)_mm256_extract_epi64(a,0);
+        wide_block[i][k+1]  = (uint64_t)_mm256_extract_epi64(a,1);
+        wide_block[i][k+2]  = (uint64_t)_mm256_extract_epi64(a,2);
+        wide_block[i][k+3]  = (uint64_t)_mm256_extract_epi64(a,3);
+        /*
+        printf("wb[%u][%u] = %lu | %ld\n",i,k,wide_block[i][k],wide_block[i][k]);
+        printf("wb[%u][%u] = %lu | %ld\n",i,k+1,wide_block[i][k+1],wide_block[i][k+1]);
+        printf("wb[%u][%u] = %lu | %ld\n",i,k+2,wide_block[i][k+2],wide_block[i][k+2]);
+        printf("wb[%u][%u] = %lu | %ld\n",i,k+3,wide_block[i][k+3],wide_block[i][k+3]);
+        */
+      }
+    }
+    }
+#endif
+#ifdef SSE
+  bi_t i, j, k;
+  register re_m_t A;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    j = 0;
+    if (block_A->sz[i] > 0) {
+      if (block_A->sz[i] % 2 == 0) { // do SSE only
+        register __m128i a, b, c;
+        for (; j<block_A->sz[i]-1; j=j+2) {
+          b = _mm_set_epi64x(
+              (int64_t)block_A->val[i][j+1],
+              (int64_t)block_A->val[i][j]
+              );
+          a = _mm_set_epi64x(
+              (int64_t)wide_block[i][k+1],
+              (int64_t)wide_block[i][k]
+              );
+          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+2) {
+            c = _mm_set_epi64x(
+                (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k+1],
+                (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k]
+                );
+            a = _mm_add_epi64(a, _mm_mullo_epi32(b,c));
+            //_mm256_storeu_si256((re_l_t *)wide_block[i]+k, a);
+            wide_block[i][k+1]  = (uint64_t)_mm_extract_epi64(a,0);
+            wide_block[i][k]    = (uint64_t)_mm_extract_epi64(a,1);
+            printf("wb[%u][%u] = %lu | %ld\n",i,k,wide_block[i][k],wide_block[i][k]);
+            printf("wb[%u][%u] = %lu | %ld\n",i,k+1,wide_block[i][k+1],wide_block[i][k+1]);
+          }
+        }
+      } else { // last step is non-SSE
+        printf("%u || %u\n",j,block_A->sz[i]);
+        // do last step without SSE
+        A = block_A->val[i][j];
+        printf("a %u || %u | %u\n",A,i,j);
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          wide_block[i][k]  +=
+            (A * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k]);
+        }
+      }
+    }
+  }
+#endif
+#else
+#ifdef NOSSE
+  bi_t i, j, k;
+  register re_t a, b, c, d;//, e, f, g, h;
+  register bi_t pa, pb, pc, pd;//, pe, pf, pg, ph;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    j = 0;
+    if (block_A->sz[i] > 3) {
+      for (; j<block_A->sz[i]-3; j = j+4) {
+    /*
     if (block_A->sz[i] > 7) {
       for (; j<block_A->sz[i]-7; j = j+8) {
+    */
         a = block_A->val[i][j];
         b = block_A->val[i][j+1];
         c = block_A->val[i][j+2];
         d = block_A->val[i][j+3];
+        /*
         e = block_A->val[i][j+4];
         f = block_A->val[i][j+5];
         g = block_A->val[i][j+6];
         h = block_A->val[i][j+7];
+        */
+        pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
+        pb  = block_A->pos[i][j+1] * __GBLA_SIMD_BLOCK_SIZE;
+        pc  = block_A->pos[i][j+2] * __GBLA_SIMD_BLOCK_SIZE;
+        pd  = block_A->pos[i][j+3] * __GBLA_SIMD_BLOCK_SIZE;
+        /*
+        pe  = block_A->pos[i][j+4] * __GBLA_SIMD_BLOCK_SIZE;
+        pf  = block_A->pos[i][j+5] * __GBLA_SIMD_BLOCK_SIZE;
+        pg  = block_A->pos[i][j+6] * __GBLA_SIMD_BLOCK_SIZE;
+        ph  = block_A->pos[i][j+7] * __GBLA_SIMD_BLOCK_SIZE;
+        */
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          wide_block[i][k]  +=
+            (a * (re_l_t)block_B[pa + k] +
+             b * (re_l_t)block_B[pb + k] +
+             c * (re_l_t)block_B[pc + k] +
+             d * (re_l_t)block_B[pd + k]);
+             /*
+             e * (re_l_t)block_B[pe + k] +
+             f * (re_l_t)block_B[pf + k] +
+             g * (re_l_t)block_B[pg + k] +
+             h * (re_l_t)block_B[ph + k]);
+             */
+        }
+      }
+    }
+    for (;j<block_A->sz[i]; ++j) {
+      a   = block_A->val[i][j];
+      pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        wide_block[i][k]  +=
+          a * (re_m_t)block_B[pa + k];
+      }
+    }
+  }
+#endif
+#ifdef AVX
+  bi_t i, j, k;
+  register __m256i a,b;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    j = 0;
+    if (block_A->sz[i] > 3) {
+      for (; j<block_A->sz[i]-3; j = j+4) {
+        a = _mm256_setr_epi64x(
+              (int64_t)block_A->val[i][j],
+              (int64_t)block_A->val[i][j+1],
+              (int64_t)block_A->val[i][j+2],
+              (int64_t)block_A->val[i][j+3]
+            );
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          b = _mm256_setr_epi64x(
+                (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k],
+                (int64_t)block_B[block_A->pos[i][j+1]*__GBLA_SIMD_BLOCK_SIZE + k],
+                (int64_t)block_B[block_A->pos[i][j+2]*__GBLA_SIMD_BLOCK_SIZE + k],
+                (int64_t)block_B[block_A->pos[i][j+3]*__GBLA_SIMD_BLOCK_SIZE + k]
+              );
+          b = _mm256_mullo_epi32(a,b);
+          
           wide_block[i][k]  +=
             (a * (re_l_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k] +
              b * (re_l_t)block_B[block_A->pos[i][j+1]*__GBLA_SIMD_BLOCK_SIZE + k] +
@@ -1440,8 +1636,9 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
           a * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k];
       }
     }
-#endif
   }
+#endif
+#endif
 }
 
 /**
