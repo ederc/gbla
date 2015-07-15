@@ -36,7 +36,6 @@
 
 /**
  * \brief Sparse matrix structure for reading jcf matrices
- *
  */
 
 typedef struct sm_t {
@@ -56,6 +55,24 @@ typedef struct sm_t {
                         entries in row i */
   ci_t *buf;      /*!<  stores buffer of memory allocated for the given row*/
 } sm_t;
+
+/**
+ * \brief Dense row matrix structure for reducing D. We directly store data in
+ * size re_l_t in order to not copy to wide arrays all the time. Usually D is
+ * very small compared to the whole matrix, so memory should not be a problem in
+ * general.
+ */
+
+typedef struct dm_t {
+  ri_t nrows;     /*!<  number of rows */
+  ci_t ncols;     /*!<  number of columns */
+  nnz_t nnz;      /*!<  number of nonzero entries */
+  float density;  /*!<  density used for adjusting memory allocation during
+                        splicing and generation of ABCD blocks */
+  mod_t mod;      /*!<  modulo/field characteristic */
+  re_l_t *val;    /*!<  elements of matrix */
+  ci_t *lead;     /*!<  position of the first nonzero entry in each row: */
+} dm_t;
 
 
 /**
@@ -405,6 +422,27 @@ inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
 }
 
 /**
+ * \brief Initializes dense row submatrices
+ *
+ * \param dense row submatrix A
+ *
+ * \param number of rows nrows
+ *
+ * \param number of columns ncols
+ */
+inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
+{
+  // initialize meta data for block submatrices
+  A->nrows  = nrows;  // row dimension
+  A->ncols  = ncols;  // col dimension
+  A->nnz    = 0;      // number nonzero elements
+
+  // allocate memory for matrix
+  A->val  = (re_l_t *)malloc(nrows * ncols * sizeof(re_l_t));
+  A->lead = (ci_t *)malloc(nrows * sizeof(ci_t));
+}
+
+/**
  * \brief Initializes sparse block submatrices
  *
  * \param sparse block submatrix A
@@ -750,6 +788,56 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
 }
 
 /**
+ * \brief Copies block matrix D to a dense row matrix
+ *
+ * \param block submatrix A
+ *
+ * \param number of threads for parallel computation
+ *
+ * \return dense row matrix
+ */
+static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
+    const int nthrds)
+{
+  dbm_fl_t *in  = *A;
+
+  dm_t *out  = (dm_t *)malloc(sizeof(dm_t));
+  init_dm(out, in->nrows, in->ncols);
+
+
+  const ri_t blocks_per_col = get_number_dense_row_blocks(in);
+  const ci_t blocks_per_row = get_number_dense_col_blocks(in);
+
+  // set entries in out to zero
+  memset(out->val, 0, out->nrows * out->ncols * sizeof(re_l_t));
+
+#pragma omp parallel num_threads(nthrds)
+  {
+    ri_t i, j;
+    ci_t k, l;
+#pragma omp for   
+    for (i=0; i<blocks_per_col; ++i) {
+      for (j=0; j<blocks_per_row; ++j) {
+        if (in->blocks[i][j].val != NULL) {
+          for (k=0; k< __GBLA_SIMD_BLOCK_SIZE; ++k) {
+            for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
+              out->val[((i*__GBLA_SIMD_BLOCK_SIZE+k)*out->ncols) + (j*__GBLA_SIMD_BLOCK_SIZE+l)] =
+                (re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
+            }
+          }
+          free(in->blocks[i][j].val);
+        }
+      }
+    }
+    free(in->blocks);
+    free(in);
+    in  = NULL;
+    *A  = in;
+  }
+  return out;
+}
+
+/**
  * \brief Copies sparse matrix A to a sparse block matrix
  *
  * \param sparse submatrix A
@@ -782,20 +870,6 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
       for (j=i*__GBLA_SIMD_BLOCK_SIZE; j<max; ++j) {
         memset(block_length, 0, blocks_per_row * sizeof(bi_t));
         // get lengths for the sparse block rows
-        /*
-        tmp2  = (A->ncols - 1 - A->pos[j][0]) / __GBLA_SIMD_BLOCK_SIZE;
-        for (k=1; k<A->sz[j]; ++k) {
-          tmp1  = tmp2;
-          tmp2  = (A->ncols - 1 - A->pos[j][k]) / __GBLA_SIMD_BLOCK_SIZE;
-          printf("tmp1 %d -- tmp2 %d\n",tmp1,tmp2);
-          if (tmp1 == tmp2)
-            block_length[tmp1]++;
-        }
-        if (tmp1 == tmp2)
-          block_length[tmp1]++;
-        else
-          block_length[tmp2]++;
-        */
         for (k=0; k<A->sz[j]; ++k) {
           block_length[(A->ncols - 1 - A->pos[j][k]) / __GBLA_SIMD_BLOCK_SIZE]++;
         }
@@ -844,23 +918,6 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
     }    
     free(block_length);
   }
-  /*
-  printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-  for (int ii=0; ii<blocks_per_col; ++ii) {
-    for (int jj=0; jj<blocks_per_row; ++jj) {
-      if (out->blocks[ii][jj].row != NULL) {
-        printf("%d .. %d\n", ii, jj);
-        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
-          for (int ll=0; ll<out->blocks[ii][jj].sz[kk]; ++ll) {
-            printf("%d | %d || ", out->blocks[ii][jj].row[kk][ll], out->blocks[ii][jj].pos[kk][ll]);
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
-  printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-  */
   return out;
 }
 
