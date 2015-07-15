@@ -833,6 +833,16 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
     free(in);
     in  = NULL;
     *A  = in;
+
+    // get first nonzero entry in each row
+    for (i=0; i<out->nrows; ++i) {
+      for (j=0; j<out->ncols; ++j) {
+        if (out->val[i*out->ncols+j] != 0) {
+          out->lead[i]  = j;
+          break;
+        }
+      }
+    }
   }
   return out;
 }
