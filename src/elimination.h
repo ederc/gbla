@@ -4021,6 +4021,55 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D, const mod_t modulus, int nthrds);
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nthrds);
 
 /**
+ * \brief Normalizes dense row with index ridx in dense row matrix D
+ *
+ * \param dense row submatrix D
+ *
+ * \param row index ridx
+ */
+static inline void normalize_dense_row(dm_t *A, ri_t ridx)
+{
+  ci_t i;
+  // normalize first row
+  ci_t lead_idx  = ridx*A->ncols+A->lead[ridx];
+  if (lead_idx == A->ncols)
+    return;
+  re_t inv =  (re_t) A->val[ridx*A->ncols+lead_idx];
+  inverse_val(&inv, A->mod);
+  if (inv == 1)
+    return;
+  for (i=lead_idx; i<A->ncols; ++i) {
+    A->val[ridx*A->ncols+i] *=  inv;
+    A->val[ridx*A->ncols+i] =   MODP(A->val[ridx*A->ncols+i], A->mod);
+  }
+}
+
+/**
+ * \brief Does a sequential pre elimination of D in order to start a parallel
+ * version with known pivots later on
+ *
+ * \param dense row submatrix D
+ *
+ * \param global last pivot up to which to reduce sequentially global_last_piv
+ */
+void pre_elim_seq(dm_t *D, ri_t global_last_piv);
+
+/**
+ * \brief Elimination procedure which reduces the dense row submatrix D to an
+ * upper triangular matrix. Uses a structured Gaussian Elimination. Returns
+ * the rank of D.
+ *
+ * \note Assumes D->nrows > 0.
+ *
+ * \param dense row submatrix D
+ *
+ * \param number of threads nthrds
+ *
+ * \return rank of D
+ */
+ri_t elim_fl_dense_D(dm_t *D, int nthreads);
+
+/**
  * \brief Elimination procedure which reduces the multiline matrix C to zero
  * carrying out corresponding computations by A and B
  *
