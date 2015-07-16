@@ -798,6 +798,20 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
 }
 
 /**
+ * \brief Comparison function for qsort for dense rows
+ *
+ * \param dense row a
+ *
+ * \param dense row b
+ *
+ * \return b.lead - a.lead
+ */
+static inline int cmp_dr(const void *a, const void *b)
+{
+  return ((dr_t *)(b))->lead - ((dr_t *)(a))->lead;
+}
+
+/**
  * \brief Sorts dense row matrix A by its pivots: A->lead[i] <= A->lead[j] for
  * i <= j.
  *
@@ -810,8 +824,8 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
 static inline ci_t sort_dense_matrix_by_pivots(dm_t *A,
     const int nthrds)
 {
-  //qsort(A->row, A->nrows, sizeof(re_l_t *), cmp_wle);
-  return 1;
+  qsort(A->row, A->nrows, sizeof(dr_t *), cmp_dr);
+  return A->row[0].lead;
 }
 
 /**
