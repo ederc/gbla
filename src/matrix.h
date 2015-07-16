@@ -70,7 +70,7 @@ typedef struct dm_t {
   float density;  /*!<  density used for adjusting memory allocation during
                         splicing and generation of ABCD blocks */
   mod_t mod;      /*!<  modulo/field characteristic */
-  re_l_t *val;    /*!<  elements of matrix */
+  re_l_t **val;   /*!<  rows resp. elements of matrix */
   ci_t *lead;     /*!<  position of the first nonzero entry in each row: */
 } dm_t;
 
@@ -432,13 +432,16 @@ inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
  */
 inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
 {
+  ri_t i;
   // initialize meta data for block submatrices
   A->nrows  = nrows;  // row dimension
   A->ncols  = ncols;  // col dimension
   A->nnz    = 0;      // number nonzero elements
 
   // allocate memory for matrix
-  A->val  = (re_l_t *)malloc(nrows * ncols * sizeof(re_l_t));
+  A->val  = (re_l_t **)malloc(nrows * sizeof(re_l_t *));
+  for (i=0; i<nrows; ++i)
+    A->val[i] = (re_l_t *)malloc(ncols * sizeof(re_l_t));
   A->lead = (ci_t *)malloc(nrows * sizeof(ci_t));
 }
 
@@ -821,7 +824,7 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
         if (in->blocks[i][j].val != NULL) {
           for (k=0; k< __GBLA_SIMD_BLOCK_SIZE; ++k) {
             for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
-              out->val[((i*__GBLA_SIMD_BLOCK_SIZE+k)*out->ncols) + (j*__GBLA_SIMD_BLOCK_SIZE+l)] =
+              out->val[i*__GBLA_SIMD_BLOCK_SIZE+k][j*__GBLA_SIMD_BLOCK_SIZE+l] = 
                 (re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
             }
           }
