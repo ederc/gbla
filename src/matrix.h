@@ -76,11 +76,12 @@ typedef struct dr_t {
 typedef struct dm_t {
   ri_t nrows;     /*!<  number of rows */
   ci_t ncols;     /*!<  number of columns */
+  ri_t rank;      /*!<  rank of matrix */
   nnz_t nnz;      /*!<  number of nonzero entries */
   float density;  /*!<  density used for adjusting memory allocation during
                         splicing and generation of ABCD blocks */
   mod_t mod;      /*!<  modulo/field characteristic */
-  dr_t *row;      /*!<  rows resp. elements of matrix */
+  dr_t **row;     /*!<  rows resp. elements of matrix */
 } dm_t;
 
 /**
@@ -444,12 +445,14 @@ inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
   // initialize meta data for block submatrices
   A->nrows  = nrows;  // row dimension
   A->ncols  = ncols;  // col dimension
+  A->rank   = nrows;  // rank assumption
   A->nnz    = 0;      // number nonzero elements
 
   // allocate memory for matrix
-  A->row  = (dr_t *)malloc(nrows * sizeof(dr_t));
+  A->row  = (dr_t **)malloc(nrows * sizeof(dr_t *));
   for (i=0; i<nrows; ++i)
-    A->row[i].val = (re_l_t *)malloc(ncols * sizeof(re_l_t));
+    A->row[i]       = (dr_t *)malloc(sizeof(dr_t));
+    A->row[i]->val  = (re_l_t *)malloc(ncols * sizeof(re_l_t));
 }
 
 /**
@@ -817,19 +820,42 @@ static inline int cmp_dr(const void *a, const void *b)
  *
  * \param dense row submatrix A
  *
- * \param number of threads for parallel computation
- *
  * \return column index of first row in A after sorting
  */
-static inline ci_t sort_dense_matrix_by_pivots(dm_t *A,
-    const int nthrds)
+static inline ci_t sort_dense_matrix_by_pivots(dm_t *A)
 {
-  qsort(A->row, A->nrows, sizeof(dr_t *), cmp_dr);
-  return A->row[0].lead;
+  qsort(A->row, A->rank, sizeof(dr_t **), cmp_dr);
+  return A->row[0]->lead;
+}
+
+/**
+ * \brief Takes a captured zero row with index ridx from A and moves it to the
+ * first zero row position. If there are nonzero rows below row ridx then it
+ * swaps the bottom one of these with row ridx.
+ *
+ * \param dense row matrix A
+ *
+ * \param row index ridx
+ *
+ * \return index of row it swapped row ridx with (this is possibly ridx itself).
+ */
+static inline ri_t swap_zero_row(dm_t *A, ri_t ridx)
+{
+  ri_t swp_idx  = A->rank - 1;
+  if (ridx < swp_idx) {
+    dr_t *tmp = A->row[swp_idx];
+    A->row[swp_idx] = A->row[ridx];
+    A->row[ridx]    = tmp;
+  }
+  A->rank--;
+
+  return swp_idx;
 }
 
 /**
  * \brief Copies block matrix D to a dense row matrix
+ *
+ * \note Zero rows are directly removed 
  *
  * \param block submatrix A
  *
@@ -852,7 +878,7 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
 
   // set entries in out to zero
   for (k=0; k<out->nrows; ++k)
-    memset(out->row[k].val, 0, out->ncols * sizeof(re_l_t));
+    memset(out->row[k]->val, 0, out->ncols * sizeof(re_l_t));
 
 #pragma omp parallel num_threads(nthrds)
   {
@@ -864,7 +890,7 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
         if (in->blocks[i][j].val != NULL) {
           for (k=0; k< __GBLA_SIMD_BLOCK_SIZE; ++k) {
             for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
-              out->row[i*__GBLA_SIMD_BLOCK_SIZE+k].val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
+              out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
                 (re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
             }
           }
@@ -872,22 +898,51 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
         }
       }
     }
-    free(in->blocks);
-    free(in);
-    in  = NULL;
-    *A  = in;
+  }
+  free(in->blocks);
+  free(in);
+  in  = NULL;
+  *A  = in;
 
-    // get first nonzero entry in each row
-    for (i=0; i<out->nrows; ++i) {
-      for (j=0; j<out->ncols; ++j) {
-        if (out->row[i*out->ncols].val[j] != 0) {
-          out->row[i].lead  = j;
-          break;
-        }
+  // get first nonzero entry in each row
+  ri_t i, j, test_idx;
+  for (i=0; i<out->nrows; ++i) {
+    for (j=0; j<out->ncols; ++j) {
+      if (out->row[i]->val[j] != 0) {
+        out->row[i]->lead  = j;
+        break;
       }
+      // if we found a zero row, i.e. we have not broken the j-loop beforehand
+      free(out->row[i]->val);
+      free(out->row[i]);
+      out->row[i] = NULL;
+      test_idx  = swap_zero_row(out, i);
+      if (test_idx == i)
+        return out;
+      // else we have to check row i again, i.e. reset loop variable i
+      // correspondingly
+      i = (ri_t)(i-1);
     }
   }
   return out;
+}
+
+/**
+ * \brief Updates the lead index of the dense row 
+ *
+ * \param dense row matrix A
+ *
+ * \param index of row ridx
+ */
+static inline void update_lead_of_row(dm_t *A, ri_t ridx)
+{
+  ci_t i;      
+  for (i=A->row[ridx]->lead; i<A->ncols; ++i) {
+    if (A->row[ridx]->val[i] != 0) {
+      A->row[ridx]->lead  = i;
+      return;
+    }
+  }
 }
 
 /**
