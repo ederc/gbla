@@ -57,12 +57,22 @@ typedef struct sm_t {
 } sm_t;
 
 /**
+ * \brief Data type to store rows of dense row matrices: We keep the entries
+ * resp. values in an array val of fixed size ncols. Moreover, we store the
+ * current column position of the first nonzero entry in the corresponding row
+ * in lead.
+ */
+typedef struct dr_t {
+  re_l_t *val;  /*!< entries in row of dense row matrix */
+  ci_t lead;    /*!< lead entry of the corresponding row */
+} dr_t;
+
+/**
  * \brief Dense row matrix structure for reducing D. We directly store data in
  * size re_l_t in order to not copy to wide arrays all the time. Usually D is
  * very small compared to the whole matrix, so memory should not be a problem in
  * general.
  */
-
 typedef struct dm_t {
   ri_t nrows;     /*!<  number of rows */
   ci_t ncols;     /*!<  number of columns */
@@ -70,10 +80,8 @@ typedef struct dm_t {
   float density;  /*!<  density used for adjusting memory allocation during
                         splicing and generation of ABCD blocks */
   mod_t mod;      /*!<  modulo/field characteristic */
-  re_l_t **val;   /*!<  rows resp. elements of matrix */
-  ci_t *lead;     /*!<  position of the first nonzero entry in each row: */
+  dr_t *row;      /*!<  rows resp. elements of matrix */
 } dm_t;
-
 
 /**
  * \brief A sparse matrix block
@@ -439,10 +447,9 @@ inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
   A->nnz    = 0;      // number nonzero elements
 
   // allocate memory for matrix
-  A->val  = (re_l_t **)malloc(nrows * sizeof(re_l_t *));
+  A->row  = (dr_t *)malloc(nrows * sizeof(dr_t));
   for (i=0; i<nrows; ++i)
-    A->val[i] = (re_l_t *)malloc(ncols * sizeof(re_l_t));
-  A->lead = (ci_t *)malloc(nrows * sizeof(ci_t));
+    A->row[i].val = (re_l_t *)malloc(ncols * sizeof(re_l_t));
 }
 
 /**
@@ -791,6 +798,23 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
 }
 
 /**
+ * \brief Sorts dense row matrix A by its pivots: A->lead[i] <= A->lead[j] for
+ * i <= j.
+ *
+ * \param dense row submatrix A
+ *
+ * \param number of threads for parallel computation
+ *
+ * \return column index of first row in A after sorting
+ */
+static inline ci_t sort_dense_matrix_by_pivots(dm_t *A,
+    const int nthrds)
+{
+  //qsort(A->row, A->nrows, sizeof(re_l_t *), cmp_wle);
+  return 1;
+}
+
+/**
  * \brief Copies block matrix D to a dense row matrix
  *
  * \param block submatrix A
@@ -802,6 +826,7 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
 static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
     const int nthrds)
 {
+  ri_t k;
   dbm_fl_t *in  = *A;
 
   dm_t *out  = (dm_t *)malloc(sizeof(dm_t));
@@ -812,7 +837,8 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
   const ci_t blocks_per_row = get_number_dense_col_blocks(in);
 
   // set entries in out to zero
-  memset(out->val, 0, out->nrows * out->ncols * sizeof(re_l_t));
+  for (k=0; k<out->nrows; ++k)
+    memset(out->row[k].val, 0, out->ncols * sizeof(re_l_t));
 
 #pragma omp parallel num_threads(nthrds)
   {
@@ -824,7 +850,7 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
         if (in->blocks[i][j].val != NULL) {
           for (k=0; k< __GBLA_SIMD_BLOCK_SIZE; ++k) {
             for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
-              out->val[i*__GBLA_SIMD_BLOCK_SIZE+k][j*__GBLA_SIMD_BLOCK_SIZE+l] = 
+              out->row[i*__GBLA_SIMD_BLOCK_SIZE+k].val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
                 (re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
             }
           }
@@ -840,8 +866,8 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
     // get first nonzero entry in each row
     for (i=0; i<out->nrows; ++i) {
       for (j=0; j<out->ncols; ++j) {
-        if (out->val[i*out->ncols+j] != 0) {
-          out->lead[i]  = j;
+        if (out->row[i*out->ncols].val[j] != 0) {
+          out->row[i].lead  = j;
           break;
         }
       }
