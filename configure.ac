@@ -228,7 +228,6 @@ if test "x$enable_dss" = "x1" ; then
 fi
 AC_SUBST([enable_dss])
 
-
 # Debugging support
 AC_ARG_ENABLE([debug],
 	AS_HELP_STRING([--enable-debug], [Enable assert() statements for debugging.]))
@@ -248,9 +247,7 @@ if test "x$enable_debug" = x"yes"; then
   CFLAGS="-O0"
   AC_SUBST(DEBUG_FLAGS)
 else
-  if test "x$enable_debug_mzd" != "xyes"; then
-    AC_DEFINE(NDEBUG,1,[Define whether debugging is enabled])
-  fi
+  CFLAGS="$CFLAGS -DNDEBUG"
 fi
 
 # For the testsuite. Detect if PAPI is installed. See http://icl.cs.utk.edu/papi/ .
