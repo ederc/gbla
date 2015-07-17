@@ -1778,8 +1778,10 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
 
   normalize_dense_row(D, 0);
 
+  i = 1;
   while (i < D->rank && i < last_row) {
-    for (j=0; j<i; ++j) {
+    j = 0;
+    while (j<i) {
       mult  = MODP(D->row[i]->val[D->row[j]->lead], D->mod);
       if (mult != 0) {
         mult  = D->mod - mult;
@@ -1803,9 +1805,10 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
               return;
           // restart to reduce the new row i with j=0 in the next round of the
           // for loop
-          j = (ri_t)(0-1);
+          j = 0;
         }
       }
+      j++;
     }
     normalize_dense_row(D, i);
     i++;
@@ -1829,6 +1832,7 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   // sort D w.r.t. first nonzero entry per row
   sort_dense_matrix_by_pivots(D);
 #if DEBUG_NEW_ELIM
+  printf("GLP %u\n",global_last_piv);
   for (int ii=0; ii<D->nrows; ++ii) {
     printf("%u - ", ii);
     if (D->row[ii] == NULL)
@@ -1839,6 +1843,16 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
 #endif
   // do sequential prereduction of first global_last_piv bunch of rows
   pre_elim_sequential(D, global_last_piv);
+#if DEBUG_NEW_ELIM
+  printf("GLP %u\n",global_last_piv);
+  for (int ii=0; ii<D->nrows; ++ii) {
+    printf("%u - ", ii);
+    if (D->row[ii] == NULL)
+      printf("NULL\n");
+    else
+      printf("%u\n",D->row[ii]->lead);
+  }
+#endif
 
   // if rank is smaller than the row until which we have been sequentially pre
   // eliminating then all other rows of D are already zero

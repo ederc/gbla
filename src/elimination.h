@@ -24,6 +24,7 @@
 #define GB_ELIMINATION_H
 
 #include "src/config.h"
+#include <assert.h>
 #include <mapping.h>
 #include <matrix.h>
 #include <immintrin.h>
@@ -4031,15 +4032,14 @@ static inline void normalize_dense_row(dm_t *A, const ri_t ridx)
 {
   ci_t i;
   // normalize first row
-  ci_t lead_idx  = ridx*A->ncols+A->row[ridx]->lead;
-  if (lead_idx == A->ncols)
-    return;
+  const ci_t lead_idx  = ridx*A->ncols+A->row[ridx]->lead;
   re_t inv =  (re_t) A->row[ridx]->val[lead_idx];
   inverse_val(&inv, A->mod);
   if (inv == 1)
     return;
-  for (i=lead_idx; i<A->ncols; ++i) {
-    A->row[ridx]->val[i] *=  inv;
+  register const re_t cinv  = inv;
+  for (i=lead_idx+1; i<A->ncols; ++i) {
+    A->row[ridx]->val[i] *=  cinv;
     A->row[ridx]->val[i] =   MODP(A->row[ridx]->val[i], A->mod);
   }
 }
@@ -4060,12 +4060,19 @@ static inline void normalize_dense_row(dm_t *A, const ri_t ridx)
 static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const re_t mult)
 {
   ri_t i, range;
-  range = A->ncols - A->row[ri]->lead;
+  ci_t j;
   const re_l_t *reducers  = A->row[rj]->val;
   register re_l_t r1, r2, r3, r4, r5, r6, r7, r8;
-  i = A->row[ri]->lead;
-  if (range > 7) {
-    for (i; i<A->ncols; i=i+8) {
+  i = A->row[rj]->lead + 1;
+
+  //printf("i initially %u\n",i);
+  // leading nonzero element has to become zero
+  assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], D->mod) == 0);
+  A->row[ri]->val[i-1]  = 0;
+
+  if (A->ncols-i > 7) {
+    for (i; i<A->ncols-7; i=i+8) {
+      //printf("7loop i %u\n",i);
       r1  = reducers[i];
       r2  = reducers[i+1];
       r3  = reducers[i+2];
@@ -4085,7 +4092,7 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
       A->row[ri]->val[i+7]  +=  mult * r8;
     }
   }
-  if (range > 4) {
+  if (A->ncols-i > 4) {
     r1  = reducers[i];
     r2  = reducers[i+1];
     r3  = reducers[i+2];
@@ -4097,10 +4104,27 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
     A->row[ri]->val[i+3]  +=  mult * r4;
     i = i+4;
   }
+  //printf("i:: %u\n",i);
   for (i; i<A->ncols; ++i) {
+    //printf(" - %u",i);
     r1  = reducers[i];
     A->row[ri]->val[i]    +=  mult * r1;
   }
+  // search new lead
+  //printf("lead %u\n", A->row[ri]->lead);
+  for (j=A->row[ri]->lead; j<A->ncols; ++j) {
+    if (A->row[ri]->val[j] != 0) {
+      MODP(A->row[ri]->val[j], A->mod);
+      if (A->row[ri]->val[j] != 0) {
+        A->row[ri]->lead  = j;
+        return;
+      }
+    }
+  }
+  // if we get here then the row is completely zero
+  free(A->row[ri]->val);
+  free(A->row[ri]);
+  A->row[ri]  = NULL;
 }
 
 /**
