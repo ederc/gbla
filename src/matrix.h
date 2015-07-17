@@ -894,39 +894,36 @@ static inline ri_t swap_row(dm_t *A, const ri_t ridx)
 static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
     const int nthrds)
 {
-  ri_t k;
+  ri_t i, j;
   dbm_fl_t *in  = *A;
 
   dm_t *out  = (dm_t *)malloc(sizeof(dm_t));
-  printf("innrows %u -- inncols %u\n", in->nrows, in->ncols);
   init_dm(out, in->nrows, in->ncols);
 
   const ri_t blocks_per_col = get_number_dense_row_blocks(in);
   const ci_t blocks_per_row = get_number_dense_col_blocks(in);
 
   // set entries in out to zero
-  for (k=0; k<out->nrows; ++k)
-    memset(out->row[k]->val, 0, out->ncols * sizeof(re_l_t));
+  for (i=0; i<out->nrows; ++i)
+    memset(out->row[i]->val, 0, out->ncols * sizeof(re_l_t));
 
 #pragma omp parallel num_threads(nthrds)
   {
-    ri_t i, j;
-    ci_t k, l;
-#pragma omp for   
+    ri_t i, min_k;
+    ci_t j, min_l;
+    bi_t k, l;
+#pragma omp for
     for (i=0; i<blocks_per_col; ++i) {
+      min_k = __GBLA_SIMD_BLOCK_SIZE < (out->nrows-i*__GBLA_SIMD_BLOCK_SIZE) ?
+               __GBLA_SIMD_BLOCK_SIZE : (out->nrows-i*__GBLA_SIMD_BLOCK_SIZE);
       for (j=0; j<blocks_per_row; ++j) {
-        //printf("%u -- %u\n", out->nrows, out->ncols);
-        //printf("%u | %u | %u | %u\n",i,j,k,l);
         if (in->blocks[i][j].val != NULL) {
-          for (k=0; k+i*__GBLA_SIMD_BLOCK_SIZE<out->nrows; ++k) {
-            for (l=0; l+j*__GBLA_SIMD_BLOCK_SIZE<out->ncols; ++l) {
-        //printf("%u | %u | %u | %u\n",i,j,k,l);
-            //  printf("%u\n",(re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l]);
-             // printf("%p\n",out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->val);
+          min_l = __GBLA_SIMD_BLOCK_SIZE < (out->ncols-j*__GBLA_SIMD_BLOCK_SIZE) ?
+                  __GBLA_SIMD_BLOCK_SIZE : (out->ncols-j*__GBLA_SIMD_BLOCK_SIZE);
+          for (k=0; k<min_k; ++k) {
+            for (l=0; l<min_l; ++l) {
               out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
                 (re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
-             // printf("%u\n",out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->val[j*__GBLA_SIMD_BLOCK_SIZE+l]);
-             // printf("--\n");
             }
           }
           free(in->blocks[i][j].val);
@@ -939,31 +936,22 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
   in  = NULL;
   *A  = in;
 
-  int ctr=0;
   // get first nonzero entry in each row
-  ri_t i, j;
   i = 0;
 next_round:
   for (i; i<out->nrows; ++i) {
-    printf("nun %u\n",i);
     for (j=0; j<out->ncols; ++j) {
       if (out->row[i]->val[j] != 0) {
         out->row[i]->lead  = j;
-        printf("lead %u -> %u\n",i,j);
         i++;
         goto next_round;
       }
     }
-    ctr++;
-    printf("here %u -- %u\n",i, ctr);
     // if we found a zero row, i.e. we have not broken the j-loop beforehand
     free(out->row[i]->val);
     free(out->row[i]);
     out->row[i] = NULL;
     out->rank--;
-    // else we have to check row i again, i.e. reset loop variable i
-    // correspondingly
-    //i = (ri_t)(i-1);
   }
   return out;
 }
@@ -1014,7 +1002,7 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
     bi_t tmp1, tmp2;
     ci_t ctr;
     ri_t max;
-#pragma omp for   
+#pragma omp for 
     for (i=0; i<blocks_per_col; ++i) {
       max = A->nrows < (i+1)*__GBLA_SIMD_BLOCK_SIZE ? A->nrows : (i+1)*__GBLA_SIMD_BLOCK_SIZE;
       for (j=i*__GBLA_SIMD_BLOCK_SIZE; j<max; ++j) {
