@@ -1771,6 +1771,10 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
 }
 #endif
 
+int elim_fl_dense_D_tasks(dm_t *D)
+{
+}
+
 void pre_elim_sequential(dm_t *D, const ri_t last_row)
 {
   ri_t i, j, test_idx;
@@ -1827,7 +1831,7 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   waiting_global.slp  = 0;
   waiting_global.sz   = 0;
 
-  ri_t rank = 0;
+  int rc;
 
   // sort D w.r.t. first nonzero entry per row
   sort_dense_matrix_by_pivots(D);
@@ -1859,8 +1863,20 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   if (D->rank < global_last_piv)
     return D->rank;
 
+  // do the parallel computation
+  omp_init_lock(&echelonize_lock);
+  int tid;
 
+#pragma omp parallel shared(D, waiting_global, global_next_row_to_reduce, global_last_piv) num_threads(nthrds)
+  {
+#pragma omp for nowait
+    for (tid=0; tid<nthrds; ++tid) {
+      rc  = elim_fl_dense_D_tasks(D);
+    }
+  }
+  omp_destroy_lock(&echelonize_lock);
 
+  return D->rank;
 }
 
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {

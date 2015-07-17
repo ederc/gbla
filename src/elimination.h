@@ -4153,6 +4153,15 @@ void pre_elim_sequential(dm_t *D, const ri_t global_last_piv);
 ri_t elim_fl_dense_D(dm_t *D, const int nthreads);
 
 /**
+ * \brief Parallel tasks doing the Gaussian Elimination of D.
+ *
+ * \param dense row submatrix D
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_dense_D_tasks(dm_t *D);
+
+/**
  * \brief Elimination procedure which reduces the multiline matrix C to zero
  * carrying out corresponding computations by A and B
  *
