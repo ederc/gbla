@@ -439,7 +439,7 @@ inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
  *
  * \param number of columns ncols
  */
-inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
+static inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
 {
   ri_t i;
   // initialize meta data for block submatrices
@@ -450,9 +450,10 @@ inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
 
   // allocate memory for matrix
   A->row  = (dr_t **)malloc(nrows * sizeof(dr_t *));
-  for (i=0; i<nrows; ++i)
+  for (i=0; i<nrows; ++i) {
     A->row[i]       = (dr_t *)malloc(sizeof(dr_t));
     A->row[i]->val  = (re_l_t *)malloc(ncols * sizeof(re_l_t));
+  }
 }
 
 /**
@@ -811,7 +812,11 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
  */
 static inline int cmp_dr(const void *a, const void *b)
 {
-  return ((dr_t *)(b))->lead - ((dr_t *)(a))->lead;
+  if ((dr_t *)a == NULL)
+    return -1;
+  if ((dr_t *)b == NULL)
+    return 1;
+  return (*((dr_t **)(a)))->lead - (*((dr_t **)(b)))->lead;
 }
 
 /**
@@ -824,7 +829,7 @@ static inline int cmp_dr(const void *a, const void *b)
  */
 static inline ci_t sort_dense_matrix_by_pivots(dm_t *A)
 {
-  qsort(A->row, A->rank, sizeof(dr_t **), cmp_dr);
+  qsort(A->row, A->nrows, sizeof(dr_t **), cmp_dr);
   return A->row[0]->lead;
 }
 
@@ -839,9 +844,9 @@ static inline ci_t sort_dense_matrix_by_pivots(dm_t *A)
  *
  * \return index of row it swapped row ridx with (this is possibly ridx itself).
  */
-static inline ri_t swap_zero_row(dm_t *A, ri_t ridx)
+static inline ri_t swap_zero_row(dm_t *A, const ri_t ridx)
 {
-  ri_t swp_idx  = A->rank - 1;
+  const ri_t swp_idx  = A->rank - 1;
   if (ridx < swp_idx) {
     dr_t *tmp = A->row[swp_idx];
     A->row[swp_idx] = A->row[ridx];
@@ -849,7 +854,30 @@ static inline ri_t swap_zero_row(dm_t *A, ri_t ridx)
   }
   A->rank--;
 
-  return swp_idx;
+  return A->rank;
+}
+
+/**
+ * \brief Takes a captured row with index ridx from A and moves it to the
+ * first zero row position. If there are nonzero rows below row ridx then it
+ * swaps the bottom one of these with row ridx.
+ *
+ * \param dense row matrix A
+ *
+ * \param row index ridx
+ *
+ * \return index of row it swapped row ridx with (this is possibly ridx itself).
+ */
+static inline ri_t swap_row(dm_t *A, const ri_t ridx)
+{
+  const ri_t swp_idx  = A->rank - 1;
+  if (ridx < swp_idx) {
+    dr_t *tmp = A->row[swp_idx];
+    A->row[swp_idx] = A->row[ridx];
+    A->row[ridx]    = tmp;
+  }
+
+  return A->rank;
 }
 
 /**
@@ -870,8 +898,8 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
   dbm_fl_t *in  = *A;
 
   dm_t *out  = (dm_t *)malloc(sizeof(dm_t));
+  printf("innrows %u -- inncols %u\n", in->nrows, in->ncols);
   init_dm(out, in->nrows, in->ncols);
-
 
   const ri_t blocks_per_col = get_number_dense_row_blocks(in);
   const ci_t blocks_per_row = get_number_dense_col_blocks(in);
@@ -887,11 +915,18 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
 #pragma omp for   
     for (i=0; i<blocks_per_col; ++i) {
       for (j=0; j<blocks_per_row; ++j) {
+        //printf("%u -- %u\n", out->nrows, out->ncols);
+        //printf("%u | %u | %u | %u\n",i,j,k,l);
         if (in->blocks[i][j].val != NULL) {
-          for (k=0; k< __GBLA_SIMD_BLOCK_SIZE; ++k) {
-            for (l=0; l<__GBLA_SIMD_BLOCK_SIZE; ++l) {
+          for (k=0; k+i*__GBLA_SIMD_BLOCK_SIZE<out->nrows; ++k) {
+            for (l=0; l+j*__GBLA_SIMD_BLOCK_SIZE<out->ncols; ++l) {
+        //printf("%u | %u | %u | %u\n",i,j,k,l);
+            //  printf("%u\n",(re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l]);
+             // printf("%p\n",out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->val);
               out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
                 (re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
+             // printf("%u\n",out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->val[j*__GBLA_SIMD_BLOCK_SIZE+l]);
+             // printf("--\n");
             }
           }
           free(in->blocks[i][j].val);
@@ -904,25 +939,31 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
   in  = NULL;
   *A  = in;
 
+  int ctr=0;
   // get first nonzero entry in each row
-  ri_t i, j, test_idx;
-  for (i=0; i<out->nrows; ++i) {
+  ri_t i, j;
+  i = 0;
+next_round:
+  for (i; i<out->nrows; ++i) {
+    printf("nun %u\n",i);
     for (j=0; j<out->ncols; ++j) {
       if (out->row[i]->val[j] != 0) {
         out->row[i]->lead  = j;
-        break;
+        printf("lead %u -> %u\n",i,j);
+        i++;
+        goto next_round;
       }
-      // if we found a zero row, i.e. we have not broken the j-loop beforehand
-      free(out->row[i]->val);
-      free(out->row[i]);
-      out->row[i] = NULL;
-      test_idx  = swap_zero_row(out, i);
-      if (test_idx == i)
-        return out;
-      // else we have to check row i again, i.e. reset loop variable i
-      // correspondingly
-      i = (ri_t)(i-1);
     }
+    ctr++;
+    printf("here %u -- %u\n",i, ctr);
+    // if we found a zero row, i.e. we have not broken the j-loop beforehand
+    free(out->row[i]->val);
+    free(out->row[i]);
+    out->row[i] = NULL;
+    out->rank--;
+    // else we have to check row i again, i.e. reset loop variable i
+    // correspondingly
+    //i = (ri_t)(i-1);
   }
   return out;
 }
@@ -934,11 +975,12 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
  *
  * \param index of row ridx
  */
-static inline void update_lead_of_row(dm_t *A, ri_t ridx)
+static inline void update_lead_of_row(dm_t *A, const ri_t ridx)
 {
-  ci_t i;      
+  ci_t i;
+  const re_l_t *values = A->row[ridx]->val;
   for (i=A->row[ridx]->lead; i<A->ncols; ++i) {
-    if (A->row[ridx]->val[i] != 0) {
+    if (values[i] != 0) {
       A->row[ridx]->lead  = i;
       return;
     }

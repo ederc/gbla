@@ -4027,32 +4027,91 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nt
  *
  * \param row index ridx
  */
-static inline void normalize_dense_row(dm_t *A, ri_t ridx)
+static inline void normalize_dense_row(dm_t *A, const ri_t ridx)
 {
   ci_t i;
   // normalize first row
-  ci_t lead_idx  = ridx*A->ncols+A->lead[ridx];
+  ci_t lead_idx  = ridx*A->ncols+A->row[ridx]->lead;
   if (lead_idx == A->ncols)
     return;
-  re_t inv =  (re_t) A->val[ridx*A->ncols+lead_idx];
+  re_t inv =  (re_t) A->row[ridx]->val[lead_idx];
   inverse_val(&inv, A->mod);
   if (inv == 1)
     return;
   for (i=lead_idx; i<A->ncols; ++i) {
-    A->val[ridx*A->ncols+i] *=  inv;
-    A->val[ridx*A->ncols+i] =   MODP(A->val[ridx*A->ncols+i], A->mod);
+    A->row[ridx]->val[i] *=  inv;
+    A->row[ridx]->val[i] =   MODP(A->row[ridx]->val[i], A->mod);
+  }
+}
+
+/**
+ * \brief Reduces dense row ri via row rj in D using precomputed inverted
+ * multiplier mult
+ *
+ * \param dense row submatrix D
+ *
+ * \param row index ri
+ *
+ * \param row index rj
+ *
+ * \param precomputed inverted multiplier mult
+ *
+ */
+static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const re_t mult)
+{
+  ri_t i, range;
+  range = A->ncols - A->row[ri]->lead;
+  const re_l_t *reducers  = A->row[rj]->val;
+  register re_l_t r1, r2, r3, r4, r5, r6, r7, r8;
+  i = A->row[ri]->lead;
+  if (range > 7) {
+    for (i; i<A->ncols; i=i+8) {
+      r1  = reducers[i];
+      r2  = reducers[i+1];
+      r3  = reducers[i+2];
+      r4  = reducers[i+3];
+      r5  = reducers[i+4];
+      r6  = reducers[i+5];
+      r7  = reducers[i+6];
+      r8  = reducers[i+7];
+
+      A->row[ri]->val[i]    +=  mult * r1;
+      A->row[ri]->val[i+1]  +=  mult * r2;
+      A->row[ri]->val[i+2]  +=  mult * r3;
+      A->row[ri]->val[i+3]  +=  mult * r4;
+      A->row[ri]->val[i+4]  +=  mult * r5;
+      A->row[ri]->val[i+5]  +=  mult * r6;
+      A->row[ri]->val[i+6]  +=  mult * r7;
+      A->row[ri]->val[i+7]  +=  mult * r8;
+    }
+  }
+  if (range > 4) {
+    r1  = reducers[i];
+    r2  = reducers[i+1];
+    r3  = reducers[i+2];
+    r4  = reducers[i+3];
+
+    A->row[ri]->val[i]    +=  mult * r1;
+    A->row[ri]->val[i+1]  +=  mult * r2;
+    A->row[ri]->val[i+2]  +=  mult * r3;
+    A->row[ri]->val[i+3]  +=  mult * r4;
+    i = i+4;
+  }
+  for (i; i<A->ncols; ++i) {
+    r1  = reducers[i];
+    A->row[ri]->val[i]    +=  mult * r1;
   }
 }
 
 /**
  * \brief Does a sequential pre elimination of D in order to start a parallel
- * version with known pivots later on
+ * version with known pivots later on.
  *
  * \param dense row submatrix D
  *
  * \param global last pivot up to which to reduce sequentially global_last_piv
  */
-void pre_elim_seq(dm_t *D, ri_t global_last_piv);
+void pre_elim_sequential(dm_t *D, const ri_t global_last_piv);
 
 /**
  * \brief Elimination procedure which reduces the dense row submatrix D to an
@@ -4067,7 +4126,7 @@ void pre_elim_seq(dm_t *D, ri_t global_last_piv);
  *
  * \return rank of D
  */
-ri_t elim_fl_dense_D(dm_t *D, int nthreads);
+ri_t elim_fl_dense_D(dm_t *D, const int nthreads);
 
 /**
  * \brief Elimination procedure which reduces the multiline matrix C to zero
@@ -4180,6 +4239,23 @@ void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
 void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 		re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
 		const int reduce, const ri_t curr_row_to_reduce);
+
+/*  global variables for echelonization of D */
+static  omp_lock_t echelonize_lock;
+static  ri_t global_next_row_to_reduce;
+static  ri_t global_last_piv;
+static  wl_t waiting_global;
+
+ri_t global_first_zero_row;
+
+/*  global variables for reduction of C */
+static  omp_lock_t reduce_C_lock;
+static  ri_t reduce_C_next_col_to_reduce;
+
+/*  global variables for reduction of C */
+static  omp_lock_t reduce_A_lock;
+static  ri_t reduce_A_next_col_to_reduce;
+
 
 #endif /* GB_ELIMINATION_H */
 

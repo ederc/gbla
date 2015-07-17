@@ -123,20 +123,7 @@
 
 #endif /* SIMD */
 
-
-/*  global variables for echelonization of D */
-static  omp_lock_t echelonize_lock;
-static  ri_t global_next_row_to_reduce;
-static  ri_t global_last_piv;
-static  wl_t waiting_global;
-
-/*  global variables for reduction of C */
-static  omp_lock_t reduce_C_lock;
-static  ri_t reduce_C_next_col_to_reduce;
-
-/*  global variables for reduction of C */
-static  omp_lock_t reduce_A_lock;
-static  ri_t reduce_A_next_col_to_reduce;
+#define DEBUG_NEW_ELIM 0
 
 int elim_fl_A_hybrid_block(hbm_fl_t **A_in, hbm_fl_t *B, mod_t modulus, int nthrds)
 {
@@ -1783,6 +1770,84 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
   return rank;
 }
 #endif
+
+void pre_elim_sequential(dm_t *D, const ri_t last_row)
+{
+  ri_t i, j, test_idx;
+  re_t mult;
+
+  normalize_dense_row(D, 0);
+
+  while (i < D->rank && i < last_row) {
+    for (j=0; j<i; ++j) {
+      mult  = MODP(D->row[i]->val[D->row[j]->lead], D->mod);
+      if (mult != 0) {
+        mult  = D->mod - mult;
+        // also updates lead for row i
+        reduce_dense_row(D, i, j, mult);
+        // if reduced row i is zero row then swap row down and get a new
+        // row from the bottom
+        if (D->row[i] == NULL) {
+          test_idx  = swap_zero_row(D, i);
+          // if there is no nonzero row below we are done
+          if (test_idx == i)
+              return;
+          // restart to reduce the new row i with j=0 in the next round of the
+          // for loop
+          j = (ri_t)(0-1);
+        }
+        if (D->row[i]->lead > i) {
+          test_idx  = swap_row(D, i);
+          // if there is no nonzero row below we are done
+          if (test_idx == i)
+              return;
+          // restart to reduce the new row i with j=0 in the next round of the
+          // for loop
+          j = (ri_t)(0-1);
+        }
+      }
+    }
+    normalize_dense_row(D, i);
+    i++;
+  }
+}
+
+ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
+  // setting global variables for open mp locks used later on
+  global_next_row_to_reduce = nthrds * 2;
+  global_last_piv           = global_next_row_to_reduce - 1;
+  global_first_zero_row     = D->nrows;   
+
+  /*  global waiting list */
+  waiting_global.list = (wle_t *)malloc(D->nrows * sizeof(wle_t));
+  waiting_global.sidx = 0;
+  waiting_global.slp  = 0;
+  waiting_global.sz   = 0;
+
+  ri_t rank = 0;
+
+  // sort D w.r.t. first nonzero entry per row
+  sort_dense_matrix_by_pivots(D);
+#if DEBUG_NEW_ELIM
+  for (int ii=0; ii<D->nrows; ++ii) {
+    printf("%u - ", ii);
+    if (D->row[ii] == NULL)
+      printf("NULL\n");
+    else
+      printf("%u\n",D->row[ii]->lead);
+  }
+#endif
+  // do sequential prereduction of first global_last_piv bunch of rows
+  pre_elim_sequential(D, global_last_piv);
+
+  // if rank is smaller than the row until which we have been sequentially pre
+  // eliminating then all other rows of D are already zero
+  if (D->rank < global_last_piv)
+    return D->rank;
+
+
+
+}
 
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
 
