@@ -49,7 +49,14 @@
 
 #include <stdlib.h>
 /* #include <stdalign.h> */
+
+#if defined(__APPLE__) && defined(__MACH__)
+  /* Apple OSX and iOS (Darwin). ------------------------------ */
+#include <malloc/malloc.h>
+#else
 #include <malloc.h>
+#endif
+
 #include <immintrin.h>
 
 

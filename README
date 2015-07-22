@@ -13,6 +13,13 @@ Using autotools one can compile and install gbla by
 
 For further installation instructions please see INSTALL.
 
+# INSTALL ON MAC #
+Use clang-omp for openmp support:
+* ./autogen.sh
+* ./configure CC=clang-omp
+* make
+* make install
+
 # DEBUGGING #
 In order to debug gbla one needs configure with --enable-debug and use
 
