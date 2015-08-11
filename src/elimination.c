@@ -1773,6 +1773,147 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
 
 int elim_fl_dense_D_tasks(dm_t *D)
 {
+  ri_t curr_row_to_reduce;
+  ri_t local_last_piv;
+  ri_t from_row;
+
+  int ready_for_waiting_list  = 0;
+  int curr_row_fully_reduced  = 0;
+  int nred_consecutively      = 0;
+  int ret;
+
+  ri_t wl_idx = 0;
+  ri_t wl_lp  = 0;
+
+#if DEBUG_NEW_ELIM
+  int tid = omp_get_thread_num();
+#endif
+
+  // computations done in while loop
+  while (1) {
+    if (global_last_piv >= D->nrows) {
+      omp_unset_lock(&echelonize_lock);
+      break;
+    }
+    local_last_piv  = global_last_piv;
+#if DEBUG_NEW_ELIM
+    printf("setting llp\n");
+    printf("llp %d\n",local_last_piv);
+    printf("grr %d\n",global_next_row_to_reduce);
+#endif
+    omp_set_lock(&echelonize_lock);
+
+    if ((ready_for_waiting_list == 0) && (global_next_row_to_reduce < D->nrows)) {
+      curr_row_to_reduce  = global_next_row_to_reduce;
+#if DEBUG_NEW_ELIM
+      printf("%d -- inc grr\n", tid);
+#endif
+      global_next_row_to_reduce++;
+      from_row  = 0;
+    } else {
+      ready_for_waiting_list  = 1;
+    }
+
+    if (ready_for_waiting_list == 1) {
+      // no waiting rows in the list?
+      if (get_smallest_waiting_row(&waiting_global, &wl_idx, &wl_lp) == 0) {
+        // no more rows to be reduced?
+        if (global_next_row_to_reduce >= D->nrows) {
+          omp_unset_lock(&echelonize_lock);
+          break;
+        } else {
+          // we do not have to check this since
+          // global_last_piv == local_last_piv
+          //if (local_last_piv >= D->nrows) {
+          //  omp_unset_lock(&echelonize_lock);
+          //  break;
+          //} else {
+            ready_for_waiting_list  = 0;
+            omp_unset_lock(&echelonize_lock);
+            continue;
+          //}
+        }
+      }
+      from_row            = wl_lp + 1;
+      curr_row_to_reduce  = wl_idx;
+#if DEBUG_NEW_ELIM
+      printf("(%d) from row %d -- crr %d -- gllp %d\n", tid, from_row,
+          curr_row_to_reduce, global_last_piv);
+#endif
+    }
+
+    omp_unset_lock(&echelonize_lock);
+    if (D->row[curr_row_to_reduce] != NULL) {
+#if DEBUG_NEW_ELIM
+      printf("thread %d reduces %d with rows %d -- %d\n", tid,
+          curr_row_to_reduce, from_row, local_last_piv);
+#endif
+      reduce_dense_row_task(D, curr_row_to_reduce, from_row, local_last_piv);
+#if DEBUG_NEW_ELIM
+      printf("thread %d done with rows %d -- %d\n", tid, from_row, local_last_piv);
+      printf("row %u has lead index %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
+#endif
+    }
+    if (curr_row_to_reduce == local_last_piv + 1) {
+      curr_row_fully_reduced  = 1;
+      ready_for_waiting_list  = 0;
+    } else {
+      curr_row_fully_reduced  = 0;
+      nred_consecutively++;
+      if (nred_consecutively > 4) {
+        nred_consecutively      = 0;
+        ready_for_waiting_list  = 1;
+      } else {
+        ready_for_waiting_list  = 0;
+      }
+    }
+
+    // since we are using dense large D we do not have to store back rows
+    // intermediately.
+    // => we only save pivots, i.e. we normalize and reduce them w.r.t D->mod
+    if (curr_row_fully_reduced == 1) { // new pivot found
+      if (D->row[curr_row_to_reduce] != NULL)
+        save_pivot(D, curr_row_to_reduce);
+
+      omp_set_lock(&echelonize_lock);
+      ++global_last_piv;
+#if DEBUG_NEW_ELIM
+      printf("%d -- inc glp: %d\n", tid, global_last_piv);
+#endif
+      omp_unset_lock(&echelonize_lock);
+    } else { // add row to waiting list
+#if DEBUG_NEW_ELIM
+      printf("%d -- pushes %d / %d\n", tid, curr_row_to_reduce, local_last_piv);
+#endif
+      push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, local_last_piv);
+      omp_unset_lock(&echelonize_lock);
+    }
+  }
+  return 0;
+}
+
+void reduce_upwards(dm_t *D, const ri_t last_row)
+{
+  ri_t i, j;
+  re_t mult;
+  
+  i = last_row;
+  while (i<(ri_t)(-1)) {
+    j = 0;
+    while (j<i) {
+      mult  = MODP(D->row[j]->val[D->row[i]->lead], D->mod);
+      if (mult != 0) {
+        mult  = D->mod - mult;
+        // also updates lead for row j
+        reduce_dense_row(D, j, i, mult);
+      }
+      j++;
+    }
+    i--;
+  }
+  // modular computation of reduced rows
+  for (i=0; i<=last_row; ++i)
+    red_mod_dense_row(D, i);
 }
 
 void pre_elim_sequential(dm_t *D, const ri_t last_row)
@@ -1781,14 +1922,22 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
   re_t mult;
 
   normalize_dense_row(D, 0);
+  for (int ii=0; ii<=0; ++ii) {
+    printf("ROW %d\n",ii);
+    for (int jj=0; jj<D->ncols; ++jj)
+      printf("%lu  ", D->row[ii]->val[jj]);
+    printf("\n");
+  }
 
   i = 1;
-  while (i < D->rank && i < last_row) {
+  while (i<D->rank && i<=last_row) {
     j = 0;
     while (j<i) {
       mult  = MODP(D->row[i]->val[D->row[j]->lead], D->mod);
       if (mult != 0) {
-        mult  = D->mod - mult;
+        printf("mult in preelim for %u --> %u\n",i,mult);
+        //inverse_val(&mult, D->mod);
+        mult  = D->mod-mult;
         // also updates lead for row i
         reduce_dense_row(D, i, j, mult);
         // if reduced row i is zero row then swap row down and get a new
@@ -1800,7 +1949,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
               return;
           // restart to reduce the new row i with j=0 in the next round of the
           // for loop
-          j = (ri_t)(0-1);
+          j = 0;
         }
         if (D->row[i]->lead > i) {
           test_idx  = swap_row(D, i);
@@ -1817,6 +1966,29 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
     normalize_dense_row(D, i);
     i++;
   }
+  for (int ii=1; ii<=1; ++ii) {
+    printf("ROW %d\n",ii);
+    for (int jj=0; jj<D->ncols; ++jj)
+      printf("%lu  ", D->row[ii]->val[jj]);
+    printf("\n");
+  }
+#if DEBUG_NEW_ELIM
+  for (int ii=0; ii<=last_row; ++ii) {
+    printf("ROW %d\n",ii);
+    for (int jj=0; jj<D->ncols; ++jj)
+      printf("%lu  ", D->row[ii]->val[jj]);
+    printf("\n");
+  }
+#endif
+  //reduce_upwards(D, last_row);
+#if DEBUG_NEW_ELIM
+  for (int ii=0; ii<=last_row; ++ii) {
+    printf("ROW %d\n",ii);
+    for (int jj=0; jj<D->ncols; ++jj)
+      printf("%lu  ", D->row[ii]->val[jj]);
+    printf("\n");
+  }
+#endif
 }
 
 ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
@@ -2187,14 +2359,14 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       }
       memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
 
-#if DDEBUG_Dd
+//#if DDEBUG_Dd
       printf("DENSE1\n");
       for (int uu=0; uu<coldim; ++uu)
-        printf("%u :: ",dense_array_1[uu]);
+        printf("%lu :: ",dense_array_1[uu]);
       printf("DENSE2\n");
       for (int uu=0; uu<coldim; ++uu)
-        printf("%u :: ",dense_array_2[uu]);
-#endif
+        printf("%lu :: ",dense_array_2[uu]);
+//#endif
 
       /*  save the line with the smallest column entry first */
       if (head_line_1 == -1) {
@@ -2340,17 +2512,9 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
       printf("thread %d reduces %d with rows %d -- %d\n",tid, curr_row_to_reduce, from_row, local_last_piv);
 #endif
       echelonize_one_row(A, dense_array_1, dense_array_2, from_row,
-          local_last_piv, modulus); /*  TODO */
+          local_last_piv, modulus);
 #if DEBUG_ECHELONIZE
       printf("thread %d done with rows %d -- %d\n",tid, from_row, local_last_piv);
-#endif
-#if DDEBUG_D
-      for (int kk = 0; kk< coldim/2; ++kk) {
-        printf("13-%d ,, %lu || %lu\n",kk,dense_array_1[2*kk], dense_array_1[2*kk+1]);
-      }
-      for (int kk = 0; kk< coldim/2; ++kk) {
-        printf("14-%d ,, %lu || %lu\n",kk,dense_array_2[2*kk], dense_array_2[2*kk+1]);
-      }
 #endif
     }
     if (curr_row_to_reduce == local_last_piv + 1) {
@@ -4795,7 +4959,9 @@ int normalize_dense_array(re_l_t *dense_array,
   if (h1 == -1)
     return h1;
 
+  printf("normalize val %u\n", val);
   inverse_val(&val, modulus);
+  printf("inverse normalize val %u\n", val);
 
 #ifdef GBLA_USE_AVX_NO
 
@@ -4827,6 +4993,7 @@ int normalize_dense_array(re_l_t *dense_array,
 
 #else
   for (i=h1; i<coldim; ++i) {
+    printf("normalization %lu * %u\n",dense_array[i], val);
     dense_array[i]  *=  val;
     dense_array[i]  =  MODP(dense_array[i],modulus);
   }
@@ -5349,10 +5516,13 @@ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
 
   get_head_multiline_hybrid(m, 0, &h1, &idx, coldim);
   get_head_multiline_hybrid(m, 1, &h2, &idx, coldim);
+  printf("h1 %u -- h2 %u\n",h1,h2);
 
   /*  invert values modulo modulus */
   inverse_val(&h1, modulus);
   inverse_val(&h2, modulus);
+
+  printf("inverse h1 %u -- h2 %u\n",h1,h2);
 
   /*  skip if both are 1 and/or 0 */
   if ((h1 == 0 || h1 == 1) && (h2 == 0 || h2 == 1))
@@ -5405,8 +5575,11 @@ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
       for (idx=0; idx<m->sz; ++idx) {
         tmp_val         = (re_l_t)m->val[2*idx] * h1;
         m->val[2*idx]   = MODP(tmp_val, modulus);
+        printf("row[%u] %u mult %u --> ",idx,m->val[2*idx+1],h2);
         tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
+        printf("%lu --> ",tmp_val);
         m->val[2*idx+1] = MODP(tmp_val, modulus);
+        printf("%u\n",m->val[2*idx+1]);
       }
 
 #endif

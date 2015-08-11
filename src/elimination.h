@@ -4022,6 +4022,21 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D, const mod_t modulus, int nthrds);
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nthrds);
 
 /**
+ * \brief Reduces dense row modulo prime M->mod
+ *
+ * \param dense row submatrix A
+ *
+ * \param row index ridx
+ */
+static inline void red_mod_dense_row(dm_t *A, const ri_t ridx)
+{
+  ci_t i;
+  for (i=A->row[ridx]->lead+1; i<A->ncols; ++i) {
+    A->row[ridx]->val[i]  = MODP(A->row[ridx]->val[i], A->mod);
+  }
+}
+
+/**
  * \brief Normalizes dense row with index ridx in dense row matrix D
  *
  * \param dense row submatrix D
@@ -4031,13 +4046,15 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, const mod_t modulus, int nt
 static inline void normalize_dense_row(dm_t *A, const ri_t ridx)
 {
   ci_t i;
-  // normalize first row
-  const ci_t lead_idx  = ridx*A->ncols+A->row[ridx]->lead;
-  re_t inv =  (re_t) A->row[ridx]->val[lead_idx];
+  const ci_t lead_idx  = A->row[ridx]->lead;
+  re_t inv =  MODP(A->row[ridx]->val[lead_idx], A->mod);
+  printf("normalize %u\n", inv);
   inverse_val(&inv, A->mod);
+  printf("inv normalize %u\n", inv);
   if (inv == 1)
     return;
   register const re_t cinv  = inv;
+  A->row[ridx]->val[lead_idx]  = (re_l_t)1;
   for (i=lead_idx+1; i<A->ncols; ++i) {
     A->row[ridx]->val[i] *=  cinv;
     A->row[ridx]->val[i] =   MODP(A->row[ridx]->val[i], A->mod);
@@ -4067,12 +4084,21 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
 
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
-  assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], D->mod) == 0);
+  assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], A->mod) == 0);
   A->row[ri]->val[i-1]  = 0;
 
   if (A->ncols-i > 7) {
     for (i; i<A->ncols-7; i=i+8) {
       //printf("7loop i %u\n",i);
+      r1  = A->row[rj]->val[i];
+      r2  = A->row[rj]->val[i+1];
+      r3  = A->row[rj]->val[i+2];
+      r4  = A->row[rj]->val[i+3];
+      r5  = A->row[rj]->val[i+4];
+      r6  = A->row[rj]->val[i+5];
+      r7  = A->row[rj]->val[i+6];
+      r8  = A->row[rj]->val[i+7];
+      /*
       r1  = reducers[i];
       r2  = reducers[i+1];
       r3  = reducers[i+2];
@@ -4081,8 +4107,10 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
       r6  = reducers[i+5];
       r7  = reducers[i+6];
       r8  = reducers[i+7];
-
+      */
+      //printf("reducing col %u via %lu + %u * %lu = ",i,A->row[ri]->val[i],mult,r1);
       A->row[ri]->val[i]    +=  mult * r1;
+      //printf("%lu\n",A->row[ri]->val[i]);
       A->row[ri]->val[i+1]  +=  mult * r2;
       A->row[ri]->val[i+2]  +=  mult * r3;
       A->row[ri]->val[i+3]  +=  mult * r4;
@@ -4093,11 +4121,16 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
     }
   }
   if (A->ncols-i > 4) {
+    r1  = A->row[rj]->val[i];
+    r2  = A->row[rj]->val[i+1];
+    r3  = A->row[rj]->val[i+2];
+    r4  = A->row[rj]->val[i+3];
+    /*
     r1  = reducers[i];
     r2  = reducers[i+1];
     r3  = reducers[i+2];
     r4  = reducers[i+3];
-
+    */
     A->row[ri]->val[i]    +=  mult * r1;
     A->row[ri]->val[i+1]  +=  mult * r2;
     A->row[ri]->val[i+2]  +=  mult * r3;
@@ -4107,12 +4140,14 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
   //printf("i:: %u\n",i);
   for (i; i<A->ncols; ++i) {
     //printf(" - %u",i);
-    r1  = reducers[i];
+    r1  = A->row[rj]->val[i];
+    //r1  = reducers[i];
     A->row[ri]->val[i]    +=  mult * r1;
   }
   // search new lead
-  //printf("lead %u\n", A->row[ri]->lead);
-  for (j=A->row[ri]->lead; j<A->ncols; ++j) {
+  update_lead_of_row(A, ri);
+  /*
+  for (j=A->row[ri]->lead+1; j<A->ncols; ++j) {
     if (A->row[ri]->val[j] != 0) {
       MODP(A->row[ri]->val[j], A->mod);
       if (A->row[ri]->val[j] != 0) {
@@ -4121,10 +4156,13 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
       }
     }
   }
+  */
   // if we get here then the row is completely zero
-  free(A->row[ri]->val);
-  free(A->row[ri]);
-  A->row[ri]  = NULL;
+  if (A->row[ri]->lead == A->ncols) {
+    free(A->row[ri]->val);
+    free(A->row[ri]);
+    A->row[ri]  = NULL;
+  }
 }
 
 /**
@@ -4136,6 +4174,16 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
  * \param global last pivot up to which to reduce sequentially global_last_piv
  */
 void pre_elim_sequential(dm_t *D, const ri_t global_last_piv);
+
+/**
+ * \brief After we have reduced a subset of rows of D we reduce them upwards
+ * from index last_row to 0
+ *
+ * \param dense row submatrix D
+ *
+ * \param row up to which we have reduced D already
+ */
+void reduce_upwards(dm_t *D, const ri_t last_row);
 
 /**
  * \brief Elimination procedure which reduces the dense row submatrix D to an
@@ -4248,6 +4296,71 @@ void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
 		re_l_t *dense_array_2,
 		const ri_t first_piv, const ri_t last_piv,
 		const mod_t modulus);
+
+/**
+ * \brief Reduces dense row of index curr_row_to_reduce with pivots of index
+ * from_row to local_last_piv in the task based reduction of D
+ *
+ * \param dense row submatrix D
+ *
+ * \param row index curr_row_to_reduce
+ *
+ * \param row index from_row
+ *
+ * \param row index local_last_piv
+ *
+ */
+static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
+    const ri_t from_row, const ri_t local_last_piv)
+{
+  // can we assume that all pivots up to local_last_piv have been fully reduced
+  // with respect to all other pivots?
+
+  ri_t i, j, test_idx;
+  re_t mult;
+  i = from_row;
+  while (i<local_last_piv+1) {
+    printf("pos of lead in %u is %u\n",i,D->row[i]->lead);
+    printf("==> %lu in %u\n",D->row[curr_row_to_reduce]->val[D->row[i]->lead], curr_row_to_reduce);
+    mult  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
+    printf("mult for %u = %u\n",i,mult);
+    if (mult != 0) {
+      mult  = D->mod - mult;
+      printf("inverted mult for %u = %u\n",i,mult);
+      // also updates lead for row i
+      printf("lead in %u (from_row %u - reduced by %u) ",
+          D->row[curr_row_to_reduce]->lead, from_row, i);
+      reduce_dense_row(D, curr_row_to_reduce, i, mult);
+      printf("--> out %u\n", D->row[curr_row_to_reduce]->lead);
+      // if reduced row i is zero row then swap row down and get a new
+      // row from the bottom
+      if (D->row[curr_row_to_reduce] == NULL) {
+        return;
+      }
+    } else {
+      D->row[curr_row_to_reduce]->val[D->row[i]->lead]  = 0;
+      update_lead_of_row(D, curr_row_to_reduce);
+    }
+    i++;
+  }
+}
+
+/**
+ * \brief Acronym for normalization of dense row with index curr_row_to_reduce
+ * in dense row matrix D
+ *
+ * \param dense row matrix D
+ *
+ * \param index of row to be normalized curr_row_to_reduce
+ */
+static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce)
+{
+  normalize_dense_row(D, curr_row_to_reduce);
+  printf("NEW PIVOT %u -- lead %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
+  for (int ii=0; ii<D->ncols; ++ii)
+    printf("%lu ",D->row[curr_row_to_reduce]->val[ii]);
+  printf("\n");
+}
 
 /**
  * \brief Restores the two dense arrays in a multiline row in D after
