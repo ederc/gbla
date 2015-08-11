@@ -969,7 +969,7 @@ static inline void update_lead_of_row(dm_t *A, const ri_t ridx)
   register re_l_t *values = A->row[ridx]->val;
   for (i=A->row[ridx]->lead; i<A->ncols; ++i) {
     if (values[i] != 0) {
-      MODP(values[i], A->mod);
+      values[i] = MODP(values[i], A->mod);
       if (values[i] != 0) {
         A->row[ridx]->lead  = i;
         return;

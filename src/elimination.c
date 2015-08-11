@@ -1843,11 +1843,12 @@ int elim_fl_dense_D_tasks(dm_t *D)
     }
 
     omp_unset_lock(&echelonize_lock);
-    if (D->row[curr_row_to_reduce] != NULL) {
+    if (D->row[curr_row_to_reduce]->val != NULL) {
 #if DEBUG_NEW_ELIM
       printf("thread %d reduces %d with rows %d -- %d\n", tid,
           curr_row_to_reduce, from_row, local_last_piv);
 #endif
+      printf("reducing now %u --> %p\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->val);
       reduce_dense_row_task(D, curr_row_to_reduce, from_row, local_last_piv);
 #if DEBUG_NEW_ELIM
       printf("thread %d done with rows %d -- %d\n", tid, from_row, local_last_piv);
@@ -1872,10 +1873,12 @@ int elim_fl_dense_D_tasks(dm_t *D)
     // intermediately.
     // => we only save pivots, i.e. we normalize and reduce them w.r.t D->mod
     if (curr_row_fully_reduced == 1) { // new pivot found
-      if (D->row[curr_row_to_reduce] != NULL)
+      if (D->row[curr_row_to_reduce]->val != NULL)
         save_pivot(D, curr_row_to_reduce);
 
       omp_set_lock(&echelonize_lock);
+      if (D->row[curr_row_to_reduce]->val == NULL)
+        D->rank--;
       ++global_last_piv;
 #if DEBUG_NEW_ELIM
       printf("%d -- inc glp: %d\n", tid, global_last_piv);
@@ -1935,14 +1938,15 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
     while (j<i) {
       mult  = MODP(D->row[i]->val[D->row[j]->lead], D->mod);
       if (mult != 0) {
-        printf("mult in preelim for %u --> %u\n",i,mult);
+        //printf("mult in preelim for %u --> %u\n",i,mult);
         //inverse_val(&mult, D->mod);
         mult  = D->mod-mult;
         // also updates lead for row i
         reduce_dense_row(D, i, j, mult);
         // if reduced row i is zero row then swap row down and get a new
         // row from the bottom
-        if (D->row[i] == NULL) {
+        if (D->row[i]->val == NULL) {
+          D->rank--;
           test_idx  = swap_zero_row(D, i);
           // if there is no nonzero row below we are done
           if (test_idx == i)

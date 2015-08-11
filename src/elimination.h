@@ -4085,20 +4085,12 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
   assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], A->mod) == 0);
+  if (ri==133)
+    printf("i %u -- red by rj %u\n",i,rj);
   A->row[ri]->val[i-1]  = 0;
 
   if (A->ncols-i > 7) {
     for (i; i<A->ncols-7; i=i+8) {
-      //printf("7loop i %u\n",i);
-      r1  = A->row[rj]->val[i];
-      r2  = A->row[rj]->val[i+1];
-      r3  = A->row[rj]->val[i+2];
-      r4  = A->row[rj]->val[i+3];
-      r5  = A->row[rj]->val[i+4];
-      r6  = A->row[rj]->val[i+5];
-      r7  = A->row[rj]->val[i+6];
-      r8  = A->row[rj]->val[i+7];
-      /*
       r1  = reducers[i];
       r2  = reducers[i+1];
       r3  = reducers[i+2];
@@ -4107,7 +4099,6 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
       r6  = reducers[i+5];
       r7  = reducers[i+6];
       r8  = reducers[i+7];
-      */
       //printf("reducing col %u via %lu + %u * %lu = ",i,A->row[ri]->val[i],mult,r1);
       A->row[ri]->val[i]    +=  mult * r1;
       //printf("%lu\n",A->row[ri]->val[i]);
@@ -4121,16 +4112,10 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
     }
   }
   if (A->ncols-i > 4) {
-    r1  = A->row[rj]->val[i];
-    r2  = A->row[rj]->val[i+1];
-    r3  = A->row[rj]->val[i+2];
-    r4  = A->row[rj]->val[i+3];
-    /*
     r1  = reducers[i];
     r2  = reducers[i+1];
     r3  = reducers[i+2];
     r4  = reducers[i+3];
-    */
     A->row[ri]->val[i]    +=  mult * r1;
     A->row[ri]->val[i+1]  +=  mult * r2;
     A->row[ri]->val[i+2]  +=  mult * r3;
@@ -4140,8 +4125,7 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
   //printf("i:: %u\n",i);
   for (i; i<A->ncols; ++i) {
     //printf(" - %u",i);
-    r1  = A->row[rj]->val[i];
-    //r1  = reducers[i];
+    r1  = reducers[i];
     A->row[ri]->val[i]    +=  mult * r1;
   }
   // search new lead
@@ -4160,8 +4144,7 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
   // if we get here then the row is completely zero
   if (A->row[ri]->lead == A->ncols) {
     free(A->row[ri]->val);
-    free(A->row[ri]);
-    A->row[ri]  = NULL;
+    A->row[ri]->val = NULL;
   }
 }
 
@@ -4334,7 +4317,7 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
       printf("--> out %u\n", D->row[curr_row_to_reduce]->lead);
       // if reduced row i is zero row then swap row down and get a new
       // row from the bottom
-      if (D->row[curr_row_to_reduce] == NULL) {
+      if (D->row[curr_row_to_reduce]->val == NULL) {
         return;
       }
     } else {
