@@ -1848,7 +1848,6 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("thread %d reduces %d with rows %d -- %d\n", tid,
           curr_row_to_reduce, from_row, local_last_piv);
 #endif
-      printf("reducing now %u --> %p\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->val);
       reduce_dense_row_task(D, curr_row_to_reduce, from_row, local_last_piv);
 #if DEBUG_NEW_ELIM
       printf("thread %d done with rows %d -- %d\n", tid, from_row, local_last_piv);
@@ -1925,12 +1924,6 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
   re_t mult;
 
   normalize_dense_row(D, 0);
-  for (int ii=0; ii<=0; ++ii) {
-    printf("ROW %d\n",ii);
-    for (int jj=0; jj<D->ncols; ++jj)
-      printf("%lu  ", D->row[ii]->val[jj]);
-    printf("\n");
-  }
 
   i = 1;
   while (i<D->rank && i<=last_row) {
@@ -1969,12 +1962,6 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
     }
     normalize_dense_row(D, i);
     i++;
-  }
-  for (int ii=1; ii<=1; ++ii) {
-    printf("ROW %d\n",ii);
-    for (int jj=0; jj<D->ncols; ++jj)
-      printf("%lu  ", D->row[ii]->val[jj]);
-    printf("\n");
   }
 #if DEBUG_NEW_ELIM
   for (int ii=0; ii<=last_row; ++ii) {
@@ -2363,14 +2350,14 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       }
       memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
 
-//#if DDEBUG_Dd
+#if DDEBUG_Dd
       printf("DENSE1\n");
       for (int uu=0; uu<coldim; ++uu)
         printf("%lu :: ",dense_array_1[uu]);
       printf("DENSE2\n");
       for (int uu=0; uu<coldim; ++uu)
         printf("%lu :: ",dense_array_2[uu]);
-//#endif
+#endif
 
       /*  save the line with the smallest column entry first */
       if (head_line_1 == -1) {
@@ -4963,9 +4950,7 @@ int normalize_dense_array(re_l_t *dense_array,
   if (h1 == -1)
     return h1;
 
-  printf("normalize val %u\n", val);
   inverse_val(&val, modulus);
-  printf("inverse normalize val %u\n", val);
 
 #ifdef GBLA_USE_AVX_NO
 
@@ -4997,7 +4982,6 @@ int normalize_dense_array(re_l_t *dense_array,
 
 #else
   for (i=h1; i<coldim; ++i) {
-    printf("normalization %lu * %u\n",dense_array[i], val);
     dense_array[i]  *=  val;
     dense_array[i]  =  MODP(dense_array[i],modulus);
   }
@@ -5520,13 +5504,11 @@ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
 
   get_head_multiline_hybrid(m, 0, &h1, &idx, coldim);
   get_head_multiline_hybrid(m, 1, &h2, &idx, coldim);
-  printf("h1 %u -- h2 %u\n",h1,h2);
 
   /*  invert values modulo modulus */
   inverse_val(&h1, modulus);
   inverse_val(&h2, modulus);
 
-  printf("inverse h1 %u -- h2 %u\n",h1,h2);
 
   /*  skip if both are 1 and/or 0 */
   if ((h1 == 0 || h1 == 1) && (h2 == 0 || h2 == 1))
@@ -5579,11 +5561,8 @@ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
       for (idx=0; idx<m->sz; ++idx) {
         tmp_val         = (re_l_t)m->val[2*idx] * h1;
         m->val[2*idx]   = MODP(tmp_val, modulus);
-        printf("row[%u] %u mult %u --> ",idx,m->val[2*idx+1],h2);
         tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
-        printf("%lu --> ",tmp_val);
         m->val[2*idx+1] = MODP(tmp_val, modulus);
-        printf("%u\n",m->val[2*idx+1]);
       }
 
 #endif
