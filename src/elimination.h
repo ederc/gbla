@@ -4290,24 +4290,27 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
   while (i<local_last_piv+1) {
     //printf("pos of lead in %u is %u\n",i,D->row[i]->lead);
     //printf("==> %lu in %u\n",D->row[curr_row_to_reduce]->val[D->row[i]->lead], curr_row_to_reduce);
-    mult  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
-    //printf("mult for %u = %u\n",i,mult);
-    if (mult != 0) {
-      mult  = D->mod - mult;
-      //printf("inverted mult for %u = %u\n",i,mult);
-      // also updates lead for row i
-      //printf("lead in %u (from_row %u - reduced by %u) ",
-      //    D->row[curr_row_to_reduce]->lead, from_row, i);
-      reduce_dense_row(D, curr_row_to_reduce, i, mult);
-      //printf("--> out %u\n", D->row[curr_row_to_reduce]->lead);
-      // if reduced row i is zero row then swap row down and get a new
-      // row from the bottom
-      if (D->row[curr_row_to_reduce]->val == NULL) {
-        return;
+    if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
+      if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
+        mult  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
+      else
+        mult  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
+      //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
+      //printf("mult for %u = %u\n",i,mult);
+      if (mult != 0) {
+        mult  = D->mod - mult;
+        //printf("inverted mult for %u = %u\n",i,mult);
+        // also updates lead for row i
+        //printf("lead in %u (from_row %u - reduced by %u) ",
+        //    D->row[curr_row_to_reduce]->lead, from_row, i);
+        reduce_dense_row(D, curr_row_to_reduce, i, mult);
+        //printf("--> out %u\n", D->row[curr_row_to_reduce]->lead);
+        // if reduced row i is zero row then swap row down and get a new
+        // row from the bottom
+        if (D->row[curr_row_to_reduce]->val == NULL) {
+          return;
+        }
       }
-    } else {
-      D->row[curr_row_to_reduce]->val[D->row[i]->lead]  = 0;
-      update_lead_of_row(D, curr_row_to_reduce);
     }
     i++;
   }
