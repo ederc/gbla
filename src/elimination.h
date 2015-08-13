@@ -4360,7 +4360,7 @@ static  ri_t global_next_row_to_reduce;
 static  ri_t global_last_piv;
 static  wl_t waiting_global;
 
-ri_t global_first_zero_row;
+static ri_t global_first_zero_row;
 
 /*  global variables for reduction of C */
 static  omp_lock_t reduce_C_lock;
