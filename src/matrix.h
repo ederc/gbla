@@ -407,7 +407,7 @@ inline ci_t get_number_sparse_col_blocks(const sb_fl_t *A)
  *
  * \param number of columns ncols
  */
-inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
+static inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
   int i;
 
@@ -465,7 +465,7 @@ static inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
  *
  * \param number of columns ncols
  */
-inline void init_sb(sb_fl_t *A, const ri_t nrows, const ri_t ncols)
+static inline void init_sb(sb_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
   int i, j;
 
@@ -514,7 +514,7 @@ inline void init_sb(sb_fl_t *A, const ri_t nrows, const ri_t ncols)
  *
  * \param number of columns ncols
  */
-inline void init_hbm(hbm_fl_t *A, const ri_t nrows, const ri_t ncols)
+static inline void init_hbm(hbm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
   int i, j;
 
@@ -547,7 +547,7 @@ inline void init_hbm(hbm_fl_t *A, const ri_t nrows, const ri_t ncols)
  *
  * \param number of columns ncols
  */
-inline void init_ibm(ibm_fl_t *A, const ri_t nrows, const ri_t ncols)
+static inline void init_ibm(ibm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
   int i, j;
 
@@ -583,7 +583,7 @@ inline void init_ibm(ibm_fl_t *A, const ri_t nrows, const ri_t ncols)
  *
  * \param number of columns ncols
  */
-inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
+static inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
   int i, j;
 
@@ -614,7 +614,7 @@ inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
  *
  * \param number of threads for parallel computation
  */
-inline void free_sparse_matrix(sm_fl_t **A_in, int nthrds)
+static inline void free_sparse_matrix(sm_fl_t **A_in, int nthrds)
 {
   sm_fl_t *A      = *A_in;
   ri_t i, j, k, l;
@@ -643,7 +643,7 @@ inline void free_sparse_matrix(sm_fl_t **A_in, int nthrds)
  *
  * \param number of threads for parallel computation
  */
-inline void free_sparse_submatrix(sb_fl_t **A_in, int nthrds)
+static inline void free_sparse_submatrix(sb_fl_t **A_in, int nthrds)
 {
   sb_fl_t *A      = *A_in;
   const ci_t clA  = get_number_sparse_col_blocks(A);
@@ -683,7 +683,7 @@ inline void free_sparse_submatrix(sb_fl_t **A_in, int nthrds)
  *
  * \param number of threads for parallel computation
  */
-inline void free_hybrid_submatrix(hbm_fl_t **A_in, int nthrds)
+static inline void free_hybrid_submatrix(hbm_fl_t **A_in, int nthrds)
 {
   hbm_fl_t *A     = *A_in;
   const ci_t clA  = get_number_hybrid_col_blocks(A);
@@ -730,7 +730,7 @@ inline void free_hybrid_submatrix(hbm_fl_t **A_in, int nthrds)
  *
  * \param number of threads for parallel computation
  */
-inline void free_intermediate_submatrix(ibm_fl_t **A_in, int nthrds)
+static inline void free_intermediate_submatrix(ibm_fl_t **A_in, int nthrds)
 {
   ibm_fl_t *A     = *A_in;
   const ci_t clA  = get_number_intermediate_col_blocks(A);
