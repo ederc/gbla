@@ -1995,6 +1995,10 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   waiting_global.slp  = 0;
   waiting_global.sz   = 0;
 
+#if COUNT_REDS
+  nreductions = 0;
+#endif
+
   int rc;
 
   // sort D w.r.t. first nonzero entry per row
@@ -2040,6 +2044,9 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   }
   omp_destroy_lock(&echelonize_lock);
 
+#if COUNT_REDS
+  printf("\n#REDUCTION STEPS: %lu\n",nreductions);
+#endif
   return D->rank;
 }
 
@@ -2060,6 +2067,9 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
   const ci_t coldim     = D->ncols;
   ri_t wl_dim; /*  waiting list dimension */
   re_t h_a1;
+#if COUNT_REDS
+  nreductions = 0;
+#endif
 
   wl_dim  = (D->nrows/__GB_NROWS_MULTILINE);
   if (D->nrows%__GB_NROWS_MULTILINE)
@@ -2181,6 +2191,9 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
       printf("\n");
     }
   }
+#endif
+#if COUNT_REDS
+  printf("#REDUCTION STEPS: %lu\n",nreductions);
 #endif
 
   return rank;
@@ -5136,6 +5149,9 @@ void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
 
       dense_val2[i+j] +=  v1__ * Av2_col1;
       dense_val2[i+j] +=  v2__ * Av2_col2;
+#if COUNT_REDS
+      nreductions +=  4;
+#endif
     }
   }
   for (; i<multiline.sz; ++i) {
@@ -5147,6 +5163,9 @@ void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
 
     dense_val2[i] +=  v1__ * Av2_col1;
     dense_val2[i] +=  v2__ * Av2_col2;
+#if COUNT_REDS
+      nreductions +=  4;
+#endif
   }
 }
 
@@ -5168,6 +5187,9 @@ for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
 
     dense_val2[i+j] +=  v1__ * Av2_col1;
     dense_val2[i+j] +=  v2__ * Av2_col2;
+#if COUNT_REDS
+      nreductions +=  4;
+#endif
   }
 }
 for (; i<multiline.sz; ++i) {
@@ -5179,6 +5201,9 @@ for (; i<multiline.sz; ++i) {
 
   dense_val2[i] +=  v1__ * Av2_col1;
   dense_val2[i] +=  v2__ * Av2_col2;
+#if COUNT_REDS
+      nreductions +=  4;
+#endif
 }
 }
 #endif
@@ -5210,6 +5235,9 @@ void sparse_scal_mul_sub_1_row_vect_array_multiline(
 
       dense_val1[idx] +=  v__ * Av1_col1;
       dense_val2[idx] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  2;
+#endif
     }
   } else { /*  one of them is zero */
     if (Av1_col1 != 0) {
@@ -5219,6 +5247,9 @@ void sparse_scal_mul_sub_1_row_vect_array_multiline(
         v__ = p_val[2*i];
 
         dense_val1[idx] +=  v__ * Av1_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
       }
     } else {
       for (; i<N; ++i) {
@@ -5226,6 +5257,9 @@ void sparse_scal_mul_sub_1_row_vect_array_multiline(
         v__ = p_val[2*i];
 
         dense_val2[idx] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
       }
     }
   }
@@ -5239,6 +5273,9 @@ void sparse_scal_mul_sub_1_row_vect_array_multiline(
 
       dense_val1[idx] +=  v__ * Av1_col1;
       dense_val2[idx] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  2;
+#endif
     }
   } else { /*  one of them is zero */
     if (Av1_col1 != 0) {
@@ -5248,6 +5285,9 @@ void sparse_scal_mul_sub_1_row_vect_array_multiline(
         v__ = p_val[2*i];
 
         dense_val1[idx] +=  v__ * Av1_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
       }
     } else {
       for (; i<N; ++i) {
@@ -5255,6 +5295,9 @@ void sparse_scal_mul_sub_1_row_vect_array_multiline(
         v__ = p_val[2*i];
 
         dense_val2[idx] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
       }
     }
   }
@@ -5637,6 +5680,9 @@ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
 
       dense_val2[idx] +=  Av2_col1 * v1__;
       dense_val2[idx] +=  Av2_col2 * v2__;
+#if COUNT_REDS
+      nreductions +=  4;
+#endif
     }
   }
   for ( ; i<N; ++i) {
@@ -5649,6 +5695,9 @@ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
 
     dense_val2[idx] +=  Av2_col1 * v1__;
     dense_val2[idx] +=  Av2_col2 * v2__;
+#if COUNT_REDS
+      nreductions +=  4;
+#endif
   }
 #else
   for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
@@ -5662,6 +5711,9 @@ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
 
       dense_val2[idx] +=  Av2_col1 * v1__;
       dense_val2[idx] +=  Av2_col2 * v2__;
+#if COUNT_REDS
+      nreductions +=  4;
+#endif
     }
   }
   for ( ; i<N; ++i) {
@@ -5674,6 +5726,9 @@ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
 
     dense_val2[idx] +=  Av2_col1 * v1__;
     dense_val2[idx] +=  Av2_col2 * v2__;
+#if COUNT_REDS
+      nreductions +=  4;
+#endif
   }
 #endif
 }
@@ -5843,6 +5898,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
       dense_val1[i+j] +=  v__ * Av1_col1;
       dense_val2[i+j] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  2;
+#endif
       ++i ;
     }
     CHECK_ALIGN(dense_val1);
@@ -5857,6 +5915,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
       dense_val1[i+j] +=  v__ * Av1_col1;
       dense_val2[i+j] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  2;
+#endif
     }
 
     /* }
@@ -5874,6 +5935,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
       /* dense_val1[i+j] +=  v__ * Av1_col1; */
       dense_val2[i+j] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
       ++i ;
     }
     CHECK_ALIGN(dense_val2);
@@ -5887,6 +5951,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
       /* dense_val1[i+j] +=  v__ * Av1_col1; */
       dense_val2[i+j] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
     }
 
     /* }
@@ -5903,6 +5970,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
       v__ = p_val[2*(i+j)];
 
       dense_val1[i+j] +=  v__ * Av1_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
       /* dense_val2[i+j] +=  v__ * Av2_col1; */
       ++i ;
     }
@@ -5916,6 +5986,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
       v__ = p_val[2*(i+j)];
 
       dense_val1[i+j] +=  v__ * Av1_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
       /* dense_val2[i+j] +=  v__ * Av2_col1; */
     }
 
@@ -5934,6 +6007,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
         dense_val1[i+j] +=  v__ * Av1_col1;
         dense_val2[i+j] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  2;
+#endif
       }
     }
     for (; i<multiline.sz; ++i) {
@@ -5941,6 +6017,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
       dense_val1[i] +=  v__ * Av1_col1;
       dense_val2[i] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  2;
+#endif
     }
   } else { /*  one of them is zero */
     if (Av1_col1 == 0) {
@@ -5949,6 +6028,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
           v__ = p_val[2*(i+j)];
 
           dense_val2[i+j] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
         }
       }
       for (; i<multiline.sz; ++i) {
@@ -5956,6 +6038,9 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
         /* dense_val1[i] +=  v__ * Av1_col1; */
         dense_val2[i] +=  v__ * Av2_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
       }
     } else {
       if (Av2_col1 == 0) {
@@ -5964,12 +6049,18 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
             v__ = p_val[2*(i+j)];
 
             dense_val1[i+j] +=  v__ * Av1_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
           }
         }
         for (; i<multiline.sz; ++i) {
           v__ = p_val[2*i];
 
           dense_val1[i] +=  v__ * Av1_col1;
+#if COUNT_REDS
+      nreductions +=  1;
+#endif
           /* dense_val2[i] +=  v__ * Av2_col1; */
         }
       }

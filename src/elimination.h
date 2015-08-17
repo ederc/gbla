@@ -36,6 +36,9 @@
 #undef SSE
 #define NOSSE
 
+#define COUNT_REDS  0
+static unsigned long nreductions;
+
 /**
  * \brief Structure of a waiting list element
  */
@@ -4105,6 +4108,9 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
       A->row[ri]->val[i+5]  +=  mult * r6;
       A->row[ri]->val[i+6]  +=  mult * r7;
       A->row[ri]->val[i+7]  +=  mult * r8;
+#if COUNT_REDS
+      nreductions +=  8;
+#endif
     }
   }
   if (A->ncols-i > 4) {
@@ -4117,12 +4123,18 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
     A->row[ri]->val[i+2]  +=  mult * r3;
     A->row[ri]->val[i+3]  +=  mult * r4;
     i = i+4;
+#if COUNT_REDS
+    nreductions +=  4;
+#endif
   }
   //printf("i:: %u\n",i);
   for (i; i<A->ncols; ++i) {
     //printf(" - %u",i);
     r1  = reducers[i];
     A->row[ri]->val[i]    +=  mult * r1;
+#if COUNT_REDS
+    nreductions +=  1;
+#endif
   }
   // search new lead
   update_lead_of_row(A, ri);
