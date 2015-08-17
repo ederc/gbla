@@ -1876,7 +1876,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
         save_pivot(D, curr_row_to_reduce);
 
       omp_set_lock(&echelonize_lock);
-      if (D->row[curr_row_to_reduce]->val == NULL)
+      if (D->row[curr_row_to_reduce]->piv_val == NULL)
         D->rank--;
       ++global_last_piv;
 #if DEBUG_NEW_ELIM
@@ -1923,7 +1923,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
   ri_t i, j, test_idx;
   re_t mult;
 
-  normalize_dense_row(D, 0);
+  save_pivot(D, 0);
 
   i = 1;
   while (i<D->rank && i<=last_row) {
@@ -1960,7 +1960,8 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
       }
       j++;
     }
-    normalize_dense_row(D, i);
+    //normalize_dense_row(D, i);
+    save_pivot(D, i);
     i++;
   }
 #if DEBUG_NEW_ELIM

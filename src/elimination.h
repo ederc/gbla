@@ -4078,7 +4078,7 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
 {
   ri_t i, range;
   ci_t j;
-  const re_l_t *reducers  = A->row[rj]->val;
+  const re_t *reducers  = A->row[rj]->piv_val;
   register re_l_t r1, r2, r3, r4, r5, r6, r7, r8;
   i = A->row[rj]->lead + 1;
 
@@ -4326,7 +4326,13 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
  */
 static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce)
 {
+  ci_t i;
+  D->row[curr_row_to_reduce]->piv_val  = (re_t *)calloc(D->ncols, sizeof(re_t));
   normalize_dense_row(D, curr_row_to_reduce);
+  for (i=D->row[curr_row_to_reduce]->lead; i<D->ncols; ++i)
+    D->row[curr_row_to_reduce]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
+  free(D->row[curr_row_to_reduce]->val);
+  D->row[curr_row_to_reduce]->val  = NULL;
   //printf("NEW PIVOT %u -- lead %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
   //for (int ii=0; ii<D->ncols; ++ii)
   //  printf("%lu ",D->row[curr_row_to_reduce]->val[ii]);

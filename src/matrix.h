@@ -64,6 +64,7 @@ typedef struct sm_t {
  */
 typedef struct dr_t {
   re_l_t *val;  /*!< entries in row of dense row matrix */
+  re_t *piv_val;  /*!< entries in row of dense row matrix, once pivots are fixed */
   ci_t lead;    /*!< lead entry of the corresponding row */
 } dr_t;
 
@@ -451,8 +452,9 @@ static inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
   // allocate memory for matrix
   A->row  = (dr_t **)malloc(nrows * sizeof(dr_t *));
   for (i=0; i<nrows; ++i) {
-    A->row[i]       = (dr_t *)malloc(sizeof(dr_t));
-    A->row[i]->val  = (re_l_t *)malloc(ncols * sizeof(re_l_t));
+    A->row[i]           = (dr_t *)malloc(sizeof(dr_t));
+    A->row[i]->val      = (re_l_t *)malloc(ncols * sizeof(re_l_t));
+    A->row[i]->piv_val  = NULL;
   }
 }
 

@@ -1034,11 +1034,11 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
   }
   for (int ii=0; ii<D_red->nrows; ++ii) {
     printf("ROW %d\n",ii);
-    if (D_red->row[ii]->val == NULL)
+    if (D_red->row[ii]->piv_val == NULL)
       printf("NULL!");
     else {
       for (int jj=0; jj<D_red->ncols; ++jj)
-        printf("%lu  ", D_red->row[ii]->val[jj]);
+        printf("%lu  ", D_red->row[ii]->piv_val[jj]);
     }
     printf("\n");
   }
