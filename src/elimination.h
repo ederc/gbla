@@ -392,7 +392,8 @@ static inline void modulo_wide_block_val(re_l_t **wide_block, const bi_t row_idx
     const mod_t modulus) {
   bi_t i;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
-    wide_block[row_idx][i]  = (re_l_t)(wide_block[row_idx][i] % modulus);
+		wide_block[row_idx][i]  = (re_l_t)MODP(wide_block[row_idx][i] , modulus);
+    //wide_block[row_idx][i]  = (re_l_t)(wide_block[row_idx][i] % modulus);
 }
 
 /**
@@ -407,7 +408,8 @@ static inline void modulo_wide_block(re_l_t ***wide_block, const mod_t modulus) 
   bi_t i, j;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j)
-      wb[i][j]  = (re_l_t)(wb[i][j] % modulus);
+		  wb[i][j]  = (re_l_t)MODP(wb[i][j] , modulus);
+      //wb[i][j]  = (re_l_t)(wb[i][j] % modulus);
   *wide_block = wb;
 }
 
@@ -4064,6 +4066,7 @@ static inline void normalize_dense_row(dm_t *A, const ri_t ridx)
   }
 }
 
+
 /**
  * \brief Reduces dense row ri via row rj in D using precomputed inverted
  * multiplier mult
@@ -4082,9 +4085,9 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
   ri_t i, range;
   ci_t j;
   const re_t *reducers  = A->row[rj]->piv_val;
-  register re_l_t r1, r2, r3, r4, r5, r6, r7, r8;
+  
   i = A->row[rj]->lead + 1;
-
+  
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
   assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], A->mod) == 0);
@@ -4092,46 +4095,31 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
 
   if (A->ncols-i > 7) {
     for (i; i<A->ncols-7; i=i+8) {
-      r1  = reducers[i];
-      r2  = reducers[i+1];
-      r3  = reducers[i+2];
-      r4  = reducers[i+3];
-      r5  = reducers[i+4];
-      r6  = reducers[i+5];
-      r7  = reducers[i+6];
-      r8  = reducers[i+7];
-      A->row[ri]->val[i]    +=  mult * r1;
-      A->row[ri]->val[i+1]  +=  mult * r2;
-      A->row[ri]->val[i+2]  +=  mult * r3;
-      A->row[ri]->val[i+3]  +=  mult * r4;
-      A->row[ri]->val[i+4]  +=  mult * r5;
-      A->row[ri]->val[i+5]  +=  mult * r6;
-      A->row[ri]->val[i+6]  +=  mult * r7;
-      A->row[ri]->val[i+7]  +=  mult * r8;
+      A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
+      A->row[ri]->val[i+1]    +=  (re_l_t)mult * reducers[i+1];
+      A->row[ri]->val[i+2]    +=  (re_l_t)mult * reducers[i+2];
+      A->row[ri]->val[i+3]    +=  (re_l_t)mult * reducers[i+3];
+      A->row[ri]->val[i+4]    +=  (re_l_t)mult * reducers[i+4];
+      A->row[ri]->val[i+5]    +=  (re_l_t)mult * reducers[i+5];
+      A->row[ri]->val[i+6]    +=  (re_l_t)mult * reducers[i+6];
+      A->row[ri]->val[i+7]    +=  (re_l_t)mult * reducers[i+7];
 #if COUNT_REDS
       nreductions +=  8;
 #endif
     }
   }
   if (A->ncols-i > 4) {
-    r1  = reducers[i];
-    r2  = reducers[i+1];
-    r3  = reducers[i+2];
-    r4  = reducers[i+3];
-    A->row[ri]->val[i]    +=  mult * r1;
-    A->row[ri]->val[i+1]  +=  mult * r2;
-    A->row[ri]->val[i+2]  +=  mult * r3;
-    A->row[ri]->val[i+3]  +=  mult * r4;
+    A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
+    A->row[ri]->val[i+1]    +=  (re_l_t)mult * reducers[i+1];
+    A->row[ri]->val[i+2]    +=  (re_l_t)mult * reducers[i+2];
+    A->row[ri]->val[i+3]    +=  (re_l_t)mult * reducers[i+3];
     i = i+4;
 #if COUNT_REDS
     nreductions +=  4;
 #endif
   }
-  //printf("i:: %u\n",i);
   for (i; i<A->ncols; ++i) {
-    //printf(" - %u",i);
-    r1  = reducers[i];
-    A->row[ri]->val[i]    +=  mult * r1;
+    A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
 #if COUNT_REDS
     nreductions +=  1;
 #endif
