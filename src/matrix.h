@@ -453,8 +453,8 @@ static inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
   A->row  = (dr_t **)malloc(nrows * sizeof(dr_t *));
   for (i=0; i<nrows; ++i) {
     A->row[i]           = (dr_t *)malloc(sizeof(dr_t));
-    A->row[i]->val      = (re_l_t *)malloc(ncols * sizeof(re_l_t));
-    A->row[i]->piv_val  = NULL;
+    A->row[i]->piv_val  = (re_t *)malloc(ncols * sizeof(re_t));
+    A->row[i]->val  = NULL;
   }
 }
 
@@ -907,7 +907,7 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
 
   // set entries in out to zero
   for (i=0; i<out->nrows; ++i)
-    memset(out->row[i]->val, 0, out->ncols * sizeof(re_l_t));
+    memset(out->row[i]->piv_val, 0, out->ncols * sizeof(re_t));
 
 #pragma omp parallel num_threads(nthrds)
   {
@@ -924,8 +924,8 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
                   __GBLA_SIMD_BLOCK_SIZE : (out->ncols-j*__GBLA_SIMD_BLOCK_SIZE);
           for (k=0; k<min_k; ++k) {
             for (l=0; l<min_l; ++l) {
-              out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
-                (re_l_t)in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
+              out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->piv_val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
+                in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
             }
           }
           free(in->blocks[i][j].val);
@@ -943,14 +943,14 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
 next_round:
   for (i; i<out->nrows; ++i) {
     for (j=0; j<out->ncols; ++j) {
-      if (out->row[i]->val[j] != 0) {
+      if (out->row[i]->piv_val[j] != 0) {
         out->row[i]->lead  = j;
         i++;
         goto next_round;
       }
     }
     // if we found a zero row, i.e. we have not broken the j-loop beforehand
-    free(out->row[i]->val);
+    free(out->row[i]->piv_val);
     free(out->row[i]);
     out->row[i] = NULL;
     out->rank--;

@@ -4277,6 +4277,14 @@ void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
 		const ri_t first_piv, const ri_t last_piv,
 		const mod_t modulus);
 
+static inline void copy_to_val(dm_t *D, const ri_t idx)
+{
+  ci_t i;
+  D->row[idx]->val  = (re_l_t *)malloc(D->ncols * sizeof(re_l_t));
+  for (i=0; i<D->ncols; ++i)
+    D->row[idx]->val[i] = (re_l_t)D->row[idx]->piv_val[i];
+}
+
 /**
  * \brief Reduces dense row of index curr_row_to_reduce with pivots of index
  * from_row to local_last_piv in the task based reduction of D
@@ -4298,6 +4306,7 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
 
   ri_t i, j, test_idx;
   re_t mult;
+  copy_to_val(D, curr_row_to_reduce);
   i = from_row;
   while (i<local_last_piv+1) {
     //printf("pos of lead in %u is %u\n",i,D->row[i]->lead);
@@ -4339,10 +4348,16 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
 static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce)
 {
   ci_t i;
-  D->row[curr_row_to_reduce]->piv_val  = (re_t *)calloc(D->ncols, sizeof(re_t));
+  //D->row[curr_row_to_reduce]->piv_val  = (re_t *)calloc(D->ncols, sizeof(re_t));
   normalize_dense_row(D, curr_row_to_reduce);
-  for (i=D->row[curr_row_to_reduce]->lead; i<D->ncols; ++i)
-    D->row[curr_row_to_reduce]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
+  if (D->row[curr_row_to_reduce]->lead < D->ncols) {
+    memset(D->row[curr_row_to_reduce]->piv_val, 0, D->ncols * sizeof(re_t));
+    for (i=D->row[curr_row_to_reduce]->lead; i<D->ncols; ++i)
+      D->row[curr_row_to_reduce]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
+  } else {
+    free(D->row[curr_row_to_reduce]->piv_val);
+    D->row[curr_row_to_reduce]->piv_val  = NULL;
+  }
   free(D->row[curr_row_to_reduce]->val);
   D->row[curr_row_to_reduce]->val  = NULL;
   //printf("NEW PIVOT %u -- lead %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
