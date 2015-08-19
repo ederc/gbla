@@ -1775,6 +1775,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
 {
   ri_t curr_row_to_reduce;
   ri_t local_last_piv;
+  ri_t local_last_row_fully_reduced;
   ri_t from_row;
 
   int ready_for_waiting_list  = 0;
@@ -1791,11 +1792,12 @@ int elim_fl_dense_D_tasks(dm_t *D)
 
   // computations done in while loop
   while (1) {
-    if (global_last_piv >= D->nrows) {
+    if (global_last_row_fully_reduced >= D->nrows) {
       omp_unset_lock(&echelonize_lock);
       break;
     }
-    local_last_piv  = global_last_piv;
+    local_last_piv                = global_last_piv;
+    local_last_row_fully_reduced  = global_last_row_fully_reduced;
 #if DEBUG_NEW_ELIM
     printf("setting llp\n");
     printf("llp %d\n",local_last_piv);
@@ -1854,7 +1856,8 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("row %u has lead index %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
 #endif
     }
-    if (curr_row_to_reduce == local_last_piv + 1) {
+    if (curr_row_to_reduce == local_last_row_fully_reduced + 1) {
+    //if (curr_row_to_reduce == local_last_piv + 1) {
       curr_row_fully_reduced  = 1;
       ready_for_waiting_list  = 0;
     } else {
@@ -1872,17 +1875,19 @@ int elim_fl_dense_D_tasks(dm_t *D)
     // intermediately.
     // => we only save pivots, i.e. we normalize and reduce them w.r.t D->mod
     if (curr_row_fully_reduced == 1) { // new pivot found
-      if (D->row[curr_row_to_reduce]->val != NULL) {
-        save_pivot(D, curr_row_to_reduce);
-      } else {
-        free(D->row[curr_row_to_reduce]->piv_val);
-        D->row[curr_row_to_reduce]->piv_val = NULL;
-      }
+      free(D->row[curr_row_to_reduce]->piv_val);
+      D->row[curr_row_to_reduce]->piv_val = NULL;
 
       omp_set_lock(&echelonize_lock);
-      if (D->row[curr_row_to_reduce]->piv_val == NULL)
+      global_last_row_fully_reduced++;
+      if (D->row[curr_row_to_reduce]->val != NULL) {
+        save_pivot(D, curr_row_to_reduce, global_last_piv+1);
+      }
+
+      if (D->row[global_last_piv+1]->piv_val == NULL)
         D->rank--;
-      ++global_last_piv;
+      else
+        ++global_last_piv;
 #if DEBUG_NEW_ELIM
       printf("%d -- inc glp: %d\n", tid, global_last_piv);
 #endif
@@ -1891,6 +1896,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
 #if DEBUG_NEW_ELIM
       printf("%d -- pushes %d / %d\n", tid, curr_row_to_reduce, local_last_piv);
 #endif
+      omp_set_lock(&echelonize_lock);
       push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, local_last_piv);
       omp_unset_lock(&echelonize_lock);
     }
@@ -1928,7 +1934,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
   re_t mult;
 
   copy_to_val(D, 0);
-  save_pivot(D, 0);
+  save_pivot(D, 0, 0);
 
   i = 1;
   while (i<D->rank && i<=last_row) {
@@ -1967,7 +1973,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
       j++;
     }
     //normalize_dense_row(D, i);
-    save_pivot(D, i);
+    save_pivot(D, i, i);
     i++;
   }
 #if DEBUG_NEW_ELIM
@@ -1993,6 +1999,7 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   // setting global variables for open mp locks used later on
   global_next_row_to_reduce = nthrds * 2;
   global_last_piv           = global_next_row_to_reduce - 1;
+  global_last_row_fully_reduced = global_last_piv;
   global_first_zero_row     = D->nrows;   
 
   /*  global waiting list */
@@ -2062,8 +2069,8 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
   /* ci_t rc; */
 
   /*  row indices for subdividing echelonization parts in D_red */
-  global_next_row_to_reduce  = nthrds * 2;
-  global_last_piv            = global_next_row_to_reduce - 1;
+  global_next_row_to_reduce     = nthrds * 2;
+  global_last_piv               = global_next_row_to_reduce - 1;
 
   /*  meta data for the computation of the rank of D_red at the end */
   int head_line_1       = -1;

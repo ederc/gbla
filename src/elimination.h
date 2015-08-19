@@ -4332,19 +4332,24 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
  * \param dense row matrix D
  *
  * \param index of row to be normalized curr_row_to_reduce
+ *
+ * \param index of pivot row
  */
-static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce)
+static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce, const ri_t new_piv_idx)
 {
   ci_t i;
   //D->row[curr_row_to_reduce]->piv_val  = (re_t *)calloc(D->ncols, sizeof(re_t));
   normalize_dense_row(D, curr_row_to_reduce);
   if (D->row[curr_row_to_reduce]->lead < D->ncols) {
-    memset(D->row[curr_row_to_reduce]->piv_val, 0, D->ncols * sizeof(re_t));
+    if (D->row[new_piv_idx]->piv_val == NULL)
+      D->row[new_piv_idx]->piv_val  = (re_t *)malloc(D->ncols * sizeof(re_t));
+    // set all elements before lead to zero
+    memset(D->row[new_piv_idx]->piv_val, 0, D->row[curr_row_to_reduce]->lead * sizeof(re_t));
     for (i=D->row[curr_row_to_reduce]->lead; i<D->ncols; ++i)
-      D->row[curr_row_to_reduce]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
+      D->row[new_piv_idx]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
   } else {
-    free(D->row[curr_row_to_reduce]->piv_val);
-    D->row[curr_row_to_reduce]->piv_val  = NULL;
+    free(D->row[new_piv_idx]->piv_val);
+    D->row[new_piv_idx]->piv_val  = NULL;
   }
   free(D->row[curr_row_to_reduce]->val);
   D->row[curr_row_to_reduce]->val  = NULL;
@@ -4382,6 +4387,7 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 static  omp_lock_t echelonize_lock;
 static  ri_t global_next_row_to_reduce;
 static  ri_t global_last_piv;
+static  ri_t global_last_row_fully_reduced;
 static  wl_t waiting_global;
 
 static ri_t global_first_zero_row;
