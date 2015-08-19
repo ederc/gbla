@@ -4136,28 +4136,30 @@ static inline void reduce_dense_row_from(dm_t *A, const ri_t ri, const ri_t rj,
 }
 
 /**
- * \brief Reduces dense row ri via row rj and rj+1 in D using precomputed inverted
+ * \brief Reduces dense row ri via rows rj1 and rj2 in D using precomputed inverted
  * multiplier mult
  *
  * \param dense row submatrix D
  *
  * \param row index ri
  *
- * \param row index rj
+ * \param row index rj1
+ *
+ * \param row index rj2
  *
  * \param precomputed inverted multiplier mult1 for pivot row rj
  *
- * \param precomputed inverted multiplier mult2 for pivot row rj+1
+ * \param precomputed inverted multiplier mult2 for pivot row rj2
  *
  */
-static inline void reduce_dense_row_twice(dm_t *A, const ri_t ri, const ri_t rj,
-    const re_t mult1, const re_t mult2)
+static inline void reduce_dense_row_twice(dm_t *A, const ri_t ri, const ri_t rj1,
+    const ri_t rj2, const re_t mult1, const re_t mult2)
 {
   ci_t i;
-  const re_t *reducers1 = A->row[rj]->piv_val;
-  const re_t *reducers2 = A->row[rj+1]->piv_val;
+  const re_t *reducers1 = A->row[rj1]->piv_val;
+  const re_t *reducers2 = A->row[rj2]->piv_val;
   
-  i = A->row[rj+1]->lead + 1;
+  i = A->row[rj2]->lead + 1;
   
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
@@ -4424,7 +4426,8 @@ static inline void copy_to_val(dm_t *D, const ri_t idx)
 
 /**
  * \brief Reduces dense row of index curr_row_to_reduce with pivots of index
- * from_row to local_last_piv in the task based reduction of D
+ * from_row to local_last_piv in the task based reduction of D. Tries to reduce
+ * a row with two pivots at once.
  *
  * \param dense row submatrix D
  *
@@ -4435,86 +4438,49 @@ static inline void copy_to_val(dm_t *D, const ri_t idx)
  * \param row index local_last_piv
  *
  */
-static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_reduce,
+static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
     const ri_t from_row, const ri_t local_last_piv)
 {
   // can we assume that all pivots up to local_last_piv have been fully reduced
   // with respect to all other pivots?
 
-  ri_t i, j, test_idx;
+  ri_t i, j;
   re_t mult1, mult2;
   copy_to_val(D, curr_row_to_reduce);
   i = from_row;
   while (i<local_last_piv) {
-    //printf("pos of lead in %u is %u\n",i,D->row[i]->lead);
-    //printf("==> %lu in %u\n",D->row[curr_row_to_reduce]->val[D->row[i]->lead], curr_row_to_reduce);
-    if (D->row[i+1]->lead == D->row[i]->lead + 1) {
-      if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
-        if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
-        else
-          mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
-        if (mult1 != 0) {
-          mult1  = D->mod - mult1;
-          D->row[curr_row_to_reduce]->val[D->row[i]->lead]  = 0;
-          D->row[curr_row_to_reduce]->val[D->row[i]->lead + 1]  +=
-            (re_l_t)mult1 * D->row[i]->piv_val[D->row[i]->lead + 1];
-          mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead + 1], D->mod);
-          if (mult2 != 0) {
-            mult2 = D->mod - mult2;
-            reduce_dense_row_twice(D, curr_row_to_reduce, i, mult1, mult2);
-            // if reduced row i is zero row then swap row down and get a new
-            // row from the bottom
-            if (D->row[curr_row_to_reduce]->val == NULL) {
-              return;
-            }
-          } else {
-            reduce_dense_row_from(D, curr_row_to_reduce, i, mult1, D->row[i]->lead + 2);
-            // if reduced row i is zero row then swap row down and get a new
-            // row from the bottom
-            if (D->row[curr_row_to_reduce]->val == NULL) {
-              return;
-            }
+    if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
+      if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
+        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
+      else
+        mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
+      if (mult1 != 0) {
+        mult1  = D->mod - mult1;
+        D->row[curr_row_to_reduce]->val[D->row[i]->lead]  = 0;
+        for (j=D->row[i]->lead+1; j<D->row[i+1]->lead+1; ++j)
+          D->row[curr_row_to_reduce]->val[j]  += (re_l_t)mult1 * D->row[i]->piv_val[j];
+        mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod);
+        if (mult2 != 0) {
+          mult2 = D->mod - mult2;
+          reduce_dense_row_twice(D, curr_row_to_reduce, i, i+1, mult1, mult2);
+          // if reduced row i is zero row then swap row down and get a new
+          // row from the bottom
+          if (D->row[curr_row_to_reduce]->val == NULL) {
+            return;
           }
         } else {
-          mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod);
-          if (mult2 != 0) {
-            mult2 = D->mod - mult2;
-            reduce_dense_row(D, curr_row_to_reduce, i+1, mult2);
-            // if reduced row i is zero row then swap row down and get a new
-            // row from the bottom
-            if (D->row[curr_row_to_reduce]->val == NULL) {
-              return;
-            }
+          reduce_dense_row_from(D, curr_row_to_reduce, i, mult1, D->row[i]->lead + 2);
+          // if reduced row i is zero row then swap row down and get a new
+          // row from the bottom
+          if (D->row[curr_row_to_reduce]->val == NULL) {
+            return;
           }
         }
       } else {
-        if (D->row[i+1]->lead >= D->row[curr_row_to_reduce]->lead) {
-          if (D->row[i+1]->lead == D->row[curr_row_to_reduce]->lead)
-            mult1  = D->row[curr_row_to_reduce]->val[D->row[i+1]->lead];
-          else
-            mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod);
-          if (mult1 != 0) {
-            mult1  = D->mod - mult1;
-            reduce_dense_row(D, curr_row_to_reduce, i+1, mult1);
-            // if reduced row i is zero row then swap row down and get a new
-            // row from the bottom
-            if (D->row[curr_row_to_reduce]->val == NULL) {
-              return;
-            }
-          }
-        }
-      }
-      i +=  2;
-    } else {
-      if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
-        if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
-        else
-          mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
-        if (mult1 != 0) {
-          mult1  = D->mod - mult1;
-          reduce_dense_row(D, curr_row_to_reduce, i, mult1);
+        mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod);
+        if (mult2 != 0) {
+          mult2 = D->mod - mult2;
+          reduce_dense_row(D, curr_row_to_reduce, i+1, mult2);
           // if reduced row i is zero row then swap row down and get a new
           // row from the bottom
           if (D->row[curr_row_to_reduce]->val == NULL) {
@@ -4522,7 +4488,7 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
           }
         }
       }
-      i++;
+    } else {
       if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
@@ -4565,58 +4531,6 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
         }
       }
     }
-  }
-}
-
-/**
- * \brief Reduces dense row of index curr_row_to_reduce with pivots of index
- * from_row to local_last_piv in the task based reduction of D
- *
- * \param dense row submatrix D
- *
- * \param row index curr_row_to_reduce
- *
- * \param row index from_row
- *
- * \param row index local_last_piv
- *
- */
-static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
-    const ri_t from_row, const ri_t local_last_piv)
-{
-  // can we assume that all pivots up to local_last_piv have been fully reduced
-  // with respect to all other pivots?
-
-  ri_t i, j, test_idx;
-  re_t mult;
-  copy_to_val(D, curr_row_to_reduce);
-  i = from_row;
-  while (i<local_last_piv+1) {
-    //printf("pos of lead in %u is %u\n",i,D->row[i]->lead);
-    //printf("==> %lu in %u\n",D->row[curr_row_to_reduce]->val[D->row[i]->lead], curr_row_to_reduce);
-    if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
-      if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
-        mult  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
-      else
-        mult  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
-      //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
-      //printf("mult for %u = %u\n",i,mult);
-      if (mult != 0) {
-        mult  = D->mod - mult;
-        //printf("inverted mult for %u = %u\n",i,mult);
-        // also updates lead for row i
-        //printf("lead in %u (from_row %u - reduced by %u) ",
-        //    D->row[curr_row_to_reduce]->lead, from_row, i);
-        reduce_dense_row(D, curr_row_to_reduce, i, mult);
-        //printf("--> out %u\n", D->row[curr_row_to_reduce]->lead);
-        // if reduced row i is zero row then swap row down and get a new
-        // row from the bottom
-        if (D->row[curr_row_to_reduce]->val == NULL) {
-          return;
-        }
-      }
-    }
-    i++;
   }
 }
 
