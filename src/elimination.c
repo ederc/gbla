@@ -1850,7 +1850,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("thread %d reduces %d with rows %d -- %d\n", tid,
           curr_row_to_reduce, from_row, local_last_piv);
 #endif
-      reduce_dense_row_task(D, curr_row_to_reduce, from_row, local_last_piv);
+      reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
 #if DEBUG_NEW_ELIM
       printf("thread %d done with rows %d -- %d\n", tid, from_row, local_last_piv);
       printf("row %u has lead index %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
@@ -1883,7 +1883,6 @@ int elim_fl_dense_D_tasks(dm_t *D)
       if (D->row[curr_row_to_reduce]->val != NULL) {
         save_pivot(D, curr_row_to_reduce, global_last_piv+1);
       }
-
       if (D->row[global_last_piv+1]->piv_val == NULL)
         D->rank--;
       else
