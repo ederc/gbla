@@ -4538,6 +4538,7 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
           }
         }
       }
+      i++;
     }
   }
   // if local_last_piv % 2 = 1 there is one pivot left
