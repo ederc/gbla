@@ -4479,16 +4479,6 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
       } else {
         i++;
         continue;
-        mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod);
-        if (mult2 != 0) {
-          mult2 = D->mod - mult2;
-          reduce_dense_row(D, curr_row_to_reduce, i+1, mult2);
-          // if reduced row i is zero row then swap row down and get a new
-          // row from the bottom
-          if (D->row[curr_row_to_reduce]->val == NULL) {
-            return;
-          }
-        }
       }
       i = i+2;
     } else {

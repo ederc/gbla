@@ -750,10 +750,18 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
   map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
   map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
 
-  if (nthreads > 8)
-    splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, verbose, 8);
-  else
-    splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
+  splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
+
+  // free elements in M, but keep general meta data for later references
+	ri_t ii;
+	for (ii=0; ii < M->nrows; ++ii) {
+		if (M->rows[ii] != NULL)
+		free(M->rows[ii]);
+		if (M->pos[ii] != NULL)
+		free(M->pos[ii]);
+	}
+  free(M->rows);
+  free(M->pos);
 
   if (verbose > 0) {
     printf("%9.3f sec\n",

@@ -127,6 +127,25 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
     int only_rows);
 
 /**
+ * \brief Reconstructs matrix M after elimination process for non multiline
+ * computations. Matrices B and D are freed. Map map is freed.
+ *
+ * \param input and output matrix M
+ *
+ * \param block sub matrix A
+ *
+ * \param block sub matrix B
+ *
+ * \param multiline submatrix D
+ *
+ * \param outer mapping map
+ *
+ * \param number of threads
+ */
+void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_t *D,
+    map_fl_t *map, const int nthrds);
+
+/**
  * \brief Reconstructs matrix M after elimination process
  *
  * \param input and output matrix M

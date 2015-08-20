@@ -481,6 +481,116 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
 }
 
 
+void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_t *D,
+    map_fl_t *map, const int nthrds)
+{
+  /*  1 pivot from A and otherwise at most D->ncols = B->ncols elements */
+  /*  ==> no reallocations! */
+  /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
+
+  ri_t i, j, k;
+
+  const ri_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
+  const ci_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
+
+  M->nnz    = 0;
+  M->nrows  = map->npiv + D->rank;
+
+  // reallocate memory for rows in M: they have a max length of
+  // 1+D->ncols for rows from A+B, and
+  // D->ncols for rows from D
+#pragma omp parallel num_threads(1)
+{
+  ri_t block_idx;
+  ri_t line_idx;
+  ci_t start_idx;
+#pragma omp for private(j,k) schedule(dynamic)
+  // getting a row from A+B
+  for (i=0; i<map->npiv; ++i) {
+    M->rows[i]    = calloc(1+D->ncols, sizeof(re_t));
+    M->pos[i]     = calloc(1+D->ncols, sizeof(ci_t));
+    M->rwidth[i]  = 0;
+
+    // write 1 for A part
+    M->rows[i][M->rwidth[i]]  = 1;
+    M->pos[i][M->rwidth[i]]   = i;
+    M->rwidth[i]++;
+
+    // now write B part
+    block_idx = i / __GBLA_SIMD_BLOCK_SIZE;
+    line_idx  = (i % __GBLA_SIMD_BLOCK_SIZE) * __GBLA_SIMD_BLOCK_SIZE;
+
+    for (j=0; j<clB; ++j) {
+      if (B->blocks[block_idx][j].val ==  NULL)
+        continue;
+      start_idx = j * __GBLA_SIMD_BLOCK_SIZE;
+      for ( k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        if (B->blocks[block_idx][j].val[k+line_idx] != 0) {
+          M->rows[i][M->rwidth[i]]  = B->blocks[block_idx][j].val[k+line_idx];
+          M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+k+start_idx];
+          M->rwidth[i]++;
+        }
+      }
+    }
+    // relloc row size
+    M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
+    M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
+    // if we had the last line in the block, we can remove it
+    if (line_idx == __GBLA_SIMD_BLOCK_SIZE-1) {
+      for (j=0; j<clB; ++j) {
+        free(B->blocks[block_idx][j].val);
+        B->blocks[block_idx][j].val = NULL;
+      }
+    }
+  }
+}
+#pragma omp parallel num_threads(1)
+{
+#pragma omp for private(j,k) schedule(dynamic)
+  // getting a row from D
+  for (i=map->npiv; i<M->nrows; ++i) {
+    M->rows[i]    = calloc(D->ncols, sizeof(re_t));
+    M->pos[i]     = calloc(D->ncols, sizeof(ci_t));
+    M->rwidth[i]  = 0;
+
+    if (D->row[i]->lead < D->ncols) {
+      for (j=D->row[i]->lead; j<D->ncols; ++j) {
+        if (D->row[i]->piv_val[j] != 0) {
+          M->rows[i][M->rwidth[i]]  = D->row[i]->piv_val[j];
+          M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+j];
+          M->rwidth[i]++;
+        }
+      }
+      // relloc row size
+      M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
+      M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
+      // free row in D
+      free(D->row[i]->piv_val);
+      free(D->row[i]);
+      D->row[i] = NULL;
+    }
+  }
+}
+  for (i=0; i<M->nrows; ++i)
+    M->nnz  +=  M->rwidth[i];
+
+  // free B and D
+  free(B);
+  B = NULL;
+  free(D);
+  D = NULL;
+
+  // free map
+  free(map->pc);
+  free(map->npc);
+  free(map->pc_rev);
+  free(map->npc_rev);
+  free(map->pri);
+  free(map->npri);
+  free(map);
+  map = NULL;
+}
+
 void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
     int M_freed, int A_freed, int D_freed, int nthrds) {
@@ -501,7 +611,7 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     memset(vec_free_D, 0, (D->nrows / __GB_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
   }
-
+  
   uint32_t i, j, k;
   uint32_t new_piv_to_row[coldim];
   uint32_t new_piv  = 0;
