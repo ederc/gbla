@@ -4503,7 +4503,7 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
             return;
           }
         } else {
-          reduce_dense_row_from(D, curr_row_to_reduce, i, mult1, D->row[i]->lead + 2);
+          reduce_dense_row_from(D, curr_row_to_reduce, i, mult1, D->row[i+1]->lead + 1);
           // if reduced row i is zero row then swap row down and get a new
           // row from the bottom
           if (D->row[curr_row_to_reduce]->val == NULL) {
