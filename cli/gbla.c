@@ -642,7 +642,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-38s", "Copying C to dense block representation ...");
+    printf("%-38s", "Transforming C ...");
     fflush(stdout);
   }
   dbm_fl_t *C_block = copy_sparse_to_dense_block_matrix(C, nthreads);
@@ -730,6 +730,54 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   }
 #endif
 
+  // copy block D to dense wide (re_l_t) representation
+  dm_t *D_red = copy_block_to_dense_matrix(&D, nthreads);
+  D_red->mod  = M->mod;
+
+  // eliminate D_red using a structured Gaussian Elimination process on the rows
+  ri_t rank_D = 0;
+  // echelonizing D to zero using methods of Faugère & Lachartre
+  if (verbose > 0) {
+    gettimeofday(&t_load_start, NULL);
+    printf("%-38s","Reducing D ...");
+    fflush(stdout);
+  }
+  if (D_red->nrows > 0)
+    rank_D = elim_fl_dense_D(D_red, nthreads);
+  if (verbose > 0) {
+    printf("%9.3f sec (rank D: %u)\n",
+        walltime(t_load_start) / (1000000), rank_D);
+  }
+  if (verbose > 1) {
+    print_mem_usage();
+  }
+#if __GB_CLI_DEBUG_D_TEST
+  for (int ii=0; ii<D_red->nrows; ++ii) {
+    printf("ROW %d\n",ii);
+    if (D_red->row[ii]->piv_val == NULL)
+      printf("NULL!");
+    else {
+      for (int jj=0; jj<D_red->ncols; ++jj)
+        printf("%lu  ", D_red->row[ii]->piv_val[jj]);
+    }
+    printf("\n");
+  }
+#endif
+  /*
+  if (verbose > 0) {
+    gettimeofday(&t_load_start, NULL);
+    printf("%-38s","Reconstructing M ...");
+    fflush(stdout);
+  }
+  reconstruct_matrix_block_no_multiline(M, A, B, D_red, map, nthreads);
+  if (verbose > 0) {
+    printf("%9.3f sec (rank M: %u)\n",
+        walltime(t_load_start) / (1000000), M->nrows);
+  }
+  if (verbose > 1) {
+    print_mem_usage();
+  }
+  */
   return 0;
 }
 
