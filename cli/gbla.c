@@ -763,13 +763,12 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("\n");
   }
 #endif
-  /*
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     printf("%-38s","Reconstructing M ...");
     fflush(stdout);
   }
-  reconstruct_matrix_block_no_multiline(M, A, B, D_red, map, nthreads);
+  reconstruct_matrix_no_multiline_keep_A(M, A, B, D_red, map, nthreads);
   if (verbose > 0) {
     printf("%9.3f sec (rank M: %u)\n",
         walltime(t_load_start) / (1000000), M->nrows);
@@ -777,7 +776,6 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 1) {
     print_mem_usage();
   }
-  */
   return 0;
 }
 
@@ -2706,6 +2704,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
     print_mem_usage();
+    /*
   printf("DDDD11111111111111\n");
   for (int ii=0; ii<D_red->nrows / 2; ++ii) {
     printf("%d .. \n",ii);
@@ -2725,6 +2724,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
       }
     }
   }
+  */
     printf("---------------------------------------------------------------------\n");
     printf("Rank of D:\t%u\n", rank_D);
     printf("---------------------------------------------------------------------\n");

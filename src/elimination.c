@@ -3193,9 +3193,9 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
 #endif
 */
 
-  // free A
-  free_sparse_matrix(&A, nthrds);
-  *A_in = A;
+  // do not free A, we need it for reconstruction!
+  //free_sparse_matrix(&A, nthrds);
+  //*A_in = A;
   return 0;
 }
 
