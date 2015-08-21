@@ -192,7 +192,7 @@ int main(int argc, char *argv[]) {
   if (verbose > 0) {
     printf("-------------------------------------------------------------------\n");
     gettimeofday(&t_load_start, NULL);
-    printf("%-50s","Loading matrix ...");
+    printf("%-38s","Loading matrix ...");
     fflush(stdout);
   }
   /*  load JCF matrix */
@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
   if (write_pbm) {
     if (verbose > 0) {
       gettimeofday(&t_load_start, NULL);
-      printf("%-50s","Wrintg matrix to PBM file ...");
+      printf("%-38s","Wrintg matrix to PBM file ...");
       fflush(stdout);
     }
     const char *pbm_fn  = "input-matrix.pbm";
@@ -316,7 +316,8 @@ int main(int argc, char *argv[]) {
   M = NULL;
 
   if (verbose > 0) {
-    printf("%-50s","Reduction completed ...");
+    printf("-------------------------------------------------------------------\n");
+    printf("%-38s","Reduction completed ...");
     fflush(stdout);
     printf("%9.3f sec\n",
         walltime(t_complete) / (1000000));
@@ -334,7 +335,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-50s", "Splicing and mapping of input matrix ...");
+    printf("%-38s", "Splicing of input matrix ...");
     fflush(stdout);
   }
   // construct splicing of matrix M into A, B, C and D
@@ -474,7 +475,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-50s","Storing A in C ...");
+    printf("%-38s","Storing A in C ...");
     fflush(stdout);
   }
   if (elim_fl_C_sparse_dense_keep_A(C, &A, M->mod, nthreads)) {
@@ -508,7 +509,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-50s", "Copying C to sparse block representation ...");
+    printf("%-38s", "Copying C to sparse block representation ...");
     fflush(stdout);
   }
   sb_fl_t *C_block = copy_sparse_to_block_matrix(C, nthreads);
@@ -548,7 +549,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-50s","Reducing C to zero ...");
+    printf("%-38s","Reducing C to zero ...");
     fflush(stdout);
   }
   if (elim_fl_C_sparse_sparse_block(B, &C_block, D, 0, M->mod, nthreads)) {
@@ -570,7 +571,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-50s", "Copying C to intermediate block representation ...");
+    printf("%-38s", "Copying C to intermediate block representation ...");
     fflush(stdout);
   }
   ibm_fl_t *C_block = copy_sparse_to_intermediate_block_matrix(C, nthreads);
@@ -619,7 +620,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-50s","Reducing C to zero ...");
+    printf("%-38s","Reducing C to zero ...");
     fflush(stdout);
   }
   if (elim_fl_C_intermediate_block(B, &C_block, D, 1, M->mod, nthreads)) {
@@ -641,7 +642,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-50s", "Copying C to dense block representation ...");
+    printf("%-38s", "Copying C to dense block representation ...");
     fflush(stdout);
   }
   dbm_fl_t *C_block = copy_sparse_to_dense_block_matrix(C, nthreads);
@@ -681,7 +682,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
     //printf("---------------------------------------------------------------------\n");
-    printf("%-50s","Reducing C to zero ...");
+    printf("%-38s","Reducing C to zero ...");
     fflush(stdout);
   }
   if (elim_fl_C_dense_sparse_block(B, &C_block, D, 1, M->mod, nthreads)) {
@@ -739,7 +740,7 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
   // all submatrices of block type
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
-    printf("%-50s", "Splicing and mapping of input matrix ...");
+    printf("%-38s", "Splicing of input matrix ...");
     fflush(stdout);
   }
   // construct splicing of matrix M into A, B, C and D
@@ -927,7 +928,7 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
   // reducing submatrix A using methods of Faugère & Lachartre
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
-    printf("%-50s","Reducing A ...");
+    printf("%-38s","Reducing A ...");
     fflush(stdout);
   }
   if (elim_fl_A_sparse_dense_block(&A, B, M->mod, nthreads)) {
@@ -974,7 +975,7 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
   // reducing submatrix C to zero using methods of Faugère & Lachartre
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
-    printf("%-50s","Reducing C ...");
+    printf("%-38s","Reducing C ...");
     fflush(stdout);
   }
   if (elim_fl_C_sparse_dense_block(B, &C, D, 1, M->mod, nthreads)) {
@@ -1028,18 +1029,19 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
   // echelonizing D to zero using methods of Faugère & Lachartre
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
-    printf("%-50s","Reducing D ...");
+    printf("%-38s","Reducing D ...");
     fflush(stdout);
   }
   if (D_red->nrows > 0)
     rank_D = elim_fl_dense_D(D_red, nthreads);
   if (verbose > 0) {
-    printf("%9.3f sec\n",
-        walltime(t_load_start) / (1000000));
+    printf("%9.3f sec (rank D: %u)\n",
+        walltime(t_load_start) / (1000000), rank_D);
   }
   if (verbose > 1) {
     print_mem_usage();
   }
+#if __GB_CLI_DEBUG_D_TEST
   for (int ii=0; ii<D_red->nrows; ++ii) {
     printf("ROW %d\n",ii);
     if (D_red->row[ii]->piv_val == NULL)
@@ -1050,7 +1052,20 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
     }
     printf("\n");
   }
-  printf("rank of D %u\n", rank_D);
+#endif
+  if (verbose > 0) {
+    gettimeofday(&t_load_start, NULL);
+    printf("%-38s","Reconstructing M ...");
+    fflush(stdout);
+  }
+  reconstruct_matrix_block_no_multiline(M, A, B, D_red, map, nthreads);
+  if (verbose > 0) {
+    printf("%9.3f sec (rank M: %u)\n",
+        walltime(t_load_start) / (1000000), M->nrows);
+  }
+  if (verbose > 1) {
+    print_mem_usage();
+  }
   return 0;
 }
 
