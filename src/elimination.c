@@ -1845,7 +1845,8 @@ int elim_fl_dense_D_tasks(dm_t *D)
     }
 
     omp_unset_lock(&echelonize_lock);
-    if (D->row[curr_row_to_reduce]->piv_val != NULL) {
+    if (D->row[curr_row_to_reduce]->piv_val != NULL ||
+        D->row[curr_row_to_reduce]->val != NULL) {
 #if DEBUG_NEW_ELIM
       printf("thread %d reduces %d with rows %d -- %d\n", tid,
           curr_row_to_reduce, from_row, local_last_piv);
@@ -1883,10 +1884,11 @@ int elim_fl_dense_D_tasks(dm_t *D)
       if (D->row[curr_row_to_reduce]->val != NULL) {
         save_pivot(D, curr_row_to_reduce, global_last_piv+1);
       }
-      if (D->row[global_last_piv+1]->piv_val == NULL)
+      if (D->row[global_last_piv+1]->piv_val == NULL) {
         D->rank--;
-      else
+      } else {
         ++global_last_piv;
+      }
 #if DEBUG_NEW_ELIM
       printf("%d -- inc glp: %d\n", tid, global_last_piv);
 #endif
@@ -1975,23 +1977,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
     save_pivot(D, i, i);
     i++;
   }
-#if DEBUG_NEW_ELIM
-  for (int ii=0; ii<=last_row; ++ii) {
-    printf("ROW %d\n",ii);
-    for (int jj=0; jj<D->ncols; ++jj)
-      printf("%lu  ", D->row[ii]->val[jj]);
-    printf("\n");
-  }
-#endif
   //reduce_upwards(D, last_row);
-#if DEBUG_NEW_ELIM
-  for (int ii=0; ii<=last_row; ++ii) {
-    printf("ROW %d\n",ii);
-    for (int jj=0; jj<D->ncols; ++jj)
-      printf("%lu  ", D->row[ii]->val[jj]);
-    printf("\n");
-  }
-#endif
 }
 
 ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
@@ -2015,28 +2001,8 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
 
   // sort D w.r.t. first nonzero entry per row
   sort_dense_matrix_by_pivots(D);
-#if DEBUG_NEW_ELIM
-  printf("GLP %u\n",global_last_piv);
-  for (int ii=0; ii<D->nrows; ++ii) {
-    printf("%u - ", ii);
-    if (D->row[ii] == NULL)
-      printf("NULL\n");
-    else
-      printf("%u\n",D->row[ii]->lead);
-  }
-#endif
   // do sequential prereduction of first global_last_piv bunch of rows
   pre_elim_sequential(D, global_last_piv);
-#if DEBUG_NEW_ELIM
-  printf("GLP %u\n",global_last_piv);
-  for (int ii=0; ii<D->nrows; ++ii) {
-    printf("%u - ", ii);
-    if (D->row[ii] == NULL)
-      printf("NULL\n");
-    else
-      printf("%u\n",D->row[ii]->lead);
-  }
-#endif
 
   // if rank is smaller than the row until which we have been sequentially pre
   // eliminating then all other rows of D are already zero

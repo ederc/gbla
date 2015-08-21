@@ -4418,10 +4418,17 @@ void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
 
 static inline void copy_to_val(dm_t *D, const ri_t idx)
 {
-  ci_t i;
-  D->row[idx]->val  = (re_l_t *)malloc(D->ncols * sizeof(re_l_t));
-  for (i=0; i<D->ncols; ++i)
-    D->row[idx]->val[i] = (re_l_t)D->row[idx]->piv_val[i];
+  // if D->row[idx]->piv_val == NULL then D->row[idx] was already partly reduced
+  // by some lower pivots. So we have the row already stored in large re_l_t
+  // representation in D->row[idx]->val and can just use it
+  if (D->row[idx]->piv_val != NULL) {
+    ci_t i;
+    D->row[idx]->val  = (re_l_t *)malloc(D->ncols * sizeof(re_l_t));
+    for (i=0; i<D->ncols; ++i)
+      D->row[idx]->val[i] = (re_l_t)D->row[idx]->piv_val[i];
+    free(D->row[idx]->piv_val);
+    D->row[idx]->piv_val  = NULL;
+  }
 }
 
 /**
@@ -4528,15 +4535,11 @@ static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce, const ri_t
   //D->row[curr_row_to_reduce]->piv_val  = (re_t *)calloc(D->ncols, sizeof(re_t));
   normalize_dense_row(D, curr_row_to_reduce);
   if (D->row[curr_row_to_reduce]->lead < D->ncols) {
-    if (D->row[new_piv_idx]->piv_val == NULL)
-      D->row[new_piv_idx]->piv_val  = (re_t *)malloc(D->ncols * sizeof(re_t));
+    D->row[new_piv_idx]->piv_val  = (re_t *)malloc(D->ncols * sizeof(re_t));
     // set all elements before lead to zero
     memset(D->row[new_piv_idx]->piv_val, 0, D->row[curr_row_to_reduce]->lead * sizeof(re_t));
     for (i=D->row[curr_row_to_reduce]->lead; i<D->ncols; ++i)
       D->row[new_piv_idx]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
-  } else {
-    free(D->row[new_piv_idx]->piv_val);
-    D->row[new_piv_idx]->piv_val  = NULL;
   }
   free(D->row[curr_row_to_reduce]->val);
   D->row[curr_row_to_reduce]->val  = NULL;
