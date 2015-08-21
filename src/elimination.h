@@ -2708,6 +2708,7 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
   re_l_t **wide_block, const mod_t modulus)
 {
   bi_t i, j, k, l;
+#if 0
   register re_m_t a, b ,c, d, e, f, g, h;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     for (j=0; j<block_A->sz[i]-8; j = j+8) {
@@ -2740,6 +2741,32 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
     }
     modulo_wide_block_val(wide_block, i, modulus);
   }
+#else
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    const re_t *bAv = block_A->val[i];
+    const bi_t *bAp = block_A->pos[i];
+    for (j=0; j<block_A->sz[i]-8; j = j+8) {
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        wide_block[i][k]  +=
+          ((re_m_t)bAv[j] * wide_block[bAp[j]][k] +
+          (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k] +
+          (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k] +
+          (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k] +
+          (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k] +
+          (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k] +
+          (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k] +
+          (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k]);
+      }
+    }
+    for (;j<block_A->sz[i]-1; ++j) {
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        wide_block[i][k]  +=
+          (re_m_t)bAv[j] * wide_block[bAp[j]][k];
+      }
+    }
+    modulo_wide_block_val(wide_block, i, modulus);
+  }
+#endif
 }
 
 /**
