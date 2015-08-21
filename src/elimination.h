@@ -1546,11 +1546,9 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
 #else
 #ifdef NOSSE
   bi_t i, j, k;
-  //register re_t a, b, c, d;//, e, f, g, h;
-  //register bi_t pa, pb, pc, pd;//, pe, pf, pg, ph;
+  register re_t a, b, c, d;//, e, f, g, h;
+  register bi_t pa, pb, pc, pd;//, pe, pf, pg, ph;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    const re_t *bAv = block_A->val[i];
-    const bi_t *bAp = block_A->pos[i];
     j = 0;
     if (block_A->sz[i] > 3) {
       for (; j<block_A->sz[i]-3; j = j+4) {
@@ -1558,24 +1556,20 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
     if (block_A->sz[i] > 7) {
       for (; j<block_A->sz[i]-7; j = j+8) {
     */
-        /*
         a = block_A->val[i][j];
         b = block_A->val[i][j+1];
         c = block_A->val[i][j+2];
         d = block_A->val[i][j+3];
-        */
         /*
         e = block_A->val[i][j+4];
         f = block_A->val[i][j+5];
         g = block_A->val[i][j+6];
         h = block_A->val[i][j+7];
         */
-        /*
         pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
         pb  = block_A->pos[i][j+1] * __GBLA_SIMD_BLOCK_SIZE;
         pc  = block_A->pos[i][j+2] * __GBLA_SIMD_BLOCK_SIZE;
         pd  = block_A->pos[i][j+3] * __GBLA_SIMD_BLOCK_SIZE;
-        */
         /*
         pe  = block_A->pos[i][j+4] * __GBLA_SIMD_BLOCK_SIZE;
         pf  = block_A->pos[i][j+5] * __GBLA_SIMD_BLOCK_SIZE;
@@ -1584,10 +1578,10 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
         */
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
           wide_block[i][k]  +=
-            (bAv[j] * (re_l_t)block_B[(bAp[j]*__GBLA_SIMD_BLOCK_SIZE) + k] +
-             bAv[j+1] * (re_m_t)block_B[(bAp[j+1]*__GBLA_SIMD_BLOCK_SIZE) + k] +
-             bAv[j+2] * (re_m_t)block_B[(bAp[j+2]*__GBLA_SIMD_BLOCK_SIZE) + k] +
-             bAv[j+3] * (re_m_t)block_B[(bAp[j+3]*__GBLA_SIMD_BLOCK_SIZE) + k]);
+            (a * (re_l_t)block_B[pa + k] +
+             b * (re_l_t)block_B[pb + k] +
+             c * (re_l_t)block_B[pc + k] +
+             d * (re_l_t)block_B[pd + k]);
              /*
              e * (re_l_t)block_B[pe + k] +
              f * (re_l_t)block_B[pf + k] +
@@ -1598,11 +1592,11 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
       }
     }
     for (;j<block_A->sz[i]; ++j) {
-      // a   = block_A->val[i][j];
-      //pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
+      a   = block_A->val[i][j];
+      pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
-          bAv[j]* (re_m_t)block_B[(bAp[j]*__GBLA_SIMD_BLOCK_SIZE) + k];
+          a * (re_m_t)block_B[pa + k];
       }
     }
   }
