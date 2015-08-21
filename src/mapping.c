@@ -495,11 +495,13 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
 
   M->nnz    = 0;
   M->nrows  = map->npiv + D->rank;
+  M->rows   = (re_t **)malloc(M->nrows * sizeof(re_t *));
+  M->pos    = (ci_t **)malloc(M->nrows * sizeof(ci_t *));
 
   // reallocate memory for rows in M: they have a max length of
   // 1+D->ncols for rows from A+B, and
   // D->ncols for rows from D
-#pragma omp parallel num_threads(1)
+#pragma omp parallel num_threads(nthrds)
 {
   ri_t block_idx;
   ri_t line_idx;
@@ -507,13 +509,14 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
 #pragma omp for private(j,k) schedule(dynamic)
   // getting a row from A+B
   for (i=0; i<map->npiv; ++i) {
-    M->rows[i]    = calloc(1+D->ncols, sizeof(re_t));
-    M->pos[i]     = calloc(1+D->ncols, sizeof(ci_t));
+    //printf("%u || %u\n",i,D->ncols);
+    M->rows[i]    = (re_t *)calloc(1+D->ncols, sizeof(re_t));
+    M->pos[i]     = (ci_t *)calloc(1+D->ncols, sizeof(ci_t));
     M->rwidth[i]  = 0;
 
     // write 1 for A part
     M->rows[i][M->rwidth[i]]  = 1;
-    M->pos[i][M->rwidth[i]]   = i;
+    M->pos[i][M->rwidth[i]]   = map->pc[i];
     M->rwidth[i]++;
 
     // now write B part
@@ -532,6 +535,7 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
         }
       }
     }
+    //printf("rwidth[%u] = %u\n",i,M->rwidth[i]);
     // relloc row size
     M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
     M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
@@ -544,19 +548,21 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
     }
   }
 }
-#pragma omp parallel num_threads(1)
+#pragma omp parallel num_threads(nthrds)
 {
 #pragma omp for private(j,k) schedule(dynamic)
   // getting a row from D
   for (i=map->npiv; i<M->nrows; ++i) {
+    k = i-map->npiv; // index in D
+    //printf("%u | %u == %u?\n",i,D->rank, M->nrows-map->npiv);
     M->rows[i]    = calloc(D->ncols, sizeof(re_t));
     M->pos[i]     = calloc(D->ncols, sizeof(ci_t));
     M->rwidth[i]  = 0;
 
-    if (D->row[i]->lead < D->ncols) {
-      for (j=D->row[i]->lead; j<D->ncols; ++j) {
-        if (D->row[i]->piv_val[j] != 0) {
-          M->rows[i][M->rwidth[i]]  = D->row[i]->piv_val[j];
+    if (D->row[k]->lead < D->ncols) {
+      for (j=D->row[k]->lead; j<D->ncols; ++j) {
+        if (D->row[k]->piv_val[j] != 0) {
+          M->rows[i][M->rwidth[i]]  = D->row[k]->piv_val[j];
           M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+j];
           M->rwidth[i]++;
         }
@@ -565,9 +571,9 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
       M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
       M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
       // free row in D
-      free(D->row[i]->piv_val);
-      free(D->row[i]);
-      D->row[i] = NULL;
+      free(D->row[k]->piv_val);
+      free(D->row[k]);
+      D->row[k] = NULL;
     }
   }
 }
