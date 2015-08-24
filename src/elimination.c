@@ -1952,14 +1952,16 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
         // if reduced row i is zero row then swap row down and get a new
         // row from the bottom
         if (D->row[i]->val == NULL) {
-          D->rank--;
           test_idx  = swap_zero_row(D, i);
           // if there is no nonzero row below we are done
           if (test_idx == i)
               return;
           // restart to reduce the new row i with j=0 in the next round of the
           // for loop
+          // for this: copy data from piv_val to val again
+          copy_to_val(D,i);
           j = 0;
+          continue;
         }
         if (D->row[i]->lead > i) {
           test_idx  = swap_row(D, i);
@@ -1969,6 +1971,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
           // restart to reduce the new row i with j=0 in the next round of the
           // for loop
           j = 0;
+          continue;
         }
       }
       j++;

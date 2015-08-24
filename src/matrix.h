@@ -454,7 +454,7 @@ static inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
   for (i=0; i<nrows; ++i) {
     A->row[i]           = (dr_t *)malloc(sizeof(dr_t));
     A->row[i]->piv_val  = (re_t *)malloc(ncols * sizeof(re_t));
-    A->row[i]->val  = NULL;
+    A->row[i]->val      = NULL;
   }
 }
 
