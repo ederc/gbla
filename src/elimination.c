@@ -123,7 +123,7 @@
 
 #endif /* SIMD */
 
-#define DEBUG_NEW_ELIM 0
+#define DEBUG_NEW_ELIM 1
 
 int elim_fl_A_hybrid_block(hbm_fl_t **A_in, hbm_fl_t *B, mod_t modulus, int nthrds)
 {
@@ -1879,13 +1879,11 @@ int elim_fl_dense_D_tasks(dm_t *D)
       free(D->row[curr_row_to_reduce]->piv_val);
       D->row[curr_row_to_reduce]->piv_val = NULL;
 
-      if (D->row[curr_row_to_reduce]->val != NULL) {
-        save_pivot(D, curr_row_to_reduce, curr_row_to_reduce);
-      }
       omp_set_lock(&echelonize_lock);
       global_last_row_fully_reduced++;
-      D->row[global_last_piv+1]->piv_val  = D->row[curr_row_to_reduce]->piv_val;
-      //D->row[curr_row_to_reduce]->piv_val = NULL;
+      if (D->row[curr_row_to_reduce]->val != NULL) {
+        save_pivot(D, curr_row_to_reduce, global_last_piv+1);
+      }
       if (D->row[global_last_piv+1]->piv_val == NULL) {
         D->rank--;
       } else {
