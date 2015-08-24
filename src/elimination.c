@@ -2013,7 +2013,7 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   omp_init_lock(&echelonize_lock);
   int tid;
 
-#pragma omp parallel shared(D, waiting_global, global_next_row_to_reduce, global_last_piv) num_threads(nthrds)
+#pragma omp parallel shared(D) num_threads(nthrds)
   {
 #pragma omp for nowait
     for (tid=0; tid<nthrds; ++tid) {
