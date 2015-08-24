@@ -1879,11 +1879,13 @@ int elim_fl_dense_D_tasks(dm_t *D)
       free(D->row[curr_row_to_reduce]->piv_val);
       D->row[curr_row_to_reduce]->piv_val = NULL;
 
+      if (D->row[curr_row_to_reduce]->val != NULL) {
+        save_pivot(D, curr_row_to_reduce, curr_row_to_reduce);
+      }
       omp_set_lock(&echelonize_lock);
       global_last_row_fully_reduced++;
-      if (D->row[curr_row_to_reduce]->val != NULL) {
-        save_pivot(D, curr_row_to_reduce, global_last_piv+1);
-      }
+      D->row[global_last_piv+1]->piv_val  = D->row[curr_row_to_reduce]->piv_val;
+      //D->row[curr_row_to_reduce]->piv_val = NULL;
       if (D->row[global_last_piv+1]->piv_val == NULL) {
         D->rank--;
       } else {

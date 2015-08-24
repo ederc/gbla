@@ -4879,6 +4879,7 @@ static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce, const ri_t
     for (i=D->row[curr_row_to_reduce]->lead; i<D->ncols; ++i)
       D->row[new_piv_idx]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
   }
+  D->row[new_piv_idx]->lead = D->row[curr_row_to_reduce]->lead;
   free(D->row[curr_row_to_reduce]->val);
   D->row[curr_row_to_reduce]->val  = NULL;
   //printf("NEW PIVOT %u -- lead %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
