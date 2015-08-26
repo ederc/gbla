@@ -94,7 +94,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 
 		b = b ^ VERMASK ;
 
-		if ( b != Mjoin(select,elem_o)() || (sizeof(re_t) != sizeof(elem_o) || (re_t)(-1) < 0 ) ){
+		if ( b != Mjoin(select,elem_o)() || (sizeof(re_s) != sizeof(elem_o) || (re_s)(-1) < 0 ) ){
 			if (verbose >0)
 				printf("Error the data is not in expected representation\n");
 			fclose(fh);
