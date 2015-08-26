@@ -4276,7 +4276,7 @@ static inline void reduce_dense_row_three(dm_t *A, const ri_t ri, const ri_t rj1
   const re_t *reducers2 = A->row[rj2]->piv_val;
   const re_t *reducers3 = A->row[rj3]->piv_val;
   
-  i = A->row[rj3]->lead + 1;
+  i = A->row[rj3]->piv_lead + 1;
   
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
@@ -4372,7 +4372,7 @@ static inline void reduce_dense_row_twice(dm_t *A, const ri_t ri, const ri_t rj1
   const re_t *reducers1 = A->row[rj1]->piv_val;
   const re_t *reducers2 = A->row[rj2]->piv_val;
   
-  i = A->row[rj2]->lead + 1;
+  i = A->row[rj2]->piv_lead + 1;
   
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
@@ -4450,7 +4450,7 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
   ci_t i;
   const re_t *reducers  = A->row[rj]->piv_val;
   
-  i = A->row[rj]->lead + 1;
+  i = A->row[rj]->piv_lead + 1;
   
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
@@ -4631,16 +4631,16 @@ void echelonize_one_row(sm_fl_ml_t *A, re_l_t *dense_array_1,
 
 static inline void copy_to_val(dm_t *D, const ri_t idx)
 {
-  // if D->row[idx]->piv_val == NULL then D->row[idx] was already partly reduced
+  // if D->row[idx]->init_val == NULL then D->row[idx] was already partly reduced
   // by some lower pivots. So we have the row already stored in large re_l_t
   // representation in D->row[idx]->val and can just use it
-  if (D->row[idx]->piv_val != NULL) {
+  if (D->row[idx]->init_val != NULL) {
     ci_t i;
     D->row[idx]->val  = (re_l_t *)malloc(D->ncols * sizeof(re_l_t));
     for (i=0; i<D->ncols; ++i)
-      D->row[idx]->val[i] = (re_l_t)D->row[idx]->piv_val[i];
-    free(D->row[idx]->piv_val);
-    D->row[idx]->piv_val  = NULL;
+      D->row[idx]->val[i] = (re_l_t)D->row[idx]->init_val[i];
+    free(D->row[idx]->init_val);
+    D->row[idx]->init_val  = NULL;
   }
 }
 
@@ -4664,32 +4664,33 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
   // can we assume that all pivots up to local_last_piv have been fully reduced
   // with respect to all other pivots?
 
+  //printf("CURR ROW TO REDUCE %u ( %u ) - %u -- %u\n", curr_row_to_reduce,D->row[curr_row_to_reduce]->lead,from_row,local_last_piv);
   ri_t i, j;
   re_t mult1, mult2, mult3;
   copy_to_val(D, curr_row_to_reduce);
   i = from_row;
   while (i<local_last_piv-1) {
-    if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
-      if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
-        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
+    if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
+      if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
+        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
       else
-        mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
+        mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
       if (mult1 != 0) {
         mult1  = D->mod - mult1;
-        D->row[curr_row_to_reduce]->val[D->row[i]->lead]  = 0;
-        for (j=D->row[i]->lead+1; j<D->row[i+1]->lead+1; ++j)
+        D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
+        for (j=D->row[i]->piv_lead+1; j<D->row[i+1]->piv_lead+1; ++j)
           D->row[curr_row_to_reduce]->val[j]  += (re_l_t)mult1 * D->row[i]->piv_val[j];
-        mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod);
+        mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead], D->mod);
         if (mult2 != 0) {
           mult2 = D->mod - mult2;
-          D->row[curr_row_to_reduce]->val[D->row[i+1]->lead]  = 0;
-          for (j=D->row[i+1]->lead+1; j<D->row[i+2]->lead+1; ++j)
+          D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead]  = 0;
+          for (j=D->row[i+1]->piv_lead+1; j<D->row[i+2]->piv_lead+1; ++j)
             D->row[curr_row_to_reduce]->val[j]  +=
               ((re_l_t)mult1 * D->row[i]->piv_val[j] + (re_l_t)mult2 * D->row[i+1]->piv_val[j]);
-          mult3  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+2]->lead], D->mod);
+          mult3  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead], D->mod);
           if (mult3 != 0) {
             mult3 = D->mod - mult3;
-            D->row[curr_row_to_reduce]->val[D->row[i+2]->lead]  = 0;
+            D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead]  = 0;
             reduce_dense_row_three(D, curr_row_to_reduce, i, i+1, i+2, mult1, mult2, mult3);
             // if reduced row i is zero row then swap row down and get a new
             // row from the bottom
@@ -4697,10 +4698,10 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
               return;
             }
           } else {
-            reduce_dense_row_twice_from(D, curr_row_to_reduce, i, i+1, mult1, mult2, D->row[i+2]->lead + 1);
+            reduce_dense_row_twice_from(D, curr_row_to_reduce, i, i+1, mult1, mult2, D->row[i+2]->piv_lead + 1);
           }
         } else {
-          reduce_dense_row_from(D, curr_row_to_reduce, i, mult1, D->row[i+1]->lead + 1);
+          reduce_dense_row_from(D, curr_row_to_reduce, i, mult1, D->row[i+1]->piv_lead + 1);
           // if reduced row i is zero row then swap row down and get a new
           // row from the bottom
           if (D->row[curr_row_to_reduce]->val == NULL) {
@@ -4719,11 +4720,11 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
     }
   }
   if (i == local_last_piv-1) {
-    if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
-      if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
-        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
+    if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
+      if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
+        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
       else
-        mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
+        mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
       //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
       //printf("mult for %u = %u\n",i,mult);
       if (mult1 != 0) {
@@ -4744,11 +4745,11 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
     i++;
   }
   if (i == local_last_piv) {
-    if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
-      if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
-        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
+    if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
+      if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
+        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
       else
-        mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
+        mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
       //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
       //printf("mult for %u = %u\n",i,mult);
       if (mult1 != 0) {
@@ -4879,7 +4880,7 @@ static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce, const ri_t
     for (i=D->row[curr_row_to_reduce]->lead; i<D->ncols; ++i)
       D->row[new_piv_idx]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
   }
-  D->row[new_piv_idx]->lead = D->row[curr_row_to_reduce]->lead;
+  D->row[new_piv_idx]->piv_lead = D->row[curr_row_to_reduce]->lead;
   free(D->row[curr_row_to_reduce]->val);
   D->row[curr_row_to_reduce]->val  = NULL;
   //printf("NEW PIVOT %u -- lead %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
@@ -4919,7 +4920,7 @@ static  ri_t global_last_piv;
 static  ri_t global_last_row_fully_reduced;
 static  wl_t waiting_global;
 
-static ri_t global_first_zero_row;
+static ri_t global_initial_D_rank;
 
 /*  global variables for reduction of C */
 static  omp_lock_t reduce_C_lock;

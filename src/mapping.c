@@ -554,11 +554,12 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
   for (i=map->npiv; i<M->nrows; ++i) {
     k = i-map->npiv; // index in D
     //printf("%u | %u == %u?\n",i,D->rank, M->nrows-map->npiv);
-    M->rows[i]    = calloc(D->ncols, sizeof(re_t));
-    M->pos[i]     = calloc(D->ncols, sizeof(ci_t));
+    M->rows[i]    = calloc(D->ncols-D->row[k]->piv_lead+1, sizeof(re_t));
+    M->pos[i]     = calloc(D->ncols-D->row[k]->piv_lead+1, sizeof(ci_t));
     M->rwidth[i]  = 0;
 
-    if (D->row[k]->lead < D->ncols) {
+    if (D->row[k]->piv_val != NULL) {
+    //if (D->row[k]->piv_lead < D->ncols) {
       for (j=D->row[k]->lead; j<D->ncols; ++j) {
         if (D->row[k]->piv_val[j] != 0) {
           M->rows[i][M->rwidth[i]]  = D->row[k]->piv_val[j];
@@ -684,12 +685,12 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
   for (i=map->npiv; i<M->nrows; ++i) {
     k = i-map->npiv; // index in D
     //printf("%u | %u == %u?\n",i,D->rank, M->nrows-map->npiv);
-    M->rows[i]    = calloc(D->ncols, sizeof(re_t));
-    M->pos[i]     = calloc(D->ncols, sizeof(ci_t));
+    M->rows[i]    = calloc(D->ncols-D->row[k]->piv_lead+1, sizeof(re_t));
+    M->pos[i]     = calloc(D->ncols-D->row[k]->piv_lead+1, sizeof(ci_t));
     M->rwidth[i]  = 0;
 
-    if (D->row[k]->lead < D->ncols) {
-      for (j=D->row[k]->lead; j<D->ncols; ++j) {
+    if (D->row[k]->piv_val != NULL) {
+      for (j=D->row[k]->piv_lead; j<D->ncols; ++j) {
         if (D->row[k]->piv_val[j] != 0) {
           M->rows[i][M->rwidth[i]]  = D->row[k]->piv_val[j];
           M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+j];
