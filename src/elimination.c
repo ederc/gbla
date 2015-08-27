@@ -1928,52 +1928,25 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
   ri_t i, j, test_idx;
   re_t mult;
 
+  const ri_t initial_D_rank = D->rank;
   copy_to_val(D, 0);
-  save_pivot(D, 0, 0);
+  save_pivot(D, 0, global_last_piv);
 
   i = 1;
-  while (i<D->rank && i<=last_row) {
-    j = 0;
-    copy_to_val(D, i);
-    while (j<i) {
-      mult  = MODP(D->row[i]->val[D->row[j]->lead], D->mod);
-      if (mult != 0) {
-        //printf("mult in preelim for %u --> %u\n",i,mult);
-        //inverse_val(&mult, D->mod);
-        mult  = D->mod-mult;
-        // also updates lead for row i
-        reduce_dense_row(D, i, j, mult);
-        // if reduced row i is zero row then swap row down and get a new
-        // row from the bottom
-        if (D->row[i]->val == NULL) {
-          test_idx  = swap_zero_row(D, i);
-          // if there is no nonzero row below we are done
-          if (test_idx == i)
-              return;
-          // restart to reduce the new row i with j=0 in the next round of the
-          // for loop
-          // for this: copy data from piv_val to val again
-          copy_to_val(D,i);
-          j = 0;
-          continue;
-        }
-        if (D->row[i]->lead > i) {
-          test_idx  = swap_row(D, i);
-          // if there is no nonzero row below we are done
-          if (test_idx == i)
-              return;
-          // restart to reduce the new row i with j=0 in the next round of the
-          // for loop
-          j = 0;
-          continue;
-        }
-      }
-      j++;
-    }
+  while (i<initial_D_rank && i<=last_row) {
+    reduce_dense_row_task_new(D, i, 0, global_last_piv);
     //normalize_dense_row(D, i);
-    save_pivot(D, i, i);
-    global_last_piv++;
-    global_last_row_fully_reduced++;
+    if (D->row[i]->val != NULL) {
+      save_pivot(D, i, global_last_piv+1);
+      if (D->row[global_last_piv+1]->piv_val != NULL) {
+        global_last_piv++;
+      } else {
+        D->rank--;
+      }
+      //global_last_row_fully_reduced++;
+    } else {
+      D->rank--;
+    }
     i++;
   }
   //reduce_upwards(D, last_row);
@@ -1999,16 +1972,23 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
 
   // sort D w.r.t. first nonzero entry per row
   sort_dense_matrix_by_pivots(D);
-  // do sequential prereduction of first global_last_piv bunch of rows
-  pre_elim_sequential(D, global_next_row_to_reduce-1);
-
-  // if rank is smaller than the row until which we have been sequentially pre
-  // eliminating then all other rows of D are already zero
-  if (D->rank < global_last_piv)
-    return D->rank;
 
   // we need to store this as boundary for parallel reductions later on
   global_initial_D_rank  = D->rank;
+
+  // do sequential prereduction of first global_last_piv bunch of rows
+  //  if we have only 1 core then we do the complete elimination of D in
+  //  pre_elim_sequential
+  if (nthrds == 1)
+    pre_elim_sequential(D, D->rank);
+  else
+    pre_elim_sequential(D, global_next_row_to_reduce-1);
+
+  printf("rank %u | %u glp\n", D->rank, global_last_piv);
+  // if rank is smaller than the row until which we have been sequentially pre
+  // eliminating then all other rows of D are already zero
+  if (D->rank == global_last_piv+1)
+    return D->rank;
 
   // do the parallel computation
   omp_init_lock(&echelonize_lock);
