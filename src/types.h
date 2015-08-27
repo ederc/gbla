@@ -90,7 +90,7 @@ typedef int32_t  mod_t;
 /** matrix row entry type */
 typedef uint32_t re_t;
 /** matrix row entry type enlarged for delayed modulus */
-typedef uint64_t re_l_t;
+typedef __uint128_t re_l_t;
 /** matrix row entry type enlarged (half) for delayed modulus */
 typedef uint64_t re_m_t;
 /** type of field characteristic */
