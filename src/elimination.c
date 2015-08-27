@@ -1899,31 +1899,8 @@ int elim_fl_dense_D_tasks(dm_t *D)
   return 0;
 }
 
-void reduce_upwards(dm_t *D, const ri_t last_row)
-{
-  ri_t i, j;
-  re_t mult;
-  
-  i = last_row;
-  while (i<(ri_t)(-1)) {
-    j = 0;
-    while (j<i) {
-      mult  = MODP(D->row[j]->val[D->row[i]->lead], D->mod);
-      if (mult != 0) {
-        mult  = D->mod - mult;
-        // also updates lead for row j
-        reduce_dense_row(D, j, i, mult);
-      }
-      j++;
-    }
-    i--;
-  }
-  // modular computation of reduced rows
-  for (i=0; i<=last_row; ++i)
-    red_mod_dense_row(D, i);
-}
 
-void pre_elim_sequential(dm_t *D, const ri_t last_row)
+void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
 {
   ri_t i, j, test_idx;
   re_t mult;
@@ -1931,6 +1908,8 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
   const ri_t initial_D_rank = D->rank;
   copy_to_val(D, 0);
   save_pivot(D, 0, global_last_piv);
+
+  global_pre_elim = 0;
 
   i = 1;
   while (i<initial_D_rank && i<=last_row) {
@@ -1949,14 +1928,21 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row)
     }
     i++;
   }
-  //reduce_upwards(D, last_row);
+  // if we are computing mutlithreaded we completely reduce this first batch of
+  // pivots in order to speed up later computations.
+  // NOTE: if we would do this for nthrds == 1 then we would compute a
+  // completely reduced D since all elimninations of all rows of D were done in
+  // the above while loop for nthrds == 1.
+  if (nthrds > 1) {
+    for (i=global_last_piv; i>0; --i)
+      completely_reduce_dense_row_task_new(D, i-1, i, global_last_piv);
+  }
+  global_pre_elim = global_last_piv;
 }
 
 ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   // setting global variables for open mp locks used later on
   global_next_row_to_reduce = nthrds * 2;
-  //global_last_piv           = global_next_row_to_reduce - 1;
-  //global_last_row_fully_reduced = global_last_piv;
 
   /*  global waiting list */
   waiting_global.list = (wle_t *)malloc(D->nrows * sizeof(wle_t));
@@ -1980,11 +1966,10 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   //  if we have only 1 core then we do the complete elimination of D in
   //  pre_elim_sequential
   if (nthrds == 1)
-    pre_elim_sequential(D, D->rank);
+    pre_elim_sequential(D, D->rank, nthrds);
   else
-    pre_elim_sequential(D, global_next_row_to_reduce-1);
+    pre_elim_sequential(D, global_next_row_to_reduce-1, nthrds);
 
-  printf("rank %u | %u glp\n", D->rank, global_last_piv);
   // if rank is smaller than the row until which we have been sequentially pre
   // eliminating then all other rows of D are already zero
   if (D->rank == global_last_piv+1)
