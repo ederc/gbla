@@ -23,9 +23,12 @@
 #ifndef GB_TYPES_H
 #define GB_TYPES_H
 
-/* #define GBLA_USE_DOUBLE XXX */
+#if 0
+#define GBLA_USE_DOUBLE XXX
 /* #define GBLA_USE_INT16 XXX */
+#else
 #define GBLA_USE_UINT16 OK
+#endif
 /* #define GBLA_USE_UINT32 OK */
 /* #define GBLA_USE_INT32 */
 /* #define GBLA_USE_AVX */
@@ -41,6 +44,17 @@ typedef uint16_t  bi_t;
 typedef uint16_t  re_s;
 /** storage type for mod */
 typedef uint32_t mod_s;
+
+#ifdef GBLA_USE_FLOAT
+/** matrix row entry type */
+typedef float re_t;
+/** matrix row entry type enlarged for delayed modulus */
+typedef double re_l_t;
+/** matrix row entry type enlarged (half) for delayed modulus */
+typedef double re_m_t;
+/** type of field characteristic */
+typedef float mod_t;
+#endif
 
 #ifdef GBLA_USE_DOUBLE
 /** matrix row entry type */
@@ -82,7 +96,7 @@ typedef uint64_t re_m_t;
 /** type of field characteristic */
 typedef uint64_t mod_t;
 #endif
-#ifdef GBLA_USE_UINT32
+#ifdef GBLA_USE_INT32
 /** matrix row entry type */
 typedef int32_t re_t;
 /** matrix row entry type enlarged for delayed modulus */
@@ -104,6 +118,14 @@ typedef uint64_t  nnz_t;
 
 /* field_ops.h */
 #ifdef GBLA_USE_DOUBLE
+#define MODP(a,b) \
+	fmod((a),(b))
+	/* static double MODP(double a, double b) { assert(a>=0) ; assert(b>0) ; double c = fmod(a,b) ; assert(c >=0) ; return c; } */
+#define CAST(a) \
+	(double) (a)
+#endif
+
+#ifdef GBLA_USE_FLOAT
 #define MODP(a,b) \
 	fmod((a),(b))
 	/* static double MODP(double a, double b) { assert(a>=0) ; assert(b>0) ; double c = fmod(a,b) ; assert(c >=0) ; return c; } */

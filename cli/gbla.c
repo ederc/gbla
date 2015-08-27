@@ -1093,8 +1093,13 @@ int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
     if (D_red->row[ii]->piv_val == NULL)
       printf("NULL!");
     else {
+      printf("%u || ", D_red->row[ii]->piv_lead);
       for (int jj=0; jj<D_red->ncols; ++jj)
-        printf("%lu  ", D_red->row[ii]->piv_val[jj]);
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+        printf("%u  ", D_red->row[ii]->piv_val[jj]);
+#else
+        printf("%.0f  ", D_red->row[ii]->piv_val[jj]);
+#endif
     }
     printf("\n");
   }
@@ -2704,7 +2709,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("TIME\t%.3f sec\n",
         walltime(t_load_start) / (1000000));
     print_mem_usage();
-    /*
   printf("DDDD11111111111111\n");
   for (int ii=0; ii<D_red->nrows / 2; ++ii) {
     printf("%d .. \n",ii);
@@ -2724,7 +2728,6 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
       }
     }
   }
-  */
     printf("---------------------------------------------------------------------\n");
     printf("Rank of D:\t%u\n", rank_D);
     printf("---------------------------------------------------------------------\n");

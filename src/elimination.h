@@ -36,7 +36,9 @@
 #undef SSE
 #define NOSSE
 
+#define DEBUG_NEW_ELIM  0
 #define COUNT_REDS  0
+
 static unsigned long nreductions;
 
 /**
@@ -4088,7 +4090,27 @@ static inline void normalize_dense_row(dm_t *A, const ri_t ridx)
   register const re_t cinv  = inv;
   A->row[ridx]->val[lead_idx]  = (re_l_t)1;
   for (i=lead_idx+1; i<A->ncols; ++i) {
+#if DEBUG_NEW_ELIM
+    if (ridx==130 && i==255)
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+      printf("N | %lu * %u = ",A->row[ridx]->val[i],cinv);
+#else
+      printf("N | %0.f * %0.f = ",A->row[ridx]->val[i],cinv);
+#endif
+#endif
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+#else
+    A->row[ridx]->val[i] =   MODP(A->row[ridx]->val[i], A->mod);
+#endif
     A->row[ridx]->val[i] *=  cinv;
+#if DEBUG_NEW_ELIM
+    if (ridx==130 && i==255)
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+      printf("%lu",A->row[ridx]->val[i]);
+#else
+      printf("%0.f",A->row[ridx]->val[i]);
+#endif
+#endif
     A->row[ridx]->val[i] =   MODP(A->row[ridx]->val[i], A->mod);
   }
 }
@@ -4148,6 +4170,14 @@ static inline void reduce_dense_row_from(dm_t *A, const ri_t ri, const ri_t rj,
 #endif
   }
   for (i; i<A->ncols; ++i) {
+#if DEBUG_NEW_ELIM
+    if (ri==130 && i==255)
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+      printf("%lu += %u * %u --> %lu\n",A->row[ri]->val[i], mult, reducers[i], A->row[ri]->val[i]);
+#else
+      printf("%.0f += %.0f * %.0f --> %.0f\n",A->row[ri]->val[i], mult, reducers[i], A->row[ri]->val[i]);
+#endif
+#endif
     A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
 #if COUNT_REDS
     nreductions +=  1;
@@ -4231,6 +4261,16 @@ static inline void reduce_dense_row_twice_from(dm_t *A, const ri_t ri, const ri_
 #endif
   }
   for (i; i<A->ncols; ++i) {
+#if DEBUG_NEW_ELIM
+    if (ri==130 && i==255)
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+      printf("%lu += %u * %u + %u * %u --> %lu\n",A->row[ri]->val[i], mult1, reducers1[i],
+          mult2, reducers2[i], A->row[ri]->val[i]);
+#else
+      printf("%.0f += %.0f * %.0f + %.0f * %.0f --> %.0f\n",A->row[ri]->val[i], mult1, reducers1[i],
+          mult2, reducers2[i], A->row[ri]->val[i]);
+#endif
+#endif
       A->row[ri]->val[i]    +=
         (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i];
 #if COUNT_REDS
@@ -4281,7 +4321,6 @@ static inline void reduce_dense_row_three(dm_t *A, const ri_t ri, const ri_t rj1
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
   A->row[ri]->val[i-1]  = 0;
-
   if (A->ncols-i > 7) {
     for (i; i<A->ncols-7; i=i+8) {
       A->row[ri]->val[i]    +=
@@ -4332,6 +4371,16 @@ static inline void reduce_dense_row_three(dm_t *A, const ri_t ri, const ri_t rj1
 #endif
   }
   for (i; i<A->ncols; ++i) {
+#if DEBUG_NEW_ELIM
+    if (ri==130 && i==255)
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+      printf("%lu += %u * %u + %u * %u + %u * %u --> %lu\n",A->row[ri]->val[i], mult1, reducers1[i],
+          mult2, reducers2[i], mult3, reducers3[i], A->row[ri]->val[i]);
+#else
+      printf("%.0f += %.0f * %.0f + %.0f * %.0f + %.0f * %.0f --> %.0f\n",A->row[ri]->val[i], mult1, reducers1[i],
+          mult2, reducers2[i], mult3, reducers3[i], A->row[ri]->val[i]);
+#endif
+#endif
       A->row[ri]->val[i]    +=
         (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i]
         + (re_l_t)mult3 * reducers3[i];
@@ -4417,6 +4466,16 @@ static inline void reduce_dense_row_twice(dm_t *A, const ri_t ri, const ri_t rj1
 #endif
   }
   for (i; i<A->ncols; ++i) {
+#if DEBUG_NEW_ELIM
+    if (ri==130 && i==255)
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+      printf("%lu += %u * %u + %u * %u --> %lu\n",A->row[ri]->val[i], mult1, reducers1[i],
+          mult2, reducers2[i], A->row[ri]->val[i]);
+#else
+      printf("%.0f += %.0f * %.0f + %.0f * %.0f --> %.0f\n",A->row[ri]->val[i], mult1, reducers1[i],
+          mult2, reducers2[i], A->row[ri]->val[i]);
+#endif
+#endif
       A->row[ri]->val[i]    +=
         (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i];
 #if COUNT_REDS
@@ -4483,6 +4542,14 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
 #endif
   }
   for (i; i<A->ncols; ++i) {
+#if DEBUG_NEW_ELIM
+    if (ri==130 && i==255)
+#if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
+      printf("%lu += %u * %u --> %lu\n",A->row[ri]->val[i], mult, reducers[i], A->row[ri]->val[i]);
+#else
+      printf("%.0f += %.0f * %.0f --> %.0f\n",A->row[ri]->val[i], mult, reducers[i], A->row[ri]->val[i]);
+#endif
+#endif
     A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
 #if COUNT_REDS
     nreductions +=  1;
