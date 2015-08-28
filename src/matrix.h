@@ -829,6 +829,7 @@ static inline int cmp_dr(const void *a, const void *b)
     return -1;
   if ((dr_t *)b == NULL)
     return 1;
+  printf("%u || %u\n",(*((dr_t **)(a)))->lead, (*((dr_t **)(b)))->lead);
   return (*((dr_t **)(a)))->lead - (*((dr_t **)(b)))->lead;
 }
 
@@ -842,7 +843,7 @@ static inline int cmp_dr(const void *a, const void *b)
  */
 static inline ci_t sort_dense_matrix_by_pivots(dm_t *A)
 {
-  qsort(A->row, A->nrows, sizeof(dr_t **), cmp_dr);
+  qsort(A->row, A->rank, sizeof(dr_t **), cmp_dr);
   return A->row[0]->lead;
 }
 
@@ -961,11 +962,19 @@ next_round:
       }
     }
     // if we found a zero row, i.e. we have not broken the j-loop beforehand
+    out->row[i]->lead = out->ncols;
     free(out->row[i]->init_val);
-    free(out->row[i]);
-    out->row[i] = NULL;
-    out->rank--;
+    out->row[i]->init_val = NULL;
   }
+
+  // now sort out and get rank
+  sort_dense_matrix_by_pivots(out);
+  i = out->nrows-1;
+  while (out->row[i]->lead == out->ncols) {
+    out->rank--;
+    i--;
+  }
+
   return out;
 }
 

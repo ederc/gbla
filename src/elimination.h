@@ -4317,6 +4317,7 @@ static inline void reduce_dense_row_three(dm_t *A, const ri_t ri, const ri_t rj1
   const re_t *reducers3 = A->row[rj3]->piv_val;
   
   i = A->row[rj3]->piv_lead + 1;
+  //A->row[ri]->val[i-1]  = 0;
   
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
@@ -4416,7 +4417,7 @@ static inline void reduce_dense_row_twice(dm_t *A, const ri_t ri, const ri_t rj1
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
   assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], A->mod) == 0);
-  A->row[ri]->val[i-1]  = 0;
+  //A->row[ri]->val[i-1]  = 0;
 
   if (A->ncols-i > 7) {
     for (i; i<A->ncols-7; i=i+8) {
@@ -4494,7 +4495,7 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
   assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], A->mod) == 0);
-  A->row[ri]->val[i-1]  = 0;
+  //A->row[ri]->val[i-1]  = 0;
 
 
   if (A->ncols-i > 7) {
@@ -4783,6 +4784,7 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
+          D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
           //printf("lead in %u (from_row %u - reduced by %u) ",
@@ -4808,6 +4810,7 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
+          D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
           //printf("lead in %u (from_row %u - reduced by %u) ",
@@ -4833,6 +4836,7 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
+          D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
           //printf("lead in %u (from_row %u - reduced by %u) ",
@@ -4901,6 +4905,9 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
               }
             } else {
               reduce_dense_row_twice_from(D, curr_row_to_reduce, i, i+1, mult1, mult2, D->row[i+2]->piv_lead + 1);
+              if (D->row[curr_row_to_reduce]->val == NULL) {
+                return;
+              }
             }
           } else {
             reduce_dense_row_from(D, curr_row_to_reduce, i, mult1, D->row[i+1]->piv_lead + 1);
@@ -4931,6 +4938,7 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
+          D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
           //printf("lead in %u (from_row %u - reduced by %u) ",
@@ -4955,6 +4963,7 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
+          D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
           //printf("lead in %u (from_row %u - reduced by %u) ",
@@ -4980,6 +4989,7 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
+          D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
           //printf("lead in %u (from_row %u - reduced by %u) ",
@@ -5045,8 +5055,11 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
   // can we assume that all pivots up to local_last_piv have been fully reduced
   // with respect to all other pivots?
 
-  //printf("CURR ROW TO REDUCE %u ( %u ) - %u -- %u || %u\n", curr_row_to_reduce,D->row[curr_row_to_reduce]->lead,from_row,local_last_piv, global_pre_elim);
+  printf("CURR ROW TO REDUCE %u ( %u ) - %u -- %u || %u\n", curr_row_to_reduce,D->row[curr_row_to_reduce]->lead,from_row,local_last_piv, global_pre_elim);
   copy_to_val(D, curr_row_to_reduce);
+  
+  if (D->row[curr_row_to_reduce]->val == NULL)
+    return;
 
   if (from_row > global_pre_elim) {
     reduce_dense_row_general(D, curr_row_to_reduce, from_row, local_last_piv);

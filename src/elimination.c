@@ -1956,8 +1956,19 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
 
   int rc;
 
+  /*
+   * sort is already done when copying block matrix to dense matrix format
+   *
+  printf("rank %u\n",D->rank);
+  for (int ii=0; ii<D->rank; ++ii)
+    printf("%u | %u | %p\n", ii, D->row[ii]->lead, D->row[ii]->init_val);
   // sort D w.r.t. first nonzero entry per row
   sort_dense_matrix_by_pivots(D);
+  printf("rank %u\n",D->rank);
+  for (int ii=0; ii<D->rank; ++ii) {
+    printf("%u | %u | %p | %u\n", ii, D->row[ii]->lead, D->row[ii]->init_val,D->row[ii]->init_val[D->row[ii]->lead]);
+  }
+  */
 
   // we need to store this as boundary for parallel reductions later on
   global_initial_D_rank  = D->rank;
