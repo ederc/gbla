@@ -158,7 +158,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
  *
  *  \param use third party dense reducer for D dense_reducer
  */
-int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
+int fl_block_sparse_dense_old(sm_t *M, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer);
 
 /**
@@ -190,7 +190,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
  *
  *  \param use third party dense reducer for D dense_reducer
  */
-int fl_block_sparse_dense_2(sm_t *M, int nthreads, int free_mem,
+int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer);
 
 /**
