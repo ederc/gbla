@@ -1876,6 +1876,24 @@ int elim_fl_dense_D_tasks(dm_t *D)
         if (D->row[global_last_piv+1]->piv_val != NULL) {
           global_last_piv++;
           global_last_row_fully_reduced++;
+            printf("piv leads before sort\n");
+            for (int ii=0; ii<global_last_piv; ++ii)
+              printf("%u  |  ", D->row[ii]->piv_lead);
+            printf("\n");
+          if (D->row[global_last_piv]->lead < D->row[global_last_piv-1]->lead) {
+#pragma omp critical
+            {
+            printf("piv leads before sort\n");
+            for (int ii=0; ii<global_last_piv; ++ii)
+              printf("%u  |  ", D->row[ii]->piv_lead);
+            printf("\n");
+            sort_partly_reduced_matrix_by_pivots(D, global_last_piv);
+            printf("piv leads after sort\n");
+            for (int ii=0; ii<global_last_piv; ++ii)
+              printf("%u  |  ", D->row[ii]->piv_lead);
+            printf("\n");
+          }
+          }
         } else {
           global_last_row_fully_reduced++;
           D->rank--;
@@ -1902,15 +1920,18 @@ int elim_fl_dense_D_tasks(dm_t *D)
 
 void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
 {
-  ri_t i, j, test_idx;
+  ri_t i, j, k, test_idx;
   re_t mult;
 
   const ri_t initial_D_rank = D->rank;
   copy_to_val(D, 0);
   save_pivot(D, 0, global_last_piv);
 
-  global_pre_elim = 0;
+  re_t *tmp_piv_val;
+  ri_t tmp_piv_lead;
+  global_pre_elim       = 0;
 
+  global_piv_lead_drop  = 0;
   i = 1;
   while (i<initial_D_rank && i<=last_row) {
     reduce_dense_row_task_new(D, i, 0, global_last_piv);
@@ -1919,6 +1940,21 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
       save_pivot(D, i, global_last_piv+1);
       if (D->row[global_last_piv+1]->piv_val != NULL) {
         global_last_piv++;
+        if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
+          for (j=global_last_piv-1; j>1; --j) {
+            if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
+              tmp_piv_val = D->row[global_last_piv]->piv_val;
+              tmp_piv_lead  = D->row[global_last_piv]->piv_lead;
+              for (k=global_last_piv-1; k>j-1; --k) {
+                D->row[k+1]->piv_val  = D->row[k]->piv_val;
+                D->row[k+1]->piv_lead = D->row[k]->piv_lead;
+              }
+              D->row[j]->piv_val  = tmp_piv_val;
+              D->row[j]->piv_lead = tmp_piv_lead;
+              break;
+            }
+          }
+        }
       } else {
         D->rank--;
       }

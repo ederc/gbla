@@ -5055,7 +5055,7 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
   // can we assume that all pivots up to local_last_piv have been fully reduced
   // with respect to all other pivots?
 
-  printf("CURR ROW TO REDUCE %u ( %u ) - %u -- %u || %u\n", curr_row_to_reduce,D->row[curr_row_to_reduce]->lead,from_row,local_last_piv, global_pre_elim);
+  //printf("CURR ROW TO REDUCE %u ( %u ) - %u -- %u || %u\n", curr_row_to_reduce,D->row[curr_row_to_reduce]->lead,from_row,local_last_piv, global_pre_elim);
   copy_to_val(D, curr_row_to_reduce);
   
   if (D->row[curr_row_to_reduce]->val == NULL)
@@ -5189,6 +5189,7 @@ static  ri_t global_last_row_fully_reduced;
 static  wl_t waiting_global;
 
 static ri_t global_initial_D_rank;
+static ri_t global_piv_lead_drop;
 
 /*  global variables for reduction of C */
 static  omp_lock_t reduce_C_lock;

@@ -815,6 +815,38 @@ inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
 }
 
 /**
+ * \brief Comparison function for qsort for dense pivot rows
+ *
+ * \param dense row a
+ *
+ * \param dense row b
+ *
+ * \return b.piv_lead - a.piv_lead
+ */
+static inline int cmp_dr_pivs(const void *a, const void *b)
+{
+  if ((dr_t *)a == NULL)
+    return -1;
+  if ((dr_t *)b == NULL)
+    return 1;
+  return (*((dr_t **)(a)))->piv_lead - (*((dr_t **)(b)))->piv_lead;
+}
+
+/**
+ * \brief Sorts dense row matrix A by its pivot leads: A->piv_lead[i] <= A->piv_lead[j] for
+ * i <= j.
+ *
+ * \param dense row submatrix A
+ *
+ * \param upto which row to be sorted nrows
+ */
+static inline void sort_partly_reduced_matrix_by_pivots(dm_t *A, ri_t nrows)
+{
+  qsort(A->row, nrows, sizeof(dr_t **), cmp_dr_pivs);
+  //return A->row[0]->piv_lead;
+}
+
+/**
  * \brief Comparison function for qsort for dense rows
  *
  * \param dense row a
@@ -829,7 +861,6 @@ static inline int cmp_dr(const void *a, const void *b)
     return -1;
   if ((dr_t *)b == NULL)
     return 1;
-  printf("%u || %u\n",(*((dr_t **)(a)))->lead, (*((dr_t **)(b)))->lead);
   return (*((dr_t **)(a)))->lead - (*((dr_t **)(b)))->lead;
 }
 

@@ -867,7 +867,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
     print_mem_usage();
   }
 #if __GB_CLI_DEBUG_D_TEST
-  for (int ii=0; ii<D_red->nrows; ++ii) {
+  for (int ii=0; ii<D_red->rank; ++ii) {
     printf("ROW %d\n",ii);
     if (D_red->row[ii]->piv_val == NULL)
       printf("NULL!");
