@@ -1806,6 +1806,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
       omp_unset_lock(&echelonize_lock);
       break;
     }
+    //printf("tid %u\n", tid);
     omp_set_lock(&echelonize_lock);
 
     if ((ready_for_waiting_list == 0) && (global_next_row_to_reduce < global_initial_D_rank)) {
@@ -1863,19 +1864,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
       
       local_last_piv                = global_last_piv;
       local_last_row_fully_reduced  = global_last_row_fully_reduced;
-      //int nlocks  = omp_test_nest_lock(&reduction_lock);
-      /*
-  #pragma omp critical
-      {
-      printf("#LOCKS1 %d\n", pivs_in_use);
-      printf(" reduces now row %u\n", curr_row_to_reduce);
-            for (int ii=0; ii<local_last_piv; ++ii)
-              printf("%u | ",D->row[ii]->piv_lead);
-            printf("\n");
-      }
-      */
       reduce_dense_row_task_new(D, curr_row_to_reduce, 0, local_last_piv);
-      //omp_unset_nest_lock(&reduction_lock);
 #pragma omp atomic update
       pivs_in_use--;
 #if DEBUG_NEW_ELIM
@@ -1940,9 +1929,12 @@ int elim_fl_dense_D_tasks(dm_t *D)
 #if DEBUG_NEW_ELIM
       printf("%d -- pushes %d / %d\n", tid, curr_row_to_reduce, local_last_piv);
 #endif
-      //omp_set_lock(&echelonize_lock);
-      push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, 0);
-      //push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, D->row[curr_row_to_reduce]->lead-1);
+      if (D->row[curr_row_to_reduce]->val != NULL) {
+        push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, 0);
+      } else {
+        global_last_row_fully_reduced++;
+        D->rank--;
+      }
     }
     omp_unset_lock(&echelonize_lock);
   }
