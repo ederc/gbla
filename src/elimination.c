@@ -1776,7 +1776,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
   ri_t curr_row_to_reduce;
   ri_t local_last_piv;
   ri_t local_last_row_fully_reduced;
-  ri_t from_row;
+  //ri_t from_row;
   ri_t j, k;
 
   ri_t tmp_piv_lead;
@@ -1814,7 +1814,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("%d -- inc grr\n", tid);
 #endif
       global_next_row_to_reduce++;
-      from_row  = 0;
+      //from_row  = 0;
     } else {
       ready_for_waiting_list  = 1;
     }
@@ -1839,7 +1839,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
           }
         }
       }
-      from_row            = wl_lp + 1;
+      //from_row            = wl_lp + 1;
       curr_row_to_reduce  = wl_idx;
 #if DEBUG_NEW_ELIM
       printf("(%d) from row %d -- crr %d -- gllp %d\n", tid, from_row,
@@ -1874,7 +1874,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
             printf("\n");
       }
       */
-      reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
+      reduce_dense_row_task_new(D, curr_row_to_reduce, 0, local_last_piv);
       //omp_unset_nest_lock(&reduction_lock);
 #pragma omp atomic update
       pivs_in_use--;
@@ -1909,7 +1909,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
             while (pivs_in_use > 0) {
               usleep(10);
             }
-            for (j=global_last_piv-1; j>1; --j) {
+            for (j=global_last_piv-1; j>0; --j) {
               if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
                 tmp_piv_val = D->row[global_last_piv]->piv_val;
                 tmp_piv_lead  = D->row[global_last_piv]->piv_lead;
@@ -1973,7 +1973,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
       if (D->row[global_last_piv+1]->piv_val != NULL) {
         global_last_piv++;
         if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
-          for (j=global_last_piv-1; j>1; --j) {
+          for (j=global_last_piv-1; j>0; --j) {
             if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
               tmp_piv_val = D->row[global_last_piv]->piv_val;
               tmp_piv_lead  = D->row[global_last_piv]->piv_lead;
