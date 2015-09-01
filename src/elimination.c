@@ -1777,6 +1777,10 @@ int elim_fl_dense_D_tasks(dm_t *D)
   ri_t local_last_piv;
   ri_t local_last_row_fully_reduced;
   ri_t from_row;
+  ri_t j, k;
+
+  ri_t tmp_piv_lead;
+  re_t *tmp_piv_val;
 
   int ready_for_waiting_list  = 0;
   int curr_row_fully_reduced  = 0;
@@ -1792,8 +1796,6 @@ int elim_fl_dense_D_tasks(dm_t *D)
 
   // computations done in while loop
   while (1) {
-    local_last_piv                = global_last_piv;
-    local_last_row_fully_reduced  = global_last_row_fully_reduced;
     //printf("%u | %u\n",local_last_piv, local_last_row_fully_reduced);
 #if DEBUG_NEW_ELIM
     printf("setting llp\n");
@@ -1852,7 +1854,30 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("thread %d reduces %d with rows %d -- %d\n", tid,
           curr_row_to_reduce, from_row, local_last_piv);
 #endif
+     
+      while (sorting_pivs > 0) {
+        usleep(10);
+      }
+#pragma omp atomic update
+      pivs_in_use++;
+      
+      local_last_piv                = global_last_piv;
+      local_last_row_fully_reduced  = global_last_row_fully_reduced;
+      //int nlocks  = omp_test_nest_lock(&reduction_lock);
+      /*
+  #pragma omp critical
+      {
+      printf("#LOCKS1 %d\n", pivs_in_use);
+      printf(" reduces now row %u\n", curr_row_to_reduce);
+            for (int ii=0; ii<local_last_piv; ++ii)
+              printf("%u | ",D->row[ii]->piv_lead);
+            printf("\n");
+      }
+      */
       reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
+      //omp_unset_nest_lock(&reduction_lock);
+#pragma omp atomic update
+      pivs_in_use--;
 #if DEBUG_NEW_ELIM
       printf("thread %d done with rows %d -- %d\n", tid, from_row, local_last_piv);
       printf("row %u has lead index %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
@@ -1876,23 +1901,29 @@ int elim_fl_dense_D_tasks(dm_t *D)
         if (D->row[global_last_piv+1]->piv_val != NULL) {
           global_last_piv++;
           global_last_row_fully_reduced++;
-            printf("piv leads before sort\n");
-            for (int ii=0; ii<global_last_piv; ++ii)
-              printf("%u  |  ", D->row[ii]->piv_lead);
-            printf("\n");
-          if (D->row[global_last_piv]->lead < D->row[global_last_piv-1]->lead) {
-#pragma omp critical
-            {
-            printf("piv leads before sort\n");
-            for (int ii=0; ii<global_last_piv; ++ii)
-              printf("%u  |  ", D->row[ii]->piv_lead);
-            printf("\n");
-            sort_partly_reduced_matrix_by_pivots(D, global_last_piv);
-            printf("piv leads after sort\n");
-            for (int ii=0; ii<global_last_piv; ++ii)
-              printf("%u  |  ", D->row[ii]->piv_lead);
-            printf("\n");
-          }
+          if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
+            // set lock for sorting pivots
+
+            omp_set_lock(&sort_pivots);
+            sorting_pivs  = 1;
+            while (pivs_in_use > 0) {
+              usleep(10);
+            }
+            for (j=global_last_piv-1; j>1; --j) {
+              if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
+                tmp_piv_val = D->row[global_last_piv]->piv_val;
+                tmp_piv_lead  = D->row[global_last_piv]->piv_lead;
+                for (k=global_last_piv-1; k>j-1; --k) {
+                  D->row[k+1]->piv_val  = D->row[k]->piv_val;
+                  D->row[k+1]->piv_lead = D->row[k]->piv_lead;
+                }
+                D->row[j]->piv_val  = tmp_piv_val;
+                D->row[j]->piv_lead = tmp_piv_lead;
+                break;
+              }
+            }
+            sorting_pivs  = 0;
+            omp_unset_lock(&sort_pivots);
           }
         } else {
           global_last_row_fully_reduced++;
@@ -1910,7 +1941,8 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("%d -- pushes %d / %d\n", tid, curr_row_to_reduce, local_last_piv);
 #endif
       //omp_set_lock(&echelonize_lock);
-      push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, D->row[curr_row_to_reduce]->lead-1);
+      push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, 0);
+      //push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, D->row[curr_row_to_reduce]->lead-1);
     }
     omp_unset_lock(&echelonize_lock);
   }

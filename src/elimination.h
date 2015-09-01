@@ -24,6 +24,7 @@
 #define GB_ELIMINATION_H
 
 #include "src/config.h"
+#include <unistd.h>
 #include <assert.h>
 #include <mapping.h>
 #include <matrix.h>
@@ -5183,6 +5184,8 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 
 /*  global variables for echelonization of D */
 static  omp_lock_t echelonize_lock;
+static  omp_lock_t sort_pivots;
+static  omp_nest_lock_t reduction_lock;
 static  ri_t global_next_row_to_reduce;
 static  ri_t global_last_piv;
 static  ri_t global_last_row_fully_reduced;
@@ -5198,6 +5201,10 @@ static  ri_t reduce_C_next_col_to_reduce;
 /*  global variables for reduction of C */
 static  omp_lock_t reduce_A_lock;
 static  ri_t reduce_A_next_col_to_reduce;
+
+static ri_t pivs_in_use;
+static ri_t sorting_pivs;
+static ri_t last_pivot_idx;
 
 
 #endif /* GB_ELIMINATION_H */
