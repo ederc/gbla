@@ -1910,7 +1910,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
                 D->row[j]->piv_lead = tmp_piv_lead;
                 // if we place the new pivot below the global_pre_elim threshold
                 // than we should interreduce completely
-                if (j<global_pre_elim) {
+                if (j < global_pre_elim+1) {
                   for (i=j; i>0; --i)
                     completely_reduce_dense_row_task_new(D, i-1, i, global_pre_elim+1);
                   global_pre_elim++;
