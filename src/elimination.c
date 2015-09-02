@@ -2037,6 +2037,9 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
   }
   */
 
+  if (D->rank == 0)
+    return D->rank;
+
   // we need to store this as boundary for parallel reductions later on
   global_initial_D_rank  = D->rank;
 

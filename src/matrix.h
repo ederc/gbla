@@ -1001,7 +1001,7 @@ next_round:
   // now sort out and get rank
   sort_dense_matrix_by_pivots(out);
   i = out->nrows-1;
-  while (out->row[i]->lead == out->ncols) {
+  while (i < (re_t)(-1) && out->row[i]->lead == out->ncols) {
     out->rank--;
     i--;
   }
