@@ -1777,7 +1777,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
   ri_t local_last_piv;
   ri_t local_last_row_fully_reduced;
   //ri_t from_row;
-  ri_t j, k;
+  ri_t i, j, k;
 
   ri_t tmp_piv_lead;
   re_t *tmp_piv_val;
@@ -1893,7 +1893,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
           if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
             // set lock for sorting pivots
 
-            omp_set_lock(&sort_pivots);
+            //omp_set_lock(&sort_pivots);
             sorting_pivs  = 1;
             while (pivs_in_use > 0) {
               usleep(10);
@@ -1908,11 +1908,18 @@ int elim_fl_dense_D_tasks(dm_t *D)
                 }
                 D->row[j]->piv_val  = tmp_piv_val;
                 D->row[j]->piv_lead = tmp_piv_lead;
+                // if we place the new pivot below the global_pre_elim threshold
+                // than we should interreduce completely
+                if (j<global_pre_elim) {
+                  for (i=j; i>0; --i)
+                    completely_reduce_dense_row_task_new(D, i-1, i, global_pre_elim+1);
+                  global_pre_elim++;
+                }
                 break;
               }
             }
             sorting_pivs  = 0;
-            omp_unset_lock(&sort_pivots);
+            //omp_unset_lock(&sort_pivots);
           }
         } else {
           global_last_row_fully_reduced++;
@@ -1958,7 +1965,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
   global_piv_lead_drop  = 0;
   i = 1;
   while (i<initial_D_rank && i<=last_row) {
-    reduce_dense_row_task_new(D, i, 0, global_last_piv);
+    reduce_dense_row_task_sequential(D, i, 0, global_last_piv);
     //normalize_dense_row(D, i);
     if (D->row[i]->val != NULL) {
       save_pivot(D, i, global_last_piv+1);

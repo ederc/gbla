@@ -5039,7 +5039,37 @@ static inline void completely_reduce_dense_row_task_new(dm_t *D, const ri_t curr
 /**
  * \brief Reduces dense row of index curr_row_to_reduce with pivots of index
  * from_row to local_last_piv in the task based reduction of D. Tries to reduce
- * a row with two pivots at once.
+ * a row with three pivots at once. This is the special call for the sequential
+ * pre-elimination since there global_pre_elim == 0.
+ *
+ * \param dense row submatrix D
+ *
+ * \param row index curr_row_to_reduce
+ *
+ * \param row index from_row
+ *
+ * \param row index local_last_piv
+ *
+ */
+static inline void reduce_dense_row_task_sequential(dm_t *D, const ri_t curr_row_to_reduce,
+    const ri_t from_row, const ri_t local_last_piv)
+{
+  // can we assume that all pivots up to local_last_piv have been fully reduced
+  // with respect to all other pivots?
+
+  //printf("CURR ROW TO REDUCE %u ( %u ) - %u -- %u || %u\n", curr_row_to_reduce,D->row[curr_row_to_reduce]->lead,from_row,local_last_piv, global_pre_elim);
+  copy_to_val(D, curr_row_to_reduce);
+  
+  if (D->row[curr_row_to_reduce]->val == NULL)
+    return;
+
+  reduce_dense_row_general(D, curr_row_to_reduce, from_row, local_last_piv);
+}
+
+/**
+ * \brief Reduces dense row of index curr_row_to_reduce with pivots of index
+ * from_row to local_last_piv in the task based reduction of D. Tries to reduce
+ * a row with three pivots at once.
  *
  * \param dense row submatrix D
  *
@@ -5062,12 +5092,9 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
   if (D->row[curr_row_to_reduce]->val == NULL)
     return;
 
-  if (from_row > global_pre_elim) {
-    reduce_dense_row_general(D, curr_row_to_reduce, from_row, local_last_piv);
-  } else {
-    reduce_dense_row_pre_elim(D, curr_row_to_reduce, from_row, global_pre_elim);
-    reduce_dense_row_general(D, curr_row_to_reduce, global_pre_elim+1, local_last_piv);
-  }
+  reduce_dense_row_pre_elim(D, curr_row_to_reduce, from_row, global_pre_elim);
+  //reduce_dense_row_general(D, curr_row_to_reduce, from_row, global_pre_elim);
+  reduce_dense_row_general(D, curr_row_to_reduce, global_pre_elim+1, local_last_piv);
 }
 
 /**
