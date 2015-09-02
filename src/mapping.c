@@ -484,10 +484,11 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
 void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
     dm_t *D, map_fl_t *map, const int nthrds)
 {
-  ri_t i, j, k;
+  ri_t i, j, k, l;
 
   const ri_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
   const ci_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  const ri_t rlD  = (uint32_t) ceil((float)D->rank / __GBLA_SIMD_BLOCK_SIZE);
 
   M->nnz    = 0;
   M->nrows  = map->npiv + D->rank;
@@ -499,84 +500,120 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
   // D->ncols for rows from D
 #pragma omp parallel num_threads(nthrds)
 {
-  ri_t block_idx;
+  ri_t block_row_idx;
   ri_t line_idx;
   ci_t start_idx;
-  ci_t nelts_B;
-#pragma omp for private(j,k) schedule(dynamic)
-  // getting a row from A+B
-  for (i=0; i<map->npiv; ++i) {
-    // get block data from B
-    block_idx = i / __GBLA_SIMD_BLOCK_SIZE;
-    line_idx  = i % __GBLA_SIMD_BLOCK_SIZE;
-    nelts_B   = 0;
-    for (j=0; j<clB; ++j) {
-      if (B->blocks[block_idx][j].val != NULL &&
-          B->blocks[block_idx][j].val[line_idx] != NULL)
-        nelts_B +=  B->blocks[block_idx][j].sz[line_idx];
+  ri_t min_range;
+  ri_t min_range_blocks;
+#pragma omp for private(i,j,k) schedule(dynamic)
+  // each thread gets a whole block row
+  for (l=0; l<rlB; ++l) {
+    block_row_idx = l*__GBLA_SIMD_BLOCK_SIZE;
+    // getting a row from A+B
+    if (l<rlB-1) {
+      min_range         = (l+1)*__GBLA_SIMD_BLOCK_SIZE;
+      min_range_blocks  = __GBLA_SIMD_BLOCK_SIZE;
+    } else {
+      min_range         = map->npiv;
+      min_range_blocks  = map->npiv - (rlB-1)*__GBLA_SIMD_BLOCK_SIZE;
     }
-    // allocate memory
-    M->rows[i]    = (re_t *)calloc(A->sz[i]+nelts_B, sizeof(re_t));
-    M->pos[i]     = (ci_t *)calloc(A->sz[i]+nelts_B, sizeof(ci_t));
-    M->rwidth[i]  = 0;
 
-    // do A
-    for (j=0; j<A->sz[i]; ++j) {
-      M->rows[i][M->rwidth[i]]  = A->row[i][j];
-      M->pos[i][M->rwidth[i]]   = map->pc_rev[A->pos[i][j]];
-      M->rwidth[i]++;
-    }
-    free(A->row[i]);
-    free(A->pos[i]);
+    // allocate memory and set first elements for the whole block
+    for (i=block_row_idx; i<min_range; ++i) {
+      M->rows[i]    = (re_t *)malloc((A->sz[i]+D->ncols) * sizeof(re_t));
+      M->pos[i]     = (ci_t *)malloc((A->sz[i]+D->ncols) * sizeof(ci_t));
+      M->rwidth[i]  = 0;
 
-    // do B
-    for (j=0; j<clB; ++j) {
-      if (B->blocks[block_idx][j].val != NULL &&
-          B->blocks[block_idx][j].val[line_idx] != NULL) {
-        for ( k=0; k<B->blocks[block_idx][j].sz[line_idx]; ++k) {
-          M->rows[i][M->rwidth[i]]  = B->blocks[block_idx][j].val[line_idx][k];
-          M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+k+(j*__GBLA_SIMD_BLOCK_SIZE)];
-          M->rwidth[i]++;
-        }
-        free(B->blocks[block_idx][j].val[line_idx]);
-        free(B->blocks[block_idx][j].pos[line_idx]);
+      // do A
+      for (j=0; j<A->sz[i]; ++j) {
+        M->rows[i][M->rwidth[i]]  = A->row[i][j];
+        M->pos[i][M->rwidth[i]]   = map->pc_rev[A->pos[i][j]];
+        M->rwidth[i]++;
       }
+      free(A->row[i]);
+      free(A->pos[i]);
     }
-    // no reallocation needed, we have the exact sizes from A and B
-    //M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
-    //M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
-  }
-}
-#pragma omp parallel num_threads(nthrds)
-{
-#pragma omp for private(j,k) schedule(dynamic)
-  // getting a row from D
-  for (i=map->npiv; i<M->nrows; ++i) {
-    k = i-map->npiv; // index in D
-    //printf("%u | %u == %u?\n",i,D->rank, M->nrows-map->npiv);
-    M->rows[i]    = calloc(D->ncols-D->row[k]->piv_lead+1, sizeof(re_t));
-    M->pos[i]     = calloc(D->ncols-D->row[k]->piv_lead+1, sizeof(ci_t));
-    M->rwidth[i]  = 0;
 
-    if (D->row[k]->piv_val != NULL) {
-    //if (D->row[k]->piv_lead < D->ncols) {
-      for (j=D->row[k]->lead; j<D->ncols; ++j) {
-        if (D->row[k]->piv_val[j] != 0) {
-          M->rows[i][M->rwidth[i]]  = D->row[k]->piv_val[j];
-          M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+j];
-          M->rwidth[i]++;
+    // now write B part, the blocks of B are stored in column-first
+    // representation!
+    for (i=0; i<clB; ++i) {
+      if (B->blocks[l][i].val ==  NULL)
+        continue;
+      start_idx = i * __GBLA_SIMD_BLOCK_SIZE;
+      for ( j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
+        if (B->blocks[l][i].val[j] == NULL)
+          continue;
+        for ( k=0; k<B->blocks[l][i].sz[j]; ++k) {
+          M->rows[block_row_idx+B->blocks[l][i].pos[j][k]][M->rwidth[block_row_idx+B->blocks[l][i].pos[j][k]]]  =
+            B->blocks[l][i].val[j][k];
+          M->pos[block_row_idx+B->blocks[l][i].pos[j][k]][M->rwidth[block_row_idx+B->blocks[l][i].pos[j][k]]]   =
+            map->npc_rev[map->npiv+j+start_idx];
+          M->rwidth[block_row_idx+B->blocks[l][i].pos[j][k]]++;
         }
       }
-      // relloc row size
+    }
+    // remove data for blocks of B
+    for (j=0; j<clB; ++j) {
+      free(B->blocks[l][j].val);
+      B->blocks[l][j].val = NULL;
+    }
+    //printf("rwidth[%u] = %u\n",i,M->rwidth[i]);
+    // relloc row size
+    for (i=block_row_idx; i<min_range; ++i) {
       M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
       M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
-      // free row in D
-      free(D->row[k]->piv_val);
-      free(D->row[k]);
-      D->row[k] = NULL;
+    }
+    // if we had the last line in the block, we can remove it
+  }
+}
+
+#pragma omp parallel num_threads(nthrds)
+{
+  ri_t block_row_idx;
+  ri_t line_idx;
+  ci_t start_idx;
+  ri_t min_range;
+  ri_t min_range_blocks;
+#pragma omp for private(i,j,k) schedule(dynamic)
+  for (l=0; l<rlD; ++l) {
+    block_row_idx = l*__GBLA_SIMD_BLOCK_SIZE + map->npiv;
+    // getting rows from D
+    if (l<rlD-1) {
+      min_range = (l+1)*__GBLA_SIMD_BLOCK_SIZE + map->npiv;
+    } else {
+      min_range = M->nrows;
+    }
+
+    // allocate memory and set first elements for the whole block
+    for (i=block_row_idx; i<min_range; ++i) {
+      line_idx      = i-map->npiv;
+      M->rows[i]    = (re_t *)malloc((D->ncols-D->row[line_idx]->piv_lead+1) * sizeof(re_t));
+      M->pos[i]     = (ci_t *)malloc((D->ncols-D->row[line_idx]->piv_lead+1) * sizeof(ci_t));
+      M->rwidth[i]  = 0;
+    }
+
+    for (i=block_row_idx; i<min_range; ++i) {
+      line_idx  = i-map->npiv;
+      if (D->row[line_idx]->piv_val != NULL) {
+        for (j=D->row[line_idx]->piv_lead; j<D->ncols; ++j) {
+          if (D->row[line_idx]->piv_val[j] != 0) {
+            M->rows[i][M->rwidth[i]]  = D->row[line_idx]->piv_val[j];
+            M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+j];
+            M->rwidth[i]++;
+          }
+        }
+        // relloc row size
+        M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
+        M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
+        // free row in D
+        free(D->row[line_idx]->piv_val);
+        free(D->row[line_idx]);
+        D->row[line_idx] = NULL;
+      }
     }
   }
 }
+
   for (i=0; i<M->nrows; ++i)
     M->nnz  +=  M->rwidth[i];
 
@@ -618,95 +655,136 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
   /*  ==> no reallocations! */
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
-  ri_t i, j, k;
+  ri_t i, j, k, l;
 
   const ri_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
   const ci_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
+  const ri_t rlD  = (uint32_t) ceil((float)D->rank / __GBLA_SIMD_BLOCK_SIZE);
 
   M->nnz    = 0;
   M->nrows  = map->npiv + D->rank;
   M->rows   = (re_t **)malloc(M->nrows * sizeof(re_t *));
   M->pos    = (ci_t **)malloc(M->nrows * sizeof(ci_t *));
 
+
   // reallocate memory for rows in M: they have a max length of
   // 1+D->ncols for rows from A+B, and
   // D->ncols for rows from D
 #pragma omp parallel num_threads(nthrds)
 {
-  ri_t block_idx;
+  ri_t block_row_idx;
   ri_t line_idx;
   ci_t start_idx;
-#pragma omp for private(j,k) schedule(dynamic)
-  // getting a row from A+B
-  for (i=0; i<map->npiv; ++i) {
-    //printf("%u || %u\n",i,D->ncols);
-    M->rows[i]    = (re_t *)calloc(1+D->ncols, sizeof(re_t));
-    M->pos[i]     = (ci_t *)calloc(1+D->ncols, sizeof(ci_t));
-    M->rwidth[i]  = 0;
+  ri_t min_range;
+  ri_t min_range_blocks;
+#pragma omp for private(i,j,k) schedule(dynamic)
+  // each thread gets a whole block row
+  for (l=0; l<rlB; ++l) {
+    block_row_idx = l*__GBLA_SIMD_BLOCK_SIZE;
+    // getting a row from A+B
+    if (l<rlB-1) {
+      min_range         = (l+1)*__GBLA_SIMD_BLOCK_SIZE;
+      min_range_blocks  = __GBLA_SIMD_BLOCK_SIZE;
+    } else {
+      min_range         = map->npiv;
+      min_range_blocks  = map->npiv - (rlB-1)*__GBLA_SIMD_BLOCK_SIZE;
+    }
 
-    // write 1 for A part
-    M->rows[i][M->rwidth[i]]  = 1;
-    M->pos[i][M->rwidth[i]]   = map->pc[i];
-    M->rwidth[i]++;
+    // allocate memory and set first elements for the whole block
+    for (i=block_row_idx; i<min_range; ++i) {
+      //printf("%u || %u\n",i,D->ncols);
+      M->rows[i]    = (re_t *)malloc((1+D->ncols) * sizeof(re_t));
+      M->pos[i]     = (ci_t *)malloc((1+D->ncols) * sizeof(ci_t));
+      M->rwidth[i]  = 0;
+
+      // write 1 for A part
+      M->rows[i][M->rwidth[i]]  = 1;
+      M->pos[i][M->rwidth[i]]   = map->pc[i];
+      M->rwidth[i]++;
+    }
 
     // now write B part
-    block_idx = i / __GBLA_SIMD_BLOCK_SIZE;
-    line_idx  = (i % __GBLA_SIMD_BLOCK_SIZE) * __GBLA_SIMD_BLOCK_SIZE;
 
-    for (j=0; j<clB; ++j) {
-      if (B->blocks[block_idx][j].val ==  NULL)
+    for (i=0; i<clB; ++i) {
+      if (B->blocks[l][i].val ==  NULL)
         continue;
-      start_idx = j * __GBLA_SIMD_BLOCK_SIZE;
-      for ( k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-        if (B->blocks[block_idx][j].val[k+line_idx] != 0) {
-          M->rows[i][M->rwidth[i]]  = B->blocks[block_idx][j].val[k+line_idx];
-          M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+k+start_idx];
-          M->rwidth[i]++;
+      start_idx = i * __GBLA_SIMD_BLOCK_SIZE;
+      for ( j=0; j<min_range_blocks; ++j) {
+        line_idx  = j * __GBLA_SIMD_BLOCK_SIZE;
+        for ( k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          if (B->blocks[l][i].val[k+line_idx] != 0) {
+            M->rows[block_row_idx+j][M->rwidth[block_row_idx+j]]  = B->blocks[l][i].val[k+line_idx];
+            M->pos[block_row_idx+j][M->rwidth[block_row_idx+j]]   = map->npc_rev[map->npiv+k+start_idx];
+            M->rwidth[block_row_idx+j]++;
+          }
         }
+        //printf("width[%u] = %u\n",block_row_idx+j,M->rwidth[block_row_idx+j]);
       }
+    }
+    // remove data for blocks of B
+    for (j=0; j<clB; ++j) {
+      free(B->blocks[l][j].val);
+      B->blocks[l][j].val = NULL;
     }
     //printf("rwidth[%u] = %u\n",i,M->rwidth[i]);
     // relloc row size
-    M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
-    M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
-    // if we had the last line in the block, we can remove it
-    if (line_idx == __GBLA_SIMD_BLOCK_SIZE-1) {
-      for (j=0; j<clB; ++j) {
-        free(B->blocks[block_idx][j].val);
-        B->blocks[block_idx][j].val = NULL;
-      }
-    }
-  }
-}
-#pragma omp parallel num_threads(nthrds)
-{
-#pragma omp for private(j,k) schedule(dynamic)
-  // getting a row from D
-  for (i=map->npiv; i<M->nrows; ++i) {
-    k = i-map->npiv; // index in D
-    //printf("%u | %u == %u?\n",i,D->rank, M->nrows-map->npiv);
-    M->rows[i]    = calloc(D->ncols-D->row[k]->piv_lead+1, sizeof(re_t));
-    M->pos[i]     = calloc(D->ncols-D->row[k]->piv_lead+1, sizeof(ci_t));
-    M->rwidth[i]  = 0;
-
-    if (D->row[k]->piv_val != NULL) {
-      for (j=D->row[k]->piv_lead; j<D->ncols; ++j) {
-        if (D->row[k]->piv_val[j] != 0) {
-          M->rows[i][M->rwidth[i]]  = D->row[k]->piv_val[j];
-          M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+j];
-          M->rwidth[i]++;
-        }
-      }
-      // relloc row size
+    for (i=block_row_idx; i<min_range; ++i) {
+      //printf("i %u (%u | %u)/ %u || %p %p ||| %u %u\n",i,M->rwidth[i],1+D->ncols,M->nrows, M->rows[i], M->pos[i], min_range, min_range_blocks);
       M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
       M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
-      // free row in D
-      free(D->row[k]->piv_val);
-      free(D->row[k]);
-      D->row[k] = NULL;
+    }
+    //printf("\n");
+    // if we had the last line in the block, we can remove it
+  }
+}
+
+#pragma omp parallel num_threads(nthrds)
+{
+  ri_t block_row_idx;
+  ri_t line_idx;
+  ci_t start_idx;
+  ri_t min_range;
+  ri_t min_range_blocks;
+#pragma omp for private(i,j,k) schedule(dynamic)
+  for (l=0; l<rlD; ++l) {
+    block_row_idx = l*__GBLA_SIMD_BLOCK_SIZE + map->npiv;
+    // getting rows from D
+    if (l<rlD-1) {
+      min_range = (l+1)*__GBLA_SIMD_BLOCK_SIZE + map->npiv;
+    } else {
+      min_range = M->nrows;
+    }
+
+    // allocate memory and set first elements for the whole block
+    for (i=block_row_idx; i<min_range; ++i) {
+      line_idx      = i-map->npiv;
+      M->rows[i]    = (re_t *)malloc((D->ncols-D->row[line_idx]->piv_lead+1) * sizeof(re_t));
+      M->pos[i]     = (ci_t *)malloc((D->ncols-D->row[line_idx]->piv_lead+1) * sizeof(ci_t));
+      M->rwidth[i]  = 0;
+    }
+
+    for (i=block_row_idx; i<min_range; ++i) {
+      line_idx  = i-map->npiv;
+      if (D->row[line_idx]->piv_val != NULL) {
+        for (j=D->row[line_idx]->piv_lead; j<D->ncols; ++j) {
+          if (D->row[line_idx]->piv_val[j] != 0) {
+            M->rows[i][M->rwidth[i]]  = D->row[line_idx]->piv_val[j];
+            M->pos[i][M->rwidth[i]]   = map->npc_rev[map->npiv+j];
+            M->rwidth[i]++;
+          }
+        }
+        // relloc row size
+        M->rows[i]  = realloc(M->rows[i], M->rwidth[i] * sizeof(re_t));
+        M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
+        // free row in D
+        free(D->row[line_idx]->piv_val);
+        free(D->row[line_idx]);
+        D->row[line_idx] = NULL;
+      }
     }
   }
 }
+
   for (i=0; i<M->nrows; ++i)
     M->nnz  +=  M->rwidth[i];
 
