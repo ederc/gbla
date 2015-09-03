@@ -1776,7 +1776,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
   ri_t curr_row_to_reduce;
   ri_t local_last_piv;
   ri_t local_last_row_fully_reduced;
-  //ri_t from_row;
+  ri_t from_row;
   ri_t i, j, k;
 
   ri_t tmp_piv_lead;
@@ -1858,13 +1858,14 @@ int elim_fl_dense_D_tasks(dm_t *D)
      
       while (sorting_pivs > 0) {
         usleep(10);
+        from_row  = 0;
       }
 #pragma omp atomic update
       pivs_in_use++;
       
       local_last_piv                = global_last_piv;
       local_last_row_fully_reduced  = global_last_row_fully_reduced;
-      reduce_dense_row_task_new(D, curr_row_to_reduce, 0, local_last_piv);
+      reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
 #pragma omp atomic update
       pivs_in_use--;
 #if DEBUG_NEW_ELIM
@@ -1892,7 +1893,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
           global_last_row_fully_reduced++;
           if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
             // set lock for sorting pivots
-
+            //printf("sort pivs\n");
             //omp_set_lock(&sort_pivots);
             sorting_pivs  = 1;
             while (pivs_in_use > 0) {
@@ -1917,6 +1918,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
                 }
                 break;
               }
+              update_from_row_in_waiting_list(&waiting_global, j);
             }
             sorting_pivs  = 0;
             //omp_unset_lock(&sort_pivots);
@@ -1937,7 +1939,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("%d -- pushes %d / %d\n", tid, curr_row_to_reduce, local_last_piv);
 #endif
       if (D->row[curr_row_to_reduce]->val != NULL) {
-        push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, 0);
+        push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, local_last_piv);
       } else {
         global_last_row_fully_reduced++;
         D->rank--;
@@ -6092,29 +6094,6 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
     }
   }
 
-#endif
-}
-
-void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
-    const ri_t last_piv_reduced_by) {
-#if DEBUG_ECHELONIZE
-  int tid = omp_get_thread_num();
-  printf("BEFORE PUSH\n");
-  for (int ii=0; ii<waiting_global->sz; ++ii) {
-    printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
-  }
-#endif
-  waiting_global->list[waiting_global->sz].idx  = row_idx;
-  waiting_global->list[waiting_global->sz].lp   = last_piv_reduced_by;
-#if DEBUG_ECHELONIZE
-  printf("rowidx %u -- lprb %u\n", row_idx, last_piv_reduced_by);
-#endif
-  waiting_global->sz++;
-#if DEBUG_ECHELONIZE
-  printf("AFTER PUSH\n");
-  for (int ii=0; ii<waiting_global->sz; ++ii) {
-    printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
-  }
 #endif
 }
 

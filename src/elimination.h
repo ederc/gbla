@@ -79,17 +79,6 @@ typedef struct wl_t {
  */
 int cmp_wle(const void *a, const void *b) ;
 
-/**
- * \brief Adds a new row to end of waiting list
- *
- * \param waiting list wl
- *
- * \param row index to be added row_idx
- *
- * \param row index of last pivot row_idx was reduced by last_piv_reduced_by
- */
-void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
-		const ri_t last_piv_reduced_by) ;
 
 /**
  * \brief Initializes wide (=uint64_t) blocks for cumulative multiplications and
@@ -5183,6 +5172,58 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
       }
     }
   }
+}
+
+/**
+ * \brief Updates last pivot entry in global waiting list if a new pivot had to
+ * be sorted in the list of pivots. If lp in waiting list is bigger than
+ * from_row then we exchange them.
+ *
+ * \param waiting list wl
+ *
+ * \param row index of the inserted last pivot
+ */
+static inline void update_from_row_in_waiting_list(wl_t *waiting_global, const ri_t from_row)
+{
+  ri_t i;
+  for (i=0; i<waiting_global->sz; ++i) {
+    if (waiting_global->list[i].lp > from_row) {
+      waiting_global->list[i].lp  = from_row;
+    }
+  }
+}
+
+/**
+ * \brief Adds a new row to end of waiting list
+ *
+ * \param waiting list wl
+ *
+ * \param row index to be added row_idx
+ *
+ * \param row index of last pivot row_idx was reduced by last_piv_reduced_by
+ */
+static inline void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row_idx,
+    const ri_t last_piv_reduced_by)
+{
+#if DEBUG_ECHELONIZE
+  int tid = omp_get_thread_num();
+  printf("BEFORE PUSH\n");
+  for (int ii=0; ii<waiting_global->sz; ++ii) {
+    printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+  }
+#endif
+  waiting_global->list[waiting_global->sz].idx  = row_idx;
+  waiting_global->list[waiting_global->sz].lp   = last_piv_reduced_by;
+#if DEBUG_ECHELONIZE
+  printf("rowidx %u -- lprb %u\n", row_idx, last_piv_reduced_by);
+#endif
+  waiting_global->sz++;
+#if DEBUG_ECHELONIZE
+  printf("AFTER PUSH\n");
+  for (int ii=0; ii<waiting_global->sz; ++ii) {
+    printf("T(%d) %d . %d\n",tid,waiting_global->list[ii].idx,waiting_global->list[ii].lp);
+  }
+#endif
 }
 
 /**
