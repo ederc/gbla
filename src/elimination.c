@@ -2124,11 +2124,10 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
       // available threads
       if (D->rank < 8*nthrds)
         nthrds  = nthrds/2;
-      boundaries[0]         = 0;
-      boundaries[nthrds]  = D->rank;
-
       if (ctr>3 && nthrds>1)
         nthrds--;
+      boundaries[0]         = 0;
+      boundaries[nthrds]  = D->rank;
       thread_blocks  = (uint32_t) ceil((float)D->rank / nthrds);
       for (i=1; i<nthrds; ++i)
         boundaries[i] = i*thread_blocks;
