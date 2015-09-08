@@ -1874,7 +1874,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
 #endif
     }
     nred_consecutively++;
-    if (nred_consecutively > 4) {
+    if (nred_consecutively > 16) {
       nred_consecutively      = 0;
       ready_for_waiting_list  = 1;
     } else {
@@ -1897,7 +1897,7 @@ int elim_fl_dense_D_tasks(dm_t *D)
             //omp_set_lock(&sort_pivots);
             sorting_pivs  = 1;
             while (pivs_in_use > 0) {
-              usleep(10);
+              usleep(11);
             }
             for (j=global_last_piv-1; j>0; --j) {
               if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
@@ -1951,6 +1951,73 @@ int elim_fl_dense_D_tasks(dm_t *D)
 }
 
 
+void pre_elim_sequential_test(dm_t *D, const ri_t last_row, const int nthrds)
+{
+  ri_t i, j, k, test_idx;
+  re_t mult;
+
+  const ri_t initial_D_rank = D->rank;
+  ri_t local_last_piv = 0;
+  copy_to_val(D, 0);
+  //printf("local_last_piv %u\n",local_last_piv);
+  //printf("[%u]->lead %u\n",0, D->row[0]->lead);
+  save_pivot(D, 0, local_last_piv);
+
+  re_t *tmp_piv_val;
+  ri_t tmp_piv_lead;
+  global_pre_elim       = 0;
+
+  global_piv_lead_drop  = 0;
+  i = 1;
+  while (i<initial_D_rank && i<=last_row) {
+    //printf("reducing %u --> %u\n", i, D->row[i]->lead);
+    reduce_dense_row_task_sequential(D, i, 0, local_last_piv);
+    //normalize_dense_row(D, i);
+    if (D->row[i]->lead != D->ncols && D->row[i]->val != NULL) {
+      save_pivot(D, i, local_last_piv+1);
+      if (D->row[local_last_piv+1]->piv_val != NULL) {
+        local_last_piv++;
+        if (D->row[local_last_piv]->piv_lead < D->row[local_last_piv-1]->piv_lead) {
+          for (j=local_last_piv-1; j>0; --j) {
+            if (D->row[local_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
+              tmp_piv_val = D->row[local_last_piv]->piv_val;
+              tmp_piv_lead  = D->row[local_last_piv]->piv_lead;
+              for (k=local_last_piv-1; k>j-1; --k) {
+                D->row[k+1]->piv_val  = D->row[k]->piv_val;
+                D->row[k+1]->piv_lead = D->row[k]->piv_lead;
+              }
+              D->row[j]->piv_val  = tmp_piv_val;
+              D->row[j]->piv_lead = tmp_piv_lead;
+              break;
+            }
+          }
+        }
+      } else {
+        D->rank--;
+      }
+      //global_last_row_fully_reduced++;
+    } else {
+      D->rank--;
+    }
+    i++;
+  }
+  // if we are computing mutlithreaded we completely reduce this first batch of
+  // pivots in order to speed up later computations.
+  // NOTE: if we would do this for nthrds == 1 then we would compute a
+  // completely reduced D since all elimninations of all rows of D were done in
+  // the above while loop for nthrds == 1.
+  if (nthrds > 1) {
+    for (i=local_last_piv; i>0; --i)
+      completely_reduce_dense_row_task_new(D, i-1, i, local_last_piv);
+  }
+  global_pre_elim = local_last_piv;
+  for (i=0; i<local_last_piv+1; ++i) {
+    D->row[i]->lead     = D->row[i]->piv_lead;
+    D->row[i]->init_val = D->row[i]->piv_val;
+    //printf("init_vals[%u] = %p (%u)\n",i,D->row[i]->init_val, D->row[i]->lead);
+  }
+}
+
 void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
 {
   ri_t i, j, k, test_idx;
@@ -1958,6 +2025,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
 
   const ri_t initial_D_rank = D->rank;
   copy_to_val(D, 0);
+  //printf("global_last_piv %u\n",global_last_piv);
   save_pivot(D, 0, global_last_piv);
 
   re_t *tmp_piv_val;
@@ -2009,7 +2077,167 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
   global_pre_elim = global_last_piv;
 }
 
-ri_t elim_fl_dense_D(dm_t *D, int nthrds) {
+ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
+{
+
+#if COUNT_REDS
+  nreductions = 0;
+#endif
+
+  int rc;
+
+  ri_t *boundaries  = (ri_t *)malloc((nthrds+1) * sizeof(ri_t));
+
+  /*
+   * sort is already done when copying block matrix to dense matrix format
+   *
+  printf("rank %u\n",D->rank);
+  for (int ii=0; ii<D->rank; ++ii)
+    printf("%u | %u | %p\n", ii, D->row[ii]->lead, D->row[ii]->init_val);
+  // sort D w.r.t. first nonzero entry per row
+  sort_dense_matrix_by_pivots(D);
+  printf("rank %u\n",D->rank);
+  for (int ii=0; ii<D->rank; ++ii) {
+    printf("%u | %u | %p | %u\n", ii, D->row[ii]->lead, D->row[ii]->init_val,D->row[ii]->init_val[D->row[ii]->lead]);
+  }
+  */
+
+  if (D->rank == 0)
+    return D->rank;
+
+  // we need to store this as boundary for parallel reductions later on
+  global_initial_D_rank = D->rank;
+  global_last_piv       = 0;
+
+  // do sequential prereduction of first global_last_piv bunch of rows
+  //  if we have only 1 core then we do the complete elimination of D in
+  //  pre_elim_sequential
+  if (nthrds == 1) {
+    pre_elim_sequential(D, D->rank, nthrds);
+  } else {
+    ri_t thread_blocks;
+    ri_t i, l, m;
+    ri_t duplicate = 1;
+    ri_t ctr = 0;
+    while (duplicate == 1) {
+      // if there are not enough rows for a good scaling, use only have of the
+      // available threads
+      if (D->rank < 8*nthrds)
+        nthrds  = nthrds/2;
+      boundaries[0]         = 0;
+      boundaries[nthrds]  = D->rank;
+
+      if (ctr>3 && nthrds>1)
+        nthrds--;
+      thread_blocks  = (uint32_t) ceil((float)D->rank / nthrds);
+      for (i=1; i<nthrds; ++i)
+        boundaries[i] = i*thread_blocks;
+      //printf("ctr %u || %u || %u -- %u %u\n", ctr, D->rank, thread_blocks,
+      //    D->row[thread_blocks-1]->lead, D->row[thread_blocks]->lead);
+      //printf("\n----\n");
+      //for (i=0; i<nthrds+1; ++i)
+      //  printf("%u - ",boundaries[i]);
+      //printf("\n----\n");
+      if (ctr>0) {
+        for (i=1; i<nthrds; ++i) {
+          if (D->row[boundaries[i]-1]->lead == D->row[boundaries[i]]->lead) {
+            l = 2;
+            while(D->row[i*thread_blocks-l]->lead == D->row[i*thread_blocks]->lead)
+              ++l;
+            for (m=i; m<nthrds+1; ++m)
+              boundaries[m] -= l-1;
+          }
+        }
+      }
+#pragma omp parallel shared(D) num_threads(nthrds)
+      {
+        ri_t j,k;
+        ri_t old_rank;
+#pragma omp for
+        for (i=0; i<nthrds; ++i) {
+          // initialize an own matrix for each thread
+          dm_t *DD  = (dm_t *)malloc(sizeof(dm_t));
+          init_dm(DD, thread_blocks, D->ncols);
+          DD->mod = D->mod;
+          // map bunch of data for each thread matrix
+          //j = i*thread_blocks;
+          j = boundaries[i];
+          k = 0;
+          //printf("START IDX %u -- END IDX %u\n",j, boundaries[i+1]);
+          while(j<boundaries[i+1]) {
+          //while(j<D->rank && j<(i+1)*thread_blocks) {
+            DD->row[k]  =  D->row[j];
+            j++;
+            k++;
+          }
+          old_rank  = DD->rank  = k;
+          // now each thread can reduce its thread matrix independently
+          pre_elim_sequential_test(DD, DD->rank, 0);
+          // map bunch of data from each thread matrix back to global matrix
+          j = boundaries[i];
+          k = 0;
+
+          while(k<DD->rank) {
+            D->row[j]   =  DD->row[k];
+            //free(DD->row[k]);
+            DD->row[k]  = NULL;
+            j++;
+            k++;
+          }
+          while(j<boundaries[i+1]) {
+            D->row[j]->lead = D->ncols;
+            j++;
+          }
+          free(DD);
+          DD  = NULL;
+        }
+      }
+      /*
+      printf("=========================BEFORE==============================================\n");
+      for (int ii=0; ii<D->rank; ++ii)
+        printf("%u --> %u -- %p\n", ii, D->row[ii]->lead, D->row[ii]->init_val);
+      printf("=======================================================================\n");
+      */
+      // sort global matrix D again
+      sort_dense_matrix_by_pivots(D);
+      /*
+      printf("========================AFTER===============================================\n");
+      for (int ii=0; ii<D->rank; ++ii)
+        printf("%u --> %u -- %p\n", ii, D->row[ii]->lead, D->row[ii]->init_val);
+      printf("=======================================================================\n");
+      */
+      // search for duplicates
+      duplicate = 0;
+      ctr++;
+      for (i=1; i<D->rank; ++i) {
+        if (D->row[i-1]->piv_lead == D->row[i]->piv_lead) {
+          duplicate = 1;
+          break;
+        }
+      }
+      i=D->rank;
+      while (i>0) {
+        //printf("D->row{%u]->lead = %u\n",i-1,D->row[i-1]->lead);
+        if (D->row[i-1]->lead != D->ncols)
+          break;
+        else {
+          free(D->row[i-1]->init_val);
+          free(D->row[i-1]);
+          D->row[i-1] = NULL;
+        }
+        --i;
+      }
+      D->rank = i;
+
+    }
+  }
+#if COUNT_REDS
+  printf("\n#REDUCTION STEPS: %lu\n",nreductions);
+#endif
+  return D->rank;
+}
+ri_t elim_fl_dense_D(dm_t *D, int nthrds)
+{
   // setting global variables for open mp locks used later on
   global_next_row_to_reduce = nthrds * 2;
 

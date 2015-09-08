@@ -1005,7 +1005,10 @@ next_round:
     out->rank--;
     i--;
   }
-
+  /*
+  for (int ii=0; ii<out->rank; ++ii)
+    printf("%u --------------------> %u\n",ii, out->row[ii]->lead);
+  */
   return out;
 }
 

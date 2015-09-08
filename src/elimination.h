@@ -4541,6 +4541,18 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
 void pre_elim_sequential(dm_t *D, const ri_t global_last_piv, const int nthrds);
 
 /**
+ * \brief Does a sequential pre elimination of D in order to start a parallel
+ * version with known pivots later on.
+ *
+ * \param dense row submatrix D
+ *
+ * \param global last pivot up to which to reduce sequentially global_last_piv
+ *
+ * \param number of threads nthrds
+ */
+void pre_elim_sequential_test(dm_t *D, const ri_t global_last_piv, const int nthrds);
+
+/**
  * \brief After we have reduced a subset of rows of D we reduce them upwards
  * from index last_row to 0
  *
@@ -4549,6 +4561,21 @@ void pre_elim_sequential(dm_t *D, const ri_t global_last_piv, const int nthrds);
  * \param row up to which we have reduced D already
  */
 void reduce_upwards(dm_t *D, const ri_t last_row);
+
+/**
+ * \brief Elimination procedure which reduces the dense row submatrix D to an
+ * upper triangular matrix. Uses a structured Gaussian Elimination. Returns
+ * the rank of D.
+ *
+ * \note Assumes D->nrows > 0.
+ *
+ * \param dense row submatrix D
+ *
+ * \param number of threads nthrds
+ *
+ * \return rank of D
+ */
+ri_t elim_fl_dense_D_test(dm_t *D, const int nthreads);
 
 /**
  * \brief Elimination procedure which reduces the dense row submatrix D to an
@@ -4866,6 +4893,7 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
   i = from_row;
   if (local_last_piv > 0) {
     while (i<local_last_piv-1) {
+      //printf("crr[%u]->lead %u || %u i[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
@@ -5081,8 +5109,8 @@ static inline void reduce_dense_row_task_new(dm_t *D, const ri_t curr_row_to_red
   if (D->row[curr_row_to_reduce]->val == NULL)
     return;
 
+  //reduce_dense_row_general(D, curr_row_to_reduce, from_row, local_last_piv);
   reduce_dense_row_pre_elim(D, curr_row_to_reduce, from_row, global_pre_elim);
-  //reduce_dense_row_general(D, curr_row_to_reduce, from_row, global_pre_elim);
   reduce_dense_row_general(D, curr_row_to_reduce, global_pre_elim+1, local_last_piv);
 }
 
