@@ -1447,6 +1447,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   }
 
   ri_t rank_M = map->npiv + rank_D;
+  M->nrows  = rank_M;
 
   if (verbose > 0) {
     gettimeofday(&t_load_start, NULL);
