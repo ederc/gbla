@@ -2085,7 +2085,7 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
 #endif
 
   int rc;
-
+  ri_t range;
   ri_t *boundaries  = (ri_t *)malloc((nthrds+1) * sizeof(ri_t));
 
   /*
@@ -2117,20 +2117,21 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
   } else {
     ri_t thread_blocks;
     ri_t i, l, m;
-    ri_t duplicate = 1;
+    int duplicate = 0;
     ri_t ctr = 0;
-    while (duplicate == 1) {
+    while (duplicate != -1) {
       // if there are not enough rows for a good scaling, use only have of the
       // available threads
-      if (D->rank < 8*nthrds)
+      range = D->rank - duplicate;
+      if (range < 8*nthrds)
         nthrds  = nthrds/2;
       if (ctr>3 && nthrds>1)
         nthrds--;
-      boundaries[0]         = 0;
+      boundaries[0]         = duplicate;
       boundaries[nthrds]  = D->rank;
-      thread_blocks  = (uint32_t) ceil((float)D->rank / nthrds);
+      thread_blocks  = (uint32_t) ceil((float)range / nthrds);
       for (i=1; i<nthrds; ++i)
-        boundaries[i] = i*thread_blocks;
+        boundaries[i] = i*thread_blocks+duplicate;
       //printf("ctr %u || %u || %u -- %u %u\n", ctr, D->rank, thread_blocks,
       //    D->row[thread_blocks-1]->lead, D->row[thread_blocks]->lead);
       //printf("\n----\n");
@@ -2206,14 +2207,8 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
       printf("=======================================================================\n");
       */
       // search for duplicates
-      duplicate = 0;
+      duplicate = -1;
       ctr++;
-      for (i=1; i<D->rank; ++i) {
-        if (D->row[i-1]->piv_lead == D->row[i]->piv_lead) {
-          duplicate = 1;
-          break;
-        }
-      }
       i=D->rank;
       while (i>0) {
         //printf("D->row{%u]->lead = %u\n",i-1,D->row[i-1]->lead);
@@ -2227,6 +2222,12 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
         --i;
       }
       D->rank = i;
+      for (i=1; i<D->rank; ++i) {
+        if (D->row[i-1]->piv_lead == D->row[i]->piv_lead) {
+          duplicate = i-1;
+          break;
+        }
+      }
 
     }
   }
