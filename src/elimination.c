@@ -1855,11 +1855,15 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("thread %d reduces %d with rows %d -- %d\n", tid,
           curr_row_to_reduce, from_row, local_last_piv);
 #endif
-     
+      /* 
       while (sorting_pivs > 0) {
         usleep(10);
         from_row  = 0;
       }
+      */
+      omp_set_lock(&sort_lock);
+      omp_test_lock(&reduce_lock);
+      omp_unset_lock(&sort_lock);
 #pragma omp atomic update
       pivs_in_use++;
       
@@ -1868,6 +1872,10 @@ int elim_fl_dense_D_tasks(dm_t *D)
       reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
 #pragma omp atomic update
       pivs_in_use--;
+      omp_set_lock(&sort_lock);
+      if (pivs_in_use == 0)
+        omp_unset_lock(&reduce_lock);
+      omp_unset_lock(&sort_lock);
 #if DEBUG_NEW_ELIM
       printf("thread %d done with rows %d -- %d\n", tid, from_row, local_last_piv);
       printf("row %u has lead index %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
@@ -1892,11 +1900,15 @@ int elim_fl_dense_D_tasks(dm_t *D)
         if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
           // set lock for sorting pivots
           //printf("sort pivs\n");
-          //omp_set_lock(&sort_pivots);
+          omp_set_lock(&reduce_lock);
+          omp_set_lock(&sort_lock);
+          omp_unset_lock(&reduce_lock);
           sorting_pivs  = 1;
+          /*
           while (pivs_in_use > 0) {
             usleep(11);
           }
+          */
           for (j=global_last_piv-1; j>0; --j) {
             if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
               tmp_piv_val = D->row[global_last_piv]->piv_val;
@@ -1919,49 +1931,15 @@ int elim_fl_dense_D_tasks(dm_t *D)
             update_from_row_in_waiting_list(&waiting_global, j);
           }
           sorting_pivs  = 0;
-          //omp_unset_lock(&sort_pivots);
+          omp_unset_lock(&sort_lock);
         }
 #if DEBUG_NEW_ELIM
         printf("%d -- inc glp: %d\n", tid, global_last_piv);
 #endif
       } else { // add row to waiting list
-        if (D->row[curr_row_to_reduce]->lead < D->row[local_last_piv+1]->piv_lead) {
-          save_pivot(D, curr_row_to_reduce, global_last_piv+1);
-          global_last_piv++;
-          global_last_row_fully_reduced++;
-          // set lock for sorting pivots
-          //printf("sort pivs\n");
-          //omp_set_lock(&sort_pivots);
-          sorting_pivs  = 1;
-          while (pivs_in_use > 0) {
-            usleep(11);
-          }
-          for (j=global_last_piv-1; j>0; --j) {
-            if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
-              tmp_piv_val = D->row[global_last_piv]->piv_val;
-              tmp_piv_lead  = D->row[global_last_piv]->piv_lead;
-              for (k=global_last_piv-1; k>j-1; --k) {
-                D->row[k+1]->piv_val  = D->row[k]->piv_val;
-                D->row[k+1]->piv_lead = D->row[k]->piv_lead;
-              }
-              D->row[j]->piv_val  = tmp_piv_val;
-              D->row[j]->piv_lead = tmp_piv_lead;
-              // if we place the new pivot below the global_pre_elim threshold
-              // than we should interreduce completely
-              if (j < global_pre_elim+1) {
-                for (i=j; i>0; --i)
-                  completely_reduce_dense_row_task_new(D, i-1, i, global_pre_elim+1);
-                global_pre_elim++;
-              }
-              break;
-            }
-            update_from_row_in_waiting_list(&waiting_global, j);
-          }
-          sorting_pivs  = 0;
-        } else {
-          push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, local_last_piv);
+          //push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, local_last_piv);
+          push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, 0);
         }
-      }
       omp_unset_lock(&echelonize_lock);
       } else {
         omp_set_lock(&echelonize_lock);

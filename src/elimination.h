@@ -4742,6 +4742,7 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
   i = from_row;
   if (local_last_piv > 0) {
     while (i<local_last_piv-1) {
+      //printf("A crr[%u]->lead %u || %u i[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
@@ -5046,11 +5047,25 @@ static inline void completely_reduce_dense_row_task_new(dm_t *D, const ri_t curr
   // can we assume that all pivots up to local_last_piv have been fully reduced
   // with respect to all other pivots?
 
-  //printf("COMP CURR ROW TO REDUCE %u ( %u ) - %u -- %u || %u\n", curr_row_to_reduce,D->row[curr_row_to_reduce]->lead,from_row,local_last_piv, global_pre_elim);
-  //printf("CURR ROW TO REDUCE %u ( %u ) - %u -- %u\n", curr_row_to_reduce,D->row[curr_row_to_reduce]->lead,from_row,local_last_piv);
+  // in very few cases it is possible that we have already a new pivot stored in
+  // curr_row_to_reduce's piv_val, but we still have some not fully reduced data
+  // in curr_row_to_reduce's val. In this cases copy_piv_to_val would overwrite
+  // the data in curr_row_to_reduce's val. So we have to store it temporarily
+  // and copy it back afterwards.
+  // One example where this is happening is f4/eco/14/mat10.gbm.gz when the
+  // number of threads used is between 3 - 5.
+  re_l_t *tmp_val = NULL;
+  ri_t tmp_lead = 0;
+  if (D->row[curr_row_to_reduce]->val != NULL) {
+    tmp_val   = D->row[curr_row_to_reduce]->val;
+    tmp_lead  = D->row[curr_row_to_reduce]->lead; 
+  }
   copy_piv_to_val(D, curr_row_to_reduce);
   reduce_dense_row_pre_elim(D, curr_row_to_reduce, from_row, local_last_piv);
   save_pivot(D, curr_row_to_reduce, curr_row_to_reduce);
+  if (tmp_val != NULL)
+    D->row[curr_row_to_reduce]->val   = tmp_val;
+    D->row[curr_row_to_reduce]->lead  = tmp_lead;
 }
 
 /**
@@ -5280,8 +5295,8 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 
 /*  global variables for echelonization of D */
 static  omp_lock_t echelonize_lock;
-static  omp_lock_t sort_pivots;
-static  omp_nest_lock_t reduction_lock;
+static  omp_lock_t sort_lock;
+static  omp_lock_t reduce_lock;
 static  ri_t global_next_row_to_reduce;
 static  ri_t global_last_piv;
 static  ri_t global_last_row_fully_reduced;
