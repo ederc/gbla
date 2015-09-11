@@ -1861,18 +1861,15 @@ int elim_fl_dense_D_tasks(dm_t *D)
         from_row  = 0;
       }
       */
+echelonize_again: 
       omp_set_lock(&sort_lock);
       omp_test_lock(&reduce_lock);
       omp_unset_lock(&sort_lock);
 #pragma omp atomic update
       pivs_in_use++;
-      
-      local_last_piv  = 0;
-      while (local_last_piv < global_last_piv) {
-        local_last_piv                = global_last_piv;
-        local_last_row_fully_reduced  = global_last_row_fully_reduced;
-        reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
-      }
+      local_last_piv                = global_last_piv;
+      local_last_row_fully_reduced  = global_last_row_fully_reduced;
+      reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
 #pragma omp atomic update
       pivs_in_use--;
       omp_set_lock(&sort_lock);
@@ -1940,6 +1937,8 @@ int elim_fl_dense_D_tasks(dm_t *D)
         printf("%d -- inc glp: %d\n", tid, global_last_piv);
 #endif
       } else { // add row to waiting list
+        omp_unset_lock(&echelonize_lock);
+        goto echelonize_again;
           //push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, local_last_piv);
           push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, 0);
         }
