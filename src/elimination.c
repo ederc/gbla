@@ -1867,9 +1867,12 @@ int elim_fl_dense_D_tasks(dm_t *D)
 #pragma omp atomic update
       pivs_in_use++;
       
-      local_last_piv                = global_last_piv;
-      local_last_row_fully_reduced  = global_last_row_fully_reduced;
-      reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
+      local_last_piv  = 0;
+      while (local_last_piv < global_last_piv) {
+        local_last_piv                = global_last_piv;
+        local_last_row_fully_reduced  = global_last_row_fully_reduced;
+        reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
+      }
 #pragma omp atomic update
       pivs_in_use--;
       omp_set_lock(&sort_lock);
