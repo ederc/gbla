@@ -5297,8 +5297,6 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 
 /*  global variables for echelonization of D */
 static  omp_lock_t echelonize_lock;
-static  omp_lock_t sort_lock;
-static  omp_lock_t reduce_lock;
 static  ri_t global_next_row_to_reduce;
 static  ri_t global_last_piv;
 static  ri_t global_last_row_fully_reduced;
