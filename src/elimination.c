@@ -1855,27 +1855,27 @@ int elim_fl_dense_D_tasks(dm_t *D)
       printf("thread %d reduces %d with rows %d -- %d\n", tid,
           curr_row_to_reduce, from_row, local_last_piv);
 #endif
-      /* 
+echelonize_again: 
       while (sorting_pivs > 0) {
         usleep(10);
         from_row  = 0;
       }
-      */
-echelonize_again: 
-      omp_set_lock(&sort_lock);
-      omp_test_lock(&reduce_lock);
-      omp_unset_lock(&sort_lock);
+      //omp_set_lock(&sort_lock);
+      //omp_test_lock(&reduce_lock);
+      //omp_unset_lock(&sort_lock);
 #pragma omp atomic update
       pivs_in_use++;
       local_last_piv                = global_last_piv;
       local_last_row_fully_reduced  = global_last_row_fully_reduced;
-      reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
+      reduce_dense_row_task_new(D, curr_row_to_reduce, 0, local_last_piv);
+      //reduce_dense_row_task_new(D, curr_row_to_reduce, from_row, local_last_piv);
 #pragma omp atomic update
       pivs_in_use--;
-      omp_set_lock(&sort_lock);
-      if (pivs_in_use == 0)
-        omp_unset_lock(&reduce_lock);
-      omp_unset_lock(&sort_lock);
+      //omp_set_lock(&sort_lock);
+      //printf("piu %u\n",pivs_in_use);
+      //if (pivs_in_use == 0)
+        //omp_unset_lock(&reduce_lock);
+      //omp_unset_lock(&sort_lock);
 #if DEBUG_NEW_ELIM
       printf("thread %d done with rows %d -- %d\n", tid, from_row, local_last_piv);
       printf("row %u has lead index %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
@@ -1897,18 +1897,21 @@ echelonize_again:
         save_pivot(D, curr_row_to_reduce, global_last_piv+1);
         global_last_piv++;
         global_last_row_fully_reduced++;
+        /*
+        printf("new glp: %u from %u --> %u\n", global_last_piv, curr_row_to_reduce, D->row[global_last_piv]->piv_lead);
+        for (int ii=0; ii<global_last_piv; ++ii)
+          printf("%d %u | ",ii, D->row[ii]->piv_lead);
+          */
         if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
           // set lock for sorting pivots
           //printf("sort pivs\n");
-          omp_set_lock(&reduce_lock);
-          omp_set_lock(&sort_lock);
-          omp_unset_lock(&reduce_lock);
+          //omp_set_lock(&reduce_lock);
+          //omp_set_lock(&sort_lock);
+          //omp_unset_lock(&reduce_lock);
           sorting_pivs  = 1;
-          /*
           while (pivs_in_use > 0) {
             usleep(11);
           }
-          */
           for (j=global_last_piv-1; j>0; --j) {
             if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
               tmp_piv_val = D->row[global_last_piv]->piv_val;
@@ -1928,10 +1931,10 @@ echelonize_again:
               }
               break;
             }
-            update_from_row_in_waiting_list(&waiting_global, j);
+            //update_from_row_in_waiting_list(&waiting_global, j);
           }
           sorting_pivs  = 0;
-          omp_unset_lock(&sort_lock);
+          //omp_unset_lock(&sort_lock);
         }
 #if DEBUG_NEW_ELIM
         printf("%d -- inc glp: %d\n", tid, global_last_piv);
@@ -1940,7 +1943,7 @@ echelonize_again:
         omp_unset_lock(&echelonize_lock);
         goto echelonize_again;
           //push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, local_last_piv);
-          push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, 0);
+          //push_row_to_waiting_list(&waiting_global, curr_row_to_reduce, 0);
         }
       omp_unset_lock(&echelonize_lock);
       } else {

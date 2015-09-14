@@ -4894,7 +4894,7 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
   i = from_row;
   if (local_last_piv > 0) {
     while (i<local_last_piv-1) {
-      //printf("crr[%u]->lead %u || %u i[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i);
+      //printf("crr[%u]->lead %u || %u i[%u]->plead | %u i+1[%u]->plead | %u i+2[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i, D->row[i+1]->piv_lead, i+1, D->row[i+2]->piv_lead, i+2);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
@@ -4948,6 +4948,7 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
       }
     }
     if (i == local_last_piv-1) {
+      //printf("crr[%u]->lead %u || %u i[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
@@ -4974,6 +4975,7 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
       i++;
     }
     if (i == local_last_piv) {
+      //printf("crr[%u]->lead %u || %u i[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
