@@ -49,6 +49,10 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
 	}
 
 	/*  start loading the matrix */
+  nnz_t here = 0;
+  re_s *nze;
+  ri_t i, k;
+  ci_t j;
 	ri_t m;
 	ci_t n;
 	mod_t     mod;
@@ -209,8 +213,6 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
 
 		fl +=  m *sizeof(ci_t);
 
-		ri_t i;
-		ci_t j;
 		nnz_t here = 0 ;
 		for (i = 0 ; i < m ; ++i) {
 			M->rows[i] = (re_t *)malloc(sz[i] * sizeof(re_t));
@@ -407,47 +409,48 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
         here += (nnz_t)sz ;
       }
     } else {
+      const ri_t rlB  = (uint32_t) floor((float)m / __GBLA_SIMD_BLOCK_SIZE);
+      const ri_t rlR  = rlB * __GBLA_SIMD_BLOCK_SIZE;
 #pragma omp parallel num_threads(nthrds)
       {
-        ci_t j;
-        nnz_t here = 0;
-        re_s *nze;
-#pragma omp for
-#if 0
-        for (i = 0 ; i < m ; ++i) {
-          printf("%u -- %u\n",i, here);
-          ci_t sz     = row[i];
-          M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
-          M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
-          nze         = vp + sp[mzp[i]] ;
-          for (j = 0; j < sz; ++j) {
-            M->rows[i][j] = nze[j];
-            M->pos[i][j]  = pos[here+(nnz_t)j];
+#pragma omp for private(i,j,here,nze)
+        for (k = 0 ; k < rlB; ++k) {
+          for (i=k*__GBLA_SIMD_BLOCK_SIZE; i<(k+1)*__GBLA_SIMD_BLOCK_SIZE; ++i) {
+            ci_t sz     = row[i];
+            here  = 0;
+            for (j=0; j<i; ++j)
+              here  +=  (nnz_t)row[j];
+            //printf("%u -- %u\n",i,here);
+            M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
+            M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
+            nze         = vp + sp[mzp[i]] ;
+            for (j = 0; j < sz; ++j) {
+              M->rows[i][j] = nze[j];
+              M->pos[i][j]  = pos[here+(nnz_t)j];
+            }
+            M->rwidth[i]  = sz;
+            //here += (nnz_t)sz ;
           }
-          M->rwidth[i]  = sz;
-          here += (nnz_t)sz ;
         }
-#else
-        for (i = 0 ; i < m ; ++i) {
-          ci_t sz     = row[i];
-          here  = 0;
-          for (j=0; j<i; ++j)
-            here  +=  (nnz_t)row[j];
-          //printf("%u -- %u\n",i,here);
-          M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
-          M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
-          nze         = vp + sp[mzp[i]] ;
-          for (j = 0; j < sz; ++j) {
-            M->rows[i][j] = nze[j];
-            M->pos[i][j]  = pos[here+(nnz_t)j];
-          }
-          M->rwidth[i]  = sz;
-          //here += (nnz_t)sz ;
+      }
+      // do the last bunch sequential
+      for (i=rlR ; i < m; ++i) {
+        ci_t sz     = row[i];
+        here  = 0;
+        for (j=0; j<i; ++j)
+          here  +=  (nnz_t)row[j];
+        //printf("%u -- %u\n",i,here);
+        M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
+        M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
+        nze         = vp + sp[mzp[i]] ;
+        for (j = 0; j < sz; ++j) {
+          M->rows[i][j] = nze[j];
+          M->pos[i][j]  = pos[here+(nnz_t)j];
         }
-#endif
+        M->rwidth[i]  = sz;
+        //here += (nnz_t)sz ;
       }
     }
-
     /*  free data */
     free(pos);
     free(vp);
