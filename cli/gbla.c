@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
     fflush(stdout);
   }
   /*  load JCF matrix */
-  M = load_jcf_matrix(fn, verbose, new_format);
+  M = load_jcf_matrix(fn, verbose, new_format, nthreads);
   if (verbose > 0) {
     printf("%9.3f sec (%.3f %s/sec)\n",
         walltime(t_load_start) / (1000000),

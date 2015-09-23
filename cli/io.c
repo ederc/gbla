@@ -35,8 +35,8 @@ double walltime(struct timeval t_start) {
 /* #define USE_SEEK */
 
 /*  ========== READING ========== */
-sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
-
+sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
+{
 	/*  meta information of matrix */
 	double density;
 	double fs;
@@ -292,129 +292,170 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format) {
 		free(nze);
 		free(pos);
 	}
-	else { /* new_format == 1 */
+  else { /* new_format == 1 */
 
-		/* if ((sizeof(ci_t) != sizeof(uint32_t)) ||  ((ci_t)-1 < 0)) exit(-1); */
+    /* if ((sizeof(ci_t) != sizeof(uint32_t)) ||  ((ci_t)-1 < 0)) exit(-1); */
 
-		dimen_t *row = (dimen_t *)malloc((m) * sizeof(dimen_t));
-		if (fread(row, sizeof(dimen_t), m , fh) != m) {
-			if (verbose > 0)
-				printf("Error while reading file '%s' (rows)\n",fn);
-			fclose(fh);
-			return NULL;
-		}
-		fl +=  m*sizeof(dimen_t) ;
+    dimen_t *row = (dimen_t *)malloc((m) * sizeof(dimen_t));
+    if (fread(row, sizeof(dimen_t), m , fh) != m) {
+      if (verbose > 0)
+        printf("Error while reading file '%s' (rows)\n",fn);
+      fclose(fh);
+      return NULL;
+    }
+    fl +=  m*sizeof(dimen_t) ;
 
-		dimen_t *mzp = (dimen_t*)malloc(m * sizeof(dimen_t));
-		if (fread(mzp, sizeof(dimen_t), m , fh) != m) {
-			if (verbose > 0)
-				printf("Error while reading file '%s' (mat_zo_pol)\n",fn);
-			fclose(fh);
-			return NULL;
-		}
+    dimen_t *mzp = (dimen_t*)malloc(m * sizeof(dimen_t));
+    if (fread(mzp, sizeof(dimen_t), m , fh) != m) {
+      if (verbose > 0)
+        printf("Error while reading file '%s' (mat_zo_pol)\n",fn);
+      fclose(fh);
+      return NULL;
+    }
 
-		fl +=  m*sizeof(dimen_t) ;
+    fl +=  m*sizeof(dimen_t) ;
 
-		index_t czs;
-		if (fread(&czs, sizeof(index_t), 1, fh) != 1) {
-			if (verbose > 0)
-				printf("Error while reading file '%s' (col size))\n",fn);
-			fclose(fh);
-			return NULL;
-		}
-		fl += sizeof(index_t) ;
+    index_t czs;
+    if (fread(&czs, sizeof(index_t), 1, fh) != 1) {
+      if (verbose > 0)
+        printf("Error while reading file '%s' (col size))\n",fn);
+      fclose(fh);
+      return NULL;
+    }
+    fl += sizeof(index_t) ;
 
-		dimen_t * cz = (dimen_t*)malloc(czs * sizeof(dimen_t));
-		if (fread(cz, sizeof(dimen_t), czs, fh) != czs) {
-			if (verbose > 0)
-				printf("Error while reading file '%s' (cols)\n",fn);
-			fclose(fh);
-			return NULL;
-		}
+    dimen_t * cz = (dimen_t*)malloc(czs * sizeof(dimen_t));
+    if (fread(cz, sizeof(dimen_t), czs, fh) != czs) {
+      if (verbose > 0)
+        printf("Error while reading file '%s' (cols)\n",fn);
+      fclose(fh);
+      return NULL;
+    }
 
-		fl +=  sizeof(dimen_t)*(czs);
+    fl +=  sizeof(dimen_t)*(czs);
 
-		dimen_t np;
-		if (fread(&np, sizeof(dimen_t), 1, fh) != 1) {
-			if (verbose > 0)
-				printf("Error while reading file '%s' (nb pols)\n",fn);
-			fclose(fh);
-			return NULL;
-		}
-		fl += sizeof(dimen_t);
+    dimen_t np;
+    if (fread(&np, sizeof(dimen_t), 1, fh) != 1) {
+      if (verbose > 0)
+        printf("Error while reading file '%s' (nb pols)\n",fn);
+      fclose(fh);
+      return NULL;
+    }
+    fl += sizeof(dimen_t);
 
-		index_t zp;
-		if (fread(&zp, sizeof(index_t), 1, fh) != 1) {
-			if (verbose > 0)
-				printf("Error while reading file '%s' (nb pol data)\n",fn);
-			fclose(fh);
-			return NULL;
-		}
-		fl += sizeof(index_t);
+    index_t zp;
+    if (fread(&zp, sizeof(index_t), 1, fh) != 1) {
+      if (verbose > 0)
+        printf("Error while reading file '%s' (nb pol data)\n",fn);
+      fclose(fh);
+      return NULL;
+    }
+    fl += sizeof(index_t);
 
-		dimen_t * rp = (dimen_t*)malloc((np) * sizeof(dimen_t)); /* row length */
-		if (fread(rp, sizeof(dimen_t), np, fh) != (np)) {
-			if (verbose > 0)
-				printf("Error while reading file '%s' (pol rows)\n",fn);
-			fclose(fh);
-			return NULL;
-		}
-		fl += sizeof(dimen_t)*(np);
+    dimen_t * rp = (dimen_t*)malloc((np) * sizeof(dimen_t)); /* row length */
+    if (fread(rp, sizeof(dimen_t), np, fh) != (np)) {
+      if (verbose > 0)
+        printf("Error while reading file '%s' (pol rows)\n",fn);
+      fclose(fh);
+      return NULL;
+    }
+    fl += sizeof(dimen_t)*(np);
 
-		ri_t i;
-		index_t * sp = (index_t*)malloc((np+1) * sizeof(index_t)); /* row pointers */
-		sp[0] = 0 ;
-		for ( i = 0 ; i < np ; ++i) {
-			sp[i+1] = sp[i] + rp[i] ;
-		}
-		free(rp);
+    ri_t i;
+    index_t * sp = (index_t*)malloc((np+1) * sizeof(index_t)); /* row pointers */
+    sp[0] = 0 ;
+    for ( i = 0 ; i < np ; ++i) {
+      sp[i+1] = sp[i] + rp[i] ;
+    }
+    free(rp);
 
 
-		/* BUG re_s depends on flag in first word  */
+    /* BUG re_s depends on flag in first word  */
 
-		re_s * vp = (re_s*)malloc((zp) * sizeof(re_s)) ;
-		if (fread(vp, sizeof(re_s), zp, fh) != zp) {
-			if (verbose > 0)
-				printf("Error while reading file '%s' (pol data)\n",fn);
-			fclose(fh);
-			return NULL;
-		}
+    re_s * vp = (re_s*)malloc((zp) * sizeof(re_s)) ;
+    if (fread(vp, sizeof(re_s), zp, fh) != zp) {
+      if (verbose > 0)
+        printf("Error while reading file '%s' (pol data)\n",fn);
+      fclose(fh);
+      return NULL;
+    }
 
-		fl += sizeof(re_s)*(zp);
+    fl += sizeof(re_s)*(zp);
 
-		dimen_t * pos = (dimen_t*)malloc(nnz * sizeof(dimen_t));
+    dimen_t * pos = (dimen_t*)malloc(nnz * sizeof(dimen_t));
 
-		expandColid( cz , czs , pos
+    expandColid( cz , czs , pos
 #ifndef NDEBUG
-		 , nnz, n
+        , nnz, n
 #endif
-		);
+        );
 
+    if (nthrds == 1) {
+      ci_t j;
+      nnz_t here = 0;
+      re_s *nze;
+      for (i = 0 ; i < m ; ++i) {
+        ci_t sz     = row[i];
+        M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
+        M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
+        nze         = vp + sp[mzp[i]] ;
+        for (j = 0; j < sz; ++j) {
+          M->rows[i][j] = nze[j];
+          M->pos[i][j]  = pos[here+(nnz_t)j];
+        }
+        M->rwidth[i]  = sz;
+        here += (nnz_t)sz ;
+      }
+    } else {
+#pragma omp parallel num_threads(nthrds)
+      {
+        ci_t j;
+        nnz_t here = 0;
+        re_s *nze;
+#pragma omp for
+#if 0
+        for (i = 0 ; i < m ; ++i) {
+          printf("%u -- %u\n",i, here);
+          ci_t sz     = row[i];
+          M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
+          M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
+          nze         = vp + sp[mzp[i]] ;
+          for (j = 0; j < sz; ++j) {
+            M->rows[i][j] = nze[j];
+            M->pos[i][j]  = pos[here+(nnz_t)j];
+          }
+          M->rwidth[i]  = sz;
+          here += (nnz_t)sz ;
+        }
+#else
+        for (i = 0 ; i < m ; ++i) {
+          ci_t sz     = row[i];
+          here  = 0;
+          for (j=0; j<i; ++j)
+            here  +=  (nnz_t)row[j];
+          //printf("%u -- %u\n",i,here);
+          M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
+          M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
+          nze         = vp + sp[mzp[i]] ;
+          for (j = 0; j < sz; ++j) {
+            M->rows[i][j] = nze[j];
+            M->pos[i][j]  = pos[here+(nnz_t)j];
+          }
+          M->rwidth[i]  = sz;
+          //here += (nnz_t)sz ;
+        }
+#endif
+      }
+    }
 
-		ci_t j;
-		nnz_t here = 0 ;
-		re_s *nze;
-		for (i = 0 ; i < m ; ++i) {
-			ci_t sz     = row[i];
-			M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
-			M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
-			nze         = vp + sp[mzp[i]] ;
-			for (j = 0; j < sz; ++j) {
-				M->rows[i][j] = nze[j];
-				M->pos[i][j]  = pos[here+(nnz_t)j];
-			}
-			M->rwidth[i]  = sz;
-			here += (nnz_t)sz ;
-		}
-
-		/*  free data */
-		free(pos);
-		free(vp);
-		free(sp);
-		free(cz);
-		free(mzp);
-		free(row);
-	}
+    /*  free data */
+    free(pos);
+    free(vp);
+    free(sp);
+    free(cz);
+    free(mzp);
+    free(row);
+  }
 
 	/*  file size of matrix */
 	fs  = (double) fl / 1024 / 1024;

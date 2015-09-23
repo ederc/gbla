@@ -36,6 +36,7 @@
 #include <math.h>
 #include <gbla_config.h>
 #include <src/matrix.h>
+#include <omp.h>
 
 /*  ========== TIMINGS ========== */
 
@@ -60,11 +61,14 @@ double walltime(struct timeval t_start);
  * \param fn File name
  * \param vebose If 1: Printing of error messages
  *               If 2: Also printing of meta information
- * @param format 0 for old, 1 for new
+ * \param format 0 for old, 1 for new
+ *
+ * \param nthrds number of threads for construction of matrix (only possible in
+ * new format
  *
  * \return Corresponding sparse matrix in (sm_t *) format
  */
-sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format);
+sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds);
 
 
 
