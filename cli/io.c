@@ -392,7 +392,13 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
 #endif
         );
 
-    if (nthrds == 1) {
+    /**************************************************************************
+     * NOTE: Usually the single-threaded version for constructing M is faster.
+     * We keep the multi-threaded code for possible future applications, but we
+     * always use the single-threaded code at the moment. Thus in the following
+     * the if-else is commented out.
+     *************************************************************************/
+    //if (nthrds == 1) {
       ci_t j;
       nnz_t here = 0;
       re_s *nze;
@@ -408,6 +414,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
         M->rwidth[i]  = sz;
         here += (nnz_t)sz ;
       }
+    /*
     } else {
       const ri_t rlB  = (uint32_t) floor((float)m / __GBLA_SIMD_BLOCK_SIZE);
       const ri_t rlR  = rlB * __GBLA_SIMD_BLOCK_SIZE;
@@ -451,6 +458,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
         //here += (nnz_t)sz ;
       }
     }
+    */
     /*  free data */
     free(pos);
     free(vp);
