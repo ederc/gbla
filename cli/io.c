@@ -398,7 +398,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
      * always use the single-threaded code at the moment. Thus in the following
      * the if-else is commented out.
      *************************************************************************/
-    if (nthrds == 1) {
+    //if (nthrds == 1) {
       ci_t j;
       nnz_t here = 0;
       re_s *nze;
