@@ -398,7 +398,7 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
      * always use the single-threaded code at the moment. Thus in the following
      * the if-else is commented out.
      *************************************************************************/
-    //if (nthrds == 1) {
+    if (nthrds == 1) {
       ci_t j;
       nnz_t here = 0;
       re_s *nze;
@@ -414,6 +414,49 @@ sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds)
         M->rwidth[i]  = sz;
         here += (nnz_t)sz ;
       }
+    } else {
+      const ri_t rlB  = (uint32_t) floor((float)m / nthrds);
+      const ri_t rlR  = rlB * nthrds;
+#pragma omp parallel num_threads(nthrds)
+      {
+#pragma omp for private(i,j,here,nze)
+        for (k = 0 ; k < nthrds; ++k) {
+          for (i=k*rlB; i<(k+1)*rlB; ++i) {
+            ci_t sz     = row[i];
+            here  = 0;
+            for (j=0; j<i; ++j)
+              here  +=  (nnz_t)row[j];
+            //printf("%u -- %u\n",i,here);
+            M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
+            M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
+            nze         = vp + sp[mzp[i]] ;
+            for (j = 0; j < sz; ++j) {
+              M->rows[i][j] = nze[j];
+              M->pos[i][j]  = pos[here+(nnz_t)j];
+            }
+            M->rwidth[i]  = sz;
+            //here += (nnz_t)sz ;
+          }
+        }
+      }
+      // do the last bunch sequential
+      for (i=rlR ; i < m; ++i) {
+        ci_t sz     = row[i];
+        here  = 0;
+        for (j=0; j<i; ++j)
+          here  +=  (nnz_t)row[j];
+        //printf("%u -- %u\n",i,here);
+        M->rows[i]  = (re_t *)malloc(sz * sizeof(re_t));
+        M->pos[i]   = (ci_t *)malloc(sz * sizeof(ci_t));
+        nze         = vp + sp[mzp[i]] ;
+        for (j = 0; j < sz; ++j) {
+          M->rows[i][j] = nze[j];
+          M->pos[i][j]  = pos[here+(nnz_t)j];
+        }
+        M->rwidth[i]  = sz;
+        //here += (nnz_t)sz ;
+      }
+    }
     /*
     } else {
       const ri_t rlB  = (uint32_t) floor((float)m / __GBLA_SIMD_BLOCK_SIZE);
