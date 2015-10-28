@@ -1427,6 +1427,8 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
 
 double compute_density(nnz_t nnz, ri_t nrows, ri_t ncols) ;
 
+sm_t *sort_schreyer_matrix(sm_t *M);
+
 
 /* vim:sts=2:sw=2:ts=2:
  */

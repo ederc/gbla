@@ -51,10 +51,12 @@ void print_help() {
   printf("                NOTE: The block dimension must be a multiple of __GB_LOOP_UNROLL_BIG\n");
   printf("                      which is by default 64. You can reset __GB_LOOP_UNROLL_BIG in \n");
   printf("                      src/gb_config.h.in (you need to rebuild the library afterwards).\n");
-  printf("    -h          Print help.\n");
+  printf("    -d          Reads in different matrix format (at the moment only for matrices arising\n");
+  printf("                from the Prym-Green conjecture. \n");
   printf("    -f          Free memory on the go.\n");
   printf("                Default: 1, memory is freed on the go.\n");
   printf("                Use 0 for keeping complete memory until the end.\n");
+  printf("    -h          Print help.\n");
   /*
   printf("    -m          Number of rows per multiline.\n");
   printf("                Default: 1.\n");
@@ -96,6 +98,7 @@ int main(int argc, char *argv[]) {
   int splicing          = 1;
   int dense_reducer     = 0;
   int new_format        = 0;
+  int schreyer_matrix   = 0;
 
   int index;
   int opt;
@@ -106,12 +109,15 @@ int main(int argc, char *argv[]) {
 
 	opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "b:f:hm:t:v:oprs:n")) != -1) {
+  while ((opt = getopt(argc, argv, "db:f:hm:t:v:oprs:n")) != -1) {
     switch (opt) {
       case 'b':
         block_dimension = atoi(optarg);
         if (block_dimension < 1)
           block_dimension = 256;
+        break;
+      case 'd':
+        schreyer_matrix = 1;
         break;
       case 'f':
         free_mem = atoi(optarg);
@@ -202,8 +208,13 @@ int main(int argc, char *argv[]) {
     printf("%-38s","Loading matrix ...");
     fflush(stdout);
   }
-  /*  load JCF matrix */
-  M = load_jcf_matrix(fn, verbose, new_format, nthreads);
+  if (schreyer_matrix) {
+    /*  load Schreyer matrix */
+    M = load_schreyer_matrix(fn, verbose);
+  } else {
+    /*  load JCF matrix */
+    M = load_jcf_matrix(fn, verbose, new_format, nthreads);
+  }
   if (verbose > 0) {
     printf("%9.3f sec (%.3f %s/sec)\n",
         walltime(t_load_start) / (1000000),
@@ -238,7 +249,39 @@ int main(int argc, char *argv[]) {
           M->fs / (walltime(t_load_start) / (1000000)), M->fsu);
     }
   }
-
+  if (schreyer_matrix == 1) {
+    //M = sort_schreyer_matrix(M);
+    normalize_schreyer_input_rows(M);
+    if (write_pbm) {
+      if (verbose > 1) {
+        gettimeofday(&t_load_start, NULL);
+        printf("---------------------------------------------------------------------\n");
+        printf(">>>>\tSTART writing input matrix to PBM file ...\n");
+      }
+      const char *pbm_fn  = "input-2-matrix.pbm";
+      write_jcf_matrix_to_pbm(M, pbm_fn, verbose);
+      if (verbose > 1) {
+        printf("<<<<\tDONE writing input matrix to PBM file.\n");
+        // print walltime
+        printf("TIME\t%.3f sec (%.3f %s/sec)\n",
+            walltime(t_load_start) / (1000000),
+            M->fs / (walltime(t_load_start) / (1000000)), M->fsu);
+        print_mem_usage();
+        printf("---------------------------------------------------------------------\n");
+        printf("\n");
+      }
+    }
+  }
+  /*
+  printf("\n");
+  for (int ii=0; ii<M->nrows; ++ii) {
+    printf("ROW %d\n",ii);
+      printf("%u || ", M->pos[ii][0]);
+      for (int jj=0; jj<M->rwidth[ii]; ++jj)
+        printf("%u  ", M->rows[ii][M->pos[ii][jj]]);
+    printf("\n");
+  }
+  */
   /*  track time for the complete reduction process (excluding load) */
   if (verbose > 0)
     gettimeofday(&t_complete, NULL);

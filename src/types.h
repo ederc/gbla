@@ -24,10 +24,11 @@
 #define GB_TYPES_H
 
 #if 0
-#define GBLA_USE_DOUBLE XXX
+#define GBLA_USE_FLOAT XXX
 /* #define GBLA_USE_INT16 XXX */
 #else
 #define GBLA_USE_UINT16 OK
+//#define GBLA_USE_UINT32 OK
 #endif
 /* #define GBLA_USE_UINT32 OK */
 /* #define GBLA_USE_INT32 */

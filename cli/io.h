@@ -70,6 +70,19 @@ double walltime(struct timeval t_start);
  */
 sm_t *load_jcf_matrix(const char *fn, int verbose, int new_format, int nthrds);
 
+/**
+ * \brief Loads a matrix given in Schreyer's style to a sparse
+ * matrix in (sm_t *) format. Matrices are arising from the Prym-Green
+ * conjecture.
+ *
+ * \param fn File name
+ * \param vebose If 1: Printing of error messages
+ *               If 2: Also printing of meta information
+ *
+ * \return Corresponding sparse matrix in (sm_t *) format
+ */
+sm_t *load_schreyer_matrix(const char *fn, int verbose);
+
 
 
 /*  ========== WRITING ========== */

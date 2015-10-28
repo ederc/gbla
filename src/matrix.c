@@ -17,6 +17,37 @@
 
 #define NOT_DENSE_COPYING 0
 
+sm_t *sort_schreyer_matrix(sm_t *M)
+{
+  ri_t i, j, mi;
+  re_t *temp_rows;
+  ci_t *temp_pos;
+  ci_t temp_rwidth;
+
+  // slow selection sort, needs merge/quick sort
+  for (i=0; i<M->nrows-1; ++i) {
+    mi  = i;
+    for (j=i+1; j<M->nrows; ++j) {
+      if (M->pos[j][0]<=M->pos[mi][0])
+        mi  = j;
+    }
+    temp_pos    = M->pos[mi];
+    temp_rows   = M->rows[mi];
+    temp_rwidth = M->rwidth[mi];
+
+    for (j=mi; j>i; --j) {
+      M->pos[j]     = M->pos[j-1];
+      M->rows[j]    = M->rows[j-1];
+      M->rwidth[j]  = M->rwidth[j-1];
+    }
+    M->pos[i]     = temp_pos;
+    M->rows[i]    = temp_rows;
+    M->rwidth[i]  = temp_rwidth;
+  }
+
+  return M;
+}
+
 #if GBLA_WITH_FFLAS
 void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
   sbm_fl_t *src = *source;
