@@ -1405,327 +1405,191 @@ static inline void red_sparse_sparse_rectangular(const sbl_t *block_A, const sbl
 static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t *block_B,
   re_l_t **wide_block)
 {
-#if 0
-#ifdef NOSSE
-  bi_t i, j, k;
-  register re_m_t a, b, c, d, e, f, g, h;
-  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    for (j=0; j<block_A->sz[i]; ++j) {
-      a = block_A->val[i][j];
-      //printf("a %u || %u | %u\n",a,i,j);
-      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-        wide_block[i][k]  +=
-          (a * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k]);
-          //printf("wb[%u][%u] = %lu | %ld\n",i,k,wide_block[i][k],wide_block[i][k]);
-      }
-    }
-  }
-#endif
-#ifdef SSE
-  bi_t i, j, k;
-  register re_m_t A;
-  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    j = 0;
-    if (block_A->sz[i] > 0) {
-      if (block_A->sz[i] % 2 == 0) { // do SSE only
-        register __m128i a, b, c;
-        for (; j<block_A->sz[i]-1; j=j+2) {
-          b = _mm_set_epi64x(
-              (int64_t)block_A->val[i][j+1],
-              (int64_t)block_A->val[i][j]
-              );
-          a = _mm_set_epi64x(
-              (int64_t)wide_block[i][k+1],
-              (int64_t)wide_block[i][k]
-              );
-          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+2) {
-            c = _mm_set_epi64x(
-                (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k+1],
-                (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k]
-                );
-            a = _mm_add_epi64(a, _mm_mullo_epi32(b,c));
-            //_mm256_storeu_si256((re_l_t *)wide_block[i]+k, a);
-            wide_block[i][k+1]  = (uint64_t)_mm_extract_epi64(a,0);
-            wide_block[i][k]    = (uint64_t)_mm_extract_epi64(a,1);
-            printf("wb[%u][%u] = %lu | %ld\n",i,k,wide_block[i][k],wide_block[i][k]);
-            printf("wb[%u][%u] = %lu | %ld\n",i,k+1,wide_block[i][k+1],wide_block[i][k+1]);
-          }
-        }
-      } else { // last step is non-SSE
-        printf("%u || %u\n",j,block_A->sz[i]);
-        // do last step without SSE
-        A = block_A->val[i][j];
-        printf("a %u || %u | %u\n",A,i,j);
-        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-          wide_block[i][k]  +=
-            (A * (re_m_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k]);
-        }
-      }
-    }
-  }
-#endif
-#else
 #ifdef NOSSE
   bi_t i, j, k;
   register re_t a, b, c, d, e, f, g, h;
   register bi_t pa, pb, pc, pd, pe, pf, pg, ph;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     j = 0;
-    /*
-       if (block_A->sz[i] > 3) {
-       for (; j<block_A->sz[i]-3; j = j+4) {
-       */
-  if (block_A->sz[i] > 7) {
-    for (; j<block_A->sz[i]-7; j = j+8) {
-      a = block_A->val[i][j];
-      b = block_A->val[i][j+1];
-      c = block_A->val[i][j+2];
-      d = block_A->val[i][j+3];
-      e = block_A->val[i][j+4];
-      f = block_A->val[i][j+5];
-      g = block_A->val[i][j+6];
-      h = block_A->val[i][j+7];
+    if (block_A->sz[i] > 7) {
+      for (; j<block_A->sz[i]-7; j = j+8) {
+        a = block_A->val[i][j];
+        b = block_A->val[i][j+1];
+        c = block_A->val[i][j+2];
+        d = block_A->val[i][j+3];
+        e = block_A->val[i][j+4];
+        f = block_A->val[i][j+5];
+        g = block_A->val[i][j+6];
+        h = block_A->val[i][j+7];
+        pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
+        pb  = block_A->pos[i][j+1] * __GBLA_SIMD_BLOCK_SIZE;
+        pc  = block_A->pos[i][j+2] * __GBLA_SIMD_BLOCK_SIZE;
+        pd  = block_A->pos[i][j+3] * __GBLA_SIMD_BLOCK_SIZE;
+        pe  = block_A->pos[i][j+4] * __GBLA_SIMD_BLOCK_SIZE;
+        pf  = block_A->pos[i][j+5] * __GBLA_SIMD_BLOCK_SIZE;
+        pg  = block_A->pos[i][j+6] * __GBLA_SIMD_BLOCK_SIZE;
+        ph  = block_A->pos[i][j+7] * __GBLA_SIMD_BLOCK_SIZE;
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+          wide_block[i][k]  +=
+            (a * (re_l_t)block_B[pa + k] +
+             b * (re_l_t)block_B[pb + k] +
+             c * (re_l_t)block_B[pc + k] +
+             d * (re_l_t)block_B[pd + k] +
+             e * (re_l_t)block_B[pe + k] +
+             f * (re_l_t)block_B[pf + k] +
+             g * (re_l_t)block_B[pg + k] +
+             h * (re_l_t)block_B[ph + k]);
+        }
+      }
+    }
+    for (;j<block_A->sz[i]; ++j) {
+      a   = block_A->val[i][j];
       pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
-      pb  = block_A->pos[i][j+1] * __GBLA_SIMD_BLOCK_SIZE;
-      pc  = block_A->pos[i][j+2] * __GBLA_SIMD_BLOCK_SIZE;
-      pd  = block_A->pos[i][j+3] * __GBLA_SIMD_BLOCK_SIZE;
-      pe  = block_A->pos[i][j+4] * __GBLA_SIMD_BLOCK_SIZE;
-      pf  = block_A->pos[i][j+5] * __GBLA_SIMD_BLOCK_SIZE;
-      pg  = block_A->pos[i][j+6] * __GBLA_SIMD_BLOCK_SIZE;
-      ph  = block_A->pos[i][j+7] * __GBLA_SIMD_BLOCK_SIZE;
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
         wide_block[i][k]  +=
-          (a * (re_l_t)block_B[pa + k] +
-           b * (re_l_t)block_B[pb + k] +
-           c * (re_l_t)block_B[pc + k] +
-           d * (re_l_t)block_B[pd + k] +
-           e * (re_l_t)block_B[pe + k] +
-           f * (re_l_t)block_B[pf + k] +
-           g * (re_l_t)block_B[pg + k] +
-           h * (re_l_t)block_B[ph + k]);
+          a * (re_m_t)block_B[pa + k];
       }
     }
   }
-for (;j<block_A->sz[i]; ++j) {
-  a   = block_A->val[i][j];
-  pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
-  for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-    wide_block[i][k]  +=
-      a * (re_m_t)block_B[pa + k];
-  }
-}
-}
 #endif
 #ifdef AVX
-bi_t i, j, k;
-register re_m_t A;
-for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-  j = 0;
-  __m256i a1, b1, b2, b3, b4, c1, c2, c3, c4;
-  register bi_t pa1;
+  bi_t i, j, k;
+  register re_m_t A;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    j = 0;
+    __m256i a1, b1, b2, b3, b4, c1, c2, c3, c4;
+    register bi_t pa1;
 
-  // we compute c = c + a*b
-  for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+32) {
-    // load wide_block
-    c1  = _mm256_setr_epi32(
-        (int32_t)wide_block[i][k],
-        (int32_t)wide_block[i][k+1],
-        (int32_t)wide_block[i][k+2],
-        (int32_t)wide_block[i][k+3],
-        (int32_t)wide_block[i][k+4],
-        (int32_t)wide_block[i][k+5],
-        (int32_t)wide_block[i][k+6],
-        (int32_t)wide_block[i][k+7]
-        );
-    c2  = _mm256_setr_epi32(
-        (int32_t)wide_block[i][k+8],
-        (int32_t)wide_block[i][k+9],
-        (int32_t)wide_block[i][k+10],
-        (int32_t)wide_block[i][k+11],
-        (int32_t)wide_block[i][k+12],
-        (int32_t)wide_block[i][k+13],
-        (int32_t)wide_block[i][k+14],
-        (int32_t)wide_block[i][k+15]
-        );
-    c3  = _mm256_setr_epi32(
-        (int32_t)wide_block[i][k+16],
-        (int32_t)wide_block[i][k+17],
-        (int32_t)wide_block[i][k+18],
-        (int32_t)wide_block[i][k+19],
-        (int32_t)wide_block[i][k+20],
-        (int32_t)wide_block[i][k+21],
-        (int32_t)wide_block[i][k+22],
-        (int32_t)wide_block[i][k+23]
-        );
-    c4  = _mm256_setr_epi32(
-        (int32_t)wide_block[i][k+24],
-        (int32_t)wide_block[i][k+25],
-        (int32_t)wide_block[i][k+26],
-        (int32_t)wide_block[i][k+27],
-        (int32_t)wide_block[i][k+28],
-        (int32_t)wide_block[i][k+29],
-        (int32_t)wide_block[i][k+30],
-        (int32_t)wide_block[i][k+31]
-        );
-    for (j=0; j<block_A->sz[i]; ++j) {
-      // load A block
-      a1 = _mm256_set1_epi32(
-          (int32_t)block_A->val[i][j]
-          );
-      pa1  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
-      // load B block
-      b1  = _mm256_setr_epi32(
-          (int32_t)block_B[pa1 + k],
-          (int32_t)block_B[pa1 + k+1],
-          (int32_t)block_B[pa1 + k+2],
-          (int32_t)block_B[pa1 + k+3],
-          (int32_t)block_B[pa1 + k+4],
-          (int32_t)block_B[pa1 + k+5],
-          (int32_t)block_B[pa1 + k+6],
-          (int32_t)block_B[pa1 + k+7]
-          );
-      b2  = _mm256_setr_epi32(
-          (int32_t)block_B[pa1 + k+8],
-          (int32_t)block_B[pa1 + k+9],
-          (int32_t)block_B[pa1 + k+10],
-          (int32_t)block_B[pa1 + k+11],
-          (int32_t)block_B[pa1 + k+12],
-          (int32_t)block_B[pa1 + k+13],
-          (int32_t)block_B[pa1 + k+14],
-          (int32_t)block_B[pa1 + k+15]
-          );
-      b3  = _mm256_setr_epi32(
-          (int32_t)block_B[pa1 + k+16],
-          (int32_t)block_B[pa1 + k+17],
-          (int32_t)block_B[pa1 + k+18],
-          (int32_t)block_B[pa1 + k+19],
-          (int32_t)block_B[pa1 + k+20],
-          (int32_t)block_B[pa1 + k+21],
-          (int32_t)block_B[pa1 + k+22],
-          (int32_t)block_B[pa1 + k+23]
-          );
-      b4  = _mm256_setr_epi32(
-          (int32_t)block_B[pa1 + k+24],
-          (int32_t)block_B[pa1 + k+25],
-          (int32_t)block_B[pa1 + k+26],
-          (int32_t)block_B[pa1 + k+27],
-          (int32_t)block_B[pa1 + k+28],
-          (int32_t)block_B[pa1 + k+29],
-          (int32_t)block_B[pa1 + k+30],
-          (int32_t)block_B[pa1 + k+31]
-          );
-      // compute c = c + a*b
-      c1 = _mm256_add_epi32(c1, _mm256_mullo_epi32(a1,b1));
-      c2 = _mm256_add_epi32(c2, _mm256_mullo_epi32(a1,b2));
-      c3 = _mm256_add_epi32(c3, _mm256_mullo_epi32(a1,b3));
-      c4 = _mm256_add_epi32(c4, _mm256_mullo_epi32(a1,b4));
-    }
-    wide_block[i][k]    = (uint64_t)_mm256_extract_epi32(c1,0);
-    wide_block[i][k+1]  = (uint64_t)_mm256_extract_epi32(c1,1);
-    wide_block[i][k+2]  = (uint64_t)_mm256_extract_epi32(c1,2);
-    wide_block[i][k+3]  = (uint64_t)_mm256_extract_epi32(c1,3);
-    wide_block[i][k+4]  = (uint64_t)_mm256_extract_epi32(c1,4);
-    wide_block[i][k+5]  = (uint64_t)_mm256_extract_epi32(c1,5);
-    wide_block[i][k+6]  = (uint64_t)_mm256_extract_epi32(c1,6);
-    wide_block[i][k+7]  = (uint64_t)_mm256_extract_epi32(c1,7);
-    wide_block[i][k+8]  = (uint64_t)_mm256_extract_epi32(c2,0);
-    wide_block[i][k+9]  = (uint64_t)_mm256_extract_epi32(c2,1);
-    wide_block[i][k+10] = (uint64_t)_mm256_extract_epi32(c2,2);
-    wide_block[i][k+11] = (uint64_t)_mm256_extract_epi32(c2,3);
-    wide_block[i][k+12] = (uint64_t)_mm256_extract_epi32(c2,4);
-    wide_block[i][k+13] = (uint64_t)_mm256_extract_epi32(c2,5);
-    wide_block[i][k+14] = (uint64_t)_mm256_extract_epi32(c2,6);
-    wide_block[i][k+15] = (uint64_t)_mm256_extract_epi32(c2,7);
-    wide_block[i][k+16] = (uint64_t)_mm256_extract_epi32(c3,0);
-    wide_block[i][k+17] = (uint64_t)_mm256_extract_epi32(c3,1);
-    wide_block[i][k+18] = (uint64_t)_mm256_extract_epi32(c3,2);
-    wide_block[i][k+19] = (uint64_t)_mm256_extract_epi32(c3,3);
-    wide_block[i][k+20] = (uint64_t)_mm256_extract_epi32(c3,4);
-    wide_block[i][k+21] = (uint64_t)_mm256_extract_epi32(c3,5);
-    wide_block[i][k+22] = (uint64_t)_mm256_extract_epi32(c3,6);
-    wide_block[i][k+23] = (uint64_t)_mm256_extract_epi32(c3,7);
-    wide_block[i][k+24] = (uint64_t)_mm256_extract_epi32(c4,0);
-    wide_block[i][k+25] = (uint64_t)_mm256_extract_epi32(c4,1);
-    wide_block[i][k+26] = (uint64_t)_mm256_extract_epi32(c4,2);
-    wide_block[i][k+27] = (uint64_t)_mm256_extract_epi32(c4,3);
-    wide_block[i][k+28] = (uint64_t)_mm256_extract_epi32(c4,4);
-    wide_block[i][k+29] = (uint64_t)_mm256_extract_epi32(c4,5);
-    wide_block[i][k+30] = (uint64_t)_mm256_extract_epi32(c4,6);
-    wide_block[i][k+31] = (uint64_t)_mm256_extract_epi32(c4,7);
-  }
-}
-#if 0
-//for (; j<block_A->sz[i]-3; j=j+4) {
-/*
-   printf("val[%u][%u] = %u\n",i,j,block_A->val[i][j]);
-   printf("val[%u][%u] = %u\n",i,j+1,block_A->val[i][j+1]);
-   printf("val[%u][%u] = %u\n",i,j+2,block_A->val[i][j+2]);
-   printf("val[%u][%u] = %u\n",i,j+3,block_A->val[i][j+3]);
-   */
-          // load A block
-          b = _mm256_set1_epi64x(
-              (int64_t)block_A->val[i][j]
-              );
-          /*
-             i1  = _mm256_extract_epi64(b,0);
-             i2  = _mm256_extract_epi64(b,1);
-             i3  = _mm256_extract_epi64(b,2);
-             i4  = _mm256_extract_epi64(b,3);
-
-             printf("i1 %ld\n",i1);
-             printf("i2 %ld\n",i2);
-             printf("i3 %ld\n",i3);
-             printf("i4 %ld\n",i4);
-
-             u1  = (uint64_t)_mm256_extract_epi64(b,0);
-             u2  = (uint64_t)_mm256_extract_epi64(b,1);
-             u3  = (uint64_t)_mm256_extract_epi64(b,2);
-             u4  = (uint64_t)_mm256_extract_epi64(b,3);
-
-             printf("u1 %lu\n",u1);
-             printf("u2 %lu\n",u2);
-             printf("u3 %lu\n",u3);
-             printf("u4 %lu\n",u4);
-
-             _mm256_storeu_si256((__m256i *)(uint64_t *)&uu, a);
-             printf("uu1 %lu\n",uu[0]);
-             printf("uu2 %lu\n",uu[1]);
-             printf("uu3 %lu\n",uu[2]);
-             printf("uu4 %lu\n",uu[3]);
-             */
-    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+    // we compute c = c + a*b
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+32) {
       // load wide_block
-      a = _mm256_setr_epi64x(
-          (int64_t)wide_block[i][k],
-          (int64_t)wide_block[i][k+1],
-          (int64_t)wide_block[i][k+2],
-          (int64_t)wide_block[i][k+3]
+      c1  = _mm256_setr_epi32(
+          (int32_t)wide_block[i][k],
+          (int32_t)wide_block[i][k+1],
+          (int32_t)wide_block[i][k+2],
+          (int32_t)wide_block[i][k+3],
+          (int32_t)wide_block[i][k+4],
+          (int32_t)wide_block[i][k+5],
+          (int32_t)wide_block[i][k+6],
+          (int32_t)wide_block[i][k+7]
           );
-      // load B block
-      c = _mm256_setr_epi64x(
-          (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k],
-          (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k+1],
-          (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k+2],
-          (int64_t)block_B[block_A->pos[i][j]*__GBLA_SIMD_BLOCK_SIZE + k+3]
+      c2  = _mm256_setr_epi32(
+          (int32_t)wide_block[i][k+8],
+          (int32_t)wide_block[i][k+9],
+          (int32_t)wide_block[i][k+10],
+          (int32_t)wide_block[i][k+11],
+          (int32_t)wide_block[i][k+12],
+          (int32_t)wide_block[i][k+13],
+          (int32_t)wide_block[i][k+14],
+          (int32_t)wide_block[i][k+15]
           );
-      // compute a+b*c
-      a   = _mm256_add_epi64(a, _mm256_mullo_epi32(b,c));
-      //_mm256_storeu_si256((int64_t *)(wide_block[i]+k), a);
-      wide_block[i][k]    = (uint64_t)_mm256_extract_epi64(a,0);
-      wide_block[i][k+1]  = (uint64_t)_mm256_extract_epi64(a,1);
-      wide_block[i][k+2]  = (uint64_t)_mm256_extract_epi64(a,2);
-      wide_block[i][k+3]  = (uint64_t)_mm256_extract_epi64(a,3);
-      /*
-         printf("wb[%u][%u] = %lu | %ld\n",i,k,wide_block[i][k],wide_block[i][k]);
-         printf("wb[%u][%u] = %lu | %ld\n",i,k+1,wide_block[i][k+1],wide_block[i][k+1]);
-         printf("wb[%u][%u] = %lu | %ld\n",i,k+2,wide_block[i][k+2],wide_block[i][k+2]);
-         printf("wb[%u][%u] = %lu | %ld\n",i,k+3,wide_block[i][k+3],wide_block[i][k+3]);
-         */
+      c3  = _mm256_setr_epi32(
+          (int32_t)wide_block[i][k+16],
+          (int32_t)wide_block[i][k+17],
+          (int32_t)wide_block[i][k+18],
+          (int32_t)wide_block[i][k+19],
+          (int32_t)wide_block[i][k+20],
+          (int32_t)wide_block[i][k+21],
+          (int32_t)wide_block[i][k+22],
+          (int32_t)wide_block[i][k+23]
+          );
+      c4  = _mm256_setr_epi32(
+          (int32_t)wide_block[i][k+24],
+          (int32_t)wide_block[i][k+25],
+          (int32_t)wide_block[i][k+26],
+          (int32_t)wide_block[i][k+27],
+          (int32_t)wide_block[i][k+28],
+          (int32_t)wide_block[i][k+29],
+          (int32_t)wide_block[i][k+30],
+          (int32_t)wide_block[i][k+31]
+          );
+      for (j=0; j<block_A->sz[i]; ++j) {
+        // load A block
+        a1 = _mm256_set1_epi32(
+            (int32_t)block_A->val[i][j]
+            );
+        pa1  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
+        // load B block
+        b1  = _mm256_setr_epi32(
+            (int32_t)block_B[pa1 + k],
+            (int32_t)block_B[pa1 + k+1],
+            (int32_t)block_B[pa1 + k+2],
+            (int32_t)block_B[pa1 + k+3],
+            (int32_t)block_B[pa1 + k+4],
+            (int32_t)block_B[pa1 + k+5],
+            (int32_t)block_B[pa1 + k+6],
+            (int32_t)block_B[pa1 + k+7]
+            );
+        b2  = _mm256_setr_epi32(
+            (int32_t)block_B[pa1 + k+8],
+            (int32_t)block_B[pa1 + k+9],
+            (int32_t)block_B[pa1 + k+10],
+            (int32_t)block_B[pa1 + k+11],
+            (int32_t)block_B[pa1 + k+12],
+            (int32_t)block_B[pa1 + k+13],
+            (int32_t)block_B[pa1 + k+14],
+            (int32_t)block_B[pa1 + k+15]
+            );
+        b3  = _mm256_setr_epi32(
+            (int32_t)block_B[pa1 + k+16],
+            (int32_t)block_B[pa1 + k+17],
+            (int32_t)block_B[pa1 + k+18],
+            (int32_t)block_B[pa1 + k+19],
+            (int32_t)block_B[pa1 + k+20],
+            (int32_t)block_B[pa1 + k+21],
+            (int32_t)block_B[pa1 + k+22],
+            (int32_t)block_B[pa1 + k+23]
+            );
+        b4  = _mm256_setr_epi32(
+            (int32_t)block_B[pa1 + k+24],
+            (int32_t)block_B[pa1 + k+25],
+            (int32_t)block_B[pa1 + k+26],
+            (int32_t)block_B[pa1 + k+27],
+            (int32_t)block_B[pa1 + k+28],
+            (int32_t)block_B[pa1 + k+29],
+            (int32_t)block_B[pa1 + k+30],
+            (int32_t)block_B[pa1 + k+31]
+            );
+        // compute c = c + a*b
+        c1 = _mm256_add_epi32(c1, _mm256_mullo_epi32(a1,b1));
+        c2 = _mm256_add_epi32(c2, _mm256_mullo_epi32(a1,b2));
+        c3 = _mm256_add_epi32(c3, _mm256_mullo_epi32(a1,b3));
+        c4 = _mm256_add_epi32(c4, _mm256_mullo_epi32(a1,b4));
+      }
+      wide_block[i][k]    = (uint64_t)_mm256_extract_epi32(c1,0);
+      wide_block[i][k+1]  = (uint64_t)_mm256_extract_epi32(c1,1);
+      wide_block[i][k+2]  = (uint64_t)_mm256_extract_epi32(c1,2);
+      wide_block[i][k+3]  = (uint64_t)_mm256_extract_epi32(c1,3);
+      wide_block[i][k+4]  = (uint64_t)_mm256_extract_epi32(c1,4);
+      wide_block[i][k+5]  = (uint64_t)_mm256_extract_epi32(c1,5);
+      wide_block[i][k+6]  = (uint64_t)_mm256_extract_epi32(c1,6);
+      wide_block[i][k+7]  = (uint64_t)_mm256_extract_epi32(c1,7);
+      wide_block[i][k+8]  = (uint64_t)_mm256_extract_epi32(c2,0);
+      wide_block[i][k+9]  = (uint64_t)_mm256_extract_epi32(c2,1);
+      wide_block[i][k+10] = (uint64_t)_mm256_extract_epi32(c2,2);
+      wide_block[i][k+11] = (uint64_t)_mm256_extract_epi32(c2,3);
+      wide_block[i][k+12] = (uint64_t)_mm256_extract_epi32(c2,4);
+      wide_block[i][k+13] = (uint64_t)_mm256_extract_epi32(c2,5);
+      wide_block[i][k+14] = (uint64_t)_mm256_extract_epi32(c2,6);
+      wide_block[i][k+15] = (uint64_t)_mm256_extract_epi32(c2,7);
+      wide_block[i][k+16] = (uint64_t)_mm256_extract_epi32(c3,0);
+      wide_block[i][k+17] = (uint64_t)_mm256_extract_epi32(c3,1);
+      wide_block[i][k+18] = (uint64_t)_mm256_extract_epi32(c3,2);
+      wide_block[i][k+19] = (uint64_t)_mm256_extract_epi32(c3,3);
+      wide_block[i][k+20] = (uint64_t)_mm256_extract_epi32(c3,4);
+      wide_block[i][k+21] = (uint64_t)_mm256_extract_epi32(c3,5);
+      wide_block[i][k+22] = (uint64_t)_mm256_extract_epi32(c3,6);
+      wide_block[i][k+23] = (uint64_t)_mm256_extract_epi32(c3,7);
+      wide_block[i][k+24] = (uint64_t)_mm256_extract_epi32(c4,0);
+      wide_block[i][k+25] = (uint64_t)_mm256_extract_epi32(c4,1);
+      wide_block[i][k+26] = (uint64_t)_mm256_extract_epi32(c4,2);
+      wide_block[i][k+27] = (uint64_t)_mm256_extract_epi32(c4,3);
+      wide_block[i][k+28] = (uint64_t)_mm256_extract_epi32(c4,4);
+      wide_block[i][k+29] = (uint64_t)_mm256_extract_epi32(c4,5);
+      wide_block[i][k+30] = (uint64_t)_mm256_extract_epi32(c4,6);
+      wide_block[i][k+31] = (uint64_t)_mm256_extract_epi32(c4,7);
     }
-}
-}
-#endif
-#endif
+  }
 #endif
 }
 
