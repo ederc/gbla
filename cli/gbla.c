@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
 
 
   if (verbose > 0) {
-    printf("-------------------------------------------------------------------\n");
+    printf("---------------------------------------------------------------------\n");
     gettimeofday(&t_load_start, NULL);
     printf("%-38s","Loading matrix ...");
     fflush(stdout);
