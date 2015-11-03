@@ -67,9 +67,9 @@ void print_help() {
   printf("    -r          Compute a REDUCED row echelon form.\n");
   printf("    -s          Splicing options:\n");
   printf("                0: standard Faugère-Lachartre block method.\n");
-  printf("                1: A and C are multiline, B and D are blocks.\n");
-  printf("                2: standard Faugère-Lachartre block method.   (OLD VERSION)\n");
-  printf("                3: A and C are multiline, B and D are blocks. (OLD VERSION)\n");
+  printf("                1: not reducing A, for rank profiling.\n");
+  printf("                2: standard Faugère-Lachartre block method, completely multiline.   (OLD VERSION)\n");
+  printf("                3: A and C are multiline, B and D are blocks, completely multiline. (OLD VERSION)\n");
   printf("                Default: 1.\n");
   printf("    -t THRDS    Number of threads used.\n");
   printf("                Default: 1.\n");
