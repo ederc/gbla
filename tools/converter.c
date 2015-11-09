@@ -36,6 +36,7 @@ void usage(char * av)
 
 	printf(" options can be:\n");
 	printf("   -n : convert from new format to old format. [default: old to new]\n");
+	printf("   -f : convert from new format to old format compatible to FL implementation. [default: old to new]\n");
 	printf("   -s : sorts the row by weight (smallest first) [default : enabled, new format only]\n");
 	printf("   -S : don't sort the rows by weight (smallest first) \n");
 	printf("   -r : reverts order [default : enabled, new format only] \n");
@@ -393,7 +394,7 @@ void convert_old2new( FILE * titi, int rev, int sor)
 
 }
 
-void convert_new2old( FILE * fh)
+void convert_new2old( FILE * fh, int fli_compatible)
 {
 
 
@@ -453,7 +454,8 @@ void convert_new2old( FILE * fh)
 
 	dimen_t d_ = Mjoin(select,elemt_s)();
 	d_ = d_ | OLDMASK ;
-	fwrite(&d_,sizeof(dimen_t),1,toto);
+  if (fli_compatible == 0)
+    fwrite(&d_,sizeof(dimen_t),1,toto);
 
 	fwrite(&m_,sizeof(stor_t),1,toto);
 	fwrite(&n_,sizeof(stor_t),1,toto);
@@ -546,14 +548,17 @@ int main( int ac, char ** av)
 	}
 
 	int options = 1 ;
+  int fli_compatible = 0;
 	while ( options ) {
 		if ( (strcmp(av[1],"-h") == 0) || (strcmp(av[1],"-?") == 0) || (strcmp(av[1],"--help") == 0) ) {
 			usage(av[0]);
 			return(0);
 		}
 
-		if (strcmp(av[1],"-n") == 0) {
+		if (strcmp(av[1],"-n") == 0 || strcmp(av[1],"-f") == 0 ) {
 			new = 1 ;
+		  if (strcmp(av[1],"-f") == 0)
+        fli_compatible = 1;
 			av ++ ; ac -- ;
 		}
 		else if (strcmp(av[1],"-s") == 0) {
@@ -597,7 +602,7 @@ int main( int ac, char ** av)
 				fprintf(stderr,"warning : file %s has incorrect extension. Expects .gbm\n",in);
 			}
 		}
-		convert_new2old(titi);
+		convert_new2old(titi, fli_compatible);
 	}
 
 	fprintf(stderr,"created file from %s\n",in);
