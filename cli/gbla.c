@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
     }
   }
   if (schreyer_matrix == 1) {
-    //M = sort_schreyer_matrix(M);
+    M = sort_schreyer_matrix(M);
     normalize_schreyer_input_rows(M);
     if (write_pbm) {
       if (verbose > 1) {
