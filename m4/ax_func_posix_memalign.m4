@@ -48,4 +48,3 @@ if test "$ax_cv_func_posix_memalign_works" = "yes" ; then
     [Define to 1 if `posix_memalign' works.])
 fi
 ])
-
