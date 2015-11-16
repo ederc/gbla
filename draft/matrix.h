@@ -14,8 +14,8 @@
  */
 
 
-#ifndef __GB_matrix_H
-#define __GB_matrix_H
+#ifndef __GBLA_matrix_H
+#define __GBLA_matrix_H
 
 #include "config.h"
 #include "types.h"
@@ -576,5 +576,5 @@ static void createSubmatrices(GBMatrix_t *A, const GBMatrix_t * AH)
 	return ;
 }
 
-#endif /* __GB_matrix_H */
+#endif /* __GBLA_matrix_H */
 /* vim: set ft=c: */

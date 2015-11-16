@@ -13,8 +13,8 @@
  * along with gbla . If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GB_reduce_C_H
-#define __GB_reduce_C_H
+#ifndef __GBLA_reduce_C_H
+#define __GBLA_reduce_C_H
 
 #include "reduce_C_tools.h"
 
@@ -153,6 +153,6 @@ void reduce_C(
 	}
 }
 
-#endif /* __GB_reduce_C_H */
+#endif /* __GBLA_reduce_C_H */
 
 /* vim: set ft=c: */

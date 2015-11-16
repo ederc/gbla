@@ -55,7 +55,7 @@ void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
 
   const ri_t src_row_idx  = (ri_t) ceil((float) src->nrows / src->bheight);
   const ci_t src_col_idx  = (ci_t) ceil((float) src->ncols / src->bwidth);
-  const bi_t ml_bheight   = src->bheight / __GB_NROWS_MULTILINE;
+  const bi_t ml_bheight   = src->bheight / __GBLA_NROWS_MULTILINE;
 
   const ri_t max_rows  = dst->row;
 
@@ -148,7 +148,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   bi_t k;
   bi_t l;
 
-	/* ri_t rank = rank_input_ml / __GB_NROWS_MULTILINE + rank_input_ml % __GB_NROWS_MULTILINE; */
+	/* ri_t rank = rank_input_ml / __GBLA_NROWS_MULTILINE + rank_input_ml % __GBLA_NROWS_MULTILINE; */
   /*  initialize meta data for multiline matrix out */
   out->nrows    = in_bl->nrows + rank_input_ml; /*  row dimension */
   out->ncols    = in_bl->ncols;                 /*  col dimension */
@@ -172,10 +172,10 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   ri_t sparse_idx;
   re_t v1, v2;
 	/* mli_t crb = 0; */
-  const bi_t ml_bheight = in_bl->bheight / __GB_NROWS_MULTILINE;
+  const bi_t ml_bheight = in_bl->bheight / __GBLA_NROWS_MULTILINE;
   /*  write D first into output matrix */
 
-  const ri_t rlin_ml = (ri_t) ceil((float) in_ml->nrows / __GB_NROWS_MULTILINE);
+  const ri_t rlin_ml = (ri_t) ceil((float) in_ml->nrows / __GBLA_NROWS_MULTILINE);
   const ci_t clin_ml = in_ml->ncols;
 
   /*  we need buffers for all multiline entries since the copying process */
@@ -413,7 +413,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
   ci_t block_idx;
   re_t v1, v2;
 	/* mli_t crb = 0; */
-  const bi_t ml_bheight = in->bheight / __GB_NROWS_MULTILINE;
+  const bi_t ml_bheight = in->bheight / __GBLA_NROWS_MULTILINE;
   #pragma omp parallel shared(buffer) num_threads(nthrds)
   {
     #pragma omp for private(i,ii,j,k,l,block_idx,v1,v2) nowait
@@ -500,7 +500,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
     #pragma omp for private(i,j,k,l,block_idx,crb) nowait
     for (i=0; i<rlin; ++i) {
       /*  curr_row_base in LELA */
-      crb  = i * in->bheight / __GB_NROWS_MULTILINE;
+      crb  = i * in->bheight / __GBLA_NROWS_MULTILINE;
 
       for (j=0; j<clin; ++j) {
         if (in->blocks[i][j] == NULL) {
@@ -508,7 +508,7 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
         }
 
         block_idx  = in->bwidth * j;
-        for (k=0; k<in->bheight/__GB_NROWS_MULTILINE; ++k) {
+        for (k=0; k<in->bheight/__GBLA_NROWS_MULTILINE; ++k) {
 #if NOT_DENSE_COPYING
           if (in->blocks[i][j][k].sz == 0) {
             continue;
@@ -680,10 +680,10 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
 
   const ri_t rlB            = (ri_t) ceil((float) A->nrows / bheight);
   const ci_t clB            = (ci_t) ceil((float) A->ncols / bwidth);
-  const ri_t ml_rlB         = (A->nrows % __GB_NROWS_MULTILINE == 0) ?
-    A->nrows / __GB_NROWS_MULTILINE :
-    A->nrows / __GB_NROWS_MULTILINE + 1;
-  const bi_t ml_bheight     = bheight / __GB_NROWS_MULTILINE;
+  const ri_t ml_rlB         = (A->nrows % __GBLA_NROWS_MULTILINE == 0) ?
+    A->nrows / __GBLA_NROWS_MULTILINE :
+    A->nrows / __GBLA_NROWS_MULTILINE + 1;
+  const bi_t ml_bheight     = bheight / __GBLA_NROWS_MULTILINE;
 
   /*  initialize meta data for block submatrices */
   B->nrows    = A->nrows; /*  row dimension */
@@ -779,7 +779,7 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
               B->blocks[i][j][k].val  = NULL;
             }
             if ((float)B->blocks[i][j][k].sz / (float)B->bwidth
-                < __GB_HYBRID_THRESHOLD) {
+                < __GBLA_HYBRID_THRESHOLD) {
               B->blocks[i][j][k].idx =  (bi_t*) realloc(
                   B->blocks[i][j][k].idx,
                   B->blocks[i][j][k].sz * sizeof(bi_t));

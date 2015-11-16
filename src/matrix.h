@@ -20,8 +20,8 @@
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 
-#ifndef GB_MATRIX_H
-#define GB_MATRIX_H
+#ifndef GBLA_MATRIX_H
+#define GBLA_MATRIX_H
 
 #include <gbla_config.h>
 #include <stdlib.h>
@@ -156,11 +156,11 @@ typedef struct dbl_t {
 /**
  * \brief A multiline block is a vector of an vector of multilines. It consists of
  * an index for the column of the value entries in rows. For each index rows stores
- * __GB_NROWS_MULTILINE elements, i.e. this many rows are taken care of at once.
+ * __GBLA_NROWS_MULTILINE elements, i.e. this many rows are taken care of at once.
  */
 typedef struct mbl_t {
   bi_t *idx;  /*!< column index in the multiline vector */
-  re_t *val;  /*!< multiline row, must be __GB_NROWS_MULTILINE * length(idx) */
+  re_t *val;  /*!< multiline row, must be __GBLA_NROWS_MULTILINE * length(idx) */
   bi_t sz;    /*!< current length of the block row */
   bi_t dense; /*!< if 1 the multiline row is in dense representation */
 } mbl_t;
@@ -168,7 +168,7 @@ typedef struct mbl_t {
 /**
  * \brief A multiline is a vector of an vector of multilines. It consists of
  * an index for the column of the value entries in rows. For each index rows stores
- * __GB_NROWS_MULTILINE elements, i.e. this many rows are taken care of at once.
+ * __GBLA_NROWS_MULTILINE elements, i.e. this many rows are taken care of at once.
  *
  * \note In spite of type mbl_t the index idx as well as the size sz might
  * excced 2^16, thus bi_t is not enough and we need them to be of type ci_t
@@ -177,7 +177,7 @@ typedef struct mbl_t {
  */
 typedef struct ml_t {
   mli_t *idx; /*!< column index in the multiline vector */
-  re_t  *val; /*!< multiline row, must be __GB_NROWS_MULTILINE * length(idx) */
+  re_t  *val; /*!< multiline row, must be __GBLA_NROWS_MULTILINE * length(idx) */
   ci_t  sz;    /*!< current length of the multiline row */
   bi_t  dense; /*!< if 1 the multiline row is in dense representation */
 } ml_t;
@@ -309,7 +309,7 @@ typedef struct sm_fl_ml_t {
   nnz_t nnz;        /*!<  number of nonzero elements */
   double density;   /*!<  density of this submatrix */
   ml_t *ml;         /*!<  address of multilines: M->ml[i] gives address of
-                          multiline i. There are nrows/__GB_NROWS_MULTILINE
+                          multiline i. There are nrows/__GBLA_NROWS_MULTILINE
                           multilines. */
 } sm_fl_ml_t;
 

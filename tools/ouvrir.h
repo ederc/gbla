@@ -15,8 +15,8 @@
  */
 
 
-#ifndef __GB_ouvrir_H
-#define __GB_ouvrir_H
+#ifndef __GBLA_ouvrir_H
+#define __GBLA_ouvrir_H
 
 FILE* ouvrir(const char* a,char* b)
 {

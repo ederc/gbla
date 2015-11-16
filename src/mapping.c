@@ -16,12 +16,12 @@
 
 #include <mapping.h>
 
-#define __GB_DEBUG_LL     0
-#define __GB_DEBUG        0
-#define __GB_NEW_SPLICER  0
+#define __GBLA_DEBUG_LL     0
+#define __GBLA_DEBUG        0
+#define __GBLA_NEW_SPLICER  0
 
 void construct_fl_map(sm_t *M, map_fl_t *map) {
-  /*  initialize all map entries to __GB_MINUS_ONE_8 */
+  /*  initialize all map entries to __GBLA_MINUS_ONE_8 */
   init_fl_map(M, map);
 
   /* ri_t max_length = M->ncols > M->nrows ? M->ncols : M->n */
@@ -33,7 +33,7 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
   for (i=0; i<M->nrows; ++i) {
     if (M->rwidth[i] != 0) {
       idx = M->pos[i][0];
-      if (map->pri[idx] == __GB_MINUS_ONE_32) {
+      if (map->pri[idx] == __GBLA_MINUS_ONE_32) {
         map->pri[idx] = i;
         npiv++;
       } else { /*  check for a sparser pivot row (see ELAGB talk from Lachartre) */
@@ -55,7 +55,7 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
   /*  construct pivot columns and non-pivot columns maps and the corresponding */
   /*  reverse maps */
   for (j=0; j<M->ncols; ++j) {
-    if (map->pri[j] !=  __GB_MINUS_ONE_32) {
+    if (map->pri[j] !=  __GBLA_MINUS_ONE_32) {
       map->pc[j]           = pc_idx;
       map->pc_rev[pc_idx]  = j;
       pc_idx++;
@@ -83,7 +83,7 @@ void construct_fl_map_reduced(map_fl_t *map, map_fl_t *map_D, ri_t rows_BD,
   /*  for the rows we have to take the values from map_D, but we have to adjust */
   /*  them by rows_B down. So we have to create new mappings */
   map->npri = (ri_t *)malloc((rows_BD) * sizeof(ri_t));
-  /* memset(map->npri, __GB_MINUS_ONE_8, (rows_BD) * sizeof(ri_t)); */
+  /* memset(map->npri, __GBLA_MINUS_ONE_8, (rows_BD) * sizeof(ri_t)); */
 
   /*  number of pivots stays the same, i.e. rank_D */
   map->npiv = map_D->npiv;
@@ -102,8 +102,8 @@ void construct_fl_map_reduced(map_fl_t *map, map_fl_t *map_D, ri_t rows_BD,
   {
 #pragma omp for private(i) schedule(dynamic)
   for (i=0; i<coldim; ++i)
-    if (map->pri[i] != __GB_MINUS_ONE_32)
-      map->npri[map->pri[i]]  = __GB_MINUS_ONE_32;
+    if (map->pri[i] != __GBLA_MINUS_ONE_32)
+      map->npri[map->pri[i]]  = __GBLA_MINUS_ONE_32;
   }
 }
 
@@ -113,8 +113,8 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
   int h1, h2;
   uint32_t h1_idx, h2_idx;
   re_t h1_val, h2_val;
-  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
-	/* const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GB_NROWS_MULTILINE); */
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GBLA_NROWS_MULTILINE);
+	/* const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_NROWS_MULTILINE); */
   const ci_t coldim = A->ncols;
 
   init_fl_map_sizes(A->ncols + (A->ncols % bheight), A->nrows + (A->nrows % bheight), map);
@@ -131,7 +131,7 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
       if (h1 == -1) {
         map->npri[curr_row_idx] = curr_row_idx;
       } else {
-        if (map->pri[h1] == __GB_MINUS_ONE_32) {
+        if (map->pri[h1] == __GBLA_MINUS_ONE_32) {
           map->pri[h1]  = curr_row_idx;
           map->npiv++;
         } else {
@@ -143,7 +143,7 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
       if (h2 == -1) {
         map->npri[curr_row_idx] = curr_row_idx;
       } else {
-        if (map->pri[h2] == __GB_MINUS_ONE_32) {
+        if (map->pri[h2] == __GBLA_MINUS_ONE_32) {
           map->pri[h2]  = curr_row_idx;
           map->npiv++;
         } else {
@@ -161,7 +161,7 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
   /*  construct column pivots and their reverses */
   uint32_t piv_col_idx  = 0, non_piv_col_idx  = 0;
   for (i=0; i<coldim; ++i) {
-    if (map->pri[i] != __GB_MINUS_ONE_32) {
+    if (map->pri[i] != __GBLA_MINUS_ONE_32) {
       map->pc[i]                = piv_col_idx;
       map->pc_rev[piv_col_idx]  = i;
       piv_col_idx++;
@@ -186,7 +186,7 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
   /*  remap pivot rows indices (lines of matrix A) */
   uint32_t next_piv = 0;
   for (i=0; i<outer_coldim; ++i) {
-    if (outer_map->pri[i] == __GB_MINUS_ONE_32)
+    if (outer_map->pri[i] == __GBLA_MINUS_ONE_32)
       continue;
     outer_map->pri[i] = next_piv++;
   }
@@ -196,7 +196,7 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
 #if DEBUG_RECONSTRUCT
       printf("i %d, %d\n",i,inner_map->pri[i]);
 #endif
-      if (inner_map->pri[i] == __GB_MINUS_ONE_32)
+      if (inner_map->pri[i] == __GBLA_MINUS_ONE_32)
         continue;
       idx_B     = i;
       rev_idx_A = outer_map->npc_rev[idx_B];
@@ -221,7 +221,7 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
 
   /*  remap the nonpivot columns from inner_map to this map */
   for (i=0; i<outer_coldim; ++i) {
-    if (outer_map->npc[i] == __GB_MINUS_ONE_32)
+    if (outer_map->npc[i] == __GBLA_MINUS_ONE_32)
       continue;
 
     /*  point index of the nonpivot column in matrix B = B1|B2 to the index in */
@@ -229,7 +229,7 @@ void combine_maps(map_fl_t *outer_map, map_fl_t **inner_map_in,
     idx_B = outer_map->npc[i];
 
     /*  column is a pivot column in B, skip it */
-    if (inner_map->pc[idx_B] != __GB_MINUS_ONE_32)
+    if (inner_map->pc[idx_B] != __GBLA_MINUS_ONE_32)
       continue;
 
     idx_B2  = inner_map->npc[idx_B];
@@ -262,13 +262,13 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    ret = posix_memalign((void *)&vec_free_B2, ALIGNT, (B2->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_B2, ALIGNT, (B2->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    memset(vec_free_B2, 0, (B2->nrows / __GB_NROWS_MULTILINE + 1)
+    memset(vec_free_B2, 0, (B2->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    ret = posix_memalign((void *)&vec_free_D2, ALIGNT, (D2->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_D2, ALIGNT, (D2->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    memset(vec_free_D2, 0, (D2->nrows / __GB_NROWS_MULTILINE + 1)
+    memset(vec_free_D2, 0, (D2->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
   }
 
@@ -276,7 +276,7 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
 	/* uint32_t new_piv_to_row[coldim]; */
   uint32_t new_piv  = 0;
   for (i=0; i<coldim; ++i) {
-    if (map->pri[i] == __GB_MINUS_ONE_32)
+    if (map->pri[i] == __GBLA_MINUS_ONE_32)
       continue;
 		/* new_piv_to_row[i] = new_piv; */
     new_piv++;
@@ -296,7 +296,7 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
   uint32_t local_piv = 0;
   uint16_t line;
   for (i=0; i<coldim; ++i) {
-    if (map->pri[i] == __GB_MINUS_ONE_32)
+    if (map->pri[i] == __GBLA_MINUS_ONE_32)
       continue;
     ctr++;
 
@@ -308,9 +308,9 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
     if (map->pri[i] >= map->npiv) { /*  we are in D */
       block_row_idx = (D2->nrows - 1 - (map->pri[i] - map->npiv)) / D2->bheight;
       row_idx_block = ((D2->nrows - 1 - (map->pri[i] - map->npiv)) % D2->bheight)
-        / __GB_NROWS_MULTILINE;
+        / __GBLA_NROWS_MULTILINE;
 
-      line  = (D2->nrows - 1 - (map->pri[i] - map->npiv)) % __GB_NROWS_MULTILINE;
+      line  = (D2->nrows - 1 - (map->pri[i] - map->npiv)) % __GBLA_NROWS_MULTILINE;
 
       M->rows[local_piv][M->rwidth[local_piv]] = (re_t)1;
       M->pos[local_piv][M->rwidth[local_piv]]  = i;
@@ -346,7 +346,7 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
           }
         }
         if (free_matrices == 1) {
-          if (vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GB_NROWS_MULTILINE] == 1) {
+          if (vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GBLA_NROWS_MULTILINE] == 1) {
             if (D2->blocks[block_row_idx][j][row_idx_block].dense == 0) {
               free (D2->blocks[block_row_idx][j][row_idx_block].idx);
               D2->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
@@ -357,15 +357,15 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
         }
       }
       if (free_matrices == 1) {
-        if (vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GB_NROWS_MULTILINE] == 0) {
-          vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GB_NROWS_MULTILINE]  = 1;
+        if (vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GBLA_NROWS_MULTILINE] == 0) {
+          vec_free_D2[(D2->nrows - 1 - (map->pri[i] - map->npiv))/__GBLA_NROWS_MULTILINE]  = 1;
         }
       }
     } else { /*  we are in A resp. B */
       block_row_idx = (B2->nrows - 1 - map->pri[i]) / B2->bheight;
-      row_idx_block = ((B2->nrows - 1 - map->pri[i]) % B2->bheight) / __GB_NROWS_MULTILINE;
+      row_idx_block = ((B2->nrows - 1 - map->pri[i]) % B2->bheight) / __GBLA_NROWS_MULTILINE;
 
-      line  = (B2->nrows - 1 - map->pri[i]) % __GB_NROWS_MULTILINE;
+      line  = (B2->nrows - 1 - map->pri[i]) % __GBLA_NROWS_MULTILINE;
 
       /*  A should be always freed already! */
       if (A_freed == 0) {
@@ -411,7 +411,7 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
           }
         }
         if (free_matrices == 1) {
-          if (vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 1) {
+          if (vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE] == 1) {
             if (B2->blocks[block_row_idx][j][row_idx_block].dense == 0) {
               free (B2->blocks[block_row_idx][j][row_idx_block].idx);
               B2->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
@@ -423,8 +423,8 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
         }
       }
       if (free_matrices == 1) {
-        if (vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 0) {
-          vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE]  = 1;
+        if (vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE] == 0) {
+          vec_free_B2[(B2->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE]  = 1;
         }
       }
     }
@@ -817,13 +817,13 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    ret = posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    memset(vec_free_AB, 0, (B->nrows / __GB_NROWS_MULTILINE + 1)
+    memset(vec_free_AB, 0, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    ret = posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    memset(vec_free_D, 0, (D->nrows / __GB_NROWS_MULTILINE + 1)
+    memset(vec_free_D, 0, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
   }
   
@@ -831,7 +831,7 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   uint32_t new_piv_to_row[coldim];
   uint32_t new_piv  = 0;
   for (i=0; i<coldim; ++i) {
-    if (map->pri[i] == __GB_MINUS_ONE_32)
+    if (map->pri[i] == __GBLA_MINUS_ONE_32)
       continue;
     new_piv_to_row[i] = new_piv;
     new_piv++;
@@ -850,7 +850,7 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   {
 #pragma omp for private(j,k) schedule(dynamic)
     for (i=0; i<coldim; ++i) {
-      if (map->pri[i] == __GB_MINUS_ONE_32) {
+      if (map->pri[i] == __GBLA_MINUS_ONE_32) {
         continue;
       }
 
@@ -866,8 +866,8 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
       M->rwidth[local_piv]  = 0;
 
       if (map->pri[i] >= map->npiv) { /*  we are in D */
-        mline = (map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE;
-        line  = (map->pri[i]-map->npiv)%__GB_NROWS_MULTILINE;
+        mline = (map->pri[i]-map->npiv)/__GBLA_NROWS_MULTILINE;
+        line  = (map->pri[i]-map->npiv)%__GBLA_NROWS_MULTILINE;
 
 				/* uint32_t idx_D; */
         if (D->ml[mline].sz > 0) {
@@ -880,10 +880,10 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
             M->rwidth[local_piv]++;
           }
           if (free_matrices == 1) {
-            if (vec_free_D[(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE] == 0) {
-              vec_free_D[(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE]  = 1;
+            if (vec_free_D[(map->pri[i]-map->npiv)/__GBLA_NROWS_MULTILINE] == 0) {
+              vec_free_D[(map->pri[i]-map->npiv)/__GBLA_NROWS_MULTILINE]  = 1;
             } else {
-              /* printf("frees multiline %d\n",(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE); */
+              /* printf("frees multiline %d\n",(map->pri[i]-map->npiv)/__GBLA_NROWS_MULTILINE); */
               free(D->ml[mline].val);
               D->ml[mline].val  = NULL;
             }
@@ -891,9 +891,9 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
         }
       } else { /*  we are in A resp. B */
         block_row_idx = (B->nrows - 1 - map->pri[i]) / B->bheight;
-        row_idx_block = ((B->nrows - 1 - map->pri[i]) % B->bheight) / __GB_NROWS_MULTILINE;
+        row_idx_block = ((B->nrows - 1 - map->pri[i]) % B->bheight) / __GBLA_NROWS_MULTILINE;
 
-        line  = (B->nrows - 1 - map->pri[i]) % __GB_NROWS_MULTILINE;
+        line  = (B->nrows - 1 - map->pri[i]) % __GBLA_NROWS_MULTILINE;
 
         /*  A should be always freed already! */
         if (A_freed == 0) {
@@ -939,7 +939,7 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
             }
           }
           if (free_matrices == 1) {
-            if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 1) {
+            if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE] == 1) {
               if (B->blocks[block_row_idx][j][row_idx_block].dense == 0) {
                 free (B->blocks[block_row_idx][j][row_idx_block].idx);
                 B->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
@@ -950,8 +950,8 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
           }
         }
         if (free_matrices == 1) {
-          if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 0) {
-            vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE]  = 1;
+          if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE] == 0) {
+            vec_free_AB[(B->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE]  = 1;
           }
         }
       }
@@ -1005,13 +1005,13 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    ret = posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    memset(vec_free_AB, 0, (B->nrows / __GB_NROWS_MULTILINE + 1)
+    memset(vec_free_AB, 0, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    ret = posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GB_NROWS_MULTILINE + 1)
+    ret = posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    memset(vec_free_D, 0, (D->nrows / __GB_NROWS_MULTILINE + 1)
+    memset(vec_free_D, 0, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
   }
 
@@ -1019,7 +1019,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
   uint32_t new_piv_to_row[coldim];
   uint32_t new_piv  = 0;
   for (i=0; i<coldim; ++i) {
-    if (map->pri[i] == __GB_MINUS_ONE_32)
+    if (map->pri[i] == __GBLA_MINUS_ONE_32)
       continue;
     new_piv_to_row[i] = new_piv;
     new_piv++;
@@ -1040,7 +1040,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     uint16_t line;
 #pragma omp for private(i,j,k) schedule(dynamic)
     for (i=0; i<coldim; ++i) {
-      if (map->pri[i] == __GB_MINUS_ONE_32)
+      if (map->pri[i] == __GBLA_MINUS_ONE_32)
         continue;
 
       local_piv = new_piv_to_row[i];
@@ -1052,8 +1052,8 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
         M->pos[local_piv]     = realloc(M->pos[local_piv], D->ncols * sizeof(ci_t));
         M->rwidth[local_piv]  = 0;
 
-        row_D = &(D->ml[(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE]);
-        line  = (map->pri[i]-map->npiv)%__GB_NROWS_MULTILINE;
+        row_D = &(D->ml[(map->pri[i]-map->npiv)/__GBLA_NROWS_MULTILINE]);
+        line  = (map->pri[i]-map->npiv)%__GBLA_NROWS_MULTILINE;
 
 				/* uint32_t idx_D; */
         if (row_D != NULL && row_D->sz > 0) {
@@ -1067,10 +1067,10 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
             M->rwidth[local_piv]++;
           }
           if (free_matrices == 1) {
-            if (vec_free_D[(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE] == 0) {
-              vec_free_D[(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE]  = 1;
+            if (vec_free_D[(map->pri[i]-map->npiv)/__GBLA_NROWS_MULTILINE] == 0) {
+              vec_free_D[(map->pri[i]-map->npiv)/__GBLA_NROWS_MULTILINE]  = 1;
             } else {
-              /* printf("frees multiline %d\n",(map->pri[i]-map->npiv)/__GB_NROWS_MULTILINE); */
+              /* printf("frees multiline %d\n",(map->pri[i]-map->npiv)/__GBLA_NROWS_MULTILINE); */
               free(row_D->val);
               row_D->val  = NULL;
               free(row_D->idx);
@@ -1081,16 +1081,16 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
       } else { /*  we are in A resp. B */
         /*  we need size of A->ml and otherwise at most D->ncols = B->ncols elements */
         /*  ==> no reallocations! */
-        row_A = &(A->ml[(A->nrows - 1 - (map->pri[i]))/__GB_NROWS_MULTILINE]);
+        row_A = &(A->ml[(A->nrows - 1 - (map->pri[i]))/__GBLA_NROWS_MULTILINE]);
         M->rows[local_piv]    = realloc(M->rows[local_piv], (row_A->sz+B->ncols) * sizeof(re_t));
         M->pos[local_piv]     = realloc(M->pos[local_piv], (row_A->sz+B->ncols) * sizeof(ci_t));
         M->rwidth[local_piv]  = 0;
         ci_t block_row_idx, row_idx_block, block_start_idx, idx;
         re_t val;
         block_row_idx = (B->nrows - 1 - map->pri[i]) / B->bheight;
-        row_idx_block = ((B->nrows - 1 - map->pri[i]) % B->bheight) / __GB_NROWS_MULTILINE;
+        row_idx_block = ((B->nrows - 1 - map->pri[i]) % B->bheight) / __GBLA_NROWS_MULTILINE;
 
-        line  = (B->nrows - 1 - map->pri[i]) % __GB_NROWS_MULTILINE;
+        line  = (B->nrows - 1 - map->pri[i]) % __GBLA_NROWS_MULTILINE;
 
         if (row_A->dense == 0) {
           for (j=0; j<row_A->sz; ++j) {
@@ -1142,7 +1142,7 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
             }
           }
           if (free_matrices == 1) {
-            if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 1) {
+            if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE] == 1) {
               if (B->blocks[block_row_idx][j][row_idx_block].dense == 0) {
                 free (B->blocks[block_row_idx][j][row_idx_block].idx);
                 B->blocks[block_row_idx][j][row_idx_block].idx  = NULL;
@@ -1153,14 +1153,14 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
           }
         }
         if (free_matrices == 1) {
-          if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 1) {
+          if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE] == 1) {
             free(row_A->val);
             row_A->val  = NULL;
             free(row_A->idx);
             row_A->idx  = NULL;
           }
-          if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE] == 0) {
-            vec_free_AB[(B->nrows - 1 - map->pri[i])/__GB_NROWS_MULTILINE]  = 1;
+          if (vec_free_AB[(B->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE] == 0) {
+            vec_free_AB[(B->nrows - 1 - map->pri[i])/__GBLA_NROWS_MULTILINE]  = 1;
           }
         }
       }
@@ -1241,8 +1241,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
     B1->blocks[i] = (mbl_t **)malloc(clB1 * sizeof(mbl_t *));
     for (j=0; j<clB1; ++j) {
       B1->blocks[i][j] = (mbl_t *)malloc(
-          (B1->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(B1->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (B1->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(B1->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         B1->blocks[i][j][k].val = NULL;
         B1->blocks[i][j][k].idx = NULL;
         B1->blocks[i][j][k].sz  = B1->blocks[i][j][k].dense = 0;
@@ -1270,8 +1270,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
     B2->blocks[i] = (mbl_t **)malloc(clB2 * sizeof(mbl_t *));
     for (j=0; j<clB2; ++j) {
       B2->blocks[i][j] = (mbl_t *)malloc(
-          (B2->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(B2->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (B2->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(B2->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         B2->blocks[i][j][k].val = NULL;
         B2->blocks[i][j][k].idx = NULL;
         B2->blocks[i][j][k].sz  = B2->blocks[i][j][k].dense = 0;
@@ -1300,8 +1300,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
     D1->blocks[i] = (mbl_t **)malloc(clD1 * sizeof(mbl_t *));
     for (j=0; j<clD1; ++j) {
       D1->blocks[i][j] = (mbl_t *)malloc(
-          (D1->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(D1->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (D1->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(D1->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         D1->blocks[i][j][k].val = NULL;
         D1->blocks[i][j][k].idx = NULL;
         D1->blocks[i][j][k].sz  = D1->blocks[i][j][k].dense = 0;
@@ -1329,8 +1329,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
     D2->blocks[i] = (mbl_t **)malloc(clD2 * sizeof(mbl_t *));
     for (j=0; j<clD2; ++j) {
       D2->blocks[i][j] = (mbl_t *)malloc(
-          (D2->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(D2->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (D2->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(D2->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         D2->blocks[i][j][k].val = NULL;
         D2->blocks[i][j][k].idx = NULL;
         D2->blocks[i][j][k].sz  = D2->blocks[i][j][k].dense = 0;
@@ -1338,7 +1338,7 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
     }
   }
 
-#if __GB_DEBUG
+#if __GBLA_DEBUG
   printf("B1[%dx%d]\n",B1->nrows,B1->ncols);
   printf("B2[%dx%d]\n",B2->nrows,B2->ncols);
   printf("D1[%dx%d]\n",D1->nrows,D1->ncols);
@@ -1377,12 +1377,12 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
     /*  block row index */
 		/* ri_t bri  = (B->nrows - 1 - l) / B->bheight; */
     /*  row index in block */
-		/* ri_t rib  = ((B->nrows - 1 - l) % B->bheight) / __GB_NROWS_MULTILINE; */
+		/* ri_t rib  = ((B->nrows - 1 - l) % B->bheight) / __GBLA_NROWS_MULTILINE; */
     /*  block start index */
 		/* ri_t bsi; */
 		/* re_t val; */
 		/* ri_t idx; */
-		/* bi_t line = (B->nrows - 1 - l) % __GB_NROWS_MULTILINE; */
+		/* bi_t line = (B->nrows - 1 - l) % __GBLA_NROWS_MULTILINE; */
 
   }
     /* for (j=0; j< */
@@ -1402,7 +1402,7 @@ void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
   init_dbm(C, M->nrows - map->npiv, map->npiv);
   init_dbm(D, M->nrows - map->npiv, M->ncols - map->npiv);
 
-#if GB_DEBUG
+#if GBLA_DEBUG
   check_dimensions(M, A, B, C, D);
 #endif
   ri_t npiv = 0; // number pivots handled
@@ -1437,7 +1437,7 @@ void splice_fl_matrix_hybrid(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
   init_hbm(C, M->nrows - map->npiv, map->npiv);
   init_hbm(D, M->nrows - map->npiv, M->ncols - map->npiv);
 
-#if GB_DEBUG
+#if GBLA_DEBUG
   check_dimensions_hbm(M, A, B, C, D);
 #endif
   ri_t npiv = 0; // number pivots handled
@@ -1472,7 +1472,7 @@ void splice_fl_matrix_hybrid_dense(sm_t *M, hbm_fl_t *A, dbm_fl_t *B, hbm_fl_t *
   init_hbm(C, M->nrows - map->npiv, map->npiv);
   init_dbm(D, M->nrows - map->npiv, M->ncols - map->npiv);
 
-#if GB_DEBUG
+#if GBLA_DEBUG
   //check_dimensions_hbm(M, A, B, C, D);
 #endif
   ri_t npiv = 0; // number pivots handled
@@ -1507,7 +1507,7 @@ void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B, sm_fl
   init_sm(C, M->nrows - map->npiv, map->npiv);
   init_dbm(D, M->nrows - map->npiv, M->ncols - map->npiv);
 
-#if GB_DEBUG
+#if GBLA_DEBUG
   //check_dimensions_hbm(M, A, B, C, D);
 #endif
   ri_t npiv = 0; // number pivots handled
@@ -1543,7 +1543,7 @@ void splice_fl_matrix_sparse_dense_2(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *
   init_sb(C, M->nrows - map->npiv, map->npiv);
   init_dbm(D, M->nrows - map->npiv, M->ncols - map->npiv);
 
-#if GB_DEBUG
+#if GBLA_DEBUG
   //check_dimensions_hbm(M, A, B, C, D);
 #endif
   ri_t npiv = 0; // number pivots handled
@@ -1579,7 +1579,7 @@ void splice_fl_matrix_sparse_dense(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dbm_fl_t *C
   init_dbm(C, M->nrows - map->npiv, map->npiv);
   init_dbm(D, M->nrows - map->npiv, M->ncols - map->npiv);
 
-#if GB_DEBUG
+#if GBLA_DEBUG
   //check_dimensions_hbm(M, A, B, C, D);
 #endif
   ri_t npiv = 0; // number pivots handled
@@ -1636,8 +1636,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     A->blocks[i]  = (mbl_t **)malloc(clA * sizeof(mbl_t *));
     for (j=0; j<clA; ++j) {
       A->blocks[i][j] = (mbl_t *)malloc(
-          (A->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(A->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (A->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(A->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         A->blocks[i][j][k].val  = NULL;
         A->blocks[i][j][k].idx  = NULL;
         A->blocks[i][j][k].sz   = A->blocks[i][j][k].dense  = 0;
@@ -1665,8 +1665,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     B->blocks[i]  = (mbl_t **)malloc(clB * sizeof(mbl_t *));
     for (j=0; j<clB; ++j) {
       B->blocks[i][j] = (mbl_t *)malloc(
-          (B->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(B->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (B->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(B->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         B->blocks[i][j][k].val  = NULL;
         B->blocks[i][j][k].idx  = NULL;
         B->blocks[i][j][k].sz   = B->blocks[i][j][k].dense  = 0;
@@ -1694,8 +1694,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     C->blocks[i]  = (mbl_t **)malloc(clC * sizeof(mbl_t *));
     for (j=0; j<clC; ++j) {
       C->blocks[i][j] = (mbl_t *)malloc(
-          (C->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(C->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (C->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(C->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         C->blocks[i][j][k].val  = NULL;
         C->blocks[i][j][k].idx  = NULL;
         C->blocks[i][j][k].sz   = C->blocks[i][j][k].dense  = 0;
@@ -1723,8 +1723,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     D->blocks[i]  = (mbl_t **)malloc(clD * sizeof(mbl_t *));
     for (j=0; j<clD; ++j) {
       D->blocks[i][j] = (mbl_t *)malloc(
-          (D->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(D->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (D->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(D->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         D->blocks[i][j][k].val  = NULL;
         D->blocks[i][j][k].idx  = NULL;
         D->blocks[i][j][k].sz   = D->blocks[i][j][k].dense  = 0;
@@ -1732,7 +1732,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     }
   }
 
-#if __GB_DEBUG
+#if __GBLA_DEBUG
   printf("M[%dx%d]\n",M->nrows,M->ncols);
   printf("A[%dx%d]\n",A->nrows,A->ncols);
   printf("B[%dx%d]\n",B->nrows,B->ncols);
@@ -1758,7 +1758,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   /*  find blocks for construction of A & B */
 	assert((int)M->ncols>=0);
   for (l = (int)M->ncols-1; l > -1; --l) {
-    if (map->pri[l] != __GB_MINUS_ONE_32) {
+    if (map->pri[l] != __GBLA_MINUS_ONE_32) {
       npiv++;
     }
     if (npiv % B->bheight == 0) {
@@ -1770,9 +1770,9 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   /*  piv_start_idx[0] after the for loop */
   piv_start_idx[0]  = M->ncols;
 
-#if __GB_NEW_SPLICER
+#if __GBLA_NEW_SPLICER
   /*
-   * For code in __GB_NEW_SPLICER
+   * For code in __GBLA_NEW_SPLICER
    * Trying to optimize splicing: We know that the number of elements in the
    * lefthand side are getting fewer and fewer since it is an upper triangular
    * matrix (at least for the upper left part). So we try to give each thread 2
@@ -1794,7 +1794,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     nb--;
     for (i = ((int)piv_start_idx[nb]-1);
         i > (int)piv_start_idx[nb+1]-1; --i) {
-      if (map->pri[i] != __GB_MINUS_ONE_32) {
+      if (map->pri[i] != __GBLA_MINUS_ONE_32) {
         rihb[cvb] = map->pri[i];
         cvb++;
       }
@@ -1820,7 +1820,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 #pragma omp parallel private(cvb, rihb, block_idx, block_idx_2, i, j) num_threads(nthreads)
   {
     cvb  = 0;
-#if __GB_DEBUG
+#if __GBLA_DEBUG
     printf("nthreads %d\n",nthreads);
     printf("npiv %d -- bheight %d\n",map->npiv,B->bheight);
     printf("div %d\n", map->npiv/B->bheight);
@@ -1835,7 +1835,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       block_idx_2 = nb - block_idx - 1;
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (map->pri[i] != __GB_MINUS_ONE_32) {
+        if (map->pri[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->pri[i];
           cvb++;
         }
@@ -1858,7 +1858,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       }
       for (i = ((int)piv_start_idx[block_idx_2]-1);
           i > (int)piv_start_idx[block_idx_2+1]-1; --i) {
-        if (map->pri[i] != __GB_MINUS_ONE_32) {
+        if (map->pri[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->pri[i];
           cvb++;
         }
@@ -1885,7 +1885,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   /*  find blocks for construction of C & D */
   npiv  = 0;
   for (i = (int)M->ncols-1; i > -1; --i) {
-    if (map->npri[i] != __GB_MINUS_ONE_32)
+    if (map->npri[i] != __GBLA_MINUS_ONE_32)
       npiv++;
 
     if (npiv % D->bheight == 0) {
@@ -1907,7 +1907,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     nb--;
     for (i = ((int)piv_start_idx[nb]-1);
         i > (int)piv_start_idx[nb+1]-1; --i) {
-      if (map->npri[i] != __GB_MINUS_ONE_32) {
+      if (map->npri[i] != __GBLA_MINUS_ONE_32) {
         rihb[cvb] = map->npri[i];
         cvb++;
       }
@@ -1940,7 +1940,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       block_idx_2 = nb - block_idx - 1;
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (map->npri[i] != __GB_MINUS_ONE_32) {
+        if (map->npri[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->npri[i];
           cvb++;
         }
@@ -1961,7 +1961,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       }
       for (i = ((int)piv_start_idx[block_idx_2]-1);
           i > (int)piv_start_idx[block_idx_2+1]-1; --i) {
-        if (map->npri[i] != __GB_MINUS_ONE_32) {
+        if (map->npri[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->npri[i];
           cvb++;
         }
@@ -1994,14 +1994,14 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
     uint32_t rihb[B->bheight];  /*  rows indices horizontal block */
     uint16_t cvb  = 0;          /*  current vector in block */
 
-#if __GB_DEBUG
+#if __GBLA_DEBUG
     printf("nthreads %d\n",nthreads);
     printf("npiv %d -- bheight %d\n",map->npiv,B->bheight);
     printf("div %d\n", map->npiv/B->bheight);
 #endif
 #pragma omp for schedule(dynamic) nowait
     for (block_idx = 0; block_idx <= npiv/A->bheight; ++block_idx) {
-#if __GB_DEBUG
+#if __GBLA_DEBUG
       printf("bi %d\n", block_idx);
       printf("piv_idx[block] %d\n",piv_start_idx[block_idx]);
       printf("piv_idx[block+1] %d\n",piv_start_idx[block_idx+1]);
@@ -2013,7 +2013,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 			assert((int)piv_start_idx[block_idx]>=0);
       for (l = ((int)piv_start_idx[block_idx]-1);
           l > (int)piv_start_idx[block_idx+1]-1; --l) {
-        if (map->pri[l] != __GB_MINUS_ONE_32) {
+        if (map->pri[l] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->pri[l];
           cvb++;
         }
@@ -2040,7 +2040,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   npiv  = 0;
 	assert((int)M->nrows>=0);
   for (l = (int)M->nrows-1; l > -1; --l) {
-    if (map->npri[l] != __GB_MINUS_ONE_32)
+    if (map->npri[l] != __GBLA_MINUS_ONE_32)
       npiv++;
 
     if (npiv % B->bheight == 0) {
@@ -2071,7 +2071,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 			assert((int)piv_start_idx[block_idx]>=0);
       for (l = ((int)piv_start_idx[block_idx]-1);
           l > (int)piv_start_idx[block_idx+1]-1; --l) {
-        if (map->npri[l] != __GB_MINUS_ONE_32) {
+        if (map->npri[l] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->npri[l];
           cvb++;
         }
@@ -2169,8 +2169,8 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     B->blocks[i]  = (mbl_t **)malloc(clB * sizeof(mbl_t *));
     for (j=0; j<clB; ++j) {
       B->blocks[i][j] = (mbl_t *)malloc(
-          (B->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(B->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (B->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(B->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         B->blocks[i][j][k].val  = NULL;
         B->blocks[i][j][k].idx  = NULL;
         B->blocks[i][j][k].sz   = B->blocks[i][j][k].dense  = 0;
@@ -2198,8 +2198,8 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     D->blocks[i]  = (mbl_t **)malloc(clD * sizeof(mbl_t *));
     for (j=0; j<clD; ++j) {
       D->blocks[i][j] = (mbl_t *)malloc(
-          (D->bheight / __GB_NROWS_MULTILINE) * sizeof(mbl_t));
-      for (k=0; k<(D->bheight / __GB_NROWS_MULTILINE); ++k) {
+          (D->bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+      for (k=0; k<(D->bheight / __GBLA_NROWS_MULTILINE); ++k) {
         D->blocks[i][j][k].val  = NULL;
         D->blocks[i][j][k].idx  = NULL;
         D->blocks[i][j][k].sz   = D->blocks[i][j][k].dense  = 0;
@@ -2207,7 +2207,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     }
   }
 
-#if __GB_DEBUG
+#if __GBLA_DEBUG
   printf("M[%dx%d]\n",M->nrows,M->ncols);
   printf("A[%dx%d]\n",A->nrows,A->ncols);
   printf("B[%dx%d]\n",B->nrows,B->ncols);
@@ -2233,7 +2233,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   /*  find blocks for construction of A & B */
 	assert((int)M->ncols>=0);
   for (l = (int)M->ncols-1; l > -1; --l) {
-    if (map->pri[l] != __GB_MINUS_ONE_32) {
+    if (map->pri[l] != __GBLA_MINUS_ONE_32) {
       npiv++;
     }
     if (npiv % B->bheight == 0) {
@@ -2245,9 +2245,9 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   /*  piv_start_idx[0] after the for loop */
   piv_start_idx[0]  = M->ncols;
 
-#if __GB_NEW_SPLICER
+#if __GBLA_NEW_SPLICER
   /*
-   * For code in __GB_NEW_SPLICER
+   * For code in __GBLA_NEW_SPLICER
    * Trying to optimize splicing: We know that the number of elements in the
    * lefthand side are getting fewer and fewer since it is an upper triangular
    * matrix (at least for the upper left part). So we try to give each thread 2
@@ -2269,7 +2269,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     nb--;
     for (i = ((int)piv_start_idx[nb]-1);
         i > (int)piv_start_idx[nb+1]-1; --i) {
-      if (map->pri[i] != __GB_MINUS_ONE_32) {
+      if (map->pri[i] != __GBLA_MINUS_ONE_32) {
         rihb[cvb] = map->pri[i];
         cvb++;
       }
@@ -2295,7 +2295,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 #pragma omp parallel private(cvb, rihb, block_idx, block_idx_2, i, j) num_threads(nthreads)
   {
     cvb  = 0;
-#if __GB_DEBUG
+#if __GBLA_DEBUG
     printf("nthreads %d\n",nthreads);
     printf("npiv %d -- bheight %d\n",map->npiv,B->bheight);
     printf("div %d\n", map->npiv/B->bheight);
@@ -2310,7 +2310,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       block_idx_2 = nb - block_idx - 1;
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (map->pri[i] != __GB_MINUS_ONE_32) {
+        if (map->pri[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->pri[i];
           cvb++;
         }
@@ -2333,7 +2333,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       }
       for (i = ((int)piv_start_idx[block_idx_2]-1);
           i > (int)piv_start_idx[block_idx_2+1]-1; --i) {
-        if (map->pri[i] != __GB_MINUS_ONE_32) {
+        if (map->pri[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->pri[i];
           cvb++;
         }
@@ -2360,7 +2360,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   /*  find blocks for construction of C & D */
   npiv  = 0;
   for (i = (int)M->nrows-1; i > -1; --i) {
-    if (map->npri[i] != __GB_MINUS_ONE_32)
+    if (map->npri[i] != __GBLA_MINUS_ONE_32)
       npiv++;
 
     if (npiv % D->bheight == 0) {
@@ -2382,7 +2382,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     nb--;
     for (i = ((int)piv_start_idx[nb]-1);
         i > (int)piv_start_idx[nb+1]-1; --i) {
-      if (map->npri[i] != __GB_MINUS_ONE_32) {
+      if (map->npri[i] != __GBLA_MINUS_ONE_32) {
         rihb[cvb] = map->npri[i];
         cvb++;
       }
@@ -2415,7 +2415,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       block_idx_2 = nb - block_idx - 1;
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (map->npri[i] != __GB_MINUS_ONE_32) {
+        if (map->npri[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->npri[i];
           cvb++;
         }
@@ -2436,7 +2436,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       }
       for (i = ((int)piv_start_idx[block_idx_2]-1);
           i > (int)piv_start_idx[block_idx_2+1]-1; --i) {
-        if (map->npri[i] != __GB_MINUS_ONE_32) {
+        if (map->npri[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->npri[i];
           cvb++;
         }
@@ -2468,14 +2468,14 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
     uint32_t rihb[B->bheight];  /*  rows indices horizontal block */
     uint16_t cvb  = 0;          /*  current vector in block */
 
-#if __GB_DEBUG
+#if __GBLA_DEBUG
     printf("nthreads %d\n",nthreads);
     printf("npiv %d -- bheight %d\n",map->npiv,B->bheight);
     printf("div %d\n", map->npiv/B->bheight);
 #endif
 #pragma omp for schedule(dynamic) nowait
     for (block_idx = 0; block_idx <= npiv/B->bheight; ++block_idx) {
-#if __GB_DEBUG
+#if __GBLA_DEBUG
       printf("bi %d\n", block_idx);
       printf("piv_idx[block] %d\n",piv_start_idx[block_idx]);
       printf("piv_idx[block+1] %d\n",piv_start_idx[block_idx+1]);
@@ -2487,7 +2487,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 			assert((int)piv_start_idx[block_idx]>=0);
       for (l = ((int)piv_start_idx[block_idx]-1);
           l > (int)piv_start_idx[block_idx+1]-1; --l) {
-        if (map->pri[l] != __GB_MINUS_ONE_32) {
+        if (map->pri[l] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->pri[l];
           cvb++;
         }
@@ -2514,7 +2514,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   npiv  = 0;
 	assert((int)M->nrows>=0);
   for (l = (int)M->nrows-1; l > -1; --l) {
-    if (map->npri[l] != __GB_MINUS_ONE_32)
+    if (map->npri[l] != __GBLA_MINUS_ONE_32)
       npiv++;
 
     if (npiv % B->bheight == 0) {
@@ -2544,7 +2544,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       /*  TODO: Try to improve this rather strange looping. */
       for (l = ((int)piv_start_idx[block_idx]-1);
           l > (int)piv_start_idx[block_idx+1]-1; --l) {
-        if (map->npri[l] != __GB_MINUS_ONE_32) {
+        if (map->npri[l] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->npri[l];
           cvb++;
         }
@@ -2584,7 +2584,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 
   /*  current loop variable i, block indices 1 (rihb[i]) and 2 (rihb[i+1]) */
   ri_t i, j, k, l, bi1, bi2;
-  /* const uint32_t loop_size  = (uint32_t) ceil(cvb / __GB_NROWS_MULTILINE); */
+  /* const uint32_t loop_size  = (uint32_t) ceil(cvb / __GBLA_NROWS_MULTILINE); */
 
 
   /*  column loops */
@@ -2593,13 +2593,13 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 
   /*  Usually blocks in B tend to be denser than blocks in A, thus we allocate */
   /*  already at the beginning more memory for those lines. */
-  /*  We use a density threshold (which is globally defined in gb_config.h.in) to */
+  /*  We use a density threshold (which is globally defined in GBLA_config.h.in) to */
   /*  specify how much memory we allocate initially. */
 
   bi_t init_buffer_A, init_buffer_B;
   switch (density_level) {
     case 0: /*  splicing upper part (A & B) -- tends to be sparse */
-      if (M->density > __GB_DENSITY_THRESHOLD) {
+      if (M->density > __GBLA_DENSITY_THRESHOLD) {
         init_buffer_A = (bi_t)(A->bwidth/16);
         init_buffer_B = (bi_t)(B->bwidth/4);
       } else {
@@ -2608,7 +2608,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       break;
     case 1: /*  splicing lower part (C & D) -- tends to be denser */
-      if (M->density > __GB_DENSITY_THRESHOLD) {
+      if (M->density > __GBLA_DENSITY_THRESHOLD) {
         init_buffer_A = (bi_t)(A->bwidth/4);
         init_buffer_B = (bi_t)(B->bwidth/2);
       } else {
@@ -2646,7 +2646,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
       it1 = M->pos[bi1][i1];
       it2 = M->pos[bi2][i2];
       if (it1 < it2) {
-        if (map->pc[it1] != __GB_MINUS_ONE_32) {
+        if (map->pc[it1] != __GBLA_MINUS_ONE_32) {
           bir = (A->ncols - 1 - map->pc[it1]) / A->bwidth;
           eil = (A->ncols - 1 - map->pc[it1]) % A->bwidth;
           /*  realloc memory if needed */
@@ -2655,7 +2655,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           }
           /*  set values */
           insert_block_row_data_ml_1_1(A, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
           printf("1 %d -- %d -- %d\n", rbi,bir,lib);
           printf("1 eil %d\n",eil);
           printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
@@ -2669,13 +2669,13 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
             realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
           /*  set values */
           insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("1 %d -- %d -- %d\n", rbi,bir,lib);
             printf("1 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
           printf("2 %d -- %d -- %d\n", rbi,bir,lib);
           printf("2 eil %d\n",eil);
 #endif
@@ -2683,7 +2683,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         i1++;
       } else {
         if (it1 > it2) {
-          if (map->pc[it2] != __GB_MINUS_ONE_32) {
+          if (map->pc[it2] != __GBLA_MINUS_ONE_32) {
             bir = (A->ncols - 1 - map->pc[it2]) / A->bwidth;
             eil = (A->ncols - 1 - map->pc[it2]) % A->bwidth;
             /*  realloc memory if needed */
@@ -2691,7 +2691,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
               realloc_block_rows(A, rbi, bir, lib, init_buffer_A, &buffer_A[bir]);
             /*  set values */
             insert_block_row_data_ml_1_2(A, M, rbi, bir, lib, eil, bi2, i2);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
             printf("3 %d -- %d -- %d\n", rbi,bir,lib);
             printf("3 eil %d\n",eil);
           printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
@@ -2705,20 +2705,20 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
               realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
             /*  set values */
             insert_block_row_data_ml_1_2(B, M, rbi, bir, lib, eil, bi2, i2);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("2 %d -- %d -- %d\n", rbi,bir,lib);
             printf("2 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
             printf("4 %d -- %d -- %d\n", rbi,bir,lib);
             printf("4 eil %d\n",eil);
 #endif
           }
           i2++;
         } else { /*  it1 == it2 */
-          if (map->pc[it1] != __GB_MINUS_ONE_32) { /*  holds also for it2 */
+          if (map->pc[it1] != __GBLA_MINUS_ONE_32) { /*  holds also for it2 */
             bir = (A->ncols - 1 - map->pc[it2]) / A->bwidth;
             eil = (A->ncols - 1 - map->pc[it2]) % A->bwidth;
             /*  realloc memory if needed */
@@ -2726,7 +2726,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
               realloc_block_rows(A, rbi, bir, lib, init_buffer_A, &buffer_A[bir]);
             /*  set values */
             insert_block_row_data_ml_2(A, M, rbi, bir, lib, eil, bi1, i1, bi2, i2);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
             printf("5 %d -- %d -- %d\n", rbi,bir,lib);
             printf("5 eil %d\n",eil);
           printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
@@ -2740,7 +2740,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
               realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
             /*  set values */
             insert_block_row_data_ml_2(B, M, rbi, bir, lib, eil, bi1, i1, bi2, i2);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("3 %d -- %d -- %d\n", rbi,bir,lib);
             printf("3 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
@@ -2759,7 +2759,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     /*  executed). */
     while (i1 < (M->rwidth[bi1])) {
       it1 = M->pos[bi1][i1];
-      if (map->pc[it1] != __GB_MINUS_ONE_32) {
+      if (map->pc[it1] != __GBLA_MINUS_ONE_32) {
         bir = (A->ncols - 1 - map->pc[it1]) / A->bwidth;
         eil = (A->ncols - 1 - map->pc[it1]) % A->bwidth;
         /*  realloc memory if needed */
@@ -2767,7 +2767,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(A, rbi, bir, lib, init_buffer_A, &buffer_A[bir]);
         /*  set values */
         insert_block_row_data_ml_1_1(A, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("7 %d -- %d -- %d\n", rbi,bir,lib);
         printf("7 eil %d\n",eil);
           printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
@@ -2781,13 +2781,13 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
         /*  set values */
         insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("4 %d -- %d -- %d\n", rbi,bir,lib);
             printf("4 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("8 %d -- %d -- %d\n", rbi,bir,lib);
         printf("8 eil %d\n",eil);
 #endif
@@ -2797,7 +2797,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     while (i2 < (M->rwidth[bi2])) {
       it2 = M->pos[bi2][i2];
       /* printf("it2 %d\n",it2); */
-      if (map->pc[it2] != __GB_MINUS_ONE_32) {
+      if (map->pc[it2] != __GBLA_MINUS_ONE_32) {
         bir = (A->ncols - 1 - map->pc[it2]) / A->bwidth;
         eil = (A->ncols - 1 - map->pc[it2]) % A->bwidth;
         /*  realloc memory if needed */
@@ -2805,7 +2805,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(A, rbi, bir, lib, init_buffer_A, &buffer_A[bir]);
         /*  set values */
         insert_block_row_data_ml_1_2(A, M, rbi, bir, lib, eil, bi2, i2);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("9 %d -- %d -- %d\n", rbi,bir,lib);
         printf("9 eil %d\n",eil);
           printf("%d\n",A->blocks[rbi][bir][lib].val[2*A->blocks[rbi][bir][lib].sz-2]);
@@ -2819,13 +2819,13 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
         /*  set values */
         insert_block_row_data_ml_1_2(B, M, rbi, bir, lib, eil, bi2, i2);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("5 %d -- %d -- %d\n", rbi,bir,lib);
             printf("5 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("10 %d -- %d -- %d\n", rbi,bir,lib);
         printf("10 eil %d\n",eil);
 #endif
@@ -2834,7 +2834,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     }
   }
 
-#if __GB_DEBUG
+#if __GBLA_DEBUG
   printf("i %d -- cvb %d\n",i,cvb);
 #endif
   if (i<cvb) {
@@ -2848,7 +2848,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 
     while (i1 < (M->rwidth[bi1])) {
       it1 = M->pos[bi1][i1];
-      if (map->pc[it1] != __GB_MINUS_ONE_32) {
+      if (map->pc[it1] != __GBLA_MINUS_ONE_32) {
         bir = (A->ncols - 1 - map->pc[it1]) / A->bwidth;
         eil = (A->ncols - 1 - map->pc[it1]) % A->bwidth;
         /*  realloc memory if needed */
@@ -2856,7 +2856,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(A, rbi, bir, lib, init_buffer_A, &buffer_A[bir]);
         /*  set values */
         insert_block_row_data_ml_1_1(A, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("11 %d -- %d -- %d\n", rbi,bir,lib);
         printf("11 eil %d\n",eil);
 #endif
@@ -2868,13 +2868,13 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
         /*  set values */
         insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("6 %d -- %d -- %d\n", rbi,bir,lib);
             printf("6 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("12 %d -- %d -- %d\n", rbi,bir,lib);
         printf("12 eil %d\n",eil);
 #endif
@@ -2890,9 +2890,9 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
     uint32_t idx  = 0;
     /*  TODO: Implement hybrid stuff */
     for (i=0; i<clB; ++i) {
-      for (j=0; j<rounded_cvb/__GB_NROWS_MULTILINE; ++j) {
+      for (j=0; j<rounded_cvb/__GBLA_NROWS_MULTILINE; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
-            < __GB_HYBRID_THRESHOLD) {
+            < __GBLA_HYBRID_THRESHOLD) {
           B->blocks[rbi][i][j].idx =  realloc(
               B->blocks[rbi][i][j].idx,
               B->blocks[rbi][i][j].sz * sizeof(bi_t));
@@ -2964,7 +2964,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   uint32_t i, j, k, l, bi1, bi2;
   mli_t mli; /*  multiline index in A */
 
-  /* const uint32_t loop_size  = (uint32_t) ceil(cvb / __GB_NROWS_MULTILINE); */
+  /* const uint32_t loop_size  = (uint32_t) ceil(cvb / __GBLA_NROWS_MULTILINE); */
 
 
   /*  column loops */
@@ -2973,12 +2973,12 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   /*  Usually blocks in B tend to be denser than blocks in A, but here A is just */
   /*  a multiline sub matrix without blocks, so we also allocate enough initial */
   /*  memory for the multilines in A. */
-  /*  We use a density threshold (which is globally defined in gb_config.h.in) to */
+  /*  We use a density threshold (which is globally defined in GBLA_config.h.in) to */
   /*  specify how much memory we allocate initially. */
   bi_t init_buffer_A, init_buffer_B;
   switch (density_level) {
     case 0: /*  splicing upper part (A & B) -- tends to be sparse */
-      if (M->density > __GB_DENSITY_THRESHOLD) {
+      if (M->density > __GBLA_DENSITY_THRESHOLD) {
         /* init_buffer_A = (bi_t)(M->density*(M->ncols/100/2)); */
         init_buffer_A = (bi_t)(2*B->bwidth);
         init_buffer_B = (bi_t)(B->bwidth/2);
@@ -2989,7 +2989,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       }
       break;
     case 1: /*  splicing lower part (C & D) -- tends to be denser */
-      if (M->density > __GB_DENSITY_THRESHOLD) {
+      if (M->density > __GBLA_DENSITY_THRESHOLD) {
         /* init_buffer_A = (bi_t)(M->density*(M->ncols/100/2)); */
         init_buffer_A = (bi_t)(4*B->bwidth);
         init_buffer_B = (bi_t)( B->bwidth/2);
@@ -3023,7 +3023,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     lib = i/2;
 
     /*  compute corresponding multiline index for A */
-    mli = (rbi * B->bheight / __GB_NROWS_MULTILINE) + lib;
+    mli = (rbi * B->bheight / __GBLA_NROWS_MULTILINE) + lib;
 
     buffer_A = 0;
     memset(buffer_B, 0, clB * sizeof(bi_t));
@@ -3033,14 +3033,14 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
       it1 = M->pos[bi1][i1];
       it2 = M->pos[bi2][i2];
       if (it1 < it2) {
-        if (map->pc[it1] != __GB_MINUS_ONE_32) {
+        if (map->pc[it1] != __GBLA_MINUS_ONE_32) {
           /*  realloc memory if needed */
           if (A->ml[mli].sz == buffer_A) {
             realloc_rows_ml(A, mli, init_buffer_A, &buffer_A);
           }
           /*  set values */
           insert_row_data_ml_1_1(A, M, mli, map->pc[it1], bi1, i1);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
           printf("1 %d -- %d -- %d\n", rbi,bir,lib);
           printf("1 eil %d\n",eil);
 #endif
@@ -3052,13 +3052,13 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
             realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
           /*  set values */
           insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("1 %d -- %d -- %d\n", rbi,bir,lib);
             printf("1 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
           printf("2 %d -- %d -- %d\n", rbi,bir,lib);
           printf("2 eil %d\n",eil);
 #endif
@@ -3066,14 +3066,14 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
         i1++;
       } else {
         if (it1 > it2) {
-          if (map->pc[it2] != __GB_MINUS_ONE_32) {
+          if (map->pc[it2] != __GBLA_MINUS_ONE_32) {
           /*  realloc memory if needed */
           if (A->ml[mli].sz == buffer_A) {
             realloc_rows_ml(A, mli, init_buffer_A, &buffer_A);
           }
           /*  set values */
           insert_row_data_ml_1_2(A, M, mli, map->pc[it2], bi2, i2);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
             printf("3 %d -- %d -- %d\n", rbi,bir,lib);
             printf("3 eil %d\n",eil);
 #endif
@@ -3085,27 +3085,27 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
               realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
             /*  set values */
             insert_block_row_data_ml_1_2(B, M, rbi, bir, lib, eil, bi2, i2);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("2 %d -- %d -- %d\n", rbi,bir,lib);
             printf("2 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
             printf("4 %d -- %d -- %d\n", rbi,bir,lib);
             printf("4 eil %d\n",eil);
 #endif
           }
           i2++;
         } else { /*  it1 == it2 */
-          if (map->pc[it1] != __GB_MINUS_ONE_32) { /*  holds also for it2 */
+          if (map->pc[it1] != __GBLA_MINUS_ONE_32) { /*  holds also for it2 */
             /*  realloc memory if needed */
             if (A->ml[mli].sz == buffer_A) {
               realloc_rows_ml(A, mli, init_buffer_A, &buffer_A);
             }
             /*  set values */
             insert_row_data_ml_2(A, M, mli, map->pc[it1], bi1, i1, bi2, i2);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
             printf("5 %d -- %d -- %d\n", rbi,bir,lib);
             printf("5 eil %d\n",eil);
 #endif
@@ -3117,7 +3117,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
               realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
             /*  set values */
             insert_block_row_data_ml_2(B, M, rbi, bir, lib, eil, bi1, i1, bi2, i2);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("3 %d -- %d -- %d\n", rbi,bir,lib);
             printf("3 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
@@ -3136,14 +3136,14 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     /*  executed). */
     while (i1 < (M->rwidth[bi1])) {
       it1 = M->pos[bi1][i1];
-      if (map->pc[it1] != __GB_MINUS_ONE_32) {
+      if (map->pc[it1] != __GBLA_MINUS_ONE_32) {
         /*  realloc memory if needed */
         if (A->ml[mli].sz == buffer_A) {
           realloc_rows_ml(A, mli, init_buffer_A, &buffer_A);
         }
         /*  set values */
         insert_row_data_ml_1_1(A, M, mli, map->pc[it1], bi1, i1);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("7 %d -- %d -- %d\n", rbi,bir,lib);
         printf("7 eil %d\n",eil);
 #endif
@@ -3155,13 +3155,13 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
         /*  set values */
         insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("4 %d -- %d -- %d\n", rbi,bir,lib);
             printf("4 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("8 %d -- %d -- %d\n", rbi,bir,lib);
         printf("8 eil %d\n",eil);
 #endif
@@ -3171,14 +3171,14 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     while (i2 < (M->rwidth[bi2])) {
       it2 = M->pos[bi2][i2];
       /* printf("it2 %d\n",it2); */
-      if (map->pc[it2] != __GB_MINUS_ONE_32) {
+      if (map->pc[it2] != __GBLA_MINUS_ONE_32) {
         /*  realloc memory if needed */
         if (A->ml[mli].sz == buffer_A) {
           realloc_rows_ml(A, mli, init_buffer_A, &buffer_A);
         }
         /*  set values */
         insert_row_data_ml_1_2(A, M, mli, map->pc[it2], bi2, i2);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("9 %d -- %d -- %d\n", rbi,bir,lib);
         printf("9 eil %d\n",eil);
 #endif
@@ -3190,13 +3190,13 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
         /*  set values */
         insert_block_row_data_ml_1_2(B, M, rbi, bir, lib, eil, bi2, i2);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
             printf("5 %d -- %d -- %d\n", rbi,bir,lib);
             printf("5 eil %d\n",eil);
             printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
             printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("10 %d -- %d -- %d\n", rbi,bir,lib);
         printf("10 eil %d\n",eil);
 #endif
@@ -3209,7 +3209,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     }
   }
 
-#if __GB_DEBUG
+#if __GBLA_DEBUG
   printf("i %d -- cvb %d\n",i,cvb);
 #endif
   if (i<cvb) {
@@ -3220,18 +3220,18 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     memset(buffer_B, 0, clB * sizeof(bi_t));
 
     /*  compute corresponding multiline index for A */
-    mli = (rbi * B->bheight / __GB_NROWS_MULTILINE) + lib;
+    mli = (rbi * B->bheight / __GBLA_NROWS_MULTILINE) + lib;
 
     while (i1 < (M->rwidth[bi1])) {
       it1 = M->pos[bi1][i1];
-      if (map->pc[it1] != __GB_MINUS_ONE_32) {
+      if (map->pc[it1] != __GBLA_MINUS_ONE_32) {
         /*  realloc memory if needed */
         if (A->ml[mli].sz == buffer_A) {
           realloc_rows_ml(A, mli, init_buffer_A, &buffer_A);
         }
         /*  set values */
         insert_row_data_ml_1_1(A, M, mli, map->pc[it1], bi1, i1);
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("11 %d -- %d -- %d\n", rbi,bir,lib);
         printf("11 eil %d\n",eil);
 #endif
@@ -3243,13 +3243,13 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
           realloc_block_rows(B, rbi, bir, lib, init_buffer_B, &buffer_B[bir]);
         /*  set values */
         insert_block_row_data_ml_1_1(B, M, rbi, bir, lib, eil, bi1, i1);
-#if __GB_DEBUG_LL
+#if __GBLA_DEBUG_LL
         printf("6 %d -- %d -- %d\n", rbi,bir,lib);
         printf("6 eil %d\n",eil);
         printf("1 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-2]);
         printf("2 %d\n",B->blocks[rbi][bir][lib].val[2*B->blocks[rbi][bir][lib].sz-1]);
 #endif
-#if __GB_DEBUG
+#if __GBLA_DEBUG
         printf("12 %d -- %d -- %d\n", rbi,bir,lib);
         printf("12 eil %d\n",eil);
 #endif
@@ -3267,9 +3267,9 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
     uint32_t idx  = 0;
     /*  TODO: Implement hybrid stuff */
     for (i=0; i<clB; ++i) {
-      for (j=0; j<rounded_cvb/__GB_NROWS_MULTILINE; ++j) {
+      for (j=0; j<rounded_cvb/__GBLA_NROWS_MULTILINE; ++j) {
         if ((float)B->blocks[rbi][i][j].sz / (float)B->bwidth
-            < __GB_HYBRID_THRESHOLD) {
+            < __GBLA_HYBRID_THRESHOLD) {
           B->blocks[rbi][i][j].idx =  realloc(
               B->blocks[rbi][i][j].idx,
               B->blocks[rbi][i][j].sz * sizeof(bi_t));

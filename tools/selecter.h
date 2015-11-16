@@ -14,8 +14,8 @@
  */
 
 
-#ifndef __GB_selecter_h
-#define __GB_selecter_h
+#ifndef __GBLA_selecter_h
+#define __GBLA_selecter_h
 
 uint32_t select_int8_t()   { return 1 | (0<<1) ; }
 uint32_t select_uint8_t()  { return 0 | (0<<1) ; }

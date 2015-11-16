@@ -34,7 +34,7 @@ AC_PROG_INSTALL
 dnl Set the version for the library -- this concerns compatibility of the
 dnl source and binary interface of the library and is not the same as the
 dnl version of the project.
-AC_SUBST([GB_SO_VERSION], [0:0:0])
+AC_SUBST([GBLA_SO_VERSION], [0:0:0])
 
 dnl Include maintainer mode targets.
 AM_MAINTAINER_MODE
@@ -60,10 +60,10 @@ fi
 # SSE2 support
 AC_ARG_ENABLE([sse2],
         AS_HELP_STRING([--disable-sse2], [don't use SSE2 instruction set.]),
-	, [if test "$GB_wrapword" = "yes"; then enable_sse2="no"; else enable_sse2="yes"; fi])
+	, [if test "$GBLA_wrapword" = "yes"; then enable_sse2="no"; else enable_sse2="yes"; fi])
 
 AS_IF([test "x$enable_sse2" != "xno"], [
-   if test "$GB_wrapword" = "yes"; then
+   if test "$GBLA_wrapword" = "yes"; then
       AC_MSG_ERROR([SSE2 cannot be supported when wrapping word in a C++ class.])
    fi
    case $host_cpu in i[[3456]]86*|x86_64*)
@@ -71,46 +71,46 @@ AS_IF([test "x$enable_sse2" != "xno"], [
    esac
 ])
 if test x"$ax_cv_have_sse2_ext" = x"yes"; then
-  GB_HAVE_SSE2=1
+  GBLA_HAVE_SSE2=1
 else
-  GB_HAVE_SSE2=0
+  GBLA_HAVE_SSE2=0
 fi
-AC_SUBST(GB_HAVE_SSE2)
+AC_SUBST(GBLA_HAVE_SSE2)
 
 
 AC_ARG_WITH(papi,
     AS_HELP_STRING([--with-papi@<:@=PATH@:>@], [The PAPI install prefix, if configure can't find it.]),
-    [GB_config_papi=$withval])
+    [GBLA_config_papi=$withval])
 
 AC_ARG_WITH(cachesize,
-        AS_HELP_STRING([--with-cachesize@<:@=VALUE@:>@], [L1,L2 and L3 cache sizes in bytes, separated by a colon. Overrides cache tuning.]),[GB_config_cachesize=$withval])
+        AS_HELP_STRING([--with-cachesize@<:@=VALUE@:>@], [L1,L2 and L3 cache sizes in bytes, separated by a colon. Overrides cache tuning.]),[GBLA_config_cachesize=$withval])
 
 AC_CHECK_HEADER([mm_malloc.h],AC_DEFINE(HAVE_MM_MALLOC,,[Support aligned allocations]),)
 if test "$ac_cv_header_mm_malloc_h" = "yes"; then
-  GB_HAVE_MM_MALLOC=1
+  GBLA_HAVE_MM_MALLOC=1
 else
-  GB_HAVE_MM_MALLOC=0
+  GBLA_HAVE_MM_MALLOC=0
 fi
-AC_SUBST(GB_HAVE_MM_MALLOC)
+AC_SUBST(GBLA_HAVE_MM_MALLOC)
 
 # Correctly working posix_memalign
 AX_FUNC_POSIX_MEMALIGN
 if test "$ax_cv_func_posix_memalign_works" = "yes"; then
-  GB_HAVE_POSIX_MEMALIGN=1
+  GBLA_HAVE_POSIX_MEMALIGN=1
 else
-  GB_HAVE_POSIX_MEMALIGN=0
+  GBLA_HAVE_POSIX_MEMALIGN=0
 fi
-AC_SUBST(GB_HAVE_POSIX_MEMALIGN)
+AC_SUBST(GBLA_HAVE_POSIX_MEMALIGN)
 
 # OpenMP support
 AX_OPENMP()
 AC_SUBST(OPENMP_CFLAGS)
 if test -n "$OPENMP_CFLAGS"; then
-  GB_HAVE_OPENMP=1
+  GBLA_HAVE_OPENMP=1
 else
-  GB_HAVE_OPENMP=0
+  GBLA_HAVE_OPENMP=0
 fi
-AC_SUBST(GB_HAVE_OPENMP)
+AC_SUBST(GBLA_HAVE_OPENMP)
 
 dnl Search for hwloc
 AC_CHECK_LIB([hwloc], [main], [
@@ -236,11 +236,11 @@ AC_ARG_ENABLE([debug-dump],
         AS_HELP_STRING([--enable-debug-dump], [Dump output at exit of every function.]))
 
 if test "x$enable_debug_dump" = "xyes"; then
-  GB_DEBUG_DUMP=1
+  GBLA_DEBUG_DUMP=1
 else
-  GB_DEBUG_DUMP=0
+  GBLA_DEBUG_DUMP=0
 fi
-AC_SUBST(GB_DEBUG_DUMP)
+AC_SUBST(GBLA_DEBUG_DUMP)
 
 if test "x$enable_debug" = x"yes"; then
   DEBUG_FLAGS="-g"
@@ -252,7 +252,7 @@ fi
 
 # For the testsuite. Detect if PAPI is installed. See http://icl.cs.utk.edu/papi/ .
 
-if test -z "$GB_config_papi"; then
+if test -z "$GBLA_config_papi"; then
    AC_CHECK_LIB(papi, PAPI_start_counters,
    [
     AX_GUESS_PATH_LIB(papi)
@@ -276,9 +276,9 @@ if test -z "$GB_config_papi"; then
 ])
 fi
 
-if test x"$GB_config_papi" != x"no" && test -n "$gb_config_papi"; then
-    LIBPAPI_PATH="`realpath -s $GB_config_papi/lib`"
-    PAPI_H_PATH="`realpath -s $GB_config_papi/include`"
+if test x"$GBLA_config_papi" != x"no" && test -n "$GBLA_config_papi"; then
+    LIBPAPI_PATH="`realpath -s $GBLA_config_papi/lib`"
+    PAPI_H_PATH="`realpath -s $GBLA_config_papi/include`"
     PAPI_CFLAGS="-I$PAPI_H_PATH"
     PAPI_LDFLAGS="-Wl,-rpath,$LIBPAPI_PATH"
     PAPI_LIBS="-L$LIBPAPI_PATH -lpapi"
@@ -293,22 +293,22 @@ AC_ARG_ENABLE([cachetune],
      AS_HELP_STRING([--enable-cachetune],[calculate cache size from timing information (deprecated).]))
 
 # Cache Sizes
-if test -z $GB_config_cachesize; then
+if test -z $GBLA_config_cachesize; then
    AX_CACHE_SIZE()
    AS_IF([test "x$enable_cachetune" = "xyes"], [AC_MSG_WARN(--enable-cachetune is deprecated since it usually does not provide optimal parameters.) AX_CACHE_SIZE_TUNE()])
 else
   AS_IF([test "x$enable_cachetune" = "xyes"], [AC_MSG_WARN(Ignoring cache tuning since --with-cachesize was given.)])
 
-  ax_l1_size=`echo $GB_config_cachesize | cut -d ":" -f 1`
-  ax_l2_size=`echo $GB_config_cachesize | cut -d ":" -f 2`
-  ax_l3_size=`echo $GB_config_cachesize | cut -d ":" -f 3`
+  ax_l1_size=`echo $GBLA_config_cachesize | cut -d ":" -f 1`
+  ax_l2_size=`echo $GBLA_config_cachesize | cut -d ":" -f 2`
+  ax_l3_size=`echo $GBLA_config_cachesize | cut -d ":" -f 3`
 
-  GB_CPU_L1_CACHE=${ax_l1_size}
-  GB_CPU_L2_CACHE=${ax_l2_size}
-  GB_CPU_L3_CACHE=${ax_l3_size}
-  AC_SUBST(GB_CPU_L1_CACHE)
-  AC_SUBST(GB_CPU_L2_CACHE)
-  AC_SUBST(GB_CPU_L3_CACHE)
+  GBLA_CPU_L1_CACHE=${ax_l1_size}
+  GBLA_CPU_L2_CACHE=${ax_l2_size}
+  GBLA_CPU_L3_CACHE=${ax_l3_size}
+  AC_SUBST(GBLA_CPU_L1_CACHE)
+  AC_SUBST(GBLA_CPU_L2_CACHE)
+  AC_SUBST(GBLA_CPU_L3_CACHE)
 
 fi
 
@@ -357,12 +357,12 @@ if test "x${want_png}" = "xyes" ; then
 fi
 
 if test "x${have_libpng}" = "xyes" ; then
-   GB_HAVE_LIBPNG=1
-   AC_SUBST(GB_HAVE_LIBPNG)
+   GBLA_HAVE_LIBPNG=1
+   AC_SUBST(GBLA_HAVE_LIBPNG)
    AC_SUBST(LIBPNG_LIBADD)
 else
-   GB_HAVE_LIBPNG=0
-   AC_SUBST(GB_HAVE_LIBPNG)
+   GBLA_HAVE_LIBPNG=0
+   AC_SUBST(GBLA_HAVE_LIBPNG)
 fi
 
 AC_PROG_MAKE_SET

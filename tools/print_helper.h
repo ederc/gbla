@@ -15,8 +15,8 @@
 
 
 
-#ifndef __GB_print_help_h
-#define __GB_print_help_h
+#ifndef __GBLA_print_help_h
+#define __GBLA_print_help_h
 
 void print_line_float(uint32_t i, uint32_t j, float v, int magma)
 {
@@ -137,6 +137,6 @@ void print_mod_uint64_t(uint64_t m)
 }
 
 
-#endif /* __GB_print_help_h */
+#endif /* __GBLA_print_help_h */
 
 /* vim: set ft=c: */

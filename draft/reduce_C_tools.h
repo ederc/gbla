@@ -13,8 +13,8 @@
  * along with gbla . If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GB_reduce_C_tools_H
-#define __GB_reduce_C_tools_H
+#ifndef __GBLA_reduce_C_tools_H
+#define __GBLA_reduce_C_tools_H
 
 #include "sparseops.h"
 #include "sparseops_block.h"
@@ -293,4 +293,4 @@ void reduce_chunk(
 	}
 }
 
-#endif /* __GB_reduce_C_tools_H */
+#endif /* __GBLA_reduce_C_tools_H */

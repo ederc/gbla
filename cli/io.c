@@ -727,7 +727,7 @@ void print_mem_usage() {
 /* STATIC STUFF */
 
  void compute_density_ml_submatrix(sm_fl_ml_t *A) {
-  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GBLA_NROWS_MULTILINE);
   uint32_t i, j;
   for (i=0; i<rlA; ++i) {
     if (A->ml[i].sz>0) {

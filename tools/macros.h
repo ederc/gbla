@@ -13,8 +13,8 @@
  * along with gbla . If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GB_macros_H
-#define __GB_macros_H
+#ifndef __GBLA_macros_H
+#define __GBLA_macros_H
 
 #define Mjoin(pre,nam) my_join(pre , nam)
 #define my_join(pre, nam) pre ## _ ## nam
@@ -180,6 +180,6 @@ static void* new_malloc(size_t size)  {
 
 #endif /* SIMD */
 
-#endif /* __GB_macros_H */
+#endif /* __GBLA_macros_H */
 
 /* vim: set ft=c: */

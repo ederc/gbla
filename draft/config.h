@@ -15,8 +15,8 @@
 
 
 
-#ifndef __GB_config_H
-#define __GB_config_H
+#ifndef __GBLA_config_H
+#define __GBLA_config_H
 
 #include <malloc.h>
 #include <immintrin.h>
@@ -108,6 +108,6 @@
 
 
 
-#endif /* __GB_config_H */
+#endif /* __GBLA_config_H */
 
 /* vim: set ft=c: */

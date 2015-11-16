@@ -20,8 +20,8 @@
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 
-#ifndef GB_TYPES_H
-#define GB_TYPES_H
+#ifndef GBLA_TYPES_H
+#define GBLA_TYPES_H
 
 #if 0
 #define GBLA_USE_FLOAT XXX
@@ -164,7 +164,7 @@ typedef uint64_t  nnz_t;
 #endif
 
 
-#endif /* GB_TYPES_H */
+#endif /* GBLA_TYPES_H */
 
 /* vim:sts=2:sw=2:ts=2:ft=c:
  */

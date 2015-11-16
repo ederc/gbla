@@ -15,8 +15,8 @@
 
 
 
-#ifndef __GB_tools_H
-#define __GB_tools_H
+#ifndef __GBLA_tools_H
+#define __GBLA_tools_H
 
 #include "macros.h"
 
@@ -178,4 +178,4 @@ void compressColid2(
 }
 
 
-#endif /* __GB_tools_H */
+#endif /* __GBLA_tools_H */

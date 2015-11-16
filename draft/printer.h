@@ -14,8 +14,8 @@
  */
 
 
-#ifndef __GB_printer_h
-#define __GB_printer_h
+#ifndef __GBLA_printer_h
+#define __GBLA_printer_h
 
 static void print_double(double m)
 {
@@ -51,7 +51,7 @@ static void print_uint64_t(uint64_t m)
 }
 
 
-#endif /* __GB_printer_h */
+#endif /* __GBLA_printer_h */
 
 /* vim: set ft=c: */
 

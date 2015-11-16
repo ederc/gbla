@@ -235,7 +235,7 @@ int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
 #if DDDEBUG
     printf("after copying\n");
     if (B->blocks[j][block_col_idx_B] != NULL) {
-      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+      for (int kk=0; kk<B->bheight/__GBLA_NROWS_MULTILINE; ++kk) {
         if (B->blocks[j][block_col_idx_B][kk].sz>0) {
           printf("%d\n",kk);
           for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
@@ -347,7 +347,7 @@ int elim_fl_A_sparse_dense_blocks_task(const sb_fl_t *A, dbm_fl_t *B,
 #if DDDEBUG
     printf("after copying\n");
     if (B->blocks[j][block_col_idx_B] != NULL) {
-      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+      for (int kk=0; kk<B->bheight/__GBLA_NROWS_MULTILINE; ++kk) {
         if (B->blocks[j][block_col_idx_B][kk].sz>0) {
           printf("%d\n",kk);
           for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
@@ -458,7 +458,7 @@ int elim_fl_A_hybrid_dense_blocks_task(hbm_fl_t *A, dbm_fl_t *B,
 #if DDDEBUG
     printf("after copying\n");
     if (B->blocks[j][block_col_idx_B] != NULL) {
-      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+      for (int kk=0; kk<B->bheight/__GBLA_NROWS_MULTILINE; ++kk) {
         if (B->blocks[j][block_col_idx_B][kk].sz>0) {
           printf("%d\n",kk);
           for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
@@ -569,7 +569,7 @@ int elim_fl_A_dense_blocks_task(const dbm_fl_t *A, dbm_fl_t *B,
 #if DDDEBUG
     printf("after copying\n");
     if (B->blocks[j][block_col_idx_B] != NULL) {
-      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+      for (int kk=0; kk<B->bheight/__GBLA_NROWS_MULTILINE; ++kk) {
         if (B->blocks[j][block_col_idx_B][kk].sz>0) {
           printf("%d\n",kk);
           for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
@@ -929,7 +929,7 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
     for (j=0; j<rlA; ++j) {
       for (i=0; i<clA; ++i) {
         if (A->blocks[j][i] != NULL) {
-          for (k=0; k<A->bheight/__GB_NROWS_MULTILINE; ++k) {
+          for (k=0; k<A->bheight/__GBLA_NROWS_MULTILINE; ++k) {
             free(A->blocks[j][i][k].idx);
             A->blocks[j][i][k].idx  = NULL;
             free(A->blocks[j][i][k].val);
@@ -1007,7 +1007,7 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
 #if DDDEBUG
     printf("after copying\n");
     if (B->blocks[j][block_col_idx_B] != NULL) {
-      for (int kk=0; kk<B->bheight/__GB_NROWS_MULTILINE; ++kk) {
+      for (int kk=0; kk<B->bheight/__GBLA_NROWS_MULTILINE; ++kk) {
         if (B->blocks[j][block_col_idx_B][kk].sz>0) {
           printf("%d\n",kk);
           for (int ll=0; ll<B->blocks[j][block_col_idx_B][kk].sz; ++ll) {
@@ -1054,7 +1054,7 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
     for (j=0; j<rlA; ++j) {
       for (i=0; i<clA; ++i) {
         if (A->blocks[j][i] != NULL) {
-          for (k=0; k<A->bheight/__GB_NROWS_MULTILINE; ++k) {
+          for (k=0; k<A->bheight/__GBLA_NROWS_MULTILINE; ++k) {
             free(A->blocks[j][i][k].idx);
             A->blocks[j][i][k].idx  = NULL;
             free(A->blocks[j][i][k].val);
@@ -1206,7 +1206,7 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
     for (j=0; j<rlC; ++j) {
       for (i=0; i<clC; ++i) {
         if (C->blocks[j][i] != NULL) {
-          for (k=0; k<C->bheight/__GB_NROWS_MULTILINE; ++k) {
+          for (k=0; k<C->bheight/__GBLA_NROWS_MULTILINE; ++k) {
             free(C->blocks[j][i][k].idx);
             C->blocks[j][i][k].idx  = NULL;
             free(C->blocks[j][i][k].val);
@@ -1282,7 +1282,7 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
 #if DDEBUG_C
     printf("after copying\n");
     if (D->blocks[j][block_col_idx_D] != NULL) {
-      for (int kk=0; kk<D->bheight/__GB_NROWS_MULTILINE; ++kk) {
+      for (int kk=0; kk<D->bheight/__GBLA_NROWS_MULTILINE; ++kk) {
         if (D->blocks[j][block_col_idx_D][kk].sz>0) {
           printf("%d\n",kk);
           for (int ll=0; ll<D->blocks[j][block_col_idx_D][kk].sz; ++ll) {
@@ -1333,7 +1333,7 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
     for (j=0; j<rlC; ++j) {
       for (i=0; i<clC; ++i) {
         if (C->blocks[j][i] != NULL) {
-          for (k=0; k<C->bheight/__GB_NROWS_MULTILINE; ++k) {
+          for (k=0; k<C->bheight/__GBLA_NROWS_MULTILINE; ++k) {
             free(C->blocks[j][i][k].idx);
             C->blocks[j][i][k].idx  = NULL;
             free(C->blocks[j][i][k].val);
@@ -1567,55 +1567,55 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_b
               Av2_col2  = (re_m_t)modulus - Av2_col2;
           }
           ++j;
-          if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
-            /* printf("1S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+          if (block_B[Ap1 / __GBLA_NROWS_MULTILINE].dense == 0) {
+            /* printf("1S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GBLA_NROWS_MULTILINE); */
             sparse_scal_mul_sub_2_rows_vect_array(
                 Av1_col1, Av2_col1, Av1_col2, Av2_col2,
-                block_B[Ap1 / __GB_NROWS_MULTILINE],
+                block_B[Ap1 / __GBLA_NROWS_MULTILINE],
                 dense_block[2*i], dense_block[2*i+1]);
             /* printf("1 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
           } else {
-            /* printf("1D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+            /* printf("1D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GBLA_NROWS_MULTILINE); */
             dense_scal_mul_sub_2_rows_vect_array(
                 Av1_col1, Av2_col1, Av1_col2, Av2_col2,
-                block_B[Ap1 / __GB_NROWS_MULTILINE], bheight,
+                block_B[Ap1 / __GBLA_NROWS_MULTILINE], bheight,
                 dense_block[2*i], dense_block[2*i+1]);
             /* printf("2 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
           }
         } else { /*  AXPY one row */
-          if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
-            /* printf("2S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+          if (block_B[Ap1 / __GBLA_NROWS_MULTILINE].dense == 0) {
+            /* printf("2S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GBLA_NROWS_MULTILINE); */
             sparse_scal_mul_sub_1_row_vect_array(
                 Av1_col1, Av2_col1,
-                block_B[Ap1 / __GB_NROWS_MULTILINE],
-                Ap1 % __GB_NROWS_MULTILINE,
+                block_B[Ap1 / __GBLA_NROWS_MULTILINE],
+                Ap1 % __GBLA_NROWS_MULTILINE,
                 dense_block[2*i], dense_block[2*i+1]);
             /* printf("3 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
           } else {
-            /* printf("2D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+            /* printf("2D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GBLA_NROWS_MULTILINE); */
             dense_scal_mul_sub_1_row_vect_array(
                 Av1_col1, Av2_col1,
-                block_B[Ap1 / __GB_NROWS_MULTILINE],
-                Ap1 % __GB_NROWS_MULTILINE, bheight,
+                block_B[Ap1 / __GBLA_NROWS_MULTILINE],
+                Ap1 % __GBLA_NROWS_MULTILINE, bheight,
                 dense_block[2*i], dense_block[2*i+1]);
             /* printf("4 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
           }
         }
       } else { /*  AXPY one row */
-        if (block_B[Ap1 / __GB_NROWS_MULTILINE].dense == 0) {
-          /* printf("3S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+        if (block_B[Ap1 / __GBLA_NROWS_MULTILINE].dense == 0) {
+          /* printf("3S Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GBLA_NROWS_MULTILINE); */
           sparse_scal_mul_sub_1_row_vect_array(
               Av1_col1, Av2_col1,
-              block_B[Ap1 / __GB_NROWS_MULTILINE],
-              Ap1 % __GB_NROWS_MULTILINE,
+              block_B[Ap1 / __GBLA_NROWS_MULTILINE],
+              Ap1 % __GBLA_NROWS_MULTILINE,
               dense_block[2*i], dense_block[2*i+1]);
           /* printf("5 %ld|%ld  ",dense_block[2*i][255],dense_block[2*i+1][255]); */
         } else {
-          /* printf("3D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GB_NROWS_MULTILINE); */
+          /* printf("3D Ap1 %d -- Ap1/ML %d\n", Ap1, Ap1/__GBLA_NROWS_MULTILINE); */
           dense_scal_mul_sub_1_row_vect_array(
               Av1_col1, Av2_col1,
-              block_B[Ap1 / __GB_NROWS_MULTILINE],
-              Ap1 % __GB_NROWS_MULTILINE, bheight,
+              block_B[Ap1 / __GBLA_NROWS_MULTILINE],
+              Ap1 % __GBLA_NROWS_MULTILINE, bheight,
               dense_block[2*i], dense_block[2*i+1]);
         }
       }
@@ -1636,8 +1636,8 @@ void copy_dense_block_to_sparse(
 
   /*  if block was empty in the beginning, reallocate memory */
   if (sparse_block == NULL) {
-    sparse_block  = (mbl_t *)malloc(bheight / __GB_NROWS_MULTILINE * sizeof(mbl_t));
-    for (i=0; i<(bheight / __GB_NROWS_MULTILINE); ++i) {
+    sparse_block  = (mbl_t *)malloc(bheight / __GBLA_NROWS_MULTILINE * sizeof(mbl_t));
+    for (i=0; i<(bheight / __GBLA_NROWS_MULTILINE); ++i) {
       sparse_block[i].val = NULL;
       sparse_block[i].idx = NULL;
       sparse_block[i].sz  = sparse_block[i].dense =  0;
@@ -1678,7 +1678,7 @@ void copy_dense_block_to_sparse(
     sparse_block[i].sz  = ctr;
     /*  try to get hybrid representation, i.e. try to make multiline row dense */
 
-    if ((float)sparse_block[i].sz / (float)bwidth < __GB_HYBRID_THRESHOLD) {
+    if ((float)sparse_block[i].sz / (float)bwidth < __GBLA_HYBRID_THRESHOLD) {
       /*  realloc memory, cut it down as much as possible */
       if (sparse_block[i].sz>0) {
         sparse_block[i].idx = (bi_t*) realloc(
@@ -2275,8 +2275,8 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
   nreductions = 0;
 #endif
 
-  wl_dim  = (D->nrows/__GB_NROWS_MULTILINE);
-  if (D->nrows%__GB_NROWS_MULTILINE)
+  wl_dim  = (D->nrows/__GBLA_NROWS_MULTILINE);
+  if (D->nrows%__GBLA_NROWS_MULTILINE)
     wl_dim++;
 
   /*  global waiting list */
@@ -2289,7 +2289,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
   D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
 #if DDEBUG_DD
   printf("BEFORE\n");
-  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
+  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GBLA_NROWS_MULTILINE);
   int ii,jj,kk,ll;
   for (ii=0; ii<rlD; ++ii) {
     printf("%d .. \n",ii);
@@ -2330,9 +2330,9 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
   }
 #endif
 
-  const ri_t ml_nrows_D_red = (D_red->nrows % __GB_NROWS_MULTILINE == 0) ?
-    D_red->nrows / __GB_NROWS_MULTILINE :
-    D_red->nrows / __GB_NROWS_MULTILINE + 1;
+  const ri_t ml_nrows_D_red = (D_red->nrows % __GBLA_NROWS_MULTILINE == 0) ?
+    D_red->nrows / __GBLA_NROWS_MULTILINE :
+    D_red->nrows / __GBLA_NROWS_MULTILINE + 1;
 
   /*  define lock */
   /* omp_lock_t echelonize_lock; */
@@ -2376,7 +2376,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
       rank++;
   }
 #if DDEBUG_DONE
-  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GB_NROWS_MULTILINE);
+  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GBLA_NROWS_MULTILINE);
   int ii,jj,kk,ll;
   printf("AFTER ALL\n");
   for (ii=0; ii<rlD; ++ii) {
@@ -2411,8 +2411,8 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
   int ret;
   ri_t npiv_real  = 0;
-  ri_t N          = A->nrows / __GB_NROWS_MULTILINE +
-    A->nrows % __GB_NROWS_MULTILINE;
+  ri_t N          = A->nrows / __GBLA_NROWS_MULTILINE +
+    A->nrows % __GBLA_NROWS_MULTILINE;
   const ci_t coldim = A->ncols;
 
   ml_t *ml_row;
@@ -2599,7 +2599,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       }
 #if DDEBUG_D
       printf("BEFORE NORMALIZE\n");
-      const uint32_t rlD  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
+      const uint32_t rlD  = (uint32_t) ceil((float)A->nrows / __GBLA_NROWS_MULTILINE);
       int ii,jj,kk,ll;
       for (ii=0; ii<rlD; ++ii) {
         printf("%d .. \n",ii);
@@ -3046,7 +3046,7 @@ int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
   ri_t i;
   /* ri_t |+ j, k, +| rc; */
 
-  const ri_t rlC  = (ri_t) ceil((float) C->nrows / __GB_NROWS_MULTILINE);
+  const ri_t rlC  = (ri_t) ceil((float) C->nrows / __GBLA_NROWS_MULTILINE);
 #pragma omp parallel num_threads(nthrds)
   {
 #pragma omp for
@@ -4910,8 +4910,8 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
     if (Cv2_col1 != 0)
       Cv2_col1  = (re_m_t)modulus - Cv2_col1;
 
-    row_in_A      = (A->nrows - 1 - Cp1) / __GB_NROWS_MULTILINE;
-    row_in_A_mod  = (A->nrows - 1 - Cp1) % __GB_NROWS_MULTILINE;
+    row_in_A      = (A->nrows - 1 - Cp1) / __GBLA_NROWS_MULTILINE;
+    row_in_A_mod  = (A->nrows - 1 - Cp1) % __GBLA_NROWS_MULTILINE;
 
     if (row_in_A_mod == 1) {
       Cp2 = i+1;
@@ -5019,8 +5019,8 @@ void dense_scal_mul_sub_2_rows_array_array(
   ELEM_4 av12 = SET1_4(Av1_col2);
   ELEM_4 av21 = SET1_4(Av2_col1);
   ELEM_4 av22 = SET1_4(Av2_col2);
-  /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
-     for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
+  /* for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_BIG) {
+     for (j=0; j<__GBLA_LOOP_UNROLL_BIG; j+=4) {       */
   for (i=0; i<bwidth; i+=4) {
 
     ELEM_4 ds1 = LOAD_4(dense_array_source1+i+j);
@@ -5035,8 +5035,8 @@ void dense_scal_mul_sub_2_rows_array_array(
   /* }
      }      */
 #else
-  for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
-    for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+  for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_BIG) {
+    for (j=0; j<__GBLA_LOOP_UNROLL_BIG; ++j) {
       v1__  = CAST(dense_array_source1[i+j]);
       v2__  = CAST(dense_array_source2[i+j]);
 
@@ -5063,8 +5063,8 @@ void dense_scal_mul_sub_1_row_array_array(
   if (Av1_col1 == 0) { /*  only one of them can be zero */
     ELEM_4 Av21 = SET1_4(Av2_col1);
     CHECK_ALIGN(dense_array2);
-    /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
-       for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
+    /* for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_BIG) {
+       for (j=0; j<__GBLA_LOOP_UNROLL_BIG; j+=4) {       */
     for (i=0; i<bwidth; i+=4) {
       STORE_4(dense_array2+i+j,FMADD_4(LOAD_4(dense_array2+i+j),Av21,LOAD_4(dense_array_source+i+j)));
     }
@@ -5074,8 +5074,8 @@ void dense_scal_mul_sub_1_row_array_array(
     if (Av2_col1 == 0) { /*  only second one is zero */
     CHECK_ALIGN(dense_array1);
       ELEM_4 Av11 = SET1_4(Av1_col1);
-      /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
-         for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
+      /* for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_BIG) {
+         for (j=0; j<__GBLA_LOOP_UNROLL_BIG; j+=4) {       */
       for (i=0; i<bwidth; i+=4) {
         STORE_4(dense_array1+i+j,FMADD_4(LOAD_4(dense_array1+i),Av11,LOAD_4(dense_array_source+i)));
         /* }
@@ -5086,8 +5086,8 @@ void dense_scal_mul_sub_1_row_array_array(
     CHECK_ALIGN(dense_array2);
       ELEM_4 Av21 = SET1_4(Av2_col1);
       ELEM_4 Av11 = SET1_4(Av1_col1);
-      /* for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
-         for (j=0; j<__GB_LOOP_UNROLL_BIG; j+=4) {       */
+      /* for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_BIG) {
+         for (j=0; j<__GBLA_LOOP_UNROLL_BIG; j+=4) {       */
       for (i=0; i<bwidth; i+=4) {
         STORE_4(dense_array2+i+j,FMADD_4(LOAD_4(dense_array2+i),Av21,LOAD_4(dense_array_source+i)));
         STORE_4(dense_array1+i+j,FMADD_4(LOAD_4(dense_array1+i),Av11,LOAD_4(dense_array_source+i)));
@@ -5098,27 +5098,27 @@ void dense_scal_mul_sub_1_row_array_array(
   }
 
 #else
-  assert(bwidth%__GB_LOOP_UNROLL_BIG == 0);
+  assert(bwidth%__GBLA_LOOP_UNROLL_BIG == 0);
   register re_m_t v__;
 
   if (Av1_col1 == 0) { /*  only one of them can be zero */
-    for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
-      for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+    for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_BIG) {
+      for (j=0; j<__GBLA_LOOP_UNROLL_BIG; ++j) {
         v__ = CAST(dense_array_source[i+j]) ;
         dense_array2[i+j] +=  v__ * Av2_col1;
       }
     }
   } else {
     if (Av2_col1 == 0) { /*  only second one is zero */
-      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
-        for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+      for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_BIG) {
+        for (j=0; j<__GBLA_LOOP_UNROLL_BIG; ++j) {
           v__ = CAST(dense_array_source[i+j]);
           dense_array1[i+j] +=  v__ * Av1_col1;
         }
       }
     } else { /*  both are nonzero */
-      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_BIG) {
-        for (j=0; j<__GB_LOOP_UNROLL_BIG; ++j) {
+      for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_BIG) {
+        for (j=0; j<__GBLA_LOOP_UNROLL_BIG; ++j) {
           v__ = CAST(dense_array_source[i+j]);
           dense_array1[i+j] +=  v__ * Av1_col1;
           dense_array2[i+j] +=  v__ * Av2_col1;
@@ -5252,10 +5252,10 @@ void sparse_scal_mul_sub_2_rows_vect_array(
   register uint32_t idx;
 
 #ifdef GBLA_USE_AVX_XXX
-  for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
+  for (i=0; i<__GBLA_ROUND_DOWN(N, __GBLA_LOOP_UNROLL_SMALL) ; i+=__GBLA_LOOP_UNROLL_SMALL) {
     SET2_2(Av1_d,Av1_col1,Av1_col2);
     SET2_2(Av2_d,Av2_col1,Av2_col2);
-    for (j=0; j<__GB_LOOP_UNROLL_SMALL; j+=2) {
+    for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; j+=2) {
       SET2_2(dv1,*(dense_val1+p_idx[i+j]),*(dense_val1+p_idx[i+j+1]));
       SET2_2(dv2,*(dense_val2+p_idx[i+j]),*(dense_val2+p_idx[i+j+1]));
       ELEM_2 v__ = LOAD_2(p_val+2*(i+j));
@@ -5280,8 +5280,8 @@ void sparse_scal_mul_sub_2_rows_vect_array(
     dense_val2[idx] +=  Av2_col2 * v2__;
   }
 #else
-  for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
-    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+  for (i=0; i<__GBLA_ROUND_DOWN(N, __GBLA_LOOP_UNROLL_SMALL) ; i+=__GBLA_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
       idx   = p_idx[i+j];
       v1__  = p_val[2*(i+j)];
       v2__  = p_val2[2*(i+j)];
@@ -5336,14 +5336,14 @@ void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
   uint32_t i;
 
 #ifdef GBLA_USE_AVX_XXX
-  const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
+  const uint32_t outer_loop = multiline.sz - __GBLA_LOOP_UNROLL_SMALL;
   bi_t j;
 
   register re_m_t v1__, v2__;
   /*  register uint32_t idx; */
 
-  for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+  for (i=offset1; i<outer_loop; i+=__GBLA_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
       v1__ = p_val[2*(i+j)];
       v2__ = p_val[2*(i+j)+1];
 
@@ -5374,14 +5374,14 @@ void dense_scal_mul_sub_2_rows_vect_array_multiline_var_size(
 }
 
 #else
-const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
+const uint32_t outer_loop = multiline.sz - __GBLA_LOOP_UNROLL_SMALL;
 bi_t j;
 
 register re_m_t v1__, v2__;
 /*  register uint32_t idx; */
 
-for (i=offset1; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-  for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+for (i=offset1; i<outer_loop; i+=__GBLA_LOOP_UNROLL_SMALL) {
+  for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
     v1__ = p_val[2*(i+j)];
     v2__ = p_val[2*(i+j)+1];
 
@@ -5538,8 +5538,8 @@ void dense_scal_mul_sub_2_rows_vect_array(
   /*  register uint32_t idx; */
 
 #ifdef GBLA_USE_AVX_XXX
-  for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+  for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
       /* printf(";;%d..%d::",i,j); */
       v1__ = p_val[2*(i+j)];
       v2__ = p_val[2*(i+j)+1];
@@ -5557,8 +5557,8 @@ void dense_scal_mul_sub_2_rows_vect_array(
     }
   }
 #else
-  for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+  for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
       /* printf(";;%d..%d::",i,j); */
       v1__ = p_val[2*(i+j)];
       v2__ = p_val[2*(i+j)+1];
@@ -5678,8 +5678,8 @@ void dense_scal_mul_sub_1_row_vect_array(
   /*  both cannot be zero at the same time */
   /* printf("mlsize %d\n",multiline.sz); */
   if (Av1_col1 != 0 && Av2_col1 != 0) {
-    for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-      for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+    for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_SMALL) {
+      for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
         v__ = p_val[2*(i+j)];
 
         dense_val1[i+j] +=  v__ * Av1_col1;
@@ -5688,8 +5688,8 @@ void dense_scal_mul_sub_1_row_vect_array(
     }
   } else { /*  one of them is zero */
     if (Av1_col1 == 0) {
-      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-        for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_SMALL) {
+        for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
           v__ = p_val[2*(i+j)];
 
           dense_val2[i+j] +=  v__ * Av2_col1;
@@ -5697,8 +5697,8 @@ void dense_scal_mul_sub_1_row_vect_array(
       }
     } else {
       if (Av2_col1 == 0) {
-        for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-          for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+        for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_SMALL) {
+          for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
             v__ = p_val[2*(i+j)];
 
             dense_val1[i+j] +=  v__ * Av1_col1;
@@ -5711,8 +5711,8 @@ void dense_scal_mul_sub_1_row_vect_array(
   /*  both cannot be zero at the same time */
   /* printf("mlsize %d\n",multiline.sz); */
   if (Av1_col1 != 0 && Av2_col1 != 0) {
-    for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-      for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+    for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_SMALL) {
+      for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
         v__ = p_val[2*(i+j)];
 
         dense_val1[i+j] +=  v__ * Av1_col1;
@@ -5721,8 +5721,8 @@ void dense_scal_mul_sub_1_row_vect_array(
     }
   } else { /*  one of them is zero */
     if (Av1_col1 == 0) {
-      for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-        for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_SMALL) {
+        for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
           v__ = p_val[2*(i+j)];
 
           dense_val2[i+j] +=  v__ * Av2_col1;
@@ -5730,8 +5730,8 @@ void dense_scal_mul_sub_1_row_vect_array(
       }
     } else {
       if (Av2_col1 == 0) {
-        for (i=0; i<bwidth; i+=__GB_LOOP_UNROLL_SMALL) {
-          for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+        for (i=0; i<bwidth; i+=__GBLA_LOOP_UNROLL_SMALL) {
+          for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
             v__ = p_val[2*(i+j)];
 
             dense_val1[i+j] +=  v__ * Av1_col1;
@@ -5873,8 +5873,8 @@ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
   register uint32_t idx;
 
 #ifdef GBLA_USE_AVX_XXX
-  for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
-    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+  for (i=0; i<__GBLA_ROUND_DOWN(N, __GBLA_LOOP_UNROLL_SMALL) ; i+=__GBLA_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
       idx   = p_idx[i+j];
       v1__  = p_val[2*(i+j)];
       v2__  = p_val2[2*(i+j)];
@@ -5904,8 +5904,8 @@ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
 #endif
   }
 #else
-  for (i=0; i<__GB_ROUND_DOWN(N, __GB_LOOP_UNROLL_SMALL) ; i+=__GB_LOOP_UNROLL_SMALL) {
-    for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+  for (i=0; i<__GBLA_ROUND_DOWN(N, __GBLA_LOOP_UNROLL_SMALL) ; i+=__GBLA_LOOP_UNROLL_SMALL) {
+    for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
       idx   = p_idx[i+j];
       v1__  = p_val[2*(i+j)];
       v2__  = p_val2[2*(i+j)];
@@ -6081,7 +6081,7 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
 
   const re_t *p_val = multiline.val;
   p_val +=  line_idx;
-  const uint32_t outer_loop = multiline.sz - __GB_LOOP_UNROLL_SMALL;
+  const uint32_t outer_loop = multiline.sz - __GBLA_LOOP_UNROLL_SMALL;
   uint32_t i;
   bi_t j;
 
@@ -6094,8 +6094,8 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
     j=0;
     ELEM_4 Av11 = SET1_4(Av1_col1);
     ELEM_4 Av21 = SET1_4(Av2_col1);
-    /* for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-       for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {                */
+    /* for (i=offset; i<outer_loop; i+=__GBLA_LOOP_UNROLL_SMALL) {
+       for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {                */
     i = offset ;
     while ( i < multiline.sz && NOTALIGNED(dense_val1+i)) {
       v__ = p_val[2*(i+j)];
@@ -6131,8 +6131,8 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
     j=0;
     /* ELEM_4 Av11 = SET1_4(Av1_col1); */
     ELEM_4 Av21 = SET1_4(Av2_col1);
-    /* for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-       for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {                */
+    /* for (i=offset; i<outer_loop; i+=__GBLA_LOOP_UNROLL_SMALL) {
+       for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {                */
     i = offset ;
     while ( i < multiline.sz && NOTALIGNED(dense_val2+i) ) {
       v__ = p_val[2*(i+j)];
@@ -6167,8 +6167,8 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
     j=0;
     ELEM_4 Av11 = SET1_4(Av1_col1);
     /* ELEM_4 Av21 = SET1_4(Av2_col1); */
-    /* for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-       for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {                */
+    /* for (i=offset; i<outer_loop; i+=__GBLA_LOOP_UNROLL_SMALL) {
+       for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {                */
     i = offset ;
     while ( i < multiline.sz &&  NOTALIGNED(dense_val1+i)) {
       v__ = p_val[2*(i+j)];
@@ -6205,8 +6205,8 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
   /*  both cannot be zero at the same time */
   /* printf("mlsize %d\n",multiline.sz); */
   if (Av1_col1 != 0 && Av2_col1 != 0) {
-    for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-      for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+    for (i=offset; i<outer_loop; i+=__GBLA_LOOP_UNROLL_SMALL) {
+      for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
         v__ = p_val[2*(i+j)];
 
         dense_val1[i+j] +=  v__ * Av1_col1;
@@ -6227,8 +6227,8 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
     }
   } else { /*  one of them is zero */
     if (Av1_col1 == 0) {
-      for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-        for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+      for (i=offset; i<outer_loop; i+=__GBLA_LOOP_UNROLL_SMALL) {
+        for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
           v__ = p_val[2*(i+j)];
 
           dense_val2[i+j] +=  v__ * Av2_col1;
@@ -6248,8 +6248,8 @@ void dense_scal_mul_sub_1_row_vect_array_multiline_var_size(
       }
     } else {
       if (Av2_col1 == 0) {
-        for (i=offset; i<outer_loop; i+=__GB_LOOP_UNROLL_SMALL) {
-          for (j=0; j<__GB_LOOP_UNROLL_SMALL; ++j) {
+        for (i=offset; i<outer_loop; i+=__GBLA_LOOP_UNROLL_SMALL) {
+          for (j=0; j<__GBLA_LOOP_UNROLL_SMALL; ++j) {
             v__ = p_val[2*(i+j)];
 
             dense_val1[i+j] +=  v__ * Av1_col1;
@@ -6364,49 +6364,49 @@ mli_t get_head_multiline_hybrid(const ml_t *m,
 
 void init_fl_map_sizes(uint32_t col_size, uint32_t row_size, map_fl_t *map) {
   /*  initialize map arrays and */
-  /*  set initial values to __GB_MINUS_ONE_8 */
+  /*  set initial values to __GBLA_MINUS_ONE_8 */
   map->pc = (ci_t *)malloc(col_size * sizeof(ci_t));
-  memset(map->pc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+  memset(map->pc, __GBLA_MINUS_ONE_8, col_size * sizeof(ci_t));
 
   map->npc  = (ci_t *)malloc(col_size * sizeof(ci_t));
-  memset(map->npc, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+  memset(map->npc, __GBLA_MINUS_ONE_8, col_size * sizeof(ci_t));
 
   map->pc_rev = (ci_t *)malloc(col_size * sizeof(ci_t));
-  memset(map->pc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+  memset(map->pc_rev, __GBLA_MINUS_ONE_8, col_size * sizeof(ci_t));
 
   map->npc_rev  = (ci_t *)malloc(col_size * sizeof(ci_t));
-  memset(map->npc_rev, __GB_MINUS_ONE_8, col_size * sizeof(ci_t));
+  memset(map->npc_rev, __GBLA_MINUS_ONE_8, col_size * sizeof(ci_t));
 
   map->pri  = (ri_t *)malloc(col_size * sizeof(ri_t));
-  memset(map->pri, __GB_MINUS_ONE_8, col_size * sizeof(ri_t));
+  memset(map->pri, __GBLA_MINUS_ONE_8, col_size * sizeof(ri_t));
 
   map->npri = (ri_t *)malloc(row_size * sizeof(ri_t));
-  memset(map->npri, __GB_MINUS_ONE_8, row_size * sizeof(ri_t));
+  memset(map->npri, __GBLA_MINUS_ONE_8, row_size * sizeof(ri_t));
 }
 
 void init_fl_map(sm_t *M, map_fl_t *map) {
   /*  initialize map arrays and */
-  /*  set initial values to __GB_MINUS_ONE_8 */
+  /*  set initial values to __GBLA_MINUS_ONE_8 */
 
   ri_t max_length = M->ncols > M->nrows ? M->ncols : M->nrows;
 
   map->pc = (ci_t *)malloc(M->ncols * sizeof(ci_t));
-  memset(map->pc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
+  memset(map->pc, __GBLA_MINUS_ONE_8, M->ncols * sizeof(ci_t));
 
   map->npc  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
-  memset(map->npc, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
+  memset(map->npc, __GBLA_MINUS_ONE_8, M->ncols * sizeof(ci_t));
 
   map->pc_rev = (ci_t *)malloc(M->ncols * sizeof(ci_t));
-  memset(map->pc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
+  memset(map->pc_rev, __GBLA_MINUS_ONE_8, M->ncols * sizeof(ci_t));
 
   map->npc_rev  = (ci_t *)malloc(M->ncols * sizeof(ci_t));
-  memset(map->npc_rev, __GB_MINUS_ONE_8, M->ncols * sizeof(ci_t));
+  memset(map->npc_rev, __GBLA_MINUS_ONE_8, M->ncols * sizeof(ci_t));
 
   map->pri  = (ri_t *)malloc(M->ncols * sizeof(ri_t));
-  memset(map->pri, __GB_MINUS_ONE_8, M->ncols * sizeof(ri_t));
+  memset(map->pri, __GBLA_MINUS_ONE_8, M->ncols * sizeof(ri_t));
 
   map->npri = (ri_t *)malloc(max_length * sizeof(ri_t));
-  memset(map->npri, __GB_MINUS_ONE_8, M->nrows * sizeof(ri_t));
+  memset(map->npri, __GBLA_MINUS_ONE_8, M->nrows * sizeof(ri_t));
 }
 
 void realloc_rows_ml(sm_fl_ml_t *A, const mli_t mli,

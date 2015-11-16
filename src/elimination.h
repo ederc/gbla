@@ -20,8 +20,8 @@
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 
-#ifndef GB_ELIMINATION_H
-#define GB_ELIMINATION_H
+#ifndef GBLA_ELIMINATION_H
+#define GBLA_ELIMINATION_H
 
 #include "src/config.h"
 #include <unistd.h>
@@ -5293,7 +5293,7 @@ static ri_t sorting_pivs;
 static ri_t last_pivot_idx;
 
 
-#endif /* GB_ELIMINATION_H */
+#endif /* GBLA_ELIMINATION_H */
 
 /* vim:sts=2:sw=2:ts=2:
 */

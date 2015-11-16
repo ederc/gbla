@@ -18,11 +18,11 @@
 #include "gbla.h"
 #include <getopt.h>
 
-#define __GB_CLI_DEBUG        0
-#define __GB_CLI_DEBUG_1      0
-#define __GB_CLI_DEBUG_A      0
-#define __GB_CLI_DEBUG_D      0
-#define __GB_CLI_DEBUG_D_TEST 0
+#define __GBLA_CLI_DEBUG        0
+#define __GBLA_CLI_DEBUG_1      0
+#define __GBLA_CLI_DEBUG_A      0
+#define __GBLA_CLI_DEBUG_D      0
+#define __GBLA_CLI_DEBUG_D_TEST 0
 
 // enable this only for some untested hybrid, etc. versions.
 // NOTE: these implementations are not finished, not stable and you cannot rely
@@ -48,8 +48,8 @@ void print_help() {
   printf("OPTIONS\n");
   printf("    -b          Dimensions of a block in submatrices.\n");
   printf("                Default: 256.\n");
-  printf("                NOTE: The block dimension must be a multiple of __GB_LOOP_UNROLL_BIG\n");
-  printf("                      which is by default 64. You can reset __GB_LOOP_UNROLL_BIG in \n");
+  printf("                NOTE: The block dimension must be a multiple of __GBLA_LOOP_UNROLL_BIG\n");
+  printf("                      which is by default 64. You can reset __GBLA_LOOP_UNROLL_BIG in \n");
   printf("                      src/gb_config.h.in (you need to rebuild the library afterwards).\n");
   printf("    -d          Reads in different matrix format (at the moment only for matrices arising\n");
   printf("                from the Prym-Green conjecture. \n");
@@ -436,7 +436,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
-#if __GB_CLI_DEBUG_A
+#if __GBLA_CLI_DEBUG_A
   // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -612,7 +612,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("\n");
   }
 #endif
-#if __GB_CLI_DEBUG_D_TEST
+#if __GBLA_CLI_DEBUG_D_TEST
   printf("DDDD\n");
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -655,7 +655,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   if (verbose > 1) {
     print_mem_usage();
   }
-#if __GB_CLI_DEBUG_D_TEST
+#if __GBLA_CLI_DEBUG_D_TEST
   for (int ii=0; ii<D_red->nrows; ++ii) {
     printf("ROW %d\n",ii);
     if (D_red->row[ii]->piv_val == NULL)
@@ -733,7 +733,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
-#if __GB_CLI_DEBUG_A
+#if __GBLA_CLI_DEBUG_A
   // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -774,7 +774,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
     }
   }
 #endif
-#if __GB_CLI_DEBUG
+#if __GBLA_CLI_DEBUG
   // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -826,7 +826,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
   if (verbose > 1) {
     print_mem_usage();
   }
-#if __GB_CLI_DEBUG_11
+#if __GBLA_CLI_DEBUG_11
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -866,7 +866,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
     print_mem_usage();
   }
 
-#if __GB_CLI_DEBUG_D_TEST
+#if __GBLA_CLI_DEBUG_D_TEST
   printf("DDDD\n");
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -909,7 +909,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
   if (verbose > 1) {
     print_mem_usage();
   }
-#if __GB_CLI_DEBUG_D_TEST
+#if __GBLA_CLI_DEBUG_D_TEST
   for (int ii=0; ii<D_red->rank; ++ii) {
     printf("%u | ",D_red->row[ii]->piv_lead);
   }
@@ -986,7 +986,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
-#if __GB_CLI_DEBUG
+#if __GBLA_CLI_DEBUG
   /*  column loops */
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
@@ -1040,7 +1040,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   if (verbose > 1) {
     print_mem_usage();
   }
-#if __GB_CLI_DEBUG_1
+#if __GBLA_CLI_DEBUG_1
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   // row loops
@@ -1088,7 +1088,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     print_mem_usage();
   }
 
-#if __GB_CLI_DEBUG_D_TEST
+#if __GBLA_CLI_DEBUG_D_TEST
   printf("DDDD\n");
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
@@ -1148,7 +1148,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   if (verbose > 1) {
     print_mem_usage();
   }
-#if __GB_CLI_DEBUG_D_TEST
+#if __GBLA_CLI_DEBUG_D_TEST
   printf("DDDD11111111111111\n");
   for (int ii=0; ii<D_red->nrows / 2; ++ii) {
     printf("%d .. \n",ii);
@@ -1304,15 +1304,15 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
-#if __GB_CLI_DEBUG_A
+#if __GBLA_CLI_DEBUG_A
 
   /*  column loops */
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
   /*  row loops */
-  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GB_NROWS_MULTILINE);
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GBLA_NROWS_MULTILINE);
   const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
-  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / __GB_NROWS_MULTILINE);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / __GBLA_NROWS_MULTILINE);
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
 
   int ii,jj,kk,ll;
@@ -1429,7 +1429,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-#if __GB_CLI_DEBUG_D_TEST
+#if __GBLA_CLI_DEBUG_D_TEST
   printf("DDDD\n");
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
@@ -1550,7 +1550,7 @@ int fl_block_sparse_dense_old(sm_t *M, int nthreads, int free_mem,
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
-#if __GB_CLI_DEBUG
+#if __GBLA_CLI_DEBUG
   // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -1585,7 +1585,7 @@ int fl_block_sparse_dense_old(sm_t *M, int nthreads, int free_mem,
     }
   }
 #endif
-#if __GB_CLI_DEBUG_1
+#if __GBLA_CLI_DEBUG_1
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -1631,7 +1631,7 @@ int fl_block_sparse_dense_old(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-#if __GB_CLI_DEBUG_1
+#if __GBLA_CLI_DEBUG_1
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -1671,7 +1671,7 @@ int fl_block_sparse_dense_old(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-#if __GB_CLI_DEBUG_1
+#if __GBLA_CLI_DEBUG_1
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -1734,7 +1734,7 @@ int fl_block_hybrid_dense(sm_t *M, int nthreads, int free_mem,
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
-#if __GB_CLI_DEBUG
+#if __GBLA_CLI_DEBUG
   // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -1769,7 +1769,7 @@ int fl_block_hybrid_dense(sm_t *M, int nthreads, int free_mem,
     }
   }
 #endif
-#if __GB_CLI_DEBUG_2
+#if __GBLA_CLI_DEBUG_2
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -1856,7 +1856,7 @@ int fl_block_hybrid(sm_t *M, int nthreads, int free_mem,
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
-#if __GB_CLI_DEBUG
+#if __GBLA_CLI_DEBUG
   // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -1891,7 +1891,7 @@ int fl_block_hybrid(sm_t *M, int nthreads, int free_mem,
     }
   }
 #endif
-#if __GB_CLI_DEBUG_1
+#if __GBLA_CLI_DEBUG_1
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -1977,7 +1977,7 @@ int fl_block_dense(sm_t *M, int nthreads, int free_mem,
         D->nrows, D->ncols);
     printf("---------------------------------------------------------------------\n");
   }
-#if __GB_CLI_DEBUG
+#if __GBLA_CLI_DEBUG
   // column loops
   const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_SIMD_BLOCK_SIZE);
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
@@ -2030,7 +2030,7 @@ int fl_block_dense(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-#if __GB_CLI_DEBUG_1
+#if __GBLA_CLI_DEBUG_1
   // column loops
   const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops
@@ -2070,7 +2070,7 @@ int fl_block_dense(sm_t *M, int nthreads, int free_mem,
     printf("---------------------------------------------------------------------\n");
     printf("\n");
   }
-#if __GB_CLI_DEBUG_1
+#if __GBLA_CLI_DEBUG_1
   // column loops
   const uint32_t clD  = (uint32_t) ceil((float)D->ncols / __GBLA_SIMD_BLOCK_SIZE);
   // row loops

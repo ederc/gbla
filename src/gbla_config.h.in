@@ -1,35 +1,35 @@
-#ifndef GB_GB_CONFIG_H
-#define GB_GB_CONFIG_H
+#ifndef GBLA_GBLA_CONFIG_H
+#define GBLA_GBLA_CONFIG_H
 
 #include <stdint.h>
 #include <stdio.h>
 
 /* Defines determined during configuration of gb. */
-#define __GB_HAVE_MM_MALLOC		@GB_HAVE_MM_MALLOC@
-#define __GB_HAVE_POSIX_MEMALIGN	@GB_HAVE_POSIX_MEMALIGN@
-#define __GB_HAVE_SSE2		@GB_HAVE_SSE2@
-#define __GB_HAVE_OPENMP		@GB_HAVE_OPENMP@
-#define __GB_CPU_L1_CACHE		@GB_CPU_L1_CACHE@
-#define __GB_CPU_L2_CACHE		@GB_CPU_L2_CACHE@
-#define __GB_CPU_L3_CACHE		@GB_CPU_L3_CACHE@
-#define __GB_DEBUG_DUMP		(@GB_DEBUG_DUMP@ || @GB_DEBUG_MZD@)
-#define __GB_DEBUG_MZD		@GB_DEBUG_MZD@
-#define __GB_HAVE_LIBPNG              @GB_HAVE_LIBPNG@
+#define __GBLA_HAVE_MM_MALLOC		@GB_HAVE_MM_MALLOC@
+#define __GBLA_HAVE_POSIX_MEMALIGN	@GB_HAVE_POSIX_MEMALIGN@
+#define __GBLA_HAVE_SSE2		@GB_HAVE_SSE2@
+#define __GBLA_HAVE_OPENMP		@GB_HAVE_OPENMP@
+#define __GBLA_CPU_L1_CACHE		@GB_CPU_L1_CACHE@
+#define __GBLA_CPU_L2_CACHE		@GB_CPU_L2_CACHE@
+#define __GBLA_CPU_L3_CACHE		@GB_CPU_L3_CACHE@
+#define __GBLA_DEBUG_DUMP		(@GB_DEBUG_DUMP@ || @GB_DEBUG_MZD@)
+#define __GBLA_DEBUG_MZD		@GB_DEBUG_MZD@
+#define __GBLA_HAVE_LIBPNG              @GB_HAVE_LIBPNG@
 
-#define __GB_CC                       "@CC@"
-#define __GB_CFLAGS                   "@SIMD_FLAGS@ @OPENMP_CFLAGS@ @CFLAGS@"
-#define __GB_SIMD_CFLAGS              "@SIMD_FLAGS@"
-#define __GB_OPENMP_CFLAGS            "@OPENMP_CFLAGS@"
+#define __GBLA_CC                       "@CC@"
+#define __GBLA_CFLAGS                   "@SIMD_FLAGS@ @OPENMP_CFLAGS@ @CFLAGS@"
+#define __GBLA_SIMD_CFLAGS              "@SIMD_FLAGS@"
+#define __GBLA_OPENMP_CFLAGS            "@OPENMP_CFLAGS@"
 
 /* Helper macros. */
-#define __GB_USE_MM_MALLOC		(__GB_HAVE_MM_MALLOC && __GB_HAVE_SSE2)
-#define __GB_USE_POSIX_MEMALIGN	(__GB_HAVE_POSIX_MEMALIGN && __GB_HAVE_SSE2)
-#define __GB_DD_QUIET			(@GB_DEBUG_MZD@ && !@GB_DEBUG_DUMP@)
+#define __GBLA_USE_MM_MALLOC		(__GBLA_HAVE_MM_MALLOC && __GBLA_HAVE_SSE2)
+#define __GBLA_USE_POSIX_MEMALIGN	(__GBLA_HAVE_POSIX_MEMALIGN && __GBLA_HAVE_SSE2)
+#define __GBLA_DD_QUIET			(@GB_DEBUG_MZD@ && !@GB_DEBUG_DUMP@)
 
-#define __GB_LOOP_UNROLL_SMALL  16
-#define __GB_LOOP_UNROLL_BIG    64
+#define __GBLA_LOOP_UNROLL_SMALL  16
+#define __GBLA_LOOP_UNROLL_BIG    64
 
-#define __GB_ROUND_DOWN(x, s) ((x) & ~((s)-1))
+#define __GBLA_ROUND_DOWN(x, s) ((x) & ~((s)-1))
 
 // Note: It must hold that __GBLA_SIMD_BLOCK_SIZE % __GBLA_SIMD_INNER_SIZE == 0
 #define __GBLA_COLUMN_B  1
@@ -39,12 +39,12 @@
 #define __GBLA_SIMD_BLOCK_SIZE_RECT ((__GBLA_SIMD_BLOCK_SIZE) * (__GBLA_SIMD_BLOCK_SIZE))
 #define __GBLA_SIMD_BLOCK_SIZE_DIAG (((__GBLA_SIMD_BLOCK_SIZE) *((__GBLA_SIMD_BLOCK_SIZE)-1)/2) + \
   (__GBLA_SIMD_BLOCK_SIZE))
-#define __GB_NROWS_MULTILINE  2
-#define __GB_HYBRID_THRESHOLD 0.5f
-#define __GB_DENSITY_THRESHOLD 10.0f
+#define __GBLA_NROWS_MULTILINE  2
+#define __GBLA_HYBRID_THRESHOLD 0.5f
+#define __GBLA_DENSITY_THRESHOLD 10.0f
 
 
-static const uint32_t __GB_MINUS_ONE_32 = (uint32_t) -1;
-static const uint16_t __GB_MINUS_ONE_16 = (uint16_t) -1;
-static const uint8_t  __GB_MINUS_ONE_8  = (uint8_t)  -1;
+static const uint32_t __GBLA_MINUS_ONE_32 = (uint32_t) -1;
+static const uint16_t __GBLA_MINUS_ONE_16 = (uint16_t) -1;
+static const uint8_t  __GBLA_MINUS_ONE_8  = (uint8_t)  -1;
 #endif

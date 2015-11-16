@@ -13,8 +13,8 @@
  * along with gbla . If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GB_reduce_B_omp_H
-#define __GB_reduce_B_omp_H
+#ifndef __GBLA_reduce_B_omp_H
+#define __GBLA_reduce_B_omp_H
 
 void     Freduce_double(double p, double * A, index_t n);
 int cblas_daxpy(const int N, const double alpha, const double * X, const int incX, double * Y, const int incY);
@@ -87,6 +87,6 @@ void reduce_B(
 }
 
 
-#endif /* __GB_reduce_B_omp_H */
+#endif /* __GBLA_reduce_B_omp_H */
 
 /* vim: set ft=c: */

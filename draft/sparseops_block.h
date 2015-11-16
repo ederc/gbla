@@ -13,8 +13,8 @@
  * along with gbla . If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GB_sparseops_block_H
-#define __GB_sparseops_block_H
+#ifndef __GBLA_sparseops_block_H
+#define __GBLA_sparseops_block_H
 
 void     Freduce_double(double p, double * A, index_t n);
 int cblas_daxpy(const int N, const double alpha, const double * X, const int incX, double * Y, const int incY);
@@ -166,6 +166,6 @@ void sparse_dcopy_block(
 }
 
 
-#endif /*  __GB_sparseops_block_H */
+#endif /*  __GBLA_sparseops_block_H */
 
 /* vim: set ft=c: */

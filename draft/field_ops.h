@@ -14,8 +14,8 @@
  */
 
 
-#ifndef __GB_field_ops_H
-#define __GB_field_ops_H
+#ifndef __GBLA_field_ops_H
+#define __GBLA_field_ops_H
 
 #include <math.h>
 
@@ -36,4 +36,4 @@ int32_t fmod_int32_t(int32_t a, int32_t p)
 }
 
 
-#endif /* __GB_field_ops_H */
+#endif /* __GBLA_field_ops_H */

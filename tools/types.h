@@ -14,8 +14,8 @@
  */
 
 
-#ifndef __GB_types_H
-#define __GB_types_H
+#ifndef __GBLA_types_H
+#define __GBLA_types_H
 
 
 /* OLD FORMAT */
@@ -47,5 +47,5 @@
 
 
 
-#endif /* __GB_types_H */
+#endif /* __GBLA_types_H */
 /* vim: set ft=c: */

@@ -21,8 +21,8 @@
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 
-#ifndef GB_MAPPING_H
-#define GB_MAPPING_H
+#ifndef GBLA_MAPPING_H
+#define GBLA_MAPPING_H
 
 #include <gbla_config.h>
 #include <stdlib.h>
@@ -53,17 +53,17 @@ typedef struct map_fl_t {
   ri_t npiv;      /*!<  number of pivots found in input matrix */
   ci_t *pc;       /*!<  map of pivot columns: from input matrix M to
                         submatrix A; has length M->ncols, maps non-pivot
-                        columns to __GB_MINUS_ONE_32 */
+                        columns to __GBLA_MINUS_ONE_32 */
   ci_t *npc;      /*!<  map of non-pivot columns: from input matrix M to
                         submatrix B; has length M->ncols, maps pivot
-                        columns to __GB_MINUS_ONE_32 */
+                        columns to __GBLA_MINUS_ONE_32 */
   ci_t *pc_rev;   /*!<  reverse map of pivot columns: from submatrices
                         A and B to input matrix M */
   ci_t *npc_rev;  /*!<  reverse map of non-pivot columns: from submatrices
                         A and B to input matrix M */
   ri_t *pri;      /*!<  has length M->nrows, maps pivot columns to
                         their corresponding row index, maps non-pivot
-                        columns to __GB_MINUS_ONE_32 */
+                        columns to __GBLA_MINUS_ONE_32 */
   ri_t *npri;     /*!<  indices of non-pivot rows */
 
   int nthrds;     /*!<  number of threads to be used for the indexer */
@@ -72,7 +72,7 @@ typedef struct map_fl_t {
 
 /**
  * \brief Initializes a map for the input matrix M with all entries set
- * to __GB_MINUS_ONE_8.
+ * to __GBLA_MINUS_ONE_8.
  *
  * \param size of columns col_size
  *
@@ -85,7 +85,7 @@ typedef struct map_fl_t {
 
 /**
  * \brief Initializes a map for the input matrix M with all entries set
- * to __GB_MINUS_ONE_8.
+ * to __GBLA_MINUS_ONE_8.
  *
  * \param original matrix M
  *
@@ -1556,7 +1556,7 @@ static inline void init_pivot_block_start_indices(ri_t **piv_start_idx,
   *npiv  = 0;
   // find blocks for construction of A & B
   for (i = (int)range-1; i>-1; --i) {
-    if (map_piv[i] != __GB_MINUS_ONE_32) {
+    if (map_piv[i] != __GBLA_MINUS_ONE_32) {
       (*npiv)++;
     }
     if ((*npiv % __GBLA_SIMD_BLOCK_SIZE) == 0) {
@@ -1641,7 +1641,7 @@ static inline void write_sparse_dense_blocks_matrix_no_inversion(const sm_t *M,
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_sb(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
@@ -1701,7 +1701,7 @@ static inline void write_sparse_dense_blocks_matrix_many(const sm_t *M, sb_fl_t 
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32) {
+      if (map->pc[it] != __GBLA_MINUS_ONE_32) {
         if (old_col_posA != ((A->ncols-1-map->pc[it]) / __GBLA_SIMD_BLOCK_SIZE)) {
           if (ctrA != 0) {
             insert_many_in_sb_inv(A, M, itA, riA, ctrA, rbi, i, bi); 
@@ -1786,7 +1786,7 @@ static inline void write_sparse_dense_blocks_matrix(const sm_t *M, sb_fl_t *A,
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_sb_inv(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
@@ -1865,7 +1865,7 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32) {
+      if (map->pc[it] != __GBLA_MINUS_ONE_32) {
         if (old_col_posA != ((map->pc[it]) / __GBLA_SIMD_BLOCK_SIZE)) {
           if (ctrA != 0) {
             insert_many_in_sm(A, M, itA, riA, ctrA, rbi, i, bi); 
@@ -2108,7 +2108,7 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A(
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_sm(A, M, map->pc[it], rbi, i, bi, ri); 
       else
 #if __GBLA_COLUMN_B
@@ -2174,7 +2174,7 @@ static inline void write_sparse_dense_blocks_matrix_keep_A_many(
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32) {
+      if (map->pc[it] != __GBLA_MINUS_ONE_32) {
         if (old_col_posA != ((map->pc[it]) / __GBLA_SIMD_BLOCK_SIZE)) {
           if (ctrA != 0) {
             insert_many_in_sm(A, M, itA, riA, ctrA, rbi, i, bi); 
@@ -2262,7 +2262,7 @@ static inline void write_sparse_dense_blocks_matrix_keep_A(
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_sm(A, M, map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
@@ -2313,7 +2313,7 @@ static inline void write_sparse_dense_blocks_matrix_inv_keep_A(const sm_t *M, sm
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_sm_inv(A, M, map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
@@ -2363,7 +2363,7 @@ static inline void write_hybrid_dense_blocks_matrix(const sm_t *M, hbm_fl_t *A,
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_hbm_inv(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
@@ -2413,7 +2413,7 @@ static inline void write_hybrid_blocks_matrix(const sm_t *M, hbm_fl_t *A, hbm_fl
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_hbm_inv(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_hbm(B, M, map->npc[it], rbi, i, bi, ri); 
@@ -2463,7 +2463,7 @@ static inline void write_dense_blocks_matrix(const sm_t *M, dbm_fl_t *A, dbm_fl_
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_dbm_inv(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
@@ -2518,7 +2518,7 @@ static inline void write_dense_blocks_matrix_diagonalize(const sm_t *M,
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
-      if (map->pc[it] != __GB_MINUS_ONE_32)
+      if (map->pc[it] != __GBLA_MINUS_ONE_32)
         insert_in_dbm_inv_diagonalize(A, M, A->ncols-1-map->pc[it], rbi, i, bi, ri); 
       else
         insert_in_dbm(B, M, map->npc[it], rbi, i, bi, ri); 
@@ -2570,7 +2570,7 @@ static inline void fill_sparse_dense_submatrices_keep_A(sm_t *M, sm_fl_t *A,
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (range[i] != __GB_MINUS_ONE_32) {
+        if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
         }
@@ -2635,7 +2635,7 @@ static inline void fill_sparse_sparse_submatrices_keep_A(sm_t *M, sm_fl_t *A,
         // TODO: Try to improve this rather strange looping.
         for (i = ((int)piv_start_idx[block_idx]-1);
             i > (int)piv_start_idx[block_idx+1]-1; --i) {
-          if (range[i] != __GB_MINUS_ONE_32) {
+          if (range[i] != __GBLA_MINUS_ONE_32) {
             rihb[cvb] = range[i];
             cvb++;
           }
@@ -2701,7 +2701,7 @@ static inline void fill_sparse_dense_submatrices_inv_keep_A(sm_t *M, sm_fl_t *A,
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (range[i] != __GB_MINUS_ONE_32) {
+        if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
         }
@@ -2763,7 +2763,7 @@ static inline void fill_sparse_dense_submatrices_no_inversion(sm_t *M, sb_fl_t *
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (range[i] != __GB_MINUS_ONE_32) {
+        if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
         }
@@ -2825,7 +2825,7 @@ static inline void fill_sparse_dense_submatrices(sm_t *M, sb_fl_t *A, dbm_fl_t *
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (range[i] != __GB_MINUS_ONE_32) {
+        if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
         }
@@ -2886,7 +2886,7 @@ static inline void fill_hybrid_dense_submatrices(sm_t *M, hbm_fl_t *A, dbm_fl_t 
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (range[i] != __GB_MINUS_ONE_32) {
+        if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
         }
@@ -2945,7 +2945,7 @@ static inline void fill_hybrid_submatrices(sm_t *M, hbm_fl_t *A, hbm_fl_t *B,
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (range[i] != __GB_MINUS_ONE_32) {
+        if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
         }
@@ -3004,7 +3004,7 @@ static inline void fill_dense_submatrices(sm_t *M, dbm_fl_t *A, dbm_fl_t *B,
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (range[i] != __GB_MINUS_ONE_32) {
+        if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
         }
@@ -3065,7 +3065,7 @@ static inline void fill_dense_submatrices_diagonalize(sm_t *M, dbm_fl_t *A, dbm_
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
           i > (int)piv_start_idx[block_idx+1]-1; --i) {
-        if (range[i] != __GB_MINUS_ONE_32) {
+        if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
         }

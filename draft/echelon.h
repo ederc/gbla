@@ -13,8 +13,8 @@
  * along with gbla . If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GB_echelon_H
-#define __GB_echelon_H
+#ifndef __GBLA_echelon_H
+#define __GBLA_echelon_H
 
 dimen_t RowReduce_int32_t ( int32_t p, int32_t * A, dimen_t m, dimen_t n, dimen_t lda) ;
 dimen_t RowReduce_double  ( double p, double * A, dimen_t m, dimen_t n, dimen_t lda, uint32_t nt) ;
@@ -33,6 +33,6 @@ static dimen_t echelonD(
 }
 
 
-#endif /*  __GB_echelon_H */
+#endif /*  __GBLA_echelon_H */
 
 /* vim: set ft=c: */
