@@ -23,8 +23,8 @@
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 
-#ifndef GB_IO_H
-#define GB_IO_H
+#ifndef GBLA_IO_H
+#define GBLA_IO_H
 
 #include <ctype.h>
 #include <stdio.h>

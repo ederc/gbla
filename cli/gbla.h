@@ -17,14 +17,14 @@
 
 
 /**
- * \file gb.h
+ * \file gbla.h
  * \brief Main command line program
  *
  * \author Christian Eder <ederc@mathematik.uni-kl.de>
  */
 
-#ifndef GB_GB_H
-#define GB_GB_H
+#ifndef GBLA_GBLA_H
+#define GBLA_GBLa_H
 
 #include <math.h>
 #include <unistd.h>
