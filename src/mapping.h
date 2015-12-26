@@ -24,14 +24,14 @@
 #ifndef GBLA_MAPPING_H
 #define GBLA_MAPPING_H
 
-#include <gbla_config.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <elimination.h>
-#include <matrix.h>
 #include <math.h>
 #include <omp.h>
+#include "gbla_config.h"
+#include "elimination.h"
+#include "matrix.h"
 
 #define BUFFER  256
 

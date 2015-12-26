@@ -7,4 +7,4 @@ Name: gbla
 Description: Linear algebra for Groebner Basis algorithms.
 Version: @PACKAGE_VERSION@
 Libs: -L${libdir} -lgbla -lm
-Cflags: -I${includedir}/ @CFLAGS@ @SIMD_FLAGS@ @OPENMP_CFLAGS@
+Cflags: -I${includedir}/gbla @CFLAGS@ @SIMD_FLAGS@ @OPENMP_CFLAGS@

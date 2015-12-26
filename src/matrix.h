@@ -23,13 +23,13 @@
 #ifndef GBLA_MATRIX_H
 #define GBLA_MATRIX_H
 
-#include <gbla_config.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <math.h>
 #include <omp.h>
-#include <types.h>
+#include "gbla_config.h"
+#include "types.h"
 #if GBLA_WITH_FFLAS
 #include "../draft/matrix.h"
 #endif

@@ -24,7 +24,7 @@ dev_stuff= \
 	draft/echelon.h
 
 
-pkgincludesubdir = $(includedir)/src
+pkgincludesubdir = $(includedir)/gbla
 pkgincludesub_HEADERS = \
 	src/types.h \
 	src/matrix.h \
