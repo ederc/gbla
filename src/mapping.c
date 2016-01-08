@@ -19,6 +19,7 @@
 #define __GBLA_DEBUG_LL     0
 #define __GBLA_DEBUG        0
 #define __GBLA_NEW_SPLICER  0
+#define __GBLA_BENCHMARKS  1
 
 void construct_fl_map(sm_t *M, map_fl_t *map) {
   /*  initialize all map entries to __GBLA_MINUS_ONE_8 */
@@ -564,6 +565,14 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
       M->pos[i]   = realloc(M->pos[i], M->rwidth[i] * sizeof(ci_t));
     }
     // if we had the last line in the block, we can remove it
+#if __GBLA_BENCHMARKS
+    for (i=block_row_idx; i<min_range; ++i) {
+      free(M->rows[i]);
+      free(M->pos[i]);
+      M->rows[i]  = NULL;
+      M->pos[i]   = NULL;
+    }
+#endif
   }
 }
 
@@ -611,6 +620,14 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
         D->row[line_idx] = NULL;
       }
     }
+#if __GBLA_BENCHMARKS
+    for (i=block_row_idx; i<min_range; ++i) {
+      free(M->rows[i]);
+      free(M->pos[i]);
+      M->rows[i]  = NULL;
+      M->pos[i]   = NULL;
+    }
+#endif
   }
 }
 
@@ -962,6 +979,12 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
       M->pos[local_piv] = realloc(M->pos[local_piv],
           M->rwidth[local_piv] * sizeof(ci_t));
       /*  next pivot row */
+#if __GBLA_BENCHMARKS
+      free(M->rows[local_piv]);
+      free(M->pos[local_piv]);
+      M->rows[local_piv]  = NULL;
+      M->pos[local_piv]   = NULL;
+#endif
     }
   }
   if (free_matrices == 1) {
@@ -1172,6 +1195,12 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
           M->rwidth[local_piv] * sizeof(ci_t));
       M->nnz  = M->nnz + M->rwidth[local_piv];
       /*  next pivot row */
+#if __GBLA_BENCHMARKS
+      free(M->rows[local_piv]);
+      free(M->pos[local_piv]);
+      M->rows[local_piv]  = NULL;
+      M->pos[local_piv]   = NULL;
+#endif
     }
   }
   if (free_matrices == 1) {
