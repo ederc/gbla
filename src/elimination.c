@@ -1987,6 +1987,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
     if (D->row[i]->val != NULL) {
       save_pivot(D, i, global_last_piv+1);
       if (D->row[global_last_piv+1]->piv_val != NULL) {
+        //printf("D->row[%u]->piv_lead = %u\n", global_last_piv+1,D->row[global_last_piv+1]->piv_lead);
         global_last_piv++;
         if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
           for (j=global_last_piv-1; j>0; --j) {
@@ -2189,6 +2190,7 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds)
 {
   // setting global variables for open mp locks used later on
   global_next_row_to_reduce = nthrds * 2;
+  global_last_piv           = 0;
 
   /*  global waiting list */
   waiting_global.list = (wle_t *)malloc(D->nrows * sizeof(wle_t));
