@@ -1444,7 +1444,7 @@ void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
 
   free(piv_start_idx);
   piv_start_idx = NULL;
-  // write data in C and D, i.e. fill upper part of splicing
+  // write data in C and D, i.e. fill lower part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
   fill_dense_submatrices(M, C, D, map, map->npri, piv_start_idx, destruct_input_matrix, nthreads);
 
@@ -1479,7 +1479,7 @@ void splice_fl_matrix_hybrid(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
 
   free(piv_start_idx);
   piv_start_idx = NULL;
-  // write data in C and D, i.e. fill upper part of splicing
+  // write data in C and D, i.e. fill lower part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
   fill_hybrid_submatrices(M, C, D, map, map->npri, piv_start_idx, destruct_input_matrix, nthreads);
 
@@ -1514,7 +1514,7 @@ void splice_fl_matrix_hybrid_dense(sm_t *M, hbm_fl_t *A, dbm_fl_t *B, hbm_fl_t *
 
   free(piv_start_idx);
   piv_start_idx = NULL;
-  // write data in C and D, i.e. fill upper part of splicing
+  // write data in C and D, i.e. fill lower part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
   fill_hybrid_dense_submatrices(M, C, D, map, map->npri, piv_start_idx, destruct_input_matrix, nthreads);
 
@@ -1549,7 +1549,7 @@ void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B, sm_fl
 
   free(piv_start_idx);
   piv_start_idx = NULL;
-  // write data in C and D, i.e. fill upper part of splicing
+  // write data in C and D, i.e. fill lower part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
   fill_sparse_dense_submatrices_keep_A(M, C, D, map, map->npri, piv_start_idx,
       destruct_input_matrix, nthreads);
@@ -1585,7 +1585,7 @@ void splice_fl_matrix_sparse_dense_2(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *
 
   free(piv_start_idx);
   piv_start_idx = NULL;
-  // write data in C and D, i.e. fill upper part of splicing
+  // write data in C and D, i.e. fill lower part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
   fill_sparse_dense_submatrices(M, C, D, map, map->npri, piv_start_idx, destruct_input_matrix,
       nthreads);
@@ -1621,7 +1621,7 @@ void splice_fl_matrix_sparse_dense(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dbm_fl_t *C
 
   free(piv_start_idx);
   piv_start_idx = NULL;
-  // write data in C and D, i.e. fill upper part of splicing
+  // write data in C and D, i.e. fill lower part of splicing
   init_pivot_block_start_indices(&piv_start_idx, &npiv, map->npri, M->nrows, C->nrows);
   fill_dense_submatrices(M, C, D, map, map->npri, piv_start_idx, destruct_input_matrix, nthreads);
 
