@@ -1,4 +1,4 @@
-AC_INIT([gbla],[0.0.3])
+AC_INIT([gbla],[0.2.1])
 
 AC_CANONICAL_HOST
 
