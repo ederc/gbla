@@ -34,7 +34,7 @@ AC_PROG_INSTALL
 dnl Set the version for the library -- this concerns compatibility of the
 dnl source and binary interface of the library and is not the same as the
 dnl version of the project.
-AC_SUBST([GBLA_SO_VERSION], [0:0:0])
+AC_SUBST([GBLA_SO_VERSION], [0:2:1])
 
 dnl Include maintainer mode targets.
 AM_MAINTAINER_MODE
