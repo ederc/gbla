@@ -51,6 +51,7 @@ sm_t *load_schreyer_matrix(const char *fn, int verbose)
   ri_t m;
   ci_t n;
   mod_t     mod;
+  ci_t      width;
   nnz_t     nnz;
   uint64_t  fl;
 
@@ -77,6 +78,8 @@ sm_t *load_schreyer_matrix(const char *fn, int verbose)
 
   // set modulo by hand
   //mod = (mod_t)12451;
+  //
+  //
 
   // read entries from file
   sm_t *M   = (sm_t *)malloc(sizeof(sm_t));
@@ -87,32 +90,26 @@ sm_t *load_schreyer_matrix(const char *fn, int verbose)
   ri_t i;
   ci_t j;
   ci_t sz;
-  int nze;
+  ci_t pos;
+  re_l_t elt;
   uint64_t nonzeroes =  0;
 
   for (i = 0; i < m; ++i) {
-    sz  = 0;
+    // get row width
+    fscanf(fh, "%u", &width);
+    M->rwidth[i]  = width;
     // reserve memory in matrix M for rows[i]
-    M->rows[i]  = (re_t *)malloc(n * sizeof(re_t));
-    M->pos[i]   = (ci_t *)malloc(n * sizeof(ci_t));
-    for (j = 0; j < n; ++j) {
-      fscanf(fh,"%d",&nze);
-      if (nze != 0) {
-        //printf("nze %d\n",nze);
-        while (nze<0) {
-          nze +=  mod;
-          //printf("nze + 12451 = %d\n",nze);
-        }
-        M->rows[i][sz] = (re_t)nze;
-        M->pos[i][sz]  = j;
-        //printf("%u = %u at (%d,%d)\n",nze,M->rows[i][sz],i,j);
-        sz++;
-      }
+    M->rows[i]  = (re_t *)malloc(width * sizeof(re_t));
+    M->pos[i]   = (ci_t *)malloc(width * sizeof(ci_t));
+    for (j = 0; j < width; ++j) {
+      fscanf(fh,"%u",&pos);
+      M->pos[i][j] = pos;
     }
-    M->rows[i]    = realloc(M->rows[i],sz*sizeof(re_t));
-    M->pos[i]     = realloc(M->pos[i],sz*sizeof(ci_t));
-    M->rwidth[i]  = sz;
-    nonzeroes   +=  sz;
+    for (j = 0; j < width; ++j) {
+      fscanf(fh,"%lu",&elt);
+      M->rows[i][j] = (re_t)elt;
+    }
+    nonzeroes   +=  width;
   }
   //
   // density of matrix
