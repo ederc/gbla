@@ -745,14 +745,14 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
   const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / __GBLA_SIMD_BLOCK_SIZE);
   const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / __GBLA_SIMD_BLOCK_SIZE);
 
-  int ii,jj,kk,ll;
-  for (ii=0; ii<rlA; ++ii) {
-    for (jj=0; jj<clA; ++jj) {
-      if (A->blocks[ii][jj].row != NULL) {
+  printf("============= AAAAAAAAAAAAAAAA ===================\n");
+  for (int ii=0; ii<rlA; ++ii) {
+    for (int jj=0; jj<clA; ++jj) {
+      if (A->blocks[ii][jj].val != NULL) {
         printf("%d .. %d\n", ii, jj);
-        for (kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
-          for (ll=0; ll<A->blocks[ii][jj].sz[kk]; ++ll) {
-            printf("%d | %d || ", A->blocks[ii][jj].row[kk][ll], A->blocks[ii][jj].pos[kk][ll]);
+        for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
+          for (int ll=0; ll<A->blocks[ii][jj].sz[kk]; ++ll) {
+            printf("%d | %d || ", A->blocks[ii][jj].val[kk][ll], A->blocks[ii][jj].pos[kk][ll]);
           }
           printf("\n");
         }
@@ -760,19 +760,6 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
     }
   }
   printf("==================================\n");
-  for (ii=0; ii<rlC; ++ii) {
-    for (jj=0; jj<clC; ++jj) {
-      if (C->blocks[ii][jj].row != NULL) {
-        printf("%d .. %d\n", ii, jj);
-        for (kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
-          for (ll=0; ll<C->blocks[ii][jj].sz[kk]; ++ll) {
-            printf("%d | %d || ", C->blocks[ii][jj].row[ll], C->blocks[ii][jj].pos[ll]);
-          }
-          printf("\n");
-        }
-      }
-    }
-  }
 #endif
 #if __GBLA_CLI_DEBUG
   // column loops
