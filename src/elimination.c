@@ -1771,6 +1771,147 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
 }
 #endif
 
+int elim_fl_dense_D_completely_tasks(dm_t *D)
+{
+  ri_t curr_row_to_reduce;
+  ri_t local_last_piv;
+  ri_t local_last_row_fully_reduced;
+  ri_t from_row;
+  ri_t i, j, k;
+
+  ri_t tmp_piv_lead;
+  re_t *tmp_piv_val;
+
+  int ready_for_waiting_list  = 0;
+  int curr_row_fully_reduced  = 0;
+  int nred_consecutively      = 0;
+  int ret;
+
+  ri_t wl_idx = 0;
+  ri_t wl_lp  = 0;
+
+#if DEBUG_NEW_ELIM
+  int tid = omp_get_thread_num();
+#endif
+
+  // computations done in while loop
+  while (1) {
+#if DEBUG_NEW_ELIM
+    printf("setting llp\n");
+    printf("llp %d\n",local_last_piv);
+    printf("grr %d\n",global_next_row_to_reduce);
+#endif
+    omp_set_lock(&echelonize_lock);
+
+    if ((global_next_row_to_reduce < global_initial_D_rank)) {
+      curr_row_to_reduce  = global_next_row_to_reduce;
+#if DEBUG_NEW_ELIM
+      printf("%d -- inc grr\n", tid);
+#endif
+      global_next_row_to_reduce++;
+    } else {
+      omp_unset_lock(&echelonize_lock);
+      break;
+    }
+
+    omp_unset_lock(&echelonize_lock);
+    if (D->row[curr_row_to_reduce]->init_val != NULL ||
+        D->row[curr_row_to_reduce]->val != NULL) {
+#if DEBUG_NEW_ELIM
+      printf("thread %d reduces %d with rows %d -- %d\n", tid,
+          curr_row_to_reduce, from_row, local_last_piv);
+#endif
+echelonize_again: 
+      while (sorting_pivs > 0) {
+        usleep(5);
+      }
+#pragma omp atomic update
+      pivs_in_use++;
+      local_last_piv                = global_last_piv;
+      local_last_row_fully_reduced  = global_last_row_fully_reduced;
+      reduce_dense_row_task_new(D, curr_row_to_reduce, 0, local_last_piv);
+#pragma omp atomic update
+      pivs_in_use--;
+#if DEBUG_NEW_ELIM
+      printf("thread %d done with rows %d -- %d\n", tid, from_row, local_last_piv);
+      printf("row %u has lead index %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
+#endif
+    }
+    // since we are using dense large D we do not have to store back rows
+    // intermediately.
+    // => we only save pivots, i.e. we normalize and reduce them w.r.t D->mod
+    if (D->row[curr_row_to_reduce]->lead != D->ncols) {
+      omp_set_lock(&echelonize_lock);
+      if (local_last_piv == global_last_piv) {
+        save_pivot(D, curr_row_to_reduce, global_last_piv+1);
+        global_last_piv++;
+        global_last_row_fully_reduced++;
+        /*
+           printf("new glp: %u from %u --> %u\n", global_last_piv, curr_row_to_reduce, D->row[global_last_piv]->piv_lead);
+           for (int ii=0; ii<global_last_piv; ++ii)
+           printf("%d %u | ",ii, D->row[ii]->piv_lead);
+           */
+        i = global_last_piv;
+        if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
+          // set lock for sorting pivots
+          while (pivs_in_use > 0) {
+            usleep(6);
+          }
+          for (j=global_last_piv-1; j>0; --j) {
+            if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
+              tmp_piv_val = D->row[global_last_piv]->piv_val;
+              tmp_piv_lead  = D->row[global_last_piv]->piv_lead;
+              for (k=global_last_piv-1; k>j-1; --k) {
+                D->row[k+1]->piv_val  = D->row[k]->piv_val;
+                D->row[k+1]->piv_lead = D->row[k]->piv_lead;
+              }
+              D->row[j]->piv_val  = tmp_piv_val;
+              D->row[j]->piv_lead = tmp_piv_lead;
+              break;
+            }
+          }
+          i = j;
+        }
+        sorting_pivs  = 1;
+        while (pivs_in_use > 0) {
+          usleep(6);
+        }
+        // reduce all known pivots: i is either set to global_last_piv or to j
+        // if it has been sorted to a higher pivot position
+        for (i; i>0; --i) {
+          /*
+          printf("BEFORE: ");
+          for (int ii=0; ii<D->ncols; ++ii)
+            printf("%u ",D->row[i-1]->piv_val[ii]);
+          printf("\n");
+          */
+          completely_reduce_dense_row_task_new(D, i-1, i, global_last_piv);
+          /*
+          printf("AFTER: ");
+          for (int ii=0; ii<D->ncols; ++ii)
+            printf("%u ",D->row[i-1]->piv_val[ii]);
+          printf("\n");
+          */
+        }
+        sorting_pivs  = 0;
+#if DEBUG_NEW_ELIM
+        printf("%d -- inc glp: %d\n", tid, global_last_piv);
+#endif
+      } else { // add row to waiting list
+        omp_unset_lock(&echelonize_lock);
+        goto echelonize_again;
+      }
+      omp_unset_lock(&echelonize_lock);
+    } else {
+      omp_set_lock(&echelonize_lock);
+      global_last_row_fully_reduced++;
+      D->rank--;
+      omp_unset_lock(&echelonize_lock);
+    }
+  }
+  return 0;
+}
+
 int elim_fl_dense_D_tasks(dm_t *D)
 {
   ri_t curr_row_to_reduce;
@@ -2025,6 +2166,60 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
   global_pre_elim = global_last_piv;
 }
 
+void pre_elim_sequential_completely(dm_t *D, const ri_t last_row, const int nthrds)
+{
+  ri_t i, j, k, test_idx;
+  re_t mult;
+
+  const ri_t initial_D_rank = D->rank;
+  copy_to_val(D, 0);
+  //printf("global_last_piv %u\n",global_last_piv);
+  save_pivot(D, 0, global_last_piv);
+
+  re_t *tmp_piv_val;
+  ri_t tmp_piv_lead;
+  global_pre_elim       = 0;
+
+  global_piv_lead_drop  = 0;
+  i = 1;
+  while (i<initial_D_rank && i<=last_row) {
+    reduce_dense_row_task_sequential(D, i, 0, global_last_piv);
+    //normalize_dense_row(D, i);
+    if (D->row[i]->val != NULL) {
+      save_pivot(D, i, global_last_piv+1);
+      if (D->row[global_last_piv+1]->piv_val != NULL) {
+        //printf("D->row[%u]->piv_lead = %u\n", global_last_piv+1,D->row[global_last_piv+1]->piv_lead);
+        global_last_piv++;
+        if (D->row[global_last_piv]->piv_lead < D->row[global_last_piv-1]->piv_lead) {
+          for (j=global_last_piv-1; j>0; --j) {
+            if (D->row[global_last_piv]->piv_lead > D->row[j-1]->piv_lead) {
+              tmp_piv_val = D->row[global_last_piv]->piv_val;
+              tmp_piv_lead  = D->row[global_last_piv]->piv_lead;
+              for (k=global_last_piv-1; k>j-1; --k) {
+                D->row[k+1]->piv_val  = D->row[k]->piv_val;
+                D->row[k+1]->piv_lead = D->row[k]->piv_lead;
+              }
+              D->row[j]->piv_val  = tmp_piv_val;
+              D->row[j]->piv_lead = tmp_piv_lead;
+              break;
+            }
+          }
+        }
+      } else {
+        D->rank--;
+      }
+      //global_last_row_fully_reduced++;
+    } else {
+      D->rank--;
+    }
+    i++;
+  }
+  // completely reduce D
+  for (i=global_last_piv; i>0; --i)
+    completely_reduce_dense_row_task_new(D, i-1, i, global_last_piv);
+  global_pre_elim = global_last_piv;
+}
+
 ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
 {
 
@@ -2186,6 +2381,77 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
 #endif
   return D->rank;
 }
+
+ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
+{
+  // setting global variables for open mp locks used later on
+  global_next_row_to_reduce = nthrds * 2;
+  global_last_piv           = 0;
+
+  /*  global waiting list */
+  waiting_global.list = (wle_t *)malloc(D->nrows * sizeof(wle_t));
+  waiting_global.sidx = 0;
+  waiting_global.slp  = 0;
+  waiting_global.sz   = 0;
+
+#if COUNT_REDS
+  nreductions = 0;
+#endif
+
+  int rc;
+
+  /*
+   * sort is already done when copying block matrix to dense matrix format
+   *
+  printf("rank %u\n",D->rank);
+  for (int ii=0; ii<D->rank; ++ii)
+    printf("%u | %u | %p\n", ii, D->row[ii]->lead, D->row[ii]->init_val);
+  // sort D w.r.t. first nonzero entry per row
+  sort_dense_matrix_by_pivots(D);
+  printf("rank %u\n",D->rank);
+  for (int ii=0; ii<D->rank; ++ii) {
+    printf("%u | %u | %p | %u\n", ii, D->row[ii]->lead, D->row[ii]->init_val,D->row[ii]->init_val[D->row[ii]->lead]);
+  }
+  */
+
+  if (D->rank == 0)
+    return D->rank;
+
+  // we need to store this as boundary for parallel reductions later on
+  global_initial_D_rank  = D->rank;
+
+  // do sequential prereduction of first global_last_piv bunch of rows
+  //  if we have only 1 core then we do the complete elimination of D in
+  //  pre_elim_sequential
+  if (nthrds == 1)
+    pre_elim_sequential_completely(D, D->rank, nthrds);
+  else
+    pre_elim_sequential_completely(D, global_next_row_to_reduce-1, nthrds);
+
+  // if rank is smaller than the row until which we have been sequentially pre
+  // eliminating then all other rows of D are already zero
+  if (D->rank == global_last_piv+1)
+    return D->rank;
+
+  // do the parallel computation
+  omp_init_lock(&echelonize_lock);
+  int tid;
+
+#pragma omp parallel shared(D) num_threads(nthrds)
+  {
+#pragma omp for nowait
+    for (tid=0; tid<nthrds; ++tid) {
+      rc  = elim_fl_dense_D_completely_tasks(D);
+    }
+  }
+  omp_destroy_lock(&echelonize_lock);
+
+#if COUNT_REDS
+  printf("\n#REDUCTION STEPS: %lu\n",nreductions);
+#endif
+  return D->rank;
+}
+
 ri_t elim_fl_dense_D(dm_t *D, int nthrds)
 {
   // setting global variables for open mp locks used later on

@@ -4505,6 +4505,19 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
 
 /**
  * \brief Does a sequential pre elimination of D in order to start a parallel
+ * version with known pivots later on. It completely reduces D, i.e. if nthrds =
+ * 1 the resulting D is completely reduced.
+ *
+ * \param dense row submatrix D
+ *
+ * \param global last pivot up to which to reduce sequentially global_last_piv
+ *
+ * \param number of threads nthrds
+ */
+void pre_elim_sequential_completely(dm_t *D, const ri_t global_last_piv, const int nthrds);
+
+/**
+ * \brief Does a sequential pre elimination of D in order to start a parallel
  * version with known pivots later on.
  *
  * \param dense row submatrix D
@@ -4553,6 +4566,21 @@ void reduce_upwards(dm_t *D, const ri_t last_row);
 ri_t elim_fl_dense_D_test(dm_t *D, const int nthreads);
 
 /**
+ * \brief Elimination procedure which reduces the dense row submatrix D
+ * to a completely reduced upper triangular matrix. Uses a structured
+ * Gaussian Elimination. Returns the rank of D.
+ *
+ * \note Assumes D->nrows > 0.
+ *
+ * \param dense row submatrix D
+ *
+ * \param number of threads nthrds
+ *
+ * \return rank of D
+ */
+ri_t elim_fl_dense_D_completely(dm_t *D, const int nthreads);
+
+/**
  * \brief Elimination procedure which reduces the dense row submatrix D to an
  * upper triangular matrix. Uses a structured Gaussian Elimination. Returns
  * the rank of D.
@@ -4566,6 +4594,15 @@ ri_t elim_fl_dense_D_test(dm_t *D, const int nthreads);
  * \return rank of D
  */
 ri_t elim_fl_dense_D(dm_t *D, const int nthreads);
+
+/**
+ * \brief Parallel tasks doing the complete/reduced Gaussian Elimination of D.
+ *
+ * \param dense row submatrix D
+ *
+ * \return 0 if success, 1 if failure
+ */
+int elim_fl_dense_D_completely_tasks(dm_t *D);
 
 /**
  * \brief Parallel tasks doing the Gaussian Elimination of D.
