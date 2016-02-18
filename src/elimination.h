@@ -4381,7 +4381,7 @@ static inline void reduce_dense_row_twice(dm_t *A, const ri_t ri, const ri_t rj1
   
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
-  assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], A->mod) == 0);
+  //assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], A->mod) == 0);
   //A->row[ri]->val[i-1]  = 0;
 
   if (A->ncols-i > 7) {
