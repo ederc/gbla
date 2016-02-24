@@ -320,7 +320,7 @@ typedef struct sm_fl_ml_t {
  *
  * \return number of row blocks for A
  */
-inline ri_t get_number_intermediate_row_blocks(const ibm_fl_t *A)
+static inline ri_t get_number_intermediate_row_blocks(const ibm_fl_t *A)
 {
   return (ri_t) ceil((float) A->nrows / __GBLA_SIMD_BLOCK_SIZE);
 }
@@ -332,7 +332,7 @@ inline ri_t get_number_intermediate_row_blocks(const ibm_fl_t *A)
  *
  * \return number of column blocks for A
  */
-inline ci_t get_number_intermediate_col_blocks(const ibm_fl_t *A)
+static inline ci_t get_number_intermediate_col_blocks(const ibm_fl_t *A)
 {
   return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
 }
@@ -344,7 +344,7 @@ inline ci_t get_number_intermediate_col_blocks(const ibm_fl_t *A)
  *
  * \return number of row blocks for A
  */
-inline ri_t get_number_hybrid_row_blocks(const hbm_fl_t *A)
+static inline ri_t get_number_hybrid_row_blocks(const hbm_fl_t *A)
 {
   return (ri_t) ceil((float) A->nrows / __GBLA_SIMD_BLOCK_SIZE);
 }
@@ -356,7 +356,7 @@ inline ri_t get_number_hybrid_row_blocks(const hbm_fl_t *A)
  *
  * \return number of column blocks for A
  */
-inline ci_t get_number_hybrid_col_blocks(const hbm_fl_t *A)
+static inline ci_t get_number_hybrid_col_blocks(const hbm_fl_t *A)
 {
   return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
 }
@@ -368,7 +368,7 @@ inline ci_t get_number_hybrid_col_blocks(const hbm_fl_t *A)
  *
  * \return number of row blocks for A
  */
-inline ri_t get_number_dense_row_blocks(const dbm_fl_t *A)
+static inline ri_t get_number_dense_row_blocks(const dbm_fl_t *A)
 {
   return (ri_t) ceil((float) A->nrows / __GBLA_SIMD_BLOCK_SIZE);
 }
@@ -380,7 +380,7 @@ inline ri_t get_number_dense_row_blocks(const dbm_fl_t *A)
  *
  * \return number of column blocks for A
  */
-inline ci_t get_number_dense_col_blocks(const dbm_fl_t *A)
+static inline ci_t get_number_dense_col_blocks(const dbm_fl_t *A)
 {
   return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
 }
@@ -392,7 +392,7 @@ inline ci_t get_number_dense_col_blocks(const dbm_fl_t *A)
  *
  * \return number of row blocks for A
  */
-inline ri_t get_number_sparse_row_blocks(const sb_fl_t *A)
+static inline ri_t get_number_sparse_row_blocks(const sb_fl_t *A)
 {
   return (ri_t) ceil((float) A->nrows / __GBLA_SIMD_BLOCK_SIZE);
 }
@@ -404,7 +404,7 @@ inline ri_t get_number_sparse_row_blocks(const sb_fl_t *A)
  *
  * \return number of column blocks for A
  */
-inline ci_t get_number_sparse_col_blocks(const sb_fl_t *A)
+static inline ci_t get_number_sparse_col_blocks(const sb_fl_t *A)
 {
   return (ci_t) ceil((float) A->ncols / __GBLA_SIMD_BLOCK_SIZE);
 }
@@ -785,7 +785,7 @@ static inline void free_intermediate_submatrix(ibm_fl_t **A_in, int nthrds)
  *
  * \param number of threads for parallel computation
  */
-inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
+static inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
 {
   dbm_fl_t *A     = *A_in;
   const ci_t clA  = get_number_dense_col_blocks(A);
