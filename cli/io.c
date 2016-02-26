@@ -69,11 +69,14 @@ sm_t *load_schreyer_matrix(const char *fn, int verbose)
   // now read data from file
   fh  = fopen(fn,"r");
   // get characteristic
-  fscanf(fh, "%u", &mod);
+  if (fscanf(fh, "%u", &mod) == 0)
+    return NULL;
   // get columns
-  fscanf(fh, "%u", &m);
+  if (fscanf(fh, "%u", &m) == 0)
+    return NULL;
   // get rows
-  fscanf(fh, "%u", &n);
+  if (fscanf(fh, "%u", &n) == 0)
+    return NULL;
 
   // set modulo by hand
   //mod = (mod_t)12451;
@@ -94,17 +97,20 @@ sm_t *load_schreyer_matrix(const char *fn, int verbose)
 
   for (i = 0; i < m; ++i) {
     // get row width
-    fscanf(fh, "%u", &width);
+    if (fscanf(fh, "%u", &width) == 0)
+      return NULL;
     M->rwidth[i]  = width;
     // reserve memory in matrix M for rows[i]
     M->rows[i]  = (re_t *)malloc(width * sizeof(re_t));
     M->pos[i]   = (ci_t *)malloc(width * sizeof(ci_t));
     for (j = 0; j < width; ++j) {
-      fscanf(fh,"%u",&pos);
+      if (fscanf(fh,"%u",&pos) == 0)
+        return NULL;
       M->pos[i][j] = pos;
     }
     for (j = 0; j < width; ++j) {
-      fscanf(fh,"%lu",&elt);
+      if (fscanf(fh,"%lu",&elt) == 0)
+        return NULL;
       M->rows[i][j] = (re_t)elt;
     }
     nonzeroes   +=  width;
@@ -660,32 +666,56 @@ void print_mem_usage() {
 	char nthrds[1024] ="\0", itrealvalue[1024] ="\0", starttime[1024] ="\0";
 
 	/*  dummy reading of useless information */
-	fscanf(fh, "%1023s", &pid[0]);
-	fscanf(fh, "%1023s", &comm[0]);
-	fscanf(fh, "%1023s", &state[0]);
-	fscanf(fh, "%1023s", &ppid[0]);
-	fscanf(fh, "%1023s", &pgrp[0]);
-	fscanf(fh, "%1023s", &session[0]);
-	fscanf(fh, "%1023s", &tty_nr[0]);
-	fscanf(fh, "%1023s", &tpgid[0]);
-	fscanf(fh, "%1023s", &flags[0]);
-	fscanf(fh, "%1023s", &minflt[0]);
-	fscanf(fh, "%1023s", &cminflt[0]);
-	fscanf(fh, "%1023s", &majflt[0]);
-	fscanf(fh, "%1023s", &cmajflt[0]);
-	fscanf(fh, "%1023s", &utime[0]);
-	fscanf(fh, "%1023s", &stime[0]);
-	fscanf(fh, "%1023s", &cutime[0]);
-	fscanf(fh, "%1023s", &cstime[0]);
-	fscanf(fh, "%1023s", &priority[0]);
-	fscanf(fh, "%1023s", &nice[0]);
-	fscanf(fh, "%1023s", &nthrds[0]);
-	fscanf(fh, "%1023s", &itrealvalue[0]);
-	fscanf(fh, "%1023s", &starttime[0]);
+	if (fscanf(fh, "%1023s", &pid[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &comm[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &state[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &ppid[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &pgrp[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &session[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &tty_nr[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &tpgid[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &flags[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &minflt[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &cminflt[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &majflt[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &cmajflt[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &utime[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &stime[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &cutime[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &cstime[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &priority[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &nice[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &nthrds[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &itrealvalue[0]) == 0)
+    return;
+	if (fscanf(fh, "%1023s", &starttime[0]) == 0)
+    return;
 
 	/*  get real memory information */
-	fscanf(fh, "%lu", &_vms);
-	fscanf(fh, "%ld", &_rss);
+	if (fscanf(fh, "%lu", &_vms) == 0)
+    return;
+	if (fscanf(fh, "%ld", &_rss) == 0)
+    return;
 
 	/*  close file */
 	fclose(fh);
