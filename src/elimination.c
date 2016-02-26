@@ -952,7 +952,9 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
   /* re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *)); */
   uint64_t size = B->bwidth * sizeof(re_l_t);
   for (i=0; i<B->bheight; ++i) {
-    ret = posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    do {
+      ret = posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    } while (ret != 0);
   }
   for (j=0; j<nbrows_A; ++j) {
     /* const ri_t first_block_idx  = 0; */
@@ -1070,13 +1072,16 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
 }
 
 int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {
+  int ret;
   bi_t i;
   ri_t j, k;
   re_l_t *dense_block[B->bheight] __attribute__((aligned(0x1000)));
   /* re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *)); */
   uint64_t size = B->bwidth * sizeof(re_l_t);
   for (i=0; i<B->bheight; ++i) {
-    posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    do {
+      ret = posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    } while (ret != 0);
   }
 
   const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
@@ -1230,7 +1235,9 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
   /* re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *)); */
   uint64_t size = D->bwidth * sizeof(re_l_t);
   for (i=0; i<D->bheight; ++i) {
-    ret = posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    do {
+      ret = posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    } while (ret != 0);
   }
 
   /*  take maximum number and check if blocks are NULL in loop */
@@ -1350,7 +1357,7 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
     const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
     const int inv_scalars, const mod_t modulus) {
-
+  int ret;
   const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
   bi_t i;
   ri_t j, k;
@@ -1358,7 +1365,9 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
   /* re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *)); */
   uint64_t size = D->bwidth * sizeof(re_l_t);
   for (i=0; i<D->bheight; ++i) {
-    posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    do {
+      ret = posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    } while (ret != 0);
   }
 
   uint32_t lci; /*  local column index */
@@ -2631,10 +2640,10 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
 
 ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
     const mod_t modulus) {
-
   if (A->nrows == 0)
     return 0;
 
+  int ret;
   ri_t npiv_real  = 0;
   ri_t N          = A->nrows / __GBLA_NROWS_MULTILINE +
     A->nrows % __GBLA_NROWS_MULTILINE;
@@ -2642,8 +2651,12 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
 
   ml_t *ml_row;
   re_l_t *dense_array_1 = NULL, *dense_array_2 = NULL;
-  posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
-  posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
+  do {
+    ret = posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
+  } while (ret != 0);
+  do {
+    ret = posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
+  } while (ret != 0);
 
   ri_t i;
   ci_t j, k;
@@ -2866,6 +2879,7 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
     /* , omp_lock_t echelonize_lock */
     ) {
 
+  int ret;
   const ci_t coldim = A->ncols;
   ri_t curr_row_to_reduce;
   ri_t local_last_piv;
@@ -2880,8 +2894,12 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
   ri_t wl_lp   = 0;
 
   re_l_t *dense_array_1 = NULL, *dense_array_2 = NULL;
-  posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
-  posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
+  do {
+    ret = posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
+  } while (ret != 0);
+  do {
+    ret = posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
+  } while (ret != 0);
 #if DEBUG_ECHELONIZE
   int tid = omp_get_thread_num();
 #endif
@@ -5091,7 +5109,7 @@ int elim_fl_C_sparse_dense_keep_A_tasks_single(sm_fl_t *C, const sm_fl_t *A,
 }
 
 int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus) {
-
+  int ret;
   ci_t i;
   const ci_t coldim = C->ncols;
 
@@ -5110,8 +5128,12 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   ri_t row_in_A_mod, row_in_A;
 
   re_l_t *dense_array_C_1 = NULL, *dense_array_C_2 = NULL;
-  posix_memalign((void **)&dense_array_C_1, ALIGNT, coldim * sizeof(re_l_t));
-  posix_memalign((void **)&dense_array_C_2, ALIGNT, coldim * sizeof(re_l_t));
+  do {
+    ret = posix_memalign((void **)&dense_array_C_1, ALIGNT, coldim * sizeof(re_l_t));
+  } while (ret != 0);
+  do {
+    ret = posix_memalign((void **)&dense_array_C_2, ALIGNT, coldim * sizeof(re_l_t));
+  } while (ret != 0);
 
   memset(dense_array_C_1, 0, coldim * sizeof(re_l_t));
   memset(dense_array_C_2, 0, coldim * sizeof(re_l_t));
