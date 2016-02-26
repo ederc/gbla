@@ -125,13 +125,34 @@
 
 #define DEBUG_NEW_ELIM 0
 
+/*  global variables for echelonization of D */
+omp_lock_t echelonize_lock;
+ri_t global_next_row_to_reduce  = 0;
+ri_t global_last_piv  = 0;
+ri_t global_last_row_fully_reduced = 0;
+wl_t waiting_global;
+
+ri_t global_initial_D_rank = 0;
+ri_t global_piv_lead_drop = 0;
+
+/*  global variables for reduction of C */
+omp_lock_t reduce_C_lock;
+ri_t reduce_C_next_col_to_reduce = 0;
+
+/*  global variables for reduction of C */
+omp_lock_t reduce_A_lock;
+ri_t reduce_A_next_col_to_reduce = 0;
+
+ri_t pivs_in_use = 0;
+ri_t sorting_pivs = 0;
+ri_t last_pivot_idx = 0;
+
+
 int elim_fl_A_hybrid_block(hbm_fl_t **A_in, hbm_fl_t *B, mod_t modulus, int nthrds)
 {
   hbm_fl_t *A = *A_in;
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clB  = get_number_hybrid_col_blocks(B);
-  const ci_t clA  = get_number_hybrid_col_blocks(A);
   const ri_t rlA  = get_number_hybrid_row_blocks(A);
 #pragma omp parallel num_threads(nthrds)
   {
@@ -140,7 +161,7 @@ int elim_fl_A_hybrid_block(hbm_fl_t **A_in, hbm_fl_t *B, mod_t modulus, int nthr
     for (i=0; i<clB; ++i) {
 #pragma omp task
       {
-        rc  = elim_fl_A_hybrid_blocks_task(A, B, i, rlA, modulus);
+        elim_fl_A_hybrid_blocks_task(A, B, i, rlA, modulus);
       }
     }
 #pragma omp taskwait
@@ -153,14 +174,13 @@ int elim_fl_A_hybrid_block(hbm_fl_t **A_in, hbm_fl_t *B, mod_t modulus, int nthr
 int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
     const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus)
 {
-  bi_t i, ctr;
+  bi_t ctr;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_A; ++j) {
     ctr = 0;
-    const ri_t first_block_idx  = 0;
 
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
@@ -255,10 +275,8 @@ int elim_fl_A_hybrid_blocks_task(hbm_fl_t *A, hbm_fl_t *B,
 int elim_fl_A_sparse_dense_block(sb_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int nthrds)
 {
   sb_fl_t *A  = *A_in;
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clB  = get_number_dense_col_blocks(B);
-  const ci_t clA  = get_number_sparse_col_blocks(A);
   const ri_t rlA  = get_number_sparse_row_blocks(A);
 #pragma omp parallel num_threads(nthrds)
   {
@@ -267,7 +285,7 @@ int elim_fl_A_sparse_dense_block(sb_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int
     for (i=clB; i>0; --i) {
 #pragma omp task
       {
-        rc  = elim_fl_A_sparse_dense_blocks_task(A, B, i-1, rlA, modulus);
+        elim_fl_A_sparse_dense_blocks_task(A, B, i-1, rlA, modulus);
       }
     }
 #pragma omp taskwait
@@ -281,14 +299,13 @@ int elim_fl_A_sparse_dense_block(sb_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int
 int elim_fl_A_sparse_dense_blocks_task(const sb_fl_t *A, dbm_fl_t *B,
     const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus)
 {
-  bi_t i, ctr;
+  bi_t ctr;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_A; ++j) {
     ctr = 0;
-    const ri_t first_block_idx  = 0;
 
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
@@ -367,10 +384,8 @@ int elim_fl_A_sparse_dense_blocks_task(const sb_fl_t *A, dbm_fl_t *B,
 int elim_fl_A_hybrid_dense_block(hbm_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int nthrds)
 {
   hbm_fl_t *A = *A_in;
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clB  = get_number_dense_col_blocks(B);
-  const ci_t clA  = get_number_hybrid_col_blocks(A);
   const ri_t rlA  = get_number_hybrid_row_blocks(A);
 #pragma omp parallel num_threads(nthrds)
   {
@@ -379,7 +394,7 @@ int elim_fl_A_hybrid_dense_block(hbm_fl_t **A_in, dbm_fl_t *B, mod_t modulus, in
     for (i=0; i<clB; ++i) {
 #pragma omp task
       {
-        rc  = elim_fl_A_hybrid_dense_blocks_task(A, B, i, rlA, modulus);
+        elim_fl_A_hybrid_dense_blocks_task(A, B, i, rlA, modulus);
       }
     }
 #pragma omp taskwait
@@ -392,14 +407,13 @@ int elim_fl_A_hybrid_dense_block(hbm_fl_t **A_in, dbm_fl_t *B, mod_t modulus, in
 int elim_fl_A_hybrid_dense_blocks_task(hbm_fl_t *A, dbm_fl_t *B,
     const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus)
 {
-  bi_t i, ctr;
+  bi_t ctr;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_A; ++j) {
     ctr = 0;
-    const ri_t first_block_idx  = 0;
 
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
@@ -478,10 +492,8 @@ int elim_fl_A_hybrid_dense_blocks_task(hbm_fl_t *A, dbm_fl_t *B,
 int elim_fl_A_dense_block(dbm_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int nthrds)
 {
   dbm_fl_t *A = *A_in;
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clB  = get_number_dense_col_blocks(B);
-  const ci_t clA  = get_number_dense_col_blocks(A);
   const ri_t rlA  = get_number_dense_row_blocks(A);
 #pragma omp parallel num_threads(nthrds)
   {
@@ -490,7 +502,7 @@ int elim_fl_A_dense_block(dbm_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int nthrd
     for (i=0; i<clB; ++i) {
 #pragma omp task
       {
-        rc  = elim_fl_A_dense_blocks_task(A, B, i, rlA, modulus);
+        elim_fl_A_dense_blocks_task(A, B, i, rlA, modulus);
       }
     }
 #pragma omp taskwait
@@ -503,14 +515,13 @@ int elim_fl_A_dense_block(dbm_fl_t **A_in, dbm_fl_t *B, mod_t modulus, int nthrd
 int elim_fl_A_dense_blocks_task(const dbm_fl_t *A, dbm_fl_t *B,
     const ci_t block_col_idx_B, const ri_t nbrows_A, const mod_t modulus)
 {
-  bi_t i, ctr;
+  bi_t ctr;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_A; ++j) {
     ctr = 0;
-    const ri_t first_block_idx  = 0;
 
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
@@ -592,8 +603,7 @@ int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C_in, dbm_fl_t *D,
 
   ibm_fl_t *C = *C_in;
 
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clD  = get_number_dense_col_blocks(D);
   const ci_t clC  = get_number_intermediate_col_blocks(C);
   const ri_t rlC  = get_number_intermediate_row_blocks(C);
@@ -604,7 +614,7 @@ int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C_in, dbm_fl_t *D,
     for (i=clD; i>0; --i) {
 #pragma omp task
       {
-        rc  = elim_fl_C_intermediate_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_intermediate_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
       }
     }
 #pragma omp taskwait
@@ -618,8 +628,7 @@ int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
 
   dbm_fl_t *C = *C_in;
 
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clD  = get_number_dense_col_blocks(D);
   const ci_t clC  = get_number_dense_col_blocks(C);
   const ri_t rlC  = get_number_dense_row_blocks(C);
@@ -630,7 +639,7 @@ int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
     for (i=clD; i>0; --i) {
 #pragma omp task
       {
-        rc  = elim_fl_C_dense_sparse_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_dense_sparse_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
       }
     }
 #pragma omp taskwait
@@ -646,8 +655,7 @@ int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
 
   sb_fl_t *C = *C_in;
 
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clD  = get_number_dense_col_blocks(D);
   const ci_t clC  = get_number_sparse_col_blocks(C);
   const ri_t rlC  = get_number_sparse_row_blocks(C);
@@ -658,7 +666,7 @@ int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
     for (i=clD; i>0; --i) {
 #pragma omp task
       {
-        rc  = elim_fl_C_sparse_sparse_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_sparse_sparse_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
       }
     }
 #pragma omp taskwait
@@ -673,8 +681,7 @@ int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
 
   sb_fl_t *C = *C_in;
 
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clD  = get_number_dense_col_blocks(D);
   const ci_t clC  = get_number_sparse_col_blocks(C);
   const ri_t rlC  = get_number_sparse_row_blocks(C);
@@ -685,7 +692,7 @@ int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
     for (i=clD; i>0; --i) {
 #pragma omp task
       {
-        rc  = elim_fl_C_sparse_dense_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_sparse_dense_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
       }
     }
 #pragma omp taskwait
@@ -700,8 +707,7 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
 
   dbm_fl_t *C = *C_in;
 
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ci_t clD  = get_number_dense_col_blocks(D);
   const ci_t clC  = get_number_dense_col_blocks(C);
   const ri_t rlC  = get_number_dense_row_blocks(C);
@@ -712,7 +718,7 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
     for (i=0; i<clD; ++i) {
 #pragma omp task
       {
-        rc  = elim_fl_C_dense_blocks_task(B, C, D, i, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_dense_blocks_task(B, C, D, i, rlC, clC, inv_scalars, modulus);
       }
     }
 #pragma omp taskwait
@@ -726,13 +732,11 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
 int elim_fl_C_intermediate_blocks_task(sb_fl_t *B, ibm_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
   const int inv_scalars, const mod_t modulus) {
-  bi_t i;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_C; ++j) {
-    const ri_t first_block_idx  = 0;
 
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
@@ -767,13 +771,11 @@ int elim_fl_C_intermediate_blocks_task(sb_fl_t *B, ibm_fl_t *C, dbm_fl_t *D,
 int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
   const int inv_scalars, const mod_t modulus) {
-  bi_t i;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_C; ++j) {
-    const ri_t first_block_idx  = 0;
 
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
@@ -803,14 +805,11 @@ int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
 int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
   const int inv_scalars, const mod_t modulus) {
-  bi_t i;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_C; ++j) {
-    const ri_t first_block_idx  = 0;
-
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
     // copy sparse block data to dense representation
@@ -838,14 +837,11 @@ int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
 int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
   const int inv_scalars, const mod_t modulus) {
-  bi_t i;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_C; ++j) {
-    const ri_t first_block_idx  = 0;
-
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
     // copy sparse block data to dense representation
@@ -872,14 +868,11 @@ int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
 int elim_fl_C_dense_blocks_task(dbm_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
   const int inv_scalars, const mod_t modulus) {
-  bi_t i;
   ri_t j, k;
   re_l_t **wide_block;
   
   init_wide_blocks(&wide_block);
   for (j=0; j<nbrows_C; ++j) {
-    const ri_t first_block_idx  = 0;
-
     set_wide_block_to_zero(wide_block, __GBLA_SIMD_BLOCK_SIZE);
 
     // copy sparse block data to dense representation
@@ -1077,14 +1070,13 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
 }
 
 int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {
-  int ret;
   bi_t i;
   ri_t j, k;
   re_l_t *dense_block[B->bheight] __attribute__((aligned(0x1000)));
   /* re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *)); */
   uint64_t size = B->bwidth * sizeof(re_l_t);
   for (i=0; i<B->bheight; ++i) {
-    ret = posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    posix_memalign((void **)&dense_block[i], ALIGNT, size);
   }
 
   const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
@@ -1360,14 +1352,13 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
     const int inv_scalars, const mod_t modulus) {
 
   const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
-  int ret;
   bi_t i;
   ri_t j, k;
   re_l_t *dense_block[D->bheight] __attribute__((aligned(0x1000)));
   /* re_l_t **dense_block  = (re_l_t **)malloc(B->bheight * sizeof(re_l_t *)); */
   uint64_t size = D->bwidth * sizeof(re_l_t);
   for (i=0; i<D->bheight; ++i) {
-    ret = posix_memalign((void **)&dense_block[i], ALIGNT, size);
+    posix_memalign((void **)&dense_block[i], ALIGNT, size);
   }
 
   uint32_t lci; /*  local column index */
@@ -1773,22 +1764,12 @@ ri_t elim_fl_D_fflas_ffpack(sbm_fl_t *D_old, mod_t modulus, int nthrds) {
 
 int elim_fl_dense_D_completely_tasks(dm_t *D)
 {
-  ri_t curr_row_to_reduce;
-  ri_t local_last_piv;
-  ri_t local_last_row_fully_reduced;
-  ri_t from_row;
+  ri_t curr_row_to_reduce = 0;
+  ri_t local_last_piv     = 0;
   ri_t i, j, k;
 
   ri_t tmp_piv_lead;
   re_t *tmp_piv_val;
-
-  int ready_for_waiting_list  = 0;
-  int curr_row_fully_reduced  = 0;
-  int nred_consecutively      = 0;
-  int ret;
-
-  ri_t wl_idx = 0;
-  ri_t wl_lp  = 0;
 
 #if DEBUG_NEW_ELIM
   int tid = omp_get_thread_num();
@@ -1828,7 +1809,6 @@ echelonize_again:
 #pragma omp atomic update
       pivs_in_use++;
       local_last_piv                = global_last_piv;
-      local_last_row_fully_reduced  = global_last_row_fully_reduced;
       reduce_dense_row_task_new(D, curr_row_to_reduce, 0, local_last_piv);
 #pragma omp atomic update
       pivs_in_use--;
@@ -1878,7 +1858,7 @@ echelonize_again:
         }
         // reduce all known pivots: i is either set to global_last_piv or to j
         // if it has been sorted to a higher pivot position
-        for (i; i>0; --i) {
+        for (; i>0; --i) {
           /*
           printf("BEFORE: ");
           for (int ii=0; ii<D->ncols; ++ii)
@@ -1915,21 +1895,11 @@ echelonize_again:
 int elim_fl_dense_D_tasks(dm_t *D)
 {
   ri_t curr_row_to_reduce;
-  ri_t local_last_piv;
-  ri_t local_last_row_fully_reduced;
-  ri_t from_row;
+  ri_t local_last_piv = 0;
   ri_t i, j, k;
 
   ri_t tmp_piv_lead;
   re_t *tmp_piv_val;
-
-  int ready_for_waiting_list  = 0;
-  int curr_row_fully_reduced  = 0;
-  int nred_consecutively      = 0;
-  int ret;
-
-  ri_t wl_idx = 0;
-  ri_t wl_lp  = 0;
 
 #if DEBUG_NEW_ELIM
   int tid = omp_get_thread_num();
@@ -1969,7 +1939,6 @@ echelonize_again:
 #pragma omp atomic update
       pivs_in_use++;
       local_last_piv                = global_last_piv;
-      local_last_row_fully_reduced  = global_last_row_fully_reduced;
       reduce_dense_row_task_new(D, curr_row_to_reduce, 0, local_last_piv);
 #pragma omp atomic update
       pivs_in_use--;
@@ -2041,8 +2010,7 @@ echelonize_again:
 
 void pre_elim_sequential_test(dm_t *D, const ri_t last_row, const int nthrds)
 {
-  ri_t i, j, k, test_idx;
-  re_t mult;
+  ri_t i, j, k;
 
   const ri_t initial_D_rank = D->rank;
   ri_t local_last_piv = 0;
@@ -2108,8 +2076,7 @@ void pre_elim_sequential_test(dm_t *D, const ri_t last_row, const int nthrds)
 
 void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
 {
-  ri_t i, j, k, test_idx;
-  re_t mult;
+  ri_t i, j, k;
 
   const ri_t initial_D_rank = D->rank;
   copy_to_val(D, 0);
@@ -2168,8 +2135,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
 
 void pre_elim_sequential_completely(dm_t *D, const ri_t last_row, const int nthrds)
 {
-  ri_t i, j, k, test_idx;
-  re_t mult;
+  ri_t i, j, k;
 
   const ri_t initial_D_rank = D->rank;
   copy_to_val(D, 0);
@@ -2227,7 +2193,6 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
   nreductions = 0;
 #endif
 
-  int rc;
   ri_t range;
   ri_t *boundaries  = (ri_t *)malloc((nthrds+1) * sizeof(ri_t));
 
@@ -2296,8 +2261,7 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
       }
 #pragma omp parallel shared(D) num_threads(nthrds)
       {
-        ri_t j,k;
-        ri_t old_rank;
+        ri_t j, k;
 #pragma omp for
         for (i=0; i<nthrds; ++i) {
           // initialize an own matrix for each thread
@@ -2315,7 +2279,7 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
             j++;
             k++;
           }
-          old_rank  = DD->rank  = k;
+          DD->rank  = k;
           // now each thread can reduce its thread matrix independently
           pre_elim_sequential_test(DD, DD->rank, 0);
           // map bunch of data from each thread matrix back to global matrix
@@ -2398,8 +2362,6 @@ ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
   nreductions = 0;
 #endif
 
-  int rc;
-
   /*
    * sort is already done when copying block matrix to dense matrix format
    *
@@ -2441,7 +2403,7 @@ ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
   {
 #pragma omp for nowait
     for (tid=0; tid<nthrds; ++tid) {
-      rc  = elim_fl_dense_D_completely_tasks(D);
+      elim_fl_dense_D_completely_tasks(D);
     }
   }
   omp_destroy_lock(&echelonize_lock);
@@ -2467,8 +2429,6 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds)
 #if COUNT_REDS
   nreductions = 0;
 #endif
-
-  int rc;
 
   /*
    * sort is already done when copying block matrix to dense matrix format
@@ -2511,7 +2471,7 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds)
   {
 #pragma omp for nowait
     for (tid=0; tid<nthrds; ++tid) {
-      rc  = elim_fl_dense_D_tasks(D);
+      elim_fl_dense_D_tasks(D);
     }
   }
   omp_destroy_lock(&echelonize_lock);
@@ -2525,8 +2485,6 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds)
 ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) {
 
   ri_t i;
-  /* ci_t rc; */
-
   /*  row indices for subdividing echelonization parts in D_red */
   global_next_row_to_reduce     = nthrds * 2;
   global_last_piv               = global_next_row_to_reduce - 1;
@@ -2614,7 +2572,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
     {
 #pragma omp for nowait
       for (tid=0; tid<nthrds; ++tid) {
-        /*rc  =*/ echelonize_rows_task(D_red, ml_nrows_D_red,
+        echelonize_rows_task(D_red, ml_nrows_D_red,
             /* global_next_row_to_reduce, global_last_piv, */
             /* &waiting_global, */
             modulus
@@ -2677,16 +2635,15 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
   if (A->nrows == 0)
     return 0;
 
-  int ret;
   ri_t npiv_real  = 0;
   ri_t N          = A->nrows / __GBLA_NROWS_MULTILINE +
     A->nrows % __GBLA_NROWS_MULTILINE;
   const ci_t coldim = A->ncols;
 
   ml_t *ml_row;
-  re_l_t *dense_array_1, *dense_array_2;
-  ret = posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
-  ret = posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
+  re_l_t *dense_array_1 = NULL, *dense_array_2 = NULL;
+  posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
 
   ri_t i;
   ci_t j, k;
@@ -2915,7 +2872,6 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
 
   int ready_for_waiting_list = 0;
   int curr_row_fully_reduced = 0;
-  int ret;
 
   ri_t from_row;
   int nreduced_consecutively  = 0;
@@ -2923,9 +2879,9 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
   ri_t wl_idx  = 0;
   ri_t wl_lp   = 0;
 
-  re_l_t *dense_array_1, *dense_array_2;
-  ret = posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
-  ret = posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
+  re_l_t *dense_array_1 = NULL, *dense_array_2 = NULL;
+  posix_memalign((void **)&dense_array_1, ALIGNT, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_2, ALIGNT, coldim * sizeof(re_l_t));
 #if DEBUG_ECHELONIZE
   int tid = omp_get_thread_num();
 #endif
@@ -3346,8 +3302,7 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
     const int nthrds)
 {
   sm_fl_t *A= *A_in;
-  ci_t i, rc;
-  ri_t j, k;
+  ci_t i;
   const ri_t rlC  = C->nrows;
   
   // TRY 10 LINES AT ONCE
@@ -3369,24 +3324,24 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
         if (rlC > 9) {
           for (i=0; i<rlC-9; i=i+10) {
 #pragma omp task untied
-            rc  = elim_fl_C_sparse_dense_keep_A_tasks_ten(C, A, i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, i+8, i+9, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_ten(C, A, i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, i+8, i+9, modulus);
           }
         }
         if (rlC-mod10 > 5) {
 #pragma omp task untied
-          rc  = elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, mod10, mod10+1, mod10+2, mod10+3, mod10+4, mod10+5, modulus);
+          elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, mod10, mod10+1, mod10+2, mod10+3, mod10+4, mod10+5, modulus);
         }
         if (rlC-mod6 > 3) {
 #pragma omp task untied
-          rc  = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod6, mod6+1, mod6+2, mod6+3, modulus);
+          elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod6, mod6+1, mod6+2, mod6+3, modulus);
         }
         if (rlC-mod4 > 1) {
 #pragma omp task untied
-          rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+          elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
         }
         if (rlC-mod2 > 0) {
 #pragma omp task untied
-          rc  = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+          elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
         }
       }
 #pragma omp taskwait
@@ -3409,20 +3364,20 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
           if (rlC > 5) {
             for (i=0; i<rlC-5; i=i+6) {
 #pragma omp task untied
-              rc  = elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, i, i+1, i+2, i+3, i+4, i+5, modulus);
+              elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, i, i+1, i+2, i+3, i+4, i+5, modulus);
             }
           }
           if (rlC-mod6 > 3) {
 #pragma omp task untied
-            rc  = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod6, mod6+1, mod6+2, mod6+3, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod6, mod6+1, mod6+2, mod6+3, modulus);
           }
           if (rlC-mod4 > 1) {
 #pragma omp task untied
-            rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
           }
           if (rlC-mod2 > 0) {
 #pragma omp task untied
-            rc  = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
           }
         }
 #pragma omp taskwait
@@ -3442,16 +3397,16 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
           if (rlC > 3) {
             for (i=0; i<rlC-3; i=i+4) {
 #pragma omp task untied
-              rc  = elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, i, i+1, i+2, i+3, modulus);
+              elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, i, i+1, i+2, i+3, modulus);
             }
           }
           if (rlC-mod4 > 1) {
 #pragma omp task untied
-            rc  = elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
           }
           if (rlC-mod2 > 0) {
 #pragma omp task untied
-            rc  = elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
           }
         }
 #pragma omp taskwait
@@ -3708,7 +3663,7 @@ int elim_fl_C_sparse_dense_keep_A_tasks_double(sm_fl_t *C, const sm_fl_t *A,
   const ci_t c_ncols    = C->ncols;
   const ci_t start_idx  = C->pos[idx1][0] < C->pos[idx2][0] ? C->pos[idx1][0] : C->pos[idx2][0];
   ci_t nze_ctr1 = 0, nze_ctr2 = 0;
-  re_l_t *wide_row1, *wide_row2;
+  re_l_t *wide_row1 = NULL, *wide_row2 = NULL;
   re_m_t multiplier1, multiplier2;
   init_wide_rows(&wide_row1, c_ncols);
   init_wide_rows(&wide_row2, c_ncols);
@@ -5106,7 +5061,7 @@ int elim_fl_C_sparse_dense_keep_A_tasks_single(sm_fl_t *C, const sm_fl_t *A,
   const ci_t c_ncols    = C->ncols;
   const ci_t start_idx  = C->pos[idx][0];
   ci_t nze_ctr          = 0;
-  re_l_t *wide_row;
+  re_l_t *wide_row      = NULL;
   re_m_t multiplier;
   init_wide_rows(&wide_row, c_ncols);
   memset(wide_row, 0, c_ncols * sizeof(re_l_t));
@@ -5140,8 +5095,6 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   ci_t i;
   const ci_t coldim = C->ncols;
 
-  int ret;
-
   ci_t start_idx;
   /*  Note that all our multilines are stored in a sparse fashion at the moment. */
   /*  For compatibility and later changes we keep this check in the code. */
@@ -5156,9 +5109,9 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
   re_m_t tmp  = 0;
   ri_t row_in_A_mod, row_in_A;
 
-  re_l_t *dense_array_C_1, *dense_array_C_2;
-  ret = posix_memalign((void **)&dense_array_C_1, ALIGNT, coldim * sizeof(re_l_t));
-  ret = posix_memalign((void **)&dense_array_C_2, ALIGNT, coldim * sizeof(re_l_t));
+  re_l_t *dense_array_C_1 = NULL, *dense_array_C_2 = NULL;
+  posix_memalign((void **)&dense_array_C_1, ALIGNT, coldim * sizeof(re_l_t));
+  posix_memalign((void **)&dense_array_C_2, ALIGNT, coldim * sizeof(re_l_t));
 
   memset(dense_array_C_1, 0, coldim * sizeof(re_l_t));
   memset(dense_array_C_2, 0, coldim * sizeof(re_l_t));

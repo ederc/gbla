@@ -630,11 +630,11 @@ static inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
 static inline void free_sparse_matrix(sm_fl_t **A_in, int nthrds)
 {
   sm_fl_t *A      = *A_in;
-  ri_t i, j, k, l;
+  ri_t i;
   // free A
 #pragma omp parallel num_threads(nthrds)
   {
-#pragma omp for private(i, j, k, l)
+#pragma omp for private(i)
     for (i=0; i<A->nrows; ++i) {
       free(A->row[i]);
       free(A->pos[i]);
@@ -661,11 +661,11 @@ static inline void free_sparse_submatrix(sb_fl_t **A_in, int nthrds)
   sb_fl_t *A      = *A_in;
   const ci_t clA  = get_number_sparse_col_blocks(A);
   const ri_t rlA  = get_number_sparse_row_blocks(A);
-  ri_t i, j, k, l;
+  ri_t i, j, k;
   // free A
 #pragma omp parallel num_threads(nthrds)
   {
-#pragma omp for private(i, j, k, l)
+#pragma omp for private(i, j, k)
     for (i=0; i<rlA; ++i) {
       for (j=0; j<clA; ++j) {
         if (A->blocks[i][j].val != NULL) {
@@ -984,7 +984,7 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
   // get first nonzero entry in each row
   i = 0;
 next_round:
-  for (i; i<out->nrows; ++i) {
+  for (; i<out->nrows; ++i) {
     for (j=0; j<out->ncols; ++j) {
       if (out->row[i]->init_val[j] != 0) {
         out->row[i]->lead  = j;
@@ -1058,8 +1058,7 @@ static inline sb_fl_t *copy_sparse_to_block_matrix(const sm_fl_t *A,
     bi_t *block_length  = (bi_t *)calloc(blocks_per_row, sizeof(bi_t));
     bi_t col_idx;
     ri_t i, j;
-    ci_t k, l, m, n;
-    bi_t tmp1, tmp2;
+    ci_t k, l, m;
     ci_t ctr;
     ri_t max;
 #pragma omp for 
@@ -1142,8 +1141,7 @@ static inline ibm_fl_t *copy_sparse_to_intermediate_block_matrix(const sm_fl_t *
     bi_t *block_length  = (bi_t *)calloc(blocks_per_row, sizeof(bi_t));
     bi_t col_idx;
     ri_t i, j;
-    ci_t k, l, m, n;
-    bi_t tmp1, tmp2;
+    ci_t k, l, m;
     ci_t ctr;
     ri_t max;
 #pragma omp for   
@@ -1217,7 +1215,7 @@ static inline ibm_fl_t *copy_sparse_to_intermediate_block_matrix(const sm_fl_t *
 #pragma omp parallel num_threads(nthrds)
   {
     ri_t i, j;
-    ci_t k, l, m;
+    ci_t k, l;
     unsigned long nnz;
 #pragma omp for   
   // now switch blocks that are dense to dense representation
@@ -1281,8 +1279,7 @@ static inline dbm_fl_t *copy_sparse_to_dense_block_matrix(const sm_fl_t *A,
     bi_t *block_length  = (bi_t *)calloc(blocks_per_row, sizeof(bi_t));
     bi_t col_idx;
     ri_t i, j;
-    ci_t k, l, m, n;
-    bi_t tmp1, tmp2;
+    ci_t k, l, m;
     ci_t ctr;
     ri_t max;
 #pragma omp for   

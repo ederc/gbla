@@ -60,7 +60,7 @@
 #include <immintrin.h>
 
 
-static void* new_malloc(size_t size)  {
+static inline void* new_malloc(size_t size)  {
     void *alignedPointer;
 #ifndef NDEBUG
     int alignError = 0;

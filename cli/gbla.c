@@ -406,7 +406,6 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
   sm_fl_t *C      = (sm_fl_t *)malloc(sizeof(sm_fl_t));
   dbm_fl_t *D     = (dbm_fl_t *)malloc(sizeof(dbm_fl_t));
   map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
-  map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
 
   /*
   if (nthreads > 8)
@@ -699,7 +698,6 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
   sb_fl_t *C      = (sb_fl_t *)malloc(sizeof(sb_fl_t));
   dbm_fl_t *D     = (dbm_fl_t *)malloc(sizeof(dbm_fl_t));
   map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
-  map_fl_t *map_D = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings for reduced D
 
   splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
 

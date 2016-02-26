@@ -41,7 +41,9 @@
 #define DEBUG_NEW_ELIM  0
 #define COUNT_REDS  0
 
+#if COUNT_REDS
 static unsigned long nreductions;
+#endif
 
 // global variable storing the number of pre_eliminated rows of D done in
 // sequential.
@@ -93,9 +95,8 @@ static inline void init_wide_blocks(re_l_t ***wide_block)
   wb = (re_l_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_l_t *));
   uint64_t size = __GBLA_SIMD_BLOCK_SIZE * sizeof(re_l_t);
   bi_t i;
-  int ret;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    ret = posix_memalign((void **)&wb[i], 16, size);
+    posix_memalign((void **)&wb[i], 16, size);
   }
   *wide_block  = wb;
 }
@@ -111,8 +112,7 @@ static inline void init_wide_blocks(re_l_t ***wide_block)
 static inline void init_wide_rows(re_l_t **wide_row, ci_t length)
 {
   re_l_t *wr = *wide_row;
-  int ret;
-  ret = posix_memalign((void **)&wr, 16, length * sizeof(re_l_t));
+  posix_memalign((void **)&wr, 16, length * sizeof(re_l_t));
   *wide_row  = wr;
 }
 
@@ -474,7 +474,6 @@ static inline void red_dense_sparse_rectangular(const re_t *block_A, const sbl_t
   bi_t i, j, k;
   register re_m_t a1;
   register re_m_t b1, b2, b3, b4, b5, b6, b7, b8;
-  register re_m_t b9, b10, b11, b12, b13, b14, b15, b16;
   for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j) {
     register const bi_t *posB  = block_B->pos[j];
     k = 0;
@@ -1076,7 +1075,7 @@ STEP_1:
     }
   }
 #else
-  bi_t i, j, k, l, ctr;
+  bi_t i, j, k, l, ctr = 0;
   register re_l_t wb;
   re_m_t a[4] = {0};
   re_m_t b[4] = {0};
@@ -1271,7 +1270,7 @@ STEP_1:
     }
   }
 #else
-  bi_t i, j, k, l, ctr;
+  bi_t i, j, k, l, ctr = 0;
   register re_l_t wb;
   re_m_t a[4] = {0};
   re_m_t b[4] = {0};
@@ -2528,9 +2527,7 @@ static inline void update_wide_rows_four(re_l_t *wide_row1, re_l_t *wide_row2,
   ci_t i;
   const ri_t row_idx  = A->nrows - idx - 1;
   register re_m_t a_elt1, a_elt2, a_elt3, a_elt4;
-  register re_m_t a_elt5, a_elt6, a_elt7, a_elt8;
   register ci_t a_idx1, a_idx2, a_idx3, a_idx4;
-  register ci_t a_idx5, a_idx6, a_idx7, a_idx8;
   register const re_m_t m1  = multiplier1;
   register const re_m_t m2  = multiplier2;
   register const re_m_t m3  = multiplier3;
@@ -2653,7 +2650,7 @@ static inline void update_wide_rows_four(re_l_t *wide_row1, re_l_t *wide_row2,
 static inline void red_sparse_triangular(const sbl_t *block_A,
   re_l_t **wide_block, const mod_t modulus)
 {
-  bi_t i, j, k, l;
+  bi_t i, j, k;
 #if 0
   register re_m_t a, b ,c, d, e, f, g, h;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
@@ -2729,7 +2726,7 @@ static inline void red_dense_triangular(const re_t *block_A,
   re_l_t **wide_block, const mod_t modulus)
 {
   //printf("INDENSE\n");
-  bi_t i, j, k, l;
+  bi_t i, j, k;
   register re_m_t a;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     for (j=0; j<i; ++j) {
@@ -4133,7 +4130,7 @@ static inline void reduce_dense_row_from(dm_t *A, const ri_t ri, const ri_t rj,
   //A->row[ri]->val[i-1]  = 0;
 
   if (A->ncols-i > 7) {
-    for (i; i<A->ncols-7; i=i+8) {
+    for (; i<A->ncols-7; i=i+8) {
       A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
       A->row[ri]->val[i+1]    +=  (re_l_t)mult * reducers[i+1];
       A->row[ri]->val[i+2]    +=  (re_l_t)mult * reducers[i+2];
@@ -4157,7 +4154,7 @@ static inline void reduce_dense_row_from(dm_t *A, const ri_t ri, const ri_t rj,
     nreductions +=  4;
 #endif
   }
-  for (i; i<A->ncols; ++i) {
+  for (; i<A->ncols; ++i) {
     A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
 #if COUNT_REDS
     nreductions +=  1;
@@ -4199,7 +4196,7 @@ static inline void reduce_dense_row_twice_from(dm_t *A, const ri_t ri, const ri_
   i = from;
   
   if (A->ncols-i > 7) {
-    for (i; i<A->ncols-7; i=i+8) {
+    for (; i<A->ncols-7; i=i+8) {
       A->row[ri]->val[i]    +=
         (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i];
       A->row[ri]->val[i+1]    +=
@@ -4235,7 +4232,7 @@ static inline void reduce_dense_row_twice_from(dm_t *A, const ri_t ri, const ri_
     nreductions +=  4;
 #endif
   }
-  for (i; i<A->ncols; ++i) {
+  for (; i<A->ncols; ++i) {
       A->row[ri]->val[i]    +=
         (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i];
 #if COUNT_REDS
@@ -4288,7 +4285,7 @@ static inline void reduce_dense_row_three(dm_t *A, const ri_t ri, const ri_t rj1
   // leading nonzero element has to become zero
   A->row[ri]->val[i-1]  = 0;
   if (A->ncols-i > 7) {
-    for (i; i<A->ncols-7; i=i+8) {
+    for (; i<A->ncols-7; i=i+8) {
       A->row[ri]->val[i]    +=
         (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i]
         + (re_l_t)mult3 * reducers3[i];
@@ -4336,7 +4333,7 @@ static inline void reduce_dense_row_three(dm_t *A, const ri_t ri, const ri_t rj1
     nreductions +=  4;
 #endif
   }
-  for (i; i<A->ncols; ++i) {
+  for (; i<A->ncols; ++i) {
       A->row[ri]->val[i]    +=
         (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i]
         + (re_l_t)mult3 * reducers3[i];
@@ -4385,7 +4382,7 @@ static inline void reduce_dense_row_twice(dm_t *A, const ri_t ri, const ri_t rj1
   //A->row[ri]->val[i-1]  = 0;
 
   if (A->ncols-i > 7) {
-    for (i; i<A->ncols-7; i=i+8) {
+    for (; i<A->ncols-7; i=i+8) {
       A->row[ri]->val[i]    +=
         (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i];
       A->row[ri]->val[i+1]    +=
@@ -4421,7 +4418,7 @@ static inline void reduce_dense_row_twice(dm_t *A, const ri_t ri, const ri_t rj1
     nreductions +=  4;
 #endif
   }
-  for (i; i<A->ncols; ++i) {
+  for (; i<A->ncols; ++i) {
     A->row[ri]->val[i]    +=
       (re_l_t)mult1 * reducers1[i] + (re_l_t)mult2 * reducers2[i];
 #if COUNT_REDS
@@ -4464,7 +4461,7 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
 
 
   if (A->ncols-i > 7) {
-    for (i; i<A->ncols-7; i=i+8) {
+    for (; i<A->ncols-7; i=i+8) {
       A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
       A->row[ri]->val[i+1]    +=  (re_l_t)mult * reducers[i+1];
       A->row[ri]->val[i+2]    +=  (re_l_t)mult * reducers[i+2];
@@ -4488,7 +4485,7 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
     nreductions +=  4;
 #endif
   }
-  for (i; i<A->ncols; ++i) {
+  for (; i<A->ncols; ++i) {
     A->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
 #if COUNT_REDS
     nreductions +=  1;
@@ -5308,26 +5305,26 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 		const int reduce, const ri_t curr_row_to_reduce);
 
 /*  global variables for echelonization of D */
-static  omp_lock_t echelonize_lock;
-static  ri_t global_next_row_to_reduce;
-static  ri_t global_last_piv;
-static  ri_t global_last_row_fully_reduced;
-static  wl_t waiting_global;
+extern  omp_lock_t echelonize_lock;
+extern  ri_t global_next_row_to_reduce;
+extern  ri_t global_last_piv;
+extern  ri_t global_last_row_fully_reduced;
+extern  wl_t waiting_global;
 
-static ri_t global_initial_D_rank;
-static ri_t global_piv_lead_drop;
-
-/*  global variables for reduction of C */
-static  omp_lock_t reduce_C_lock;
-static  ri_t reduce_C_next_col_to_reduce;
+extern ri_t global_initial_D_rank;
+extern ri_t global_piv_lead_drop;
 
 /*  global variables for reduction of C */
-static  omp_lock_t reduce_A_lock;
-static  ri_t reduce_A_next_col_to_reduce;
+extern  omp_lock_t reduce_C_lock;
+extern  ri_t reduce_C_next_col_to_reduce;
 
-static ri_t pivs_in_use;
-static ri_t sorting_pivs;
-static ri_t last_pivot_idx;
+/*  global variables for reduction of C */
+extern  omp_lock_t reduce_A_lock;
+extern  ri_t reduce_A_next_col_to_reduce;
+
+extern ri_t pivs_in_use;
+extern ri_t sorting_pivs;
+extern ri_t last_pivot_idx;
 
 
 #endif /* GBLA_ELIMINATION_H */

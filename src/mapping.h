@@ -494,7 +494,7 @@ static inline void swap_and_cut(sb_fl_t *A) {
 static inline void cut_blocks(sb_fl_t *A) {
   const ri_t rlA  = get_number_sparse_row_blocks(A);
   const ci_t clA  = get_number_sparse_col_blocks(A);
-  bi_t sz, k, l;
+  bi_t sz, k;
   ri_t i;
   ci_t j;
   for (i=0; i<rlA; ++i) {
@@ -552,7 +552,6 @@ static inline void insert_in_sm_inv(sm_fl_t *A, const sm_t *M, const ci_t shift,
 {
   const ri_t ridx = (rbi * __GBLA_SIMD_BLOCK_SIZE) + lib;
 
-  bi_t i, j, k;
   // allocate memory if needed
   if (A->sz[ridx] == A->buf[ridx]) {
     A->buf[ridx]  *=  2;
@@ -634,7 +633,6 @@ static inline void insert_in_sm(sm_fl_t *A, const sm_t *M, const ci_t shift, con
 {
   const ri_t ridx = (rbi * __GBLA_SIMD_BLOCK_SIZE) + lib;
 
-  bi_t i, j, k;
   // allocate memory if needed
   if (A->row[ridx] == NULL) {
     A->row[ridx]  = (re_t *)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t));
@@ -679,7 +677,7 @@ static inline void insert_in_sb_by_column(sb_fl_t *A, const sm_t *M, const ci_t 
 {
   const bi_t bir  = shift / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
   const bi_t eil  = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
-  bi_t i, j, k;
+  bi_t k;
   // allocate memory if needed, initialized to zero
   if (A->blocks[rbi][bir].val == NULL) {
     A->blocks[rbi][bir].val= (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
@@ -915,7 +913,7 @@ static inline void insert_in_sb(sb_fl_t *A, const sm_t *M, const ci_t shift, con
 {
   const bi_t bir  = shift / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
   const bi_t eil  = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
-  bi_t i, j, k;
+  bi_t k;
   // allocate memory if needed, initialized to zero
   if (A->blocks[rbi][bir].val == NULL) {
     A->blocks[rbi][bir].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
@@ -976,7 +974,7 @@ static inline void insert_in_sb_inv(sb_fl_t *A, const sm_t *M, const ci_t shift,
 {
   const bi_t bir  = shift / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
   const bi_t eil  = shift % __GBLA_SIMD_BLOCK_SIZE; // index in block line
-  bi_t i, j, k;
+  bi_t k;
   // allocate memory if needed, initialized to zero
   if (A->blocks[rbi][bir].val == NULL) {
     A->blocks[rbi][bir].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
@@ -1625,14 +1623,12 @@ static inline void write_sparse_dense_blocks_matrix_no_inversion(const sm_t *M,
     sb_fl_t *A, dbm_fl_t *B, const map_fl_t *map, ri_t *rihb, const ri_t cvb,
     const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   for (i=0; i<cvb; ++i) {
     bi  = rihb[i];
@@ -1676,14 +1672,12 @@ static inline void write_sparse_dense_blocks_matrix_no_inversion(const sm_t *M,
 static inline void write_sparse_dense_blocks_matrix_many(const sm_t *M, sb_fl_t *A,
     dbm_fl_t *B, const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   ci_t itA[BUFFER];
   ci_t itB[BUFFER];
@@ -1770,14 +1764,12 @@ static inline void write_sparse_dense_blocks_matrix_many(const sm_t *M, sb_fl_t 
 static inline void write_sparse_dense_blocks_matrix(const sm_t *M, sb_fl_t *A,
     dbm_fl_t *B, const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   for (i=0; i<cvb; ++i) {
     bi  = rihb[i];
@@ -1825,14 +1817,12 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
     const sm_t *M, sm_fl_t *A, sb_fl_t *B, const map_fl_t *map, ri_t *rihb,
     const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, j, k, bi;
 
   ci_t itA[BUFFER];
   ci_t itB[BUFFER];
@@ -2092,14 +2082,12 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A(
     const sm_t *M, sm_fl_t *A, sb_fl_t *B, const map_fl_t *map, ri_t *rihb,
     const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   for (i=0; i<cvb; ++i) {
     bi  = rihb[i];
@@ -2149,14 +2137,12 @@ static inline void write_sparse_dense_blocks_matrix_keep_A_many(
     const sm_t *M, sm_fl_t *A, dbm_fl_t *B, const map_fl_t *map, ri_t *rihb,
     const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   ci_t itA[BUFFER];
   ci_t itB[BUFFER];
@@ -2246,14 +2232,12 @@ static inline void write_sparse_dense_blocks_matrix_keep_A(
     const sm_t *M, sm_fl_t *A, dbm_fl_t *B, const map_fl_t *map, ri_t *rihb,
     const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   for (i=0; i<cvb; ++i) {
     bi  = rihb[i];
@@ -2297,14 +2281,12 @@ static inline void write_sparse_dense_blocks_matrix_keep_A(
 static inline void write_sparse_dense_blocks_matrix_inv_keep_A(const sm_t *M, sm_fl_t *A,
     dbm_fl_t *B, const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   for (i=0; i<cvb; ++i) {
     bi  = rihb[i];
@@ -2345,14 +2327,12 @@ static inline void write_sparse_dense_blocks_matrix_inv_keep_A(const sm_t *M, sm
 static inline void write_hybrid_dense_blocks_matrix(const sm_t *M, hbm_fl_t *A,
     dbm_fl_t *B, const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   // ususally cvb is divisible by 2, but for the last row of blocks there might
   // be only an odd number of lines in the blocks
@@ -2395,14 +2375,12 @@ static inline void write_hybrid_dense_blocks_matrix(const sm_t *M, hbm_fl_t *A,
 static inline void write_hybrid_blocks_matrix(const sm_t *M, hbm_fl_t *A, hbm_fl_t *B,
     const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   // ususally cvb is divisible by 2, but for the last row of blocks there might
   // be only an odd number of lines in the blocks
@@ -2445,14 +2423,12 @@ static inline void write_hybrid_blocks_matrix(const sm_t *M, hbm_fl_t *A, hbm_fl
 static inline void write_dense_blocks_matrix(const sm_t *M, dbm_fl_t *A, dbm_fl_t *B,
     const map_fl_t *map, ri_t *rihb, const ri_t cvb, const ri_t rbi)
 {
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   // ususally cvb is divisible by 2, but for the last row of blocks there might
   // be only an odd number of lines in the blocks
@@ -2500,14 +2476,12 @@ static inline void write_dense_blocks_matrix_diagonalize(const sm_t *M,
     const ri_t cvb, const ri_t rbi)
 {
 
-  bi_t  lib;    // line index in block
-  bi_t  length; // local helper for block line length arithmetic
   ci_t  it, ri;
 
   // memory for block entries is already allocated in splice_fl_matrix()
 
   // current loop variable i, block indices 1 (rihb[i])
-  ri_t i, j, k, l, bi;
+  ri_t i, bi;
 
   // ususally cvb is divisible by 2, but for the last row of blocks there might
   // be only an odd number of lines in the blocks
@@ -2617,9 +2591,8 @@ static inline void fill_sparse_sparse_submatrices_keep_A(sm_t *M, sm_fl_t *A,
     sb_fl_t *B, const map_fl_t *map, const ri_t *range, const ri_t *piv_start_idx,
     const int destruct_input_matrix, const int nthreads)
 {
-  int i;
   ri_t block_idx;
-#pragma omp parallel private(block_idx, i) num_threads(nthreads)
+#pragma omp parallel private(block_idx) num_threads(nthreads)
   {
     ri_t rihb[__GBLA_SIMD_BLOCK_SIZE];  // rows indices horizontal block
     bi_t cvb  = 0;          // current vector in block
@@ -2629,6 +2602,7 @@ static inline void fill_sparse_sparse_submatrices_keep_A(sm_t *M, sm_fl_t *A,
     for (block_idx = 0; block_idx <= A->nrows/__GBLA_SIMD_BLOCK_SIZE; ++block_idx) {
 #pragma omp task
       {
+        int i = 0;
         // construct block submatrices A & B
         // Note: In the for loop we always construct block "block+1" and not block
         // "block".

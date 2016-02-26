@@ -14,7 +14,7 @@
  */
 
 
-#include <mapping.h>
+#include "mapping.h"
 
 #define __GBLA_DEBUG_LL     0
 #define __GBLA_DEBUG        0
@@ -256,18 +256,17 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
     map_fl_t *map, const ci_t coldim, int free_matrices,
     int M_freed, int A_freed, int D_freed, int nthrds) {
 
-  int ret;
-  uint8_t *vec_free_B2, *vec_free_D2;
+  uint8_t *vec_free_B2 = NULL, *vec_free_D2 = NULL;
   /*  1 pivot from A and otherwise at most D->ncols = B->ncols elements */
   /*  ==> no reallocations! */
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    ret = posix_memalign((void *)&vec_free_B2, ALIGNT, (B2->nrows / __GBLA_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_B2, ALIGNT, (B2->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_B2, 0, (B2->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    ret = posix_memalign((void *)&vec_free_D2, ALIGNT, (D2->nrows / __GBLA_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_D2, ALIGNT, (D2->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D2, 0, (D2->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
@@ -502,10 +501,8 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
 #pragma omp parallel num_threads(nthrds)
 {
   ri_t block_row_idx;
-  ri_t line_idx;
   ci_t start_idx;
   ri_t min_range;
-  ri_t min_range_blocks;
 #pragma omp for private(i,j,k) schedule(dynamic)
   // each thread gets a whole block row
   for (l=0; l<rlB; ++l) {
@@ -513,10 +510,8 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
     // getting a row from A+B
     if (l<rlB-1) {
       min_range         = (l+1)*__GBLA_SIMD_BLOCK_SIZE;
-      min_range_blocks  = __GBLA_SIMD_BLOCK_SIZE;
     } else {
       min_range         = map->npiv;
-      min_range_blocks  = map->npiv - (rlB-1)*__GBLA_SIMD_BLOCK_SIZE;
     }
 
     // allocate memory and set first elements for the whole block
@@ -580,9 +575,7 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
 {
   ri_t block_row_idx;
   ri_t line_idx;
-  ci_t start_idx;
   ri_t min_range;
-  ri_t min_range_blocks;
 #pragma omp for private(i,j,k) schedule(dynamic)
   for (l=0; l<rlD; ++l) {
     block_row_idx = l*__GBLA_SIMD_BLOCK_SIZE + map->npiv;
@@ -759,9 +752,7 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
 {
   ri_t block_row_idx;
   ri_t line_idx;
-  ci_t start_idx;
   ri_t min_range;
-  ri_t min_range_blocks;
 #pragma omp for private(i,j,k) schedule(dynamic)
   for (l=0; l<rlD; ++l) {
     block_row_idx = l*__GBLA_SIMD_BLOCK_SIZE + map->npiv;
@@ -827,18 +818,17 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
     int M_freed, int A_freed, int D_freed, int nthrds) {
 
-  int ret;
   uint8_t *vec_free_AB, *vec_free_D;
   /*  1 pivot from A and otherwise at most D->ncols = B->ncols elements */
   /*  ==> no reallocations! */
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    ret = posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_AB, 0, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    ret = posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D, 0, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
@@ -1021,18 +1011,17 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
     int M_freed, int A_freed, int D_freed, int nthrds) {
 
-  int ret;
   uint8_t *vec_free_AB, *vec_free_D;
   /*  we need size of A->ml and otherwise at most D->ncols = B->ncols elements */
   /*  ==> no reallocations! */
   /* ci_t buffer = (ci_t) ceil((float)M->ncols / 10); */
 
   if (free_matrices == 1) {
-    ret = posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_AB, ALIGNT, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_AB, 0, (B->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
-    ret = posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
+    posix_memalign((void *)&vec_free_D, ALIGNT, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
     memset(vec_free_D, 0, (D->nrows / __GBLA_NROWS_MULTILINE + 1)
         * sizeof(uint8_t));
@@ -2625,7 +2614,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
   /*  We use a density threshold (which is globally defined in GBLA_config.h.in) to */
   /*  specify how much memory we allocate initially. */
 
-  bi_t init_buffer_A, init_buffer_B;
+  bi_t init_buffer_A = 0, init_buffer_B = 0;
   switch (density_level) {
     case 0: /*  splicing upper part (A & B) -- tends to be sparse */
       if (M->density > __GBLA_DENSITY_THRESHOLD) {
@@ -3004,7 +2993,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
   /*  memory for the multilines in A. */
   /*  We use a density threshold (which is globally defined in GBLA_config.h.in) to */
   /*  specify how much memory we allocate initially. */
-  bi_t init_buffer_A, init_buffer_B;
+  bi_t init_buffer_A = 0, init_buffer_B = 0;
   switch (density_level) {
     case 0: /*  splicing upper part (A & B) -- tends to be sparse */
       if (M->density > __GBLA_DENSITY_THRESHOLD) {
