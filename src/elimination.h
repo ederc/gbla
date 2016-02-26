@@ -91,12 +91,15 @@ int cmp_wle(const void *a, const void *b) ;
  */
 static inline void init_wide_blocks(re_l_t ***wide_block)
 {
+  int ret;
   re_l_t **wb = *wide_block;
   wb = (re_l_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_l_t *));
   uint64_t size = __GBLA_SIMD_BLOCK_SIZE * sizeof(re_l_t);
   bi_t i;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    posix_memalign((void **)&wb[i], 16, size);
+    do {
+      ret =posix_memalign((void **)&wb[i], 16, size);
+    } while (ret != 0);
   }
   *wide_block  = wb;
 }
@@ -111,8 +114,11 @@ static inline void init_wide_blocks(re_l_t ***wide_block)
  */
 static inline void init_wide_rows(re_l_t **wide_row, ci_t length)
 {
+  int ret;
   re_l_t *wr = *wide_row;
-  posix_memalign((void **)&wr, 16, length * sizeof(re_l_t));
+  do {
+    ret = posix_memalign((void **)&wr, 16, length * sizeof(re_l_t));
+  } while (ret != 0);
   *wide_row  = wr;
 }
 
