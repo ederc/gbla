@@ -621,6 +621,8 @@ int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C_in, dbm_fl_t *D,
   }
   // free C
   free_intermediate_submatrix(&C, nthrds);
+  *C_in = C;
+
   return 0;
 }
 int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
@@ -646,6 +648,8 @@ int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
   }
   // free C
   free_dense_submatrix(&C, nthrds);
+  *C_in = C;
+
   return 0;
 }
 //#endif
@@ -673,6 +677,8 @@ int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
   }
   // free C
   free_sparse_submatrix(&C, nthrds);
+  *C_in = C;
+
   return 0;
 }
 
@@ -699,6 +705,8 @@ int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
   }
   // free C
   free_sparse_submatrix(&C, nthrds);
+  *C_in = C;
+
   return 0;
 }
 
@@ -725,6 +733,8 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
   }
   // free C
   free_dense_submatrix(&C, nthrds);
+  *C_in = C;
+
   return 0;
 }
 
