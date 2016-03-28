@@ -2371,12 +2371,6 @@ ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
   global_next_row_to_reduce = nthrds * 2;
   global_last_piv           = 0;
 
-  /*  global waiting list */
-  waiting_global.list = (wle_t *)malloc(D->nrows * sizeof(wle_t));
-  waiting_global.sidx = 0;
-  waiting_global.slp  = 0;
-  waiting_global.sz   = 0;
-
 #if COUNT_REDS
   nreductions = 0;
 #endif
@@ -2415,6 +2409,12 @@ ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
     return D->rank;
 
   // do the parallel computation
+
+  /*  global waiting list */
+  waiting_global.list = (wle_t *)malloc(D->nrows * sizeof(wle_t));
+  waiting_global.sidx = 0;
+  waiting_global.slp  = 0;
+  waiting_global.sz   = 0;
   omp_init_lock(&echelonize_lock);
   int tid;
 
@@ -2426,6 +2426,7 @@ ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
     }
   }
   omp_destroy_lock(&echelonize_lock);
+  free(waiting_global.list);
 
 #if COUNT_REDS
   printf("\n#REDUCTION STEPS: %lu\n",nreductions);
@@ -2438,12 +2439,6 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds)
   // setting global variables for open mp locks used later on
   global_next_row_to_reduce = nthrds * 2;
   global_last_piv           = 0;
-
-  /*  global waiting list */
-  waiting_global.list = (wle_t *)malloc(D->nrows * sizeof(wle_t));
-  waiting_global.sidx = 0;
-  waiting_global.slp  = 0;
-  waiting_global.sz   = 0;
 
 #if COUNT_REDS
   nreductions = 0;
@@ -2483,6 +2478,12 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds)
     return D->rank;
 
   // do the parallel computation
+
+  /*  global waiting list */
+  waiting_global.list = (wle_t *)malloc(D->nrows * sizeof(wle_t));
+  waiting_global.sidx = 0;
+  waiting_global.slp  = 0;
+  waiting_global.sz   = 0;
   omp_init_lock(&echelonize_lock);
   int tid;
 
@@ -2494,6 +2495,7 @@ ri_t elim_fl_dense_D(dm_t *D, int nthrds)
     }
   }
   omp_destroy_lock(&echelonize_lock);
+  free(waiting_global.list);
 
 #if COUNT_REDS
   printf("\n#REDUCTION STEPS: %lu\n",nreductions);
@@ -2601,6 +2603,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
     }
   }
   omp_destroy_lock(&echelonize_lock);
+  free(waiting_global.list);
 
   ri_t rank = 0;
 
