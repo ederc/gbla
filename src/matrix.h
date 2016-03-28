@@ -974,6 +974,7 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
           free(in->blocks[i][j].val);
         }
       }
+      free(in->blocks[i]);
     }
   }
   free(in->blocks);
