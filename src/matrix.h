@@ -815,6 +815,34 @@ static inline void free_dense_submatrix(dbm_fl_t **A_in, int nthrds)
 }
 
 /**
+ * \brief Frees given dense row submatrix A
+ *
+ * \param dense row submatrix A
+ *
+ * \param number of threads for parallel computation
+ */
+static inline void free_dense_row_submatrix(dm_t **A_in, int nthrds)
+{
+  dm_t *A   = *A_in;
+  ri_t j;
+  // free A
+#pragma omp parallel num_threads(nthrds)
+  {
+#pragma omp for private(j)
+    for (j=0; j<A->nrows; ++j) {
+      free(A->row[j]->piv_val);
+      free(A->row[j]->init_val);
+      free(A->row[j]->val);
+      free(A->row[j]);
+    }
+  }
+  free(A->row);
+  free(A);
+  A = NULL;
+  *A_in  = A;
+}
+
+/**
  * \brief Comparison function for qsort for dense pivot rows
  *
  * \param dense row a
