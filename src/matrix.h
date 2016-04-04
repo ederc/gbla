@@ -956,16 +956,19 @@ static inline ri_t swap_row(dm_t *A, const ri_t ridx)
 /**
  * \brief Copies block matrix D to a dense row matrix
  *
- * \note Zero rows are directly removed 
+ * \note Zero rows are directly removed, rows are sorted by known pivots if
+ * parameter sort is 1.
  *
  * \param block submatrix A
  *
  * \param number of threads for parallel computation
  *
+ * \param sorting of dense matrix by pivots? sort
+ *
  * \return dense row matrix
  */
 static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
-    const int nthrds)
+    const int nthrds, const int sort)
 {
   ri_t i, j;
   dbm_fl_t *in  = *A;
@@ -1028,7 +1031,8 @@ next_round:
   }
 
   // now sort out and get rank
-  sort_dense_matrix_by_pivots(out);
+  if (sort)
+    sort_dense_matrix_by_pivots(out);
   i = out->nrows-1;
   while (i < (re_t)(-1) && out->row[i]->lead == out->ncols) {
     out->rank--;

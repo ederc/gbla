@@ -634,7 +634,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
 #endif
 
   // copy block D to dense wide (re_l_t) representation
-  dm_t *D_red = copy_block_to_dense_matrix(&D, nthreads);
+  dm_t *D_red = copy_block_to_dense_matrix(&D, nthreads, 1);
   D_red->mod  = M->mod;
 
   // eliminate D_red using a structured Gaussian Elimination process on the rows
@@ -874,7 +874,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
 #endif
 
   // copy block D to dense wide (re_l_t) representation
-  dm_t *D_red = copy_block_to_dense_matrix(&D, nthreads);
+  dm_t *D_red = copy_block_to_dense_matrix(&D, nthreads, 1);
   D_red->mod  = M->mod;
 
   // eliminate D_red using a structured Gaussian Elimination process on the rows
