@@ -410,6 +410,38 @@ static inline ci_t get_number_sparse_col_blocks(const sb_fl_t *A)
 }
 
 /**
+ * \brief Initializes sparse submatrices without preallocating memory for rows
+ *
+ * \param sparse submatrix A
+ *
+ * \param number of rows nrows
+ *
+ * \param number of columns ncols
+ */
+static inline void init_sm_no_row_allocation(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
+{
+  int i;
+
+  // initialize meta data for block submatrices
+  A->nrows  = nrows;  // row dimension
+  A->ncols  = ncols;  // col dimension
+  A->nnz    = 0;      // number nonzero elements
+
+  // allocate memory for rows
+  A->row  = (re_t **)malloc(nrows * sizeof(re_t *));
+  A->pos  = (ci_t **)malloc(nrows * sizeof(ci_t *));
+  A->sz   = (ci_t *)malloc(nrows * sizeof(ci_t));
+  A->buf  = (ci_t *)malloc(nrows * sizeof(ci_t));
+  memset(A->sz, 0, nrows * sizeof(ci_t));
+  // allocate memory already, we will have at least one entry in each row!
+  for (i=0; i<nrows; ++i) {
+    A->row[i] = NULL;
+    A->pos[i] = NULL;
+    A->buf[i] = 0;
+  }
+}
+
+/**
  * \brief Initializes sparse submatrices
  *
  * \param sparse submatrix A
