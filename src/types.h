@@ -24,7 +24,7 @@
 #define GBLA_TYPES_H
 
 #if 0
-#define GBLA_USE_FLOAT XXX
+#define GBLA_USE_FLOAT 1
 /* #define GBLA_USE_INT16 XXX */
 #else
 #define GBLA_USE_UINT16 OK
