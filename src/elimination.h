@@ -35,9 +35,9 @@
 
 #undef AVX
 #undef SSE
-//#define NOSSE
+#define NOSSE
 //#define AVX
-#define NOSSE2
+//#define NOSSE2
 
 #define DEBUG_NEW_ELIM  0
 #define COUNT_REDS  0
@@ -1577,7 +1577,7 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
           wide_block[i][k+13],
           wide_block[i][k+14],
           wide_block[i][k+15]);
-       
+
       j = 0;
       if (block_A->sz[i] > 3) {
         for (j=0; j<block_A->sz[i]-2; j=j+3) {
@@ -1588,8 +1588,8 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
           pa2 = block_A->pos[i][j+1] * __GBLA_SIMD_BLOCK_SIZE;
           a3  = _mm256_set1_epi64x(block_A->val[i][j+2]);
           pa3 = block_A->pos[i][j+2] * __GBLA_SIMD_BLOCK_SIZE;
-            
-            
+
+
           // load B block
           b1  = _mm256_setr_epi64x(
               block_B[pa1 + k],
