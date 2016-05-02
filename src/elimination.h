@@ -1429,7 +1429,7 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
         pf  = block_A->pos[i][j+5] * __GBLA_SIMD_BLOCK_SIZE;
         pg  = block_A->pos[i][j+6] * __GBLA_SIMD_BLOCK_SIZE;
         ph  = block_A->pos[i][j+7] * __GBLA_SIMD_BLOCK_SIZE;
-        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k = k+4) {
           wide_block[i][k]  +=
             (a * (re_l_t)block_B[pa + k] +
              b * (re_m_t)block_B[pb + k] +
@@ -1439,27 +1439,84 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
              f * (re_m_t)block_B[pf + k] +
              g * (re_m_t)block_B[pg + k] +
              h * (re_m_t)block_B[ph + k]);
+          wide_block[i][k+1]  +=
+            (a * (re_l_t)block_B[pa + k+1] +
+             b * (re_m_t)block_B[pb + k+1] +
+             c * (re_m_t)block_B[pc + k+1] +
+             d * (re_m_t)block_B[pd + k+1] +
+             e * (re_m_t)block_B[pe + k+1] +
+             f * (re_m_t)block_B[pf + k+1] +
+             g * (re_m_t)block_B[pg + k+1] +
+             h * (re_m_t)block_B[ph + k+1]);
+          wide_block[i][k+2]  +=
+            (a * (re_l_t)block_B[pa + k+2] +
+             b * (re_m_t)block_B[pb + k+2] +
+             c * (re_m_t)block_B[pc + k+2] +
+             d * (re_m_t)block_B[pd + k+2] +
+             e * (re_m_t)block_B[pe + k+2] +
+             f * (re_m_t)block_B[pf + k+2] +
+             g * (re_m_t)block_B[pg + k+2] +
+             h * (re_m_t)block_B[ph + k+2]);
+          wide_block[i][k+3]  +=
+            (a * (re_l_t)block_B[pa + k+3] +
+             b * (re_m_t)block_B[pb + k+3] +
+             c * (re_m_t)block_B[pc + k+3] +
+             d * (re_m_t)block_B[pd + k+3] +
+             e * (re_m_t)block_B[pe + k+3] +
+             f * (re_m_t)block_B[pf + k+3] +
+             g * (re_m_t)block_B[pg + k+3] +
+             h * (re_m_t)block_B[ph + k+3]);
         }
       }
+    }
+    if (block_A->sz[i]-j > 3) {
+      a = block_A->val[i][j];
+      b = block_A->val[i][j+1];
+      c = block_A->val[i][j+2];
+      d = block_A->val[i][j+3];
+      pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
+      pb  = block_A->pos[i][j+1] * __GBLA_SIMD_BLOCK_SIZE;
+      pc  = block_A->pos[i][j+2] * __GBLA_SIMD_BLOCK_SIZE;
+      pd  = block_A->pos[i][j+3] * __GBLA_SIMD_BLOCK_SIZE;
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k = k+4) {
+        wide_block[i][k]  +=
+          (a * (re_l_t)block_B[pa + k] +
+           b * (re_m_t)block_B[pb + k] +
+           c * (re_m_t)block_B[pc + k] +
+           d * (re_m_t)block_B[pd + k]);
+          wide_block[i][k+1]  +=
+            (a * (re_l_t)block_B[pa + k+1] +
+             b * (re_m_t)block_B[pb + k+1] +
+             c * (re_m_t)block_B[pc + k+1] +
+             d * (re_m_t)block_B[pd + k+1]);
+          wide_block[i][k+2]  +=
+            (a * (re_l_t)block_B[pa + k+2] +
+             b * (re_m_t)block_B[pb + k+2] +
+             c * (re_m_t)block_B[pc + k+2] +
+             d * (re_m_t)block_B[pd + k+2]);
+          wide_block[i][k+3]  +=
+            (a * (re_l_t)block_B[pa + k+3] +
+             b * (re_m_t)block_B[pb + k+3] +
+             c * (re_m_t)block_B[pc + k+3] +
+             d * (re_m_t)block_B[pd + k+3]);
+      }
+      j = j+4;
     }
     for (;j<block_A->sz[i]; ++j) {
       a   = block_A->val[i][j];
       pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
-      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k = k+4) {
         wide_block[i][k]  +=
           a * (re_m_t)block_B[pa + k];
+        wide_block[i][k+1]  +=
+          a * (re_m_t)block_B[pa + k+1];
+        wide_block[i][k+2]  +=
+          a * (re_m_t)block_B[pa + k+2];
+        wide_block[i][k+3]  +=
+          a * (re_m_t)block_B[pa + k+3];
       }
     }
   }
-
-  /*
-  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    j = 0;
-    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+16) {
-    for (j=0; j<block_A->sz[i]; ++j) {
-    a   = block_A->val[i][j];
-    pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
-    */
 #endif
 #ifdef NOSSE2
   bi_t i, j, k;
