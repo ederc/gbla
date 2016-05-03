@@ -1520,91 +1520,88 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
 #endif
 #ifdef NOSSE2
   bi_t i, j, k;
-  register re_t a, b, c, d, e, f, g, h;
-  register bi_t pa, pb, pc, pd, pe, pf, pg, ph;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     j = 0;
+    const bi_t bs = __GBLA_SIMD_BLOCK_SIZE;
     const re_t *bAv = block_A->val[i];
-    const re_t *bAp = block_A->pos[i];
+    const bi_t *bAp = block_A->pos[i];
     if (block_A->sz[i] > 7) {
       for (; j<block_A->sz[i]-7; j = j+8) {
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k = k+4) {
           wide_block[i][k]  +=
-            (bAv[j] * (re_l_t)block_B[bAp[j] + k] +
-             bAv[j+1] * (re_l_t)block_B[bAp[j+1] + k] +
-             bAv[j+2] * (re_l_t)block_B[bAp[j+2] + k] +
-             bAv[j+3] * (re_l_t)block_B[bAp[j+3] + k] +
-             bAv[j+4] * (re_l_t)block_B[bAp[j+4] + k] +
-             bAv[j+5] * (re_l_t)block_B[bAp[j+5] + k] +
-             bAv[j+6] * (re_l_t)block_B[bAp[j+6] + k] +
-             bAv[j+7] * (re_l_t)block_B[bAp[j+7] + k]);
+            (bAv[j] * (re_l_t)block_B[bAp[j]*bs + k] +
+             bAv[j+1] * (re_m_t)block_B[bAp[j+1]*bs + k] +
+             bAv[j+2] * (re_m_t)block_B[bAp[j+2]*bs + k] +
+             bAv[j+3] * (re_m_t)block_B[bAp[j+3]*bs + k] +
+             bAv[j+4] * (re_m_t)block_B[bAp[j+4]*bs + k] +
+             bAv[j+5] * (re_m_t)block_B[bAp[j+5]*bs + k] +
+             bAv[j+6] * (re_m_t)block_B[bAp[j+6]*bs + k] +
+             bAv[j+7] * (re_m_t)block_B[bAp[j+7]*bs + k]);
           wide_block[i][k+1]  +=
-            (bAv[j] * (re_l_t)block_B[bAp[j] + k+1] +
-             bAv[j+1] * (re_l_t)block_B[bAp[j+1] + k+1] +
-             bAv[j+2] * (re_l_t)block_B[bAp[j+2] + k+1] +
-             bAv[j+3] * (re_l_t)block_B[bAp[j+3] + k+1] +
-             bAv[j+4] * (re_l_t)block_B[bAp[j+4] + k+1] +
-             bAv[j+5] * (re_l_t)block_B[bAp[j+5] + k+1] +
-             bAv[j+6] * (re_l_t)block_B[bAp[j+6] + k+1] +
-             bAv[j+7] * (re_l_t)block_B[bAp[j+7] + k+1]);
+            (bAv[j] * (re_l_t)block_B[bAp[j]*bs + k+1] +
+             bAv[j+1] * (re_m_t)block_B[bAp[j+1]*bs + k+1] +
+             bAv[j+2] * (re_m_t)block_B[bAp[j+2]*bs + k+1] +
+             bAv[j+3] * (re_m_t)block_B[bAp[j+3]*bs + k+1] +
+             bAv[j+4] * (re_m_t)block_B[bAp[j+4]*bs + k+1] +
+             bAv[j+5] * (re_m_t)block_B[bAp[j+5]*bs + k+1] +
+             bAv[j+6] * (re_m_t)block_B[bAp[j+6]*bs + k+1] +
+             bAv[j+7] * (re_m_t)block_B[bAp[j+7]*bs + k+1]);
           wide_block[i][k+2]  +=
-            (bAv[j] * (re_l_t)block_B[bAp[j] + k+2] +
-             bAv[j+1] * (re_l_t)block_B[bAp[j+1] + k+2] +
-             bAv[j+2] * (re_l_t)block_B[bAp[j+2] + k+2] +
-             bAv[j+3] * (re_l_t)block_B[bAp[j+3] + k+2] +
-             bAv[j+4] * (re_l_t)block_B[bAp[j+4] + k+2] +
-             bAv[j+5] * (re_l_t)block_B[bAp[j+5] + k+2] +
-             bAv[j+6] * (re_l_t)block_B[bAp[j+6] + k+2] +
-             bAv[j+7] * (re_l_t)block_B[bAp[j+7] + k+2]);
+            (bAv[j] * (re_l_t)block_B[bAp[j]*bs + k+2] +
+             bAv[j+1] * (re_m_t)block_B[bAp[j+1]*bs + k+2] +
+             bAv[j+2] * (re_m_t)block_B[bAp[j+2]*bs + k+2] +
+             bAv[j+3] * (re_m_t)block_B[bAp[j+3]*bs + k+2] +
+             bAv[j+4] * (re_m_t)block_B[bAp[j+4]*bs + k+2] +
+             bAv[j+5] * (re_m_t)block_B[bAp[j+5]*bs + k+2] +
+             bAv[j+6] * (re_m_t)block_B[bAp[j+6]*bs + k+2] +
+             bAv[j+7] * (re_m_t)block_B[bAp[j+7]*bs + k+2]);
           wide_block[i][k+3]  +=
-            (bAv[j] * (re_l_t)block_B[bAp[j] + k+3] +
-             bAv[j+1] * (re_l_t)block_B[bAp[j+1] + k+3] +
-             bAv[j+2] * (re_l_t)block_B[bAp[j+2] + k+3] +
-             bAv[j+3] * (re_l_t)block_B[bAp[j+3] + k+3] +
-             bAv[j+4] * (re_l_t)block_B[bAp[j+4] + k+3] +
-             bAv[j+5] * (re_l_t)block_B[bAp[j+5] + k+3] +
-             bAv[j+6] * (re_l_t)block_B[bAp[j+6] + k+3] +
-             bAv[j+7] * (re_l_t)block_B[bAp[j+7] + k+3]);
+            (bAv[j] * (re_l_t)block_B[bAp[j]*bs + k+3] +
+             bAv[j+1] * (re_m_t)block_B[bAp[j+1]*bs + k+3] +
+             bAv[j+2] * (re_m_t)block_B[bAp[j+2]*bs + k+3] +
+             bAv[j+3] * (re_m_t)block_B[bAp[j+3]*bs + k+3] +
+             bAv[j+4] * (re_m_t)block_B[bAp[j+4]*bs + k+3] +
+             bAv[j+5] * (re_m_t)block_B[bAp[j+5]*bs + k+3] +
+             bAv[j+6] * (re_m_t)block_B[bAp[j+6]*bs + k+3] +
+             bAv[j+7] * (re_m_t)block_B[bAp[j+7]*bs + k+3]);
         }
       }
     }
     if (block_A->sz[i]-j > 3) {
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k = k+4) {
         wide_block[i][k]  +=
-          (bAv[j] * (re_l_t)block_B[bAp[j] + k] +
-            bAv[j+1] * (re_l_t)block_B[bAp[j+1] + k] +
-            bAv[j+2] * (re_l_t)block_B[bAp[j+2] + k] +
-            bAv[j+3] * (re_l_t)block_B[bAp[j+3] + k]);
+          (bAv[j] * (re_l_t)block_B[bAp[j]*bs + k] +
+            bAv[j+1] * (re_m_t)block_B[bAp[j+1]*bs + k] +
+            bAv[j+2] * (re_m_t)block_B[bAp[j+2]*bs + k] +
+            bAv[j+3] * (re_m_t)block_B[bAp[j+3]*bs + k]);
         wide_block[i][k+1]  +=
-          (bAv[j] * (re_l_t)block_B[bAp[j] + k+1] +
-            bAv[j+1] * (re_l_t)block_B[bAp[j+1] + k+1] +
-            bAv[j+2] * (re_l_t)block_B[bAp[j+2] + k+1] +
-            bAv[j+3] * (re_l_t)block_B[bAp[j+3] + k+1]);
+          (bAv[j] * (re_l_t)block_B[bAp[j]*bs + k+1] +
+            bAv[j+1] * (re_m_t)block_B[bAp[j+1]*bs + k+1] +
+            bAv[j+2] * (re_m_t)block_B[bAp[j+2]*bs + k+1] +
+            bAv[j+3] * (re_m_t)block_B[bAp[j+3]*bs + k+1]);
         wide_block[i][k+2]  +=
-          (bAv[j] * (re_l_t)block_B[bAp[j] + k+2] +
-            bAv[j+1] * (re_l_t)block_B[bAp[j+1] + k+2] +
-            bAv[j+2] * (re_l_t)block_B[bAp[j+2] + k+2] +
-            bAv[j+3] * (re_l_t)block_B[bAp[j+3] + k+2]);
+          (bAv[j] * (re_l_t)block_B[bAp[j]*bs + k+2] +
+            bAv[j+1] * (re_m_t)block_B[bAp[j+1]*bs + k+2] +
+            bAv[j+2] * (re_m_t)block_B[bAp[j+2]*bs + k+2] +
+            bAv[j+3] * (re_m_t)block_B[bAp[j+3]*bs + k+2]);
         wide_block[i][k+3]  +=
-          (bAv[j] * (re_l_t)block_B[bAp[j] + k+3] +
-            bAv[j+1] * (re_l_t)block_B[bAp[j+1] + k+3] +
-            bAv[j+2] * (re_l_t)block_B[bAp[j+2] + k+3] +
-            bAv[j+3] * (re_l_t)block_B[bAp[j+3] + k+3] );
+          (bAv[j] * (re_l_t)block_B[bAp[j]*bs + k+3] +
+            bAv[j+1] * (re_m_t)block_B[bAp[j+1]*bs + k+3] +
+            bAv[j+2] * (re_m_t)block_B[bAp[j+2]*bs + k+3] +
+            bAv[j+3] * (re_m_t)block_B[bAp[j+3]*bs + k+3] );
       }
       j = j+4;
     }
     for (;j<block_A->sz[i]; ++j) {
-      a   = block_A->val[i][j];
-      pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
       for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k = k+4) {
         wide_block[i][k]  +=
-          (bAv[j] * (re_l_t)block_B[bAp[j] + k]);
+          (bAv[j] * (re_m_t)block_B[bAp[j]*bs + k]);
         wide_block[i][k+1]  +=
-          (bAv[j] * (re_l_t)block_B[bAp[j] + k+1]);
+          (bAv[j] * (re_m_t)block_B[bAp[j]*bs + k+1]);
         wide_block[i][k+2]  +=
-          (bAv[j] * (re_l_t)block_B[bAp[j] + k+2]);
+          (bAv[j] * (re_m_t)block_B[bAp[j]*bs + k+2]);
         wide_block[i][k+3]  +=
-          (bAv[j] * (re_l_t)block_B[bAp[j] + k+3]);
+          (bAv[j] * (re_m_t)block_B[bAp[j]*bs + k+3]);
       }
     }
   }
@@ -2887,23 +2884,84 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
     const re_t *bAv = block_A->val[i];
     const bi_t *bAp = block_A->pos[i];
-    for (j=0; j<block_A->sz[i]-8; j = j+8) {
-      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
-        wide_block[i][k]  +=
-          ((re_m_t)bAv[j] * wide_block[bAp[j]][k] +
-          (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k] +
-          (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k] +
-          (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k] +
-          (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k] +
-          (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k] +
-          (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k] +
-          (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k]);
+    j = 0;
+    if (block_A->sz[i] > 8) {
+      for (; j<block_A->sz[i]-8; j = j+8) {
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+          wide_block[i][k]  +=
+            ((re_l_t)bAv[j] * wide_block[bAp[j]][k] +
+             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k] +
+             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k] +
+             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k] +
+             (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k] +
+             (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k] +
+             (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k] +
+             (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k]);
+          wide_block[i][k+1]  +=
+            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+1] +
+             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+1] +
+             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+1] +
+             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+1] +
+             (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+1] +
+             (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+1] +
+             (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+1] +
+             (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+1]);
+          wide_block[i][k+2]  +=
+            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+2] +
+             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+2] +
+             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+2] +
+             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+2] +
+             (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+2] +
+             (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+2] +
+             (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+2] +
+             (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+2]);
+          wide_block[i][k+3]  +=
+            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+3] +
+             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+3] +
+             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+3] +
+             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+3] +
+             (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+3] +
+             (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+3] +
+             (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+3] +
+             (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+3]);
+        }
       }
     }
+    if (block_A->sz[i]-j > 4) {
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+          wide_block[i][k]  +=
+            ((re_l_t)bAv[j] * wide_block[bAp[j]][k] +
+             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k] +
+             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k] +
+             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k]);
+          wide_block[i][k+1]  +=
+            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+1] +
+             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+1] +
+             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+1] +
+             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+1]);
+          wide_block[i][k+2]  +=
+            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+2] +
+             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+2] +
+             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+2] +
+             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+2]);
+          wide_block[i][k+3]  +=
+            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+3] +
+             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+3] +
+             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+3] +
+             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+3]);
+        }
+        j = j+4;
+    }
     for (;j<block_A->sz[i]-1; ++j) {
-      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
         wide_block[i][k]  +=
           (re_m_t)bAv[j] * wide_block[bAp[j]][k];
+        wide_block[i][k+1]  +=
+          (re_m_t)bAv[j] * wide_block[bAp[j]][k+1];
+        wide_block[i][k+2]  +=
+          (re_m_t)bAv[j] * wide_block[bAp[j]][k+2];
+        wide_block[i][k+3]  +=
+          (re_m_t)bAv[j] * wide_block[bAp[j]][k+3];
       }
     }
     modulo_wide_block_val(wide_block, i, modulus);
