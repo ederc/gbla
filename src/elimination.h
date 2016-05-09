@@ -5331,9 +5331,10 @@ static inline void completely_reduce_dense_row_task_new(dm_t *D, const ri_t curr
   copy_piv_to_val(D, curr_row_to_reduce);
   reduce_dense_row_pre_elim(D, curr_row_to_reduce, from_row, local_last_piv);
   save_pivot(D, curr_row_to_reduce, curr_row_to_reduce);
-  if (tmp_val != NULL)
+  if (tmp_val != NULL) {
     D->row[curr_row_to_reduce]->val   = tmp_val;
     D->row[curr_row_to_reduce]->lead  = tmp_lead;
+  }
 }
 
 /**
