@@ -35,9 +35,9 @@
 
 #undef AVX
 #undef SSE
-//#define NOSSE
+#define NOSSE
 //#define AVX
-#define NOSSE2
+//#define NOSSE2
 
 #define DEBUG_NEW_ELIM  0
 #define COUNT_REDS  0
