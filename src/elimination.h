@@ -4758,6 +4758,72 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
 }
 
 /**
+ * \brief Reduces dense row ri from matrix B via row rj from matrix D using precomputed inverted
+ * multiplier mult
+ *
+ * \param dense row submatrix B
+ *
+ * \param dense row submatrix D
+ *
+ * \param row index ri
+ *
+ * \param row index rj
+ *
+ * \param precomputed inverted multiplier mult
+ *
+ */
+static inline void reduce_dense_row_of_B_by_D(dm_t *B, const dm_t *D, const ri_t ri,
+    const ri_t rj, const re_t mult)
+{
+  ci_t i;
+  const re_t *reducers  = D->row[rj]->piv_val;
+  
+  i = B->row[rj]->piv_lead + 1;
+  
+  //printf("i initially %u\n",i);
+  // leading nonzero element has to become zero
+
+  if (B->ncols-i > 7) {
+    for (; i<B->ncols-7; i=i+8) {
+      B->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
+      B->row[ri]->val[i+1]    +=  (re_l_t)mult * reducers[i+1];
+      B->row[ri]->val[i+2]    +=  (re_l_t)mult * reducers[i+2];
+      B->row[ri]->val[i+3]    +=  (re_l_t)mult * reducers[i+3];
+      B->row[ri]->val[i+4]    +=  (re_l_t)mult * reducers[i+4];
+      B->row[ri]->val[i+5]    +=  (re_l_t)mult * reducers[i+5];
+      B->row[ri]->val[i+6]    +=  (re_l_t)mult * reducers[i+6];
+      B->row[ri]->val[i+7]    +=  (re_l_t)mult * reducers[i+7];
+#if COUNT_REDS
+      nreductions +=  8;
+#endif
+    }
+  }
+  if (B->ncols-i > 4) {
+    B->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
+    B->row[ri]->val[i+1]    +=  (re_l_t)mult * reducers[i+1];
+    B->row[ri]->val[i+2]    +=  (re_l_t)mult * reducers[i+2];
+    B->row[ri]->val[i+3]    +=  (re_l_t)mult * reducers[i+3];
+    i = i+4;
+#if COUNT_REDS
+    nreductions +=  4;
+#endif
+  }
+  for (; i<B->ncols; ++i) {
+    B->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
+#if COUNT_REDS
+    nreductions +=  1;
+#endif
+  }
+  // search new lead
+  update_lead_of_row(B, ri);
+  // if we get here then the row is completely zero
+  if (B->row[ri]->lead == B->ncols) {
+    free(B->row[ri]->val);
+    B->row[ri]->val = NULL;
+  }
+}
+
+/**
  * \brief Does a sequential pre elimination of D in order to start a parallel
  * version with known pivots later on. It completely reduces D, i.e. if nthrds =
  * 1 the resulting D is completely reduced.
@@ -4983,6 +5049,48 @@ static inline void copy_to_val(dm_t *D, const ri_t idx)
       D->row[idx]->val[i] = (re_l_t)D->row[idx]->init_val[i];
     free(D->row[idx]->init_val);
     D->row[idx]->init_val  = NULL;
+  }
+}
+
+/**
+ * \brief Reduces dense row of index curr_row_to_reduce in matrix B with pivots that are
+ * already interreduced from matrix D. we know that pivots of row index i have zero
+ * entries for lead positions of pivots of index > i.
+ *
+ * \param dense row submatrix B
+ *
+ * \param dense row submatrix D
+ *
+ * \param row index curr_row_to_reduce
+ */
+static inline void reduce_B_by_D(dm_t *B, const dm_t *D, const ri_t curr_row_to_reduce)
+{
+  ri_t i;
+  re_t mult1;
+  i = 0;
+  while (i<D->rank) {
+    if (D->row[i]->piv_lead == B->row[curr_row_to_reduce]->lead)
+      mult1  = B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+    else
+      mult1  = MODP(B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+    //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
+    //printf("mult for %u = %u\n",i,mult);
+    if (mult1 != 0) {
+      mult1  = D->mod - mult1;
+      B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
+      //printf("inverted mult for %u = %u\n",i,mult);
+      // also updates lead for row i
+      //printf("lead in %u (from_row %u - reduced by %u) ",
+      //    D->row[curr_row_to_reduce]->lead, from_row, i);
+      reduce_dense_row_of_B_by_D(B, D, curr_row_to_reduce, i, mult1);
+      //printf("--> out %u\n", D->row[curr_row_to_reduce]->lead);
+      // if reduced row i is zero row then swap row down and get a new
+      // row from the bottom
+      if (B->row[curr_row_to_reduce]->val == NULL) {
+        return;
+      }
+    }
+    i++;
   }
 }
 

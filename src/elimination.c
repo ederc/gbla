@@ -2093,6 +2093,7 @@ void pre_elim_sequential_test(dm_t *D, const ri_t last_row, const int nthrds)
   }
 }
 
+
 void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
 {
   ri_t i, j, k;
