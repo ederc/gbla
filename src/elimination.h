@@ -4357,6 +4357,40 @@ static inline void save_pivot(dm_t *D, const ri_t curr_row_to_reduce, const ri_t
   //printf("\n");
 }
 
+/**
+ * \brief Saves pivot values of dense row with index curr_row_to_reduce
+ * in dense row matrix D
+ *
+ * \note Does not normalize the row.
+ *
+ * \param dense row matrix D
+ *
+ * \param index of row to be normalized curr_row_to_reduce
+ *
+ * \param index of pivot row
+ */
+static inline void save_pivot_without_normalization(dm_t *D, const ri_t curr_row_to_reduce, const ri_t new_piv_idx)
+{
+  ci_t i;
+  //D->row[curr_row_to_reduce]->piv_val  = (re_t *)calloc(D->ncols, sizeof(re_t));
+  // we only reduce modulo field charactistic, but do not normalize the row
+  red_mod_dense_row(D, curr_row_to_reduce);
+  if (D->row[curr_row_to_reduce]->lead < D->ncols) {
+    D->row[new_piv_idx]->piv_val  = (re_t *)malloc(D->ncols * sizeof(re_t));
+    // set all elements before lead to zero
+    memset(D->row[new_piv_idx]->piv_val, 0, D->row[curr_row_to_reduce]->lead * sizeof(re_t));
+    for (i=D->row[curr_row_to_reduce]->lead; i<D->ncols; ++i)
+      D->row[new_piv_idx]->piv_val[i] = (re_t)D->row[curr_row_to_reduce]->val[i];
+  }
+  D->row[new_piv_idx]->piv_lead = D->row[curr_row_to_reduce]->lead;
+  free(D->row[curr_row_to_reduce]->val);
+  D->row[curr_row_to_reduce]->val  = NULL;
+  //printf("NEW PIVOT %u -- lead %u\n",curr_row_to_reduce, D->row[curr_row_to_reduce]->lead);
+  //for (int ii=0; ii<D->ncols; ++ii)
+  //  printf("%lu ",D->row[curr_row_to_reduce]->val[ii]);
+  //printf("\n");
+}
+
 
 /**
  * \brief Reduces dense row ri via row rj in D using precomputed inverted
@@ -4778,10 +4812,11 @@ static inline void reduce_dense_row_of_B_by_D(dm_t *B, const dm_t *D, const ri_t
   ci_t i;
   const re_t *reducers  = D->row[rj]->piv_val;
   
-  i = B->row[rj]->piv_lead + 1;
+  i = B->row[ri]->lead + 1;
   
-  //printf("i initially %u\n",i);
+  //printf("i initially %u / %u for %u and %u\n",i, B->ncols, ri, rj);
   // leading nonzero element has to become zero
+  //printf("multiplier %u \n",mult);
 
   if (B->ncols-i > 7) {
     for (; i<B->ncols-7; i=i+8) {
@@ -4810,10 +4845,12 @@ static inline void reduce_dense_row_of_B_by_D(dm_t *B, const dm_t *D, const ri_t
   }
   for (; i<B->ncols; ++i) {
     B->row[ri]->val[i]    +=  (re_l_t)mult * reducers[i];
+    //printf("%lu | ",B->row[ri]->val[i]);
 #if COUNT_REDS
     nreductions +=  1;
 #endif
   }
+  //printf("\n");
   // search new lead
   update_lead_of_row(B, ri);
   // if we get here then the row is completely zero
@@ -5069,9 +5106,8 @@ static inline void reduce_B_by_D(dm_t *B, const dm_t *D, const ri_t curr_row_to_
   re_t mult1;
   i = 0;
   while (i<D->rank) {
+    mult1 = 0;
     if (D->row[i]->piv_lead == B->row[curr_row_to_reduce]->lead)
-      mult1  = B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
-    else
       mult1  = MODP(B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
     //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
     //printf("mult for %u = %u\n",i,mult);
@@ -5092,6 +5128,20 @@ static inline void reduce_B_by_D(dm_t *B, const dm_t *D, const ri_t curr_row_to_
     }
     i++;
   }
+  /*
+  printf("reduction done: ");
+  for (int ii=0; ii<B->ncols; ++ii) {
+    printf("%lu ", B->row[curr_row_to_reduce]->val[ii]);
+  }
+  printf("\n");
+  */
+  save_pivot_without_normalization(B, curr_row_to_reduce, curr_row_to_reduce);
+  /*
+  for (int ii=0; ii<B->ncols; ++ii) {
+    printf("%u ", B->row[curr_row_to_reduce]->piv_val[ii]);
+  }
+  printf("\n");
+  */
 }
 
 /**

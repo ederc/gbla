@@ -1023,11 +1023,11 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
 #pragma omp for
     for (i=0; i<blocks_per_col; ++i) {
       min_k = __GBLA_SIMD_BLOCK_SIZE < (out->nrows-i*__GBLA_SIMD_BLOCK_SIZE) ?
-               __GBLA_SIMD_BLOCK_SIZE : (out->nrows-i*__GBLA_SIMD_BLOCK_SIZE);
+        __GBLA_SIMD_BLOCK_SIZE : (out->nrows-i*__GBLA_SIMD_BLOCK_SIZE);
       for (j=0; j<blocks_per_row; ++j) {
         if (in->blocks[i][j].val != NULL) {
           min_l = __GBLA_SIMD_BLOCK_SIZE < (out->ncols-j*__GBLA_SIMD_BLOCK_SIZE) ?
-                  __GBLA_SIMD_BLOCK_SIZE : (out->ncols-j*__GBLA_SIMD_BLOCK_SIZE);
+            __GBLA_SIMD_BLOCK_SIZE : (out->ncols-j*__GBLA_SIMD_BLOCK_SIZE);
           for (k=0; k<min_k; ++k) {
             for (l=0; l<min_l; ++l) {
               out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->init_val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
@@ -1071,9 +1071,9 @@ next_round:
     i--;
   }
   /*
-  for (int ii=0; ii<out->rank; ++ii)
-    printf("%u --------------------> %u\n",ii, out->row[ii]->lead);
-  */
+     for (int ii=0; ii<out->rank; ++ii)
+     printf("%u --------------------> %u\n",ii, out->row[ii]->lead);
+     */
   return out;
 }
 
