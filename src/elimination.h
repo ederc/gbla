@@ -5145,6 +5145,59 @@ static inline void reduce_B_by_D(dm_t *B, const dm_t *D, const ri_t curr_row_to_
 }
 
 /**
+ * \brief Reduces dense row of index curr_row_to_reduce in matrix B with pivots that are
+ * already interreduced from matrix D. we know that pivots of row index i have zero
+ * entries for lead positions of pivots of index > i.
+ *
+ * \param dense row submatrix B
+ *
+ * \param dense row submatrix D
+ *
+ * \param row index curr_row_to_reduce
+ */
+static inline void completely_reduce_D(dm_t *D, const ri_t curr_row_to_reduce)
+{
+  ri_t i;
+  re_t mult1;
+  i = curr_row_to_reduce+1;
+  while (i<D->rank) {
+    mult1 = 0;
+    if (D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] != 0)
+      mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+    //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
+    //printf("mult for %u = %u\n",i,mult);
+    if (mult1 != 0) {
+      mult1  = D->mod - mult1;
+      D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
+      //printf("inverted mult for %u = %u\n",i,mult);
+      // also updates lead for row i
+      //printf("lead in %u (from_row %u - reduced by %u) ",
+      //    D->row[curr_row_to_reduce]->lead, from_row, i);
+      reduce_dense_row(D, curr_row_to_reduce, i, mult1);
+      //reduce_dense_row_of_B_by_D(B, D, curr_row_to_reduce, i, mult1);
+      //printf("--> out %u\n", D->row[curr_row_to_reduce]->lead);
+      // if reduced row i is zero row then swap row down and get a new
+      // row from the bottom
+    }
+    i++;
+  }
+  /*
+  printf("reduction done: ");
+  for (int ii=0; ii<B->ncols; ++ii) {
+    printf("%lu ", B->row[curr_row_to_reduce]->val[ii]);
+  }
+  printf("\n");
+  */
+  save_pivot_without_normalization(D, curr_row_to_reduce, curr_row_to_reduce);
+  /*
+  for (int ii=0; ii<B->ncols; ++ii) {
+    printf("%u ", B->row[curr_row_to_reduce]->piv_val[ii]);
+  }
+  printf("\n");
+  */
+}
+
+/**
  * \brief Reduces dense row of index curr_row_to_reduce with pivots that are
  * already interreduced, i.e. we know that pivots of row index i have zero
  * entries for lead positions of pivots of index > i.
