@@ -1877,14 +1877,19 @@ echelonize_again:
         }
         // reduce all known pivots: i is either set to global_last_piv or to j
         // if it has been sorted to a higher pivot position
-        for (; i>0; --i) {
+
+        // reduce this new pivot row completely
+        completely_reduce_dense_row_task_new(D, i-1, i, global_last_piv);
+        for (int k=i-1; k>0; --k) {
           /*
           printf("BEFORE: ");
           for (int ii=0; ii<D->ncols; ++ii)
             printf("%u ",D->row[i-1]->piv_val[ii]);
           printf("\n");
           */
-          completely_reduce_dense_row_task_new(D, i-1, i, global_last_piv);
+          //completely_reduce_dense_row_task_new(D, i-1, i, global_last_piv);
+          //printf("k-1 %u -- i %u | glp %u\n", k-1, i, global_last_piv);
+          completely_reduce_dense_row_task_new(D, k-1, i-1, i);
           /*
           printf("AFTER: ");
           for (int ii=0; ii<D->ncols; ++ii)
@@ -1999,8 +2004,13 @@ echelonize_again:
               // if we place the new pivot below the global_pre_elim threshold
               // than we should interreduce completely
               if (j < global_pre_elim+1) {
+                completely_reduce_dense_row_task_new(D, j-1, j, global_pre_elim+1);
+                /*
                 for (i=j; i>0; --i)
                   completely_reduce_dense_row_task_new(D, i-1, i, global_pre_elim+1);
+                  */
+                for (i=j-1; i>0; --i)
+                  completely_reduce_dense_row_task_new(D, i-1, j-1, j);
                 global_pre_elim++;
               }
               break;

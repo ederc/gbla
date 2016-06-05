@@ -5145,11 +5145,9 @@ static inline void reduce_B_by_D(dm_t *B, const dm_t *D, const ri_t curr_row_to_
 }
 
 /**
- * \brief Reduces dense row of index curr_row_to_reduce in matrix B with pivots that are
+ * \brief Reduces dense row of index curr_row_to_reduce in matrix D with pivots that are
  * already interreduced from matrix D. we know that pivots of row index i have zero
  * entries for lead positions of pivots of index > i.
- *
- * \param dense row submatrix B
  *
  * \param dense row submatrix D
  *
@@ -5794,7 +5792,6 @@ extern  ri_t reduce_A_next_col_to_reduce;
 extern ri_t pivs_in_use;
 extern ri_t sorting_pivs;
 extern ri_t last_pivot_idx;
-
 
 #endif /* GBLA_ELIMINATION_H */
 
