@@ -56,6 +56,7 @@ void print_help() {
   printf("    -f          Free memory on the go.\n");
   printf("                Default: 1, memory is freed on the go.\n");
   printf("                Use 0 for keeping complete memory until the end.\n");
+  printf("    -g GIT      Outputs git commit hash if verbosity level is >0.\n");
   printf("    -h          Print help.\n");
   /*
   printf("    -m          Number of rows per multiline.\n");
@@ -99,6 +100,7 @@ int main(int argc, char *argv[]) {
   int dense_reducer     = 0;
   int new_format        = 0;
   int schreyer_matrix   = 0;
+  int git_hash          = 0;
 
   int index;
   int opt;
@@ -109,7 +111,7 @@ int main(int argc, char *argv[]) {
 
 	opterr  = 0;
 
-  while ((opt = getopt(argc, argv, "db:f:hm:t:v:oprs:n")) != -1) {
+  while ((opt = getopt(argc, argv, "db:f:ghm:t:v:oprs:n")) != -1) {
     switch (opt) {
       case 'b':
         block_dimension = atoi(optarg);
@@ -123,6 +125,9 @@ int main(int argc, char *argv[]) {
         free_mem = atoi(optarg);
         if (free_mem < 0)
           free_mem  = 1;
+        break;
+      case 'g':
+        git_hash  = 1;
         break;
       case 'h':
         print_help();
@@ -198,6 +203,19 @@ int main(int argc, char *argv[]) {
     printf("free memory on the go       %4d\n", free_mem);
     printf("reduced row echelon form    %4d\n", reduce_completely);
     printf("write PBM file              %4d\n", write_pbm);
+    if (git_hash == 1) {
+      FILE *fp;
+      char hash_string[200];
+      fp  = popen("git rev-parse HEAD", "r");
+      if (fp == NULL) {
+        printf("Failed to run command\n");
+        exit(1);
+      }
+      printf("git commit hash             ");
+      while (fgets(hash_string, sizeof(hash_string)-1, fp) != NULL)
+        printf("%s", hash_string);
+      pclose(fp);
+    }
     printf("---------------------------------------------------------------------\n");
   }
 
