@@ -317,6 +317,13 @@ int main(int argc, char *argv[]) {
         printf("B and D block type mode.\n");
       }
       break;
+    // A, C sparse, B & D dense matrices, no multilines, new draft for v0.3
+    case 4:
+      if (fl_v03(M, nthreads, free_mem, verbose,
+            reduce_completely, dense_reducer)) {
+        printf("Error while trying to eliminate matrix from file '%s' in all block type mode.\n",fn);
+      }
+      break;
     /*
      * ------------------------------------------------------------------------------
      * untested versions - start
@@ -387,6 +394,12 @@ int main(int argc, char *argv[]) {
       print_mem_usage();
   }
     printf("-------------------------------------------------------------------\n");
+  return 0;
+}
+
+int fl_v03(sm_t *M, int nthreads, int free_mem,
+    int verbose, int reduce_completely, int dense_reducer)
+{
   return 0;
 }
 

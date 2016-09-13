@@ -175,6 +175,37 @@ int fl_block_sparse_dense_old(sm_t *M, int nthreads, int free_mem,
  * B->ncols = D->ncols = M->ncols - map->npiv.
  * Afterwards the row echelon form of M is computed.
  *
+ *  \note This implementation is a draft for the third version of gbla.
+ *
+ *  \param original matrix M
+ *
+ *  \param destructing input matrix on the go? free_mem
+ *
+ *  \param number of threads to be used nthreads
+ *
+ *  \param level of verbosity
+ *
+ *  \param compute a complete reduced row echelon form? reduce_completely
+ *
+ *  \param use third party dense reducer for D dense_reducer
+ */
+int fl_v03(sm_t *M, int nthreads, int free_mem,
+    int verbose, int reduce_completely, int dense_reducer);
+
+/**
+ * \brief Constructs the subdivision of M into ABCD in the
+ * Faugère-Lachartre style
+ *
+ *                 A | B
+ * M     ---->     --+--
+ *                 C | D
+ * In the subdivision the following dimensions hold:
+ * A->nrows = B->nrows = map->npiv // number of pivots found
+ * C->nrows = D->nrows = M->nrows - map->npiv // non-pivots
+ * A->ncols = C->ncols = map->npiv
+ * B->ncols = D->ncols = M->ncols - map->npiv.
+ * Afterwards the row echelon form of M is computed.
+ *
  *  \note No multilines at all, but hybrid small block representations
  *  in order to exploit SIMD operations as much as possible.
  *
