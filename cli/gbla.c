@@ -203,7 +203,13 @@ int main(int argc, char *argv[]) {
     printf("free memory on the go       %4d\n", free_mem);
     printf("reduced row echelon form    %4d\n", reduce_completely);
     printf("write PBM file              %4d\n", write_pbm);
+    printf("---------------------------------------------------------------------\n");
+  }
+
+
+  if (verbose > 0) {
     if (git_hash == 1) {
+      printf("---------------------------------------------------------------------\n");
       FILE *fp;
       char hash_string[200];
       fp  = popen("git rev-parse HEAD", "r");
@@ -216,11 +222,6 @@ int main(int argc, char *argv[]) {
         printf("%s", hash_string);
       pclose(fp);
     }
-    printf("---------------------------------------------------------------------\n");
-  }
-
-
-  if (verbose > 0) {
     printf("---------------------------------------------------------------------\n");
     gettimeofday(&t_load_start, NULL);
     printf("%-38s","Loading matrix ...");
