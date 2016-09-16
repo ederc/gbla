@@ -33,6 +33,10 @@
 #include "../draft/echelon.h"
 #endif
 
+// opencl-stuff
+#include "cl-timing.h"
+#include "cl-helper.h"
+
 #undef AVX
 #undef SSE
 #define NOSSE
