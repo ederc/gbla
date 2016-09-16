@@ -1,14 +1,15 @@
 AUTOMAKE_OPTIONS = gnu subdir-objects parallel-tests
 ACLOCAL_AMFLAGS = -I m4
 
-AM_CFLAGS=${SIMD_FLAGS} ${OPENMP_CFLAGS} ${DEBUG_FLAGS} -Wall
+AM_CFLAGS=${SIMD_FLAGS} ${OPENMP_CFLAGS} ${CL_FLAGS} ${DEBUG_FLAGS} -Wall
 
 lib_LTLIBRARIES = libgbla.la
 
 libgbla_la_SOURCES = \
 	src/matrix.h	src/matrix.c \
 	src/mapping.h	src/mapping.c \
-	src/elimination.h	src/elimination.c
+	src/elimination.h	src/elimination.c \
+	src/cl-helper.h	src/cl-helper.c
 
 BUILT_SOURCES = src/gbla_config.h
 
@@ -29,7 +30,9 @@ pkgincludesub_HEADERS = \
 	src/types.h \
 	src/matrix.h \
 	src/mapping.h \
-	src/elimination.h
+	src/elimination.h \
+	src/cl-helper.h \
+	src/cl-timing.h
 
 nodist_pkgincludesub_HEADERS = src/gbla_config.h
 
@@ -49,7 +52,7 @@ gbla_SOURCES = \
 	cli/gbla.h	cli/gbla.c	\
 	cli/io.h	cli/io.c
 
-gbla_LDADD = $(top_builddir)/libgbla.la $(DEPS_LIBS) -lm
+gbla_LDADD = $(top_builddir)/libgbla.la ${CL_LIBS} $(DEPS_LIBS) -lm
 
 SUBDIRS = test
 
