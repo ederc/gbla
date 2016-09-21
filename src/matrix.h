@@ -1029,10 +1029,10 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
           min_l = __GBLA_SIMD_BLOCK_SIZE < (out->ncols-j*__GBLA_SIMD_BLOCK_SIZE) ?
             __GBLA_SIMD_BLOCK_SIZE : (out->ncols-j*__GBLA_SIMD_BLOCK_SIZE);
           for (k=0; k<min_k; ++k) {
-            for (l=0; l<min_l; ++l) {
-              out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->init_val[j*__GBLA_SIMD_BLOCK_SIZE+l] = 
-                in->blocks[i][j].val[k*__GBLA_SIMD_BLOCK_SIZE+l];
-            }
+              memcpy(
+                  out->row[i*__GBLA_SIMD_BLOCK_SIZE+k]->init_val+(j*__GBLA_SIMD_BLOCK_SIZE),
+                in->blocks[i][j].val+(k*__GBLA_SIMD_BLOCK_SIZE),
+                min_l * sizeof(re_t));
           }
           free(in->blocks[i][j].val);
         }
