@@ -1019,7 +1019,7 @@ static inline dm_t *copy_block_to_dense_matrix(dbm_fl_t **A,
   {
     ri_t i, min_k;
     ci_t j, min_l;
-    bi_t k, l;
+    bi_t k;
 #pragma omp for
     for (i=0; i<blocks_per_col; ++i) {
       min_k = __GBLA_SIMD_BLOCK_SIZE < (out->nrows-i*__GBLA_SIMD_BLOCK_SIZE) ?
