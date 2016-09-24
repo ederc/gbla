@@ -420,6 +420,7 @@ int fl_v03(sm_t *M, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer)
 {
 
+#if __GBLA_HAVE_OPENCL
   const cl_long n   = 100;
   const int ntrips  = 50;
 
@@ -538,7 +539,7 @@ int fl_v03(sm_t *M, int nthreads, int free_mem,
   CALL_CL_GUARDED(clReleaseKernel, (knl));
   CALL_CL_GUARDED(clReleaseCommandQueue, (queue));
   CALL_CL_GUARDED(clReleaseContext, (context));
-
+#endif
   return 0;
 }
 

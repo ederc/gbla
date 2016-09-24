@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  */
 
+#if __GBLA_HAVE_OPENCL
 #include "cl-helper.h"
 #include <string.h>
 #include <stdbool.h>
@@ -736,3 +737,4 @@ void print_device_info_from_queue(cl_command_queue queue)
 
   print_device_info(dev);
 }
+#endif

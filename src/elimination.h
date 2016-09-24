@@ -34,8 +34,10 @@
 #endif
 
 // opencl-stuff
+#if __GBLA_HAVE_OPENCL
 #include "cl-timing.h"
 #include "cl-helper.h"
+#endif 
 
 #undef AVX
 #undef SSE

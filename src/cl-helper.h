@@ -23,6 +23,8 @@
 #ifndef GBLA_CL_HELPER
 #define GBLA_CL_HELPER
 
+#if __GBLA_HAVE_OPENCL
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -244,4 +246,5 @@ void print_device_info_from_queue(cl_command_queue queue);
   CALL_CL_GUARDED(clSetKernelArg, (knl, 10, sizeof(arg10), &arg10)); \
   CALL_CL_GUARDED(clSetKernelArg, (knl, 11, sizeof(arg11), &arg11));
 
+#endif
 #endif
