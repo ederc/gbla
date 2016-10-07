@@ -41,6 +41,7 @@
 
 #undef AVX
 #undef SSE
+//#define NOSSETEST
 #define NOSSE
 //#define AVX
 //#define NOSSE2
@@ -1524,6 +1525,52 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
     }
   }
 #endif
+#ifdef NOSSETEST
+  bi_t i, j, k;
+  register re_t a, b;
+  register bi_t pa, pb;
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+
+    j = block_A->sz[i] % 2;
+    j = j & 1 ? 1 : 0;
+    while (j < block_A->sz[i]) {
+      a = block_A->val[i][j];
+      b = block_A->val[i][j+1];
+      pa  = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
+      pb  = block_A->pos[i][j+1] * __GBLA_SIMD_BLOCK_SIZE;
+      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k = k+4) {
+        wide_block[i][k]  +=
+          (a * (re_l_t)block_B[pa + k] +
+           b * (re_m_t)block_B[pb + k]);
+        wide_block[i][k+1]  +=
+          (a * (re_l_t)block_B[pa + k+1] +
+           b * (re_m_t)block_B[pb + k+1]);
+        wide_block[i][k+2]  +=
+          (a * (re_l_t)block_B[pa + k+2] +
+           b * (re_m_t)block_B[pb + k+2]);
+        wide_block[i][k+3]  +=
+          (a * (re_l_t)block_B[pa + k+3] +
+           b * (re_m_t)block_B[pb + k+3]);
+      }
+      j +=  2;
+    }
+
+    printf("block_A->sz = %u\n",block_A->sz);
+    // extra step we have to due due to above loop unrolling
+    a = block_A->val[i][0];
+    pa  = block_A->pos[i][0] * __GBLA_SIMD_BLOCK_SIZE;
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k = k+4) {
+      wide_block[i][k]  +=
+        (a * (re_l_t)block_B[pa + k]);
+      wide_block[i][k+1]  +=
+        (a * (re_l_t)block_B[pa + k+1]);
+      wide_block[i][k+2]  +=
+        (a * (re_l_t)block_B[pa + k+2]);
+      wide_block[i][k+3]  +=
+        (a * (re_l_t)block_B[pa + k+3]);
+    }
+  }
+#endif
 #ifdef NOSSE2
   bi_t i, j, k;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
@@ -1620,33 +1667,48 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
   register __m256i b9, b10, b11, b12;
   register __m256i c1, c2, c3, c4;
   bi_t pa1, pa2, pa3;
-  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
-    j = 0;
+  __m256i c[__GBLA_SIMD_BLOCK_SIZE][__GBLA_SIMD_BLOCK_SIZE/4];
 
-    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+16) {
-      // load wide_block
-      c1  = _mm256_setr_epi64x(
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+      //printf("(%u,%u)\n", i, k/4);
+      c[i][k/4] = _mm256_setr_epi64x(
           wide_block[i][k],
           wide_block[i][k+1],
           wide_block[i][k+2],
           wide_block[i][k+3]);
-      c2  = _mm256_setr_epi64x(
-          wide_block[i][k+4],
-          wide_block[i][k+5],
-          wide_block[i][k+6],
-          wide_block[i][k+7]);
-      c3  = _mm256_setr_epi64x(
-          wide_block[i][k+8],
-          wide_block[i][k+9],
-          wide_block[i][k+10],
-          wide_block[i][k+11]);
-      c4  = _mm256_setr_epi64x(
-          wide_block[i][k+12],
-          wide_block[i][k+13],
-          wide_block[i][k+14],
-          wide_block[i][k+15]);
-
-      j = 0;
+    }
+    //free(wide_block[i]);
+  }
+  //free(wide_block);
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+16) {
+      // load B block
+      b1  = _mm256_setr_epi64x(
+          block_B[pa1 + k],
+          block_B[pa1 + k+1],
+          block_B[pa1 + k+2],
+          block_B[pa1 + k+3]
+          );
+      b2  = _mm256_setr_epi64x(
+          block_B[pa1 + k+4],
+          block_B[pa1 + k+5],
+          block_B[pa1 + k+6],
+          block_B[pa1 + k+7]
+          );
+      b3  = _mm256_setr_epi64x(
+          block_B[pa1 + k+8],
+          block_B[pa1 + k+9],
+          block_B[pa1 + k+10],
+          block_B[pa1 + k+11]
+          );
+      b4  = _mm256_setr_epi64x(
+          block_B[pa1 + k+12],
+          block_B[pa1 + k+13],
+          block_B[pa1 + k+14],
+          block_B[pa1 + k+15]
+          );
+      /*
       if (block_A->sz[i] > 3) {
         for (j=0; j<block_A->sz[i]-2; j=j+3) {
           // load A block
@@ -1731,66 +1793,51 @@ static inline void red_sparse_dense_rectangular(const sbl_t *block_A, const re_t
               block_B[pa3 + k+14],
               block_B[pa3 + k+15]
               );
-          /*
-          c1 = _mm256_add_epi64(c1, _mm256_mul_epu32(a1,b1));
-          c1 = _mm256_add_epi64(c1, _mm256_mul_epu32(a2,b5));
-          c2 = _mm256_add_epi64(c2, _mm256_mul_epu32(a1,b2));
-          c2 = _mm256_add_epi64(c2, _mm256_mul_epu32(a2,b6));
-          c3 = _mm256_add_epi64(c3, _mm256_mul_epu32(a1,b3));
-          c3 = _mm256_add_epi64(c3, _mm256_mul_epu32(a2,b7));
-          c4 = _mm256_add_epi64(c4, _mm256_mul_epu32(a1,b4));
-          c4 = _mm256_add_epi64(c4, _mm256_mul_epu32(a2,b8));
-          */
           c1 = _mm256_add_epi64(_mm256_add_epi64(c1, _mm256_mullo_epi32(a3,b9)), _mm256_add_epi64(_mm256_mullo_epi32(a1,b1), _mm256_mullo_epi32(a2,b5)));
           c2 = _mm256_add_epi64(_mm256_add_epi64(c2, _mm256_mullo_epi32(a3,b10)), _mm256_add_epi64(_mm256_mullo_epi32(a1,b2), _mm256_mullo_epi32(a2,b6)));
           c3 = _mm256_add_epi64(_mm256_add_epi64(c3, _mm256_mullo_epi32(a3,b11)), _mm256_add_epi64(_mm256_mullo_epi32(a1,b3), _mm256_mullo_epi32(a2,b7)));
           c4 = _mm256_add_epi64(_mm256_add_epi64(c4, _mm256_mullo_epi32(a3,b12)), _mm256_add_epi64(_mm256_mullo_epi32(a1,b4), _mm256_mullo_epi32(a2,b8)));
         }
       }
-      for (j; j<block_A->sz[i]; ++j) {
-        // load A block
-        a1  = _mm256_set1_epi64x(block_A->val[i][j]);
-        pa1 = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
-          
-          
-        // load B block
-        b1  = _mm256_setr_epi64x(
-            block_B[pa1 + k],
-            block_B[pa1 + k+1],
-            block_B[pa1 + k+2],
-            block_B[pa1 + k+3]
-            );
-        b2  = _mm256_setr_epi64x(
-            block_B[pa1 + k+4],
-            block_B[pa1 + k+5],
-            block_B[pa1 + k+6],
-            block_B[pa1 + k+7]
-            );
-        b3  = _mm256_setr_epi64x(
-            block_B[pa1 + k+8],
-            block_B[pa1 + k+9],
-            block_B[pa1 + k+10],
-            block_B[pa1 + k+11]
-            );
-        b4  = _mm256_setr_epi64x(
-            block_B[pa1 + k+12],
-            block_B[pa1 + k+13],
-            block_B[pa1 + k+14],
-            block_B[pa1 + k+15]
-            );
+      */
+    j = 0;
 
-        c1 = _mm256_add_epi64(c1, _mm256_mullo_epi32(a1,b1));
-        c2 = _mm256_add_epi64(c2, _mm256_mullo_epi32(a1,b2));
-        c3 = _mm256_add_epi64(c3, _mm256_mullo_epi32(a1,b3));
-        c4 = _mm256_add_epi64(c4, _mm256_mullo_epi32(a1,b4));
+    for (j; j<block_A->sz[i]; ++j) {
+      // load A block
+      a1  = _mm256_set1_epi64x(block_A->val[i][j]);
+      pa1 = block_A->pos[i][j] * __GBLA_SIMD_BLOCK_SIZE;
+        
+        
+
+        //printf("--(%u,%u)--\n",i,k/4);
+        c[i][k/4] = _mm256_add_epi64(c[i][k/4], _mm256_mul_epu32(a1,b1));
+        c[i][k/4+1] = _mm256_add_epi64(c[i][k/4+1], _mm256_mul_epu32(a1,b2));
+        c[i][k/4+2] = _mm256_add_epi64(c[i][k/4+2], _mm256_mul_epu32(a1,b3));
+        c[i][k/4+3] = _mm256_add_epi64(c[i][k/4+3], _mm256_mul_epu32(a1,b4));
       }
-      _mm256_storeu_si256((re_l_t *)wide_block[i] + k, c1);
-      _mm256_storeu_si256((re_l_t *)wide_block[i] + k + 4, c2);
-      _mm256_storeu_si256((re_l_t *)wide_block[i] + k + 8, c3);
-      _mm256_storeu_si256((re_l_t *)wide_block[i] + k + 12, c4);
+      /*
+      _mm256_storeu_si256((re_l_t *)wide_block[i] + k, c[i][k/4]);
+      _mm256_storeu_si256((re_l_t *)wide_block[i] + k + 4, c[i][k/4+1]);
+      _mm256_storeu_si256((re_l_t *)wide_block[i] + k + 8, c[i][k/4+2]);
+      _mm256_storeu_si256((re_l_t *)wide_block[i] + k + 12, c[i][k/4+3]);
+      */
     }
   }
-
+  //init_wide_blocks(&wide_block);
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+      _mm256_storeu_si256((re_l_t *)wide_block[i] + k, c[i][k/4]);
+    }
+  }
+  /*
+  for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i) {
+    for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; ++k) {
+      printf("%lu ",wide_block[i][k]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+  */
 #endif
 }
 
@@ -2891,49 +2938,50 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
     const re_t *bAv = block_A->val[i];
     const bi_t *bAp = block_A->pos[i];
     j = 0;
-    if (block_A->sz[i] > 8) {
-      for (; j<block_A->sz[i]-8; j = j+8) {
-        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
-          wide_block[i][k]  +=
-            ((re_l_t)bAv[j] * wide_block[bAp[j]][k] +
-             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k] +
-             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k] +
-             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k] +
-             (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k] +
-             (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k] +
-             (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k] +
-             (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k]);
-          wide_block[i][k+1]  +=
-            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+1] +
-             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+1] +
-             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+1] +
-             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+1] +
-             (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+1] +
-             (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+1] +
-             (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+1] +
-             (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+1]);
-          wide_block[i][k+2]  +=
-            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+2] +
-             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+2] +
-             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+2] +
-             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+2] +
-             (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+2] +
-             (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+2] +
-             (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+2] +
-             (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+2]);
-          wide_block[i][k+3]  +=
-            ((re_l_t)bAv[j] * wide_block[bAp[j]][k+3] +
-             (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+3] +
-             (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+3] +
-             (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+3] +
-             (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+3] +
-             (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+3] +
-             (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+3] +
-             (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+3]);
+    if (block_A->sz[i] > 0) {
+      if (block_A->sz[i] > 8) {
+        for (; j<block_A->sz[i]-8; j = j+8) {
+          for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+            wide_block[i][k]  +=
+              ((re_l_t)bAv[j] * wide_block[bAp[j]][k] +
+               (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k] +
+               (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k] +
+               (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k] +
+               (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k] +
+               (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k] +
+               (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k] +
+               (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k]);
+            wide_block[i][k+1]  +=
+              ((re_l_t)bAv[j] * wide_block[bAp[j]][k+1] +
+               (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+1] +
+               (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+1] +
+               (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+1] +
+               (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+1] +
+               (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+1] +
+               (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+1] +
+               (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+1]);
+            wide_block[i][k+2]  +=
+              ((re_l_t)bAv[j] * wide_block[bAp[j]][k+2] +
+               (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+2] +
+               (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+2] +
+               (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+2] +
+               (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+2] +
+               (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+2] +
+               (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+2] +
+               (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+2]);
+            wide_block[i][k+3]  +=
+              ((re_l_t)bAv[j] * wide_block[bAp[j]][k+3] +
+               (re_m_t)bAv[j+1] * wide_block[bAp[j+1]][k+3] +
+               (re_m_t)bAv[j+2] * wide_block[bAp[j+2]][k+3] +
+               (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+3] +
+               (re_m_t)bAv[j+4] * wide_block[bAp[j+4]][k+3] +
+               (re_m_t)bAv[j+5] * wide_block[bAp[j+5]][k+3] +
+               (re_m_t)bAv[j+6] * wide_block[bAp[j+6]][k+3] +
+               (re_m_t)bAv[j+7] * wide_block[bAp[j+7]][k+3]);
+          }
         }
       }
-    }
-    if (block_A->sz[i]-j > 4) {
+      if (block_A->sz[i]-j > 4) {
         for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
           wide_block[i][k]  +=
             ((re_l_t)bAv[j] * wide_block[bAp[j]][k] +
@@ -2957,20 +3005,22 @@ static inline void red_sparse_triangular(const sbl_t *block_A,
              (re_m_t)bAv[j+3] * wide_block[bAp[j+3]][k+3]);
         }
         j = j+4;
-    }
-    for (;j<block_A->sz[i]-1; ++j) {
-      for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
-        wide_block[i][k]  +=
-          (re_m_t)bAv[j] * wide_block[bAp[j]][k];
-        wide_block[i][k+1]  +=
-          (re_m_t)bAv[j] * wide_block[bAp[j]][k+1];
-        wide_block[i][k+2]  +=
-          (re_m_t)bAv[j] * wide_block[bAp[j]][k+2];
-        wide_block[i][k+3]  +=
-          (re_m_t)bAv[j] * wide_block[bAp[j]][k+3];
       }
+      //printf("j %u | block_A->sz[%u] = %u\n", j, i, block_A->sz[i]);
+      for (;j<block_A->sz[i]-1; ++j) {
+        for (k=0; k<__GBLA_SIMD_BLOCK_SIZE; k=k+4) {
+          wide_block[i][k]  +=
+            (re_m_t)bAv[j] * wide_block[bAp[j]][k];
+          wide_block[i][k+1]  +=
+            (re_m_t)bAv[j] * wide_block[bAp[j]][k+1];
+          wide_block[i][k+2]  +=
+            (re_m_t)bAv[j] * wide_block[bAp[j]][k+2];
+          wide_block[i][k+3]  +=
+            (re_m_t)bAv[j] * wide_block[bAp[j]][k+3];
+        }
+      }
+      modulo_wide_block_val(wide_block, i, modulus);
     }
-    modulo_wide_block_val(wide_block, i, modulus);
   }
 #endif
 }

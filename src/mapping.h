@@ -33,7 +33,7 @@
 #include "elimination.h"
 #include "matrix.h"
 
-#define BUFFER  256
+#define BUFFER  __GBLA_SIMD_BLOCK_SIZE
 
 /**
  * \brief Indexer for subdividing sparse matrix into 4 parts as described by
@@ -1695,6 +1695,7 @@ static inline void write_sparse_dense_blocks_matrix_many(const sm_t *M, sb_fl_t 
     // loop over rows i and i+1 of M and splice correspondingly into A & B
     while (ri < M->rwidth[bi]) {
       it  = M->pos[bi][ri];
+      //printf("bi %u | ri %u | it %u\n", bi, ri, it);
       if (map->pc[it] != __GBLA_MINUS_ONE_32) {
         if (old_col_posA != ((A->ncols-1-map->pc[it]) / __GBLA_SIMD_BLOCK_SIZE)) {
           if (ctrA != 0) {

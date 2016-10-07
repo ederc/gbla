@@ -39,7 +39,7 @@
 /** index type */
 typedef uint32_t  mli_t;
 /** block index type */
-typedef uint16_t  bi_t;
+typedef uint32_t  bi_t;
 
 /** storage type for entries */
 typedef uint16_t  re_s;
