@@ -403,8 +403,8 @@ static inline void modulo_wide_block_val(re_l_t **wide_block, const bi_t row_idx
     const mod_t modulus) {
   bi_t i;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
-		wide_block[row_idx][i]  = (re_l_t)MODP(wide_block[row_idx][i] , modulus);
-    //wide_block[row_idx][i]  = (re_l_t)(wide_block[row_idx][i] % modulus);
+		/* wide_block[row_idx][i]  = (re_l_t)MODP(wide_block[row_idx][i] , modulus); */
+    wide_block[row_idx][i]  = (re_l_t)(wide_block[row_idx][i] % modulus);
 }
 
 /**
@@ -419,8 +419,8 @@ static inline void modulo_wide_block(re_l_t ***wide_block, const mod_t modulus) 
   bi_t i, j;
   for (i=0; i<__GBLA_SIMD_BLOCK_SIZE; ++i)
     for (j=0; j<__GBLA_SIMD_BLOCK_SIZE; ++j)
-		  wb[i][j]  = (re_l_t)MODP(wb[i][j] , modulus);
-      //wb[i][j]  = (re_l_t)(wb[i][j] % modulus);
+			/* wb[i][j]  = (re_l_t)MODP(wb[i][j] , modulus); */
+      wb[i][j]  = (re_l_t)(wb[i][j] % modulus);
   *wide_block = wb;
 }
 
@@ -4320,7 +4320,8 @@ static inline void red_mod_dense_row(dm_t *A, const ri_t ridx)
 {
   ci_t i;
   for (i=A->row[ridx]->lead+1; i<A->ncols; ++i) {
-    A->row[ridx]->val[i]  = (re_t)MODP(A->row[ridx]->val[i], A->mod);
+    /* A->row[ridx]->val[i]  = MODP(A->row[ridx]->val[i], A->mod); */
+    A->row[ridx]->val[i]  = (re_t)(A->row[ridx]->val[i] % A->mod);
   }
 }
 
@@ -4335,12 +4336,14 @@ static inline void normalize_dense_row(dm_t *A, const ri_t ridx)
 {
   ci_t i;
   const ci_t lead_idx  = A->row[ridx]->lead;
-  re_t inv =  (re_t)MODP(A->row[ridx]->val[lead_idx], A->mod);
+  /* re_t inv =  (re_t)MODP(A->row[ridx]->val[lead_idx], A->mod); */
+  re_t inv =  (re_t)(A->row[ridx]->val[lead_idx] % A->mod);
   //printf("normalize %u\n", inv);
   A->row[ridx]->val[lead_idx]  = (re_l_t)1;
   if (inv == 1) {
     for (i=lead_idx+1; i<A->ncols; ++i) {
-      A->row[ridx]->val[i] =   (re_t)MODP(A->row[ridx]->val[i], A->mod);
+      /* A->row[ridx]->val[i] =   MODP(A->row[ridx]->val[i], A->mod); */
+      A->row[ridx]->val[i] =   (re_t)(A->row[ridx]->val[i] % A->mod);
     }
   } else {
     inverse_val(&inv, A->mod);
@@ -4349,10 +4352,12 @@ static inline void normalize_dense_row(dm_t *A, const ri_t ridx)
     for (i=lead_idx+1; i<A->ncols; ++i) {
 #if defined(GBLA_USE_UINT16) || defined(GBLA_USE_UINT32)
 #else
-      A->row[ridx]->val[i] =   (re_t)MODP(A->row[ridx]->val[i], A->mod);
+      /* A->row[ridx]->val[i] =   MODP(A->row[ridx]->val[i], A->mod); */
+      A->row[ridx]->val[i] =   (re_t)(A->row[ridx]->val[i] % A->mod);
 #endif
       A->row[ridx]->val[i] *=  cinv;
-      A->row[ridx]->val[i] =   (re_t)MODP(A->row[ridx]->val[i], A->mod);
+      /* A->row[ridx]->val[i] =   MODP(A->row[ridx]->val[i], A->mod); */
+      A->row[ridx]->val[i] =   (re_t)(A->row[ridx]->val[i] % A->mod);
     }
   }
 }
@@ -4370,14 +4375,14 @@ static inline void normalize_schreyer_input_rows(sm_t *M)
   re_t inv;
   re_l_t tmp;
   for (i=0; i<M->nrows; ++i) {
-    inv = (re_t)MODP(M->rows[i][0], M->mod);
+    inv = (re_t)(M->rows[i][0] % M->mod);
     M->rows[i][0] = (re_t)1;
     inverse_val(&inv, M->mod);
     register const re_t cinv  = inv;
     for (j=1; j<M->rwidth[i]; ++j) {
       tmp = (re_l_t)M->rows[i][j];
       tmp *=  cinv;
-      M->rows[i][j] =   (re_t)MODP(tmp, M->mod);
+      M->rows[i][j] =   (re_t)(tmp % M->mod);
     }
   }
 }
@@ -5164,7 +5169,8 @@ static inline void reduce_B_by_D(dm_t *B, const dm_t *D, const ri_t curr_row_to_
   while (i<D->rank) {
     mult1 = 0;
     if (D->row[i]->piv_lead == B->row[curr_row_to_reduce]->lead)
-      mult1  = (re_t)MODP(B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+      /* mult1  = MODP(B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+      mult1  = (re_t)(B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
     //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
     //printf("mult for %u = %u\n",i,mult);
     if (mult1 != 0) {
@@ -5217,7 +5223,8 @@ static inline void completely_reduce_D(dm_t *D, const ri_t curr_row_to_reduce)
   while (i<D->rank) {
     mult1 = 0;
     if (D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] != 0)
-      mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+      /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+      mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
     //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
     //printf("mult for %u = %u\n",i,mult);
     if (mult1 != 0) {
@@ -5278,20 +5285,23 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
-          mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+          /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+          mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           for (j=D->row[i]->piv_lead+1; j<D->row[i+1]->piv_lead; ++j)
             D->row[curr_row_to_reduce]->val[j]  += (re_l_t)mult1 * D->row[i]->piv_val[j];
-          mult2  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead], D->mod);
+          /* mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead], D->mod); */
+          mult2  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead] % D->mod);
           if (mult2 != 0) {
             mult2 = D->mod - mult2;
             D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead]  = 0;
             for (j=D->row[i+1]->piv_lead+1; j<D->row[i+2]->piv_lead; ++j)
               D->row[curr_row_to_reduce]->val[j]  +=
                 ((re_l_t)mult1 * D->row[i]->piv_val[j] + (re_l_t)mult2 * D->row[i+1]->piv_val[j]);
-            mult3  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead], D->mod);
+            /* mult3  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead], D->mod); */
+            mult3  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead] % D->mod);
             if (mult3 != 0) {
               mult3 = D->mod - mult3;
               D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead]  = 0;
@@ -5328,7 +5338,8 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
-          mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+          /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+          mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
@@ -5354,7 +5365,8 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
-          mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+          /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+          mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
@@ -5380,7 +5392,8 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
-          mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+          /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+          mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
@@ -5430,20 +5443,23 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
-          mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+          /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+          mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           for (j=D->row[i]->piv_lead+1; j<D->row[i+1]->piv_lead+1; ++j)
             D->row[curr_row_to_reduce]->val[j]  += (re_l_t)mult1 * D->row[i]->piv_val[j];
-          mult2  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead], D->mod);
+          /* mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead], D->mod); */
+          mult2  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead] % D->mod);
           if (mult2 != 0) {
             mult2 = D->mod - mult2;
             D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead]  = 0;
             for (j=D->row[i+1]->piv_lead+1; j<D->row[i+2]->piv_lead+1; ++j)
               D->row[curr_row_to_reduce]->val[j]  +=
                 ((re_l_t)mult1 * D->row[i]->piv_val[j] + (re_l_t)mult2 * D->row[i+1]->piv_val[j]);
-            mult3  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead], D->mod);
+            /* mult3  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead], D->mod); */
+            mult3  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead] % D->mod);
             if (mult3 != 0) {
               mult3 = D->mod - mult3;
               D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead]  = 0;
@@ -5484,7 +5500,8 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
-          mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+          /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+          mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
@@ -5511,7 +5528,8 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
-          mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+          /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+          mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         if (mult1 != 0) {
           mult1  = D->mod - mult1;
@@ -5536,7 +5554,8 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
           mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
-          mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod);
+          /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
+          mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
@@ -5692,13 +5711,15 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
       if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
         mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
       else
-        mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
+        /* mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod); */
+        mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->lead] % D->mod);
       if (mult1 != 0) {
         mult1  = D->mod - mult1;
         D->row[curr_row_to_reduce]->val[D->row[i]->lead]  = 0;
         for (j=D->row[i]->lead+1; j<D->row[i+1]->lead+1; ++j)
           D->row[curr_row_to_reduce]->val[j]  += (re_l_t)mult1 * D->row[i]->piv_val[j];
-        mult2  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod);
+        /* mult2  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod); */
+        mult2  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead] % D->mod);
         if (mult2 != 0) {
           mult2 = D->mod - mult2;
           reduce_dense_row_twice(D, curr_row_to_reduce, i, i+1, mult1, mult2);
@@ -5730,7 +5751,8 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
       if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
         mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
       else
-        mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod);
+        /* mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod); */
+        mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->lead] % D->mod);
       //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
       //printf("mult for %u = %u\n",i,mult);
       if (mult1 != 0) {
