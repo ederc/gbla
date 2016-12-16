@@ -188,9 +188,9 @@ int fl_block_sparse_dense_old(sm_t *M, int nthreads, int free_mem,
  *  \param compute a complete reduced row echelon form? reduce_completely
  *
  *  \param use third party dense reducer for D dense_reducer
- */
 int fl_v03(sm_t *M, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer);
+*/
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the

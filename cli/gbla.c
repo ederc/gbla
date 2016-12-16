@@ -337,12 +337,14 @@ int main(int argc, char *argv[]) {
       }
       break;
     // A, C sparse, B & D dense matrices, no multilines, new draft for v0.3
+      /*
     case 4:
       if (fl_v03(M, nthreads, free_mem, verbose,
             reduce_completely, dense_reducer)) {
         printf("Error while trying to eliminate matrix from file '%s' in all block type mode.\n",fn);
       }
       break;
+      */
     /*
      * ------------------------------------------------------------------------------
      * untested versions - start
@@ -415,14 +417,14 @@ int main(int argc, char *argv[]) {
     printf("-------------------------------------------------------------------\n");
   return 0;
 }
-
+#if 0
 int fl_v03(sm_t *M, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer)
 {
 
 #if __GBLA_HAVE_OPENCL
-  const cl_long n   = 100;
-  const int ntrips  = 50;
+  const cl_long n   = 1000;
+  const int ntrips  = 100;
 
   cl_context context;
   cl_command_queue queue;
@@ -441,6 +443,7 @@ int fl_v03(sm_t *M, int nthreads, int free_mem,
   cl_kernel knl = kernel_from_string(context, knl_text, "sum", NULL);
   free(knl_text);
 
+  printf("%l | %d\n", n, ntrips);
   // --------------------------------------------------------------------------
   // allocate and initialize CPU memory
   // --------------------------------------------------------------------------
@@ -542,6 +545,7 @@ int fl_v03(sm_t *M, int nthreads, int free_mem,
 #endif
   return 0;
 }
+#endif
 
 int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer) {

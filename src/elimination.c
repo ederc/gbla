@@ -704,9 +704,10 @@ int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
 #pragma omp taskwait
   }
   // free C
+  /*
   free_sparse_submatrix(&C, nthrds);
   *C_in = C;
-
+  */
   return 0;
 }
 
