@@ -52,7 +52,7 @@ sm_t *load_schreyer_matrix(const char *fn, int verbose)
   ci_t n;
   mod_t     mod;
   ci_t      width;
-  uint64_t  fl;
+  int64_t   fl;
 
   // open in binary mode first to get file size with fseek
   FILE *fh        = fopen(fn,"rb");
@@ -643,7 +643,8 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose) {
 }
 
 void print_mem_usage() {
-	char    *unit = "KB";
+  const char *units[4] = {"KB", "MB", "GB", "TB"};
+  int ctr = 0;
 	double  vms   = 0.0; /*  virtual memory size */
 	double  rss   = 0.0; /*  resident set size */
 	/*  possibly x86-64 is configured to use 2MB pages */
@@ -729,21 +730,21 @@ void print_mem_usage() {
 	if (vms > 1024) {
 		vms   = vms/1024.0;
 		rss   = rss/1024.0;
-		unit  = "MB";
+    ctr++;
 	}
 	/*  GB ? */
 	if (vms > 1024) {
 		vms   = vms/1024.0;
 		rss   = rss/1024.0;
-		unit  = "GB";
+    ctr++;
 	}
 	/*  TB ? Just joking! */
 	if (vms > 1024) {
 		vms   = vms/1024.0;
 		rss   = rss/1024.0;
-		unit  = "TB";
+    ctr++;
 	}
-	printf("MMRY\tRSS - %.3f %s | VMS - %.3f %s\n", rss, unit, vms, unit);
+  printf("MMRY\tRSS - %.3f %s | VMS - %.3f %s\n", rss, units[ctr], vms, units[ctr]);
 }
 
 /* STATIC STUFF */

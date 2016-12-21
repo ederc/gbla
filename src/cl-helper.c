@@ -20,12 +20,12 @@
  * THE SOFTWARE.
  */
 
-#if __GBLA_HAVE_OPENCL
 #include "cl-helper.h"
 #include <string.h>
 #include <stdbool.h>
 
 
+#if __GBLA_HAVE_OPENCL
 
 
 #define MAX_NAME_LEN 1000

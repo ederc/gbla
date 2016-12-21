@@ -34,8 +34,8 @@
 #include <time.h>
 #include <sys/time.h>
 #include <math.h>
-#include <gbla_config.h>
-#include <src/matrix.h>
+#include "../config.h"
+#include "../src/matrix.h"
 #include <omp.h>
 
 /*  ========== TIMINGS ========== */
@@ -135,7 +135,7 @@ void write_jcf_matrix_to_pbm(sm_t *M, const char *fn, int verbose);
  * \brief Prints memory usage by getting information from /proc/self/stat.
  *
  */
-void print_mem_usage();
+void print_mem_usage(void);
 #endif
 
 /* vim:sts=2:sw=2:ts=2:

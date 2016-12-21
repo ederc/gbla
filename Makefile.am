@@ -1,7 +1,20 @@
-AUTOMAKE_OPTIONS = gnu subdir-objects parallel-tests
+AUTOMAKE_OPTIONS = gnu subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 
-AM_CFLAGS=${SIMD_FLAGS} ${OPENMP_CFLAGS} ${CL_FLAGS} ${DEBUG_FLAGS} -Wall
+AM_CFLAGS	=	-std=gnu99 -march=native -Wextra -Wall -Wfloat-equal -Wundef \
+						-Wpointer-arith -Wcast-align -Wstrict-prototypes \
+						-Wmissing-prototypes -Wstrict-overflow=5 -Wwrite-strings \
+						-Waggregate-return -Wswitch-default \
+						-Wswitch-enum -Wconversion -Wunreachable-code \
+						-Wno-unused-result -save-temps -fverbose-asm -masm=intel \
+						-Werror-implicit-function-declaration -pedantic \
+						-Wformat=2 -Wformat-y2k -Wno-format-extra-args \
+						-Wno-format-zero-length -Wformat-nonliteral \
+						-Wformat-security -Wno-unknown-pragmas -mpopcnt \
+						-funroll-loops -finline-functions -fpic \
+						${OPENMP_CFLAGS} ${CL_CFLAGS}
+
+#AM_LIBS	=	${CL_LIBS}
 
 lib_LTLIBRARIES = libgbla.la
 
@@ -25,7 +38,7 @@ dev_stuff= \
 	draft/echelon.h
 
 
-pkgincludesubdir = $(includedir)/gbla
+pkgincludesubdir = $(includedir)/gbla/src/
 pkgincludesub_HEADERS = \
 	src/types.h \
 	src/matrix.h \
@@ -34,7 +47,8 @@ pkgincludesub_HEADERS = \
 	src/cl-helper.h \
 	src/cl-timing.h
 
-nodist_pkgincludesub_HEADERS = src/gbla_config.h
+pkginclude_HEADERS = config.h
+
 
 EXTRA_DIST=autogen.sh tools/Makefile tools/converter.c tools/dump_matrix.c
 
@@ -42,7 +56,6 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = gbla.pc
 
 libgbla_la_LDFLAGS = $(LDFLAGS) -release $(RELEASE) -no-undefined
-libgbla_la_LIBADD = $(LIBPNG_LIBADD)
 
 bin_PROGRAMS = gbla
 
@@ -54,6 +67,6 @@ gbla_SOURCES = \
 
 gbla_LDADD = $(top_builddir)/libgbla.la ${CL_LIBS} $(DEPS_LIBS) -lm
 
-SUBDIRS = test
+SUBDIRS = 
 
-check:
+TESTS = cli-tests poly-tests

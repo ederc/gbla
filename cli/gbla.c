@@ -33,7 +33,7 @@
 #define INTERMEDIATE  0
 #define DENSE         1
 
-void print_help() {
+void print_help(void) {
   printf("\n");
   printf("NAME\n");
   printf("    gbla - Linear algebra for Groebner basis computations\n");
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
   int verbose           = 0;
 	/* int method            = 0; */
   int nrows_multiline   = 1;
-  int block_dimension   = 256;
+  ri_t block_dimension  = 256;
   int write_pbm         = 0;
   int nthreads          = 1;
   int splicing          = 1;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
   while ((opt = getopt(argc, argv, "db:f:ghm:t:v:oprs:n")) != -1) {
     switch (opt) {
       case 'b':
-        block_dimension = atoi(optarg);
+        block_dimension = (ri_t)atoi(optarg);
         if (block_dimension < 1)
           block_dimension = 256;
         break;
@@ -199,7 +199,7 @@ int main(int argc, char *argv[]) {
     printf("number of threads           %4d\n", nthreads);
     printf("splicing option             %4d\n", splicing);
     printf("third party dense reducer   %4d\n", dense_reducer);
-    printf("dimension of blocks         %4d\n", block_dimension);
+    printf("dimension of blocks         %4u\n", block_dimension);
     printf("free memory on the go       %4d\n", free_mem);
     printf("reduced row echelon form    %4d\n", reduce_completely);
     printf("write PBM file              %4d\n", write_pbm);
@@ -569,7 +569,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     splice_fl_matrix_sparse_dense_keep_A(M, A, B, C, D, map, 0, free_mem, verbose, 8);
   else
   */
-    splice_fl_matrix_sparse_dense_keep_A(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
+    splice_fl_matrix_sparse_dense_keep_A(M, A, B, C, D, map, 0, free_mem, nthreads);
 
   if (verbose > 0) {
     //printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
@@ -753,7 +753,7 @@ int fl_block_sparse_dense_keep_A(sm_t *M, int nthreads, int free_mem,
     printf("%-38s","Reducing C to zero ...");
     fflush(stdout);
   }
-  if (elim_fl_C_dense_sparse_block(B, &C_block, D, 1, M->mod, nthreads)) {
+  if (elim_fl_C_dense_sparse_block(B, &C_block, D, M->mod, nthreads)) {
     printf("Error while reducing C.\n");
     return 1;
   }
@@ -856,7 +856,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
   dbm_fl_t *D     = (dbm_fl_t *)malloc(sizeof(dbm_fl_t));
   map_fl_t *map   = (map_fl_t *)malloc(sizeof(map_fl_t)); // stores mappings from M <-> ABCD
 
-  splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, verbose, nthreads);
+  splice_fl_matrix_sparse_dense_2(M, A, B, C, D, map, 0, free_mem, nthreads);
 
   // free elements in M, but keep general meta data for later references
 	ri_t ii;
@@ -968,27 +968,6 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
   if (verbose > 1) {
     print_mem_usage();
   }
-#if __GBLA_CLI_DEBUG_11
-  // column loops
-  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
-  // row loops
-  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
-  printf("+++$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
-  for (int ii=0; ii<rlB; ++ii) {
-    for (int jj=0; jj<clB; ++jj) {
-      if (B->blocks[ii][jj].val != NULL) {
-          printf("%d .. %d\n", ii, jj);
-          for (int kk=0; kk<__GBLA_SIMD_BLOCK_SIZE; ++kk) {
-            for (int ll=0; ll<__GBLA_SIMD_BLOCK_SIZE; ++ll) {
-              printf("%d | ", B->blocks[ii][jj].val[kk*__GBLA_SIMD_BLOCK_SIZE+ll]);
-            }
-            printf("\n");
-          }
-          printf("\n");
-      }
-    }
-  }
-#endif
 
   // reducing submatrix C to zero using methods of Faugère & Lachartre
   if (verbose > 0) {
@@ -996,7 +975,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
     printf("%-38s","Reducing C ...");
     fflush(stdout);
   }
-  if (elim_fl_C_sparse_dense_block(B, &C, D, 1, M->mod, nthreads)) {
+  if (elim_fl_C_sparse_dense_block(B, &C, D, M->mod, nthreads)) {
     printf("Error while reducing C.\n");
     return 1;
   }
@@ -1077,7 +1056,7 @@ int fl_block_sparse_dense(sm_t *M, int nthreads, int free_mem,
     printf("%-38s","Reconstructing M ...");
     fflush(stdout);
   }
-  reconstruct_matrix_block_no_multiline(M, A, B, D_red, map, nthreads);
+  reconstruct_matrix_block_no_multiline(M, B, D_red, map, nthreads);
   if (verbose > 0) {
     printf("%9.3f sec (rank M: %u)\n",
         walltime(t_load_start) / (1000000), M->nrows);
@@ -1107,7 +1086,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
 
   splice_fl_matrix(M, A, B, C, D, map,
       M->nrows, M->ncols, block_dimension,
-      nrows_multiline, nthreads, free_mem, verbose, 0);
+      nrows_multiline, nthreads, free_mem, 0);
 
   if (verbose > 0) {
     printf("%9.3f sec\n",
@@ -1321,7 +1300,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     }
     process_matrix(D_red, map_D, block_dimension);
     combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
-    reconstruct_matrix_block(M, A, B, D_red, map, M->ncols, 1, 1, 1, 0, nthreads);
+    reconstruct_matrix_block(M, B, D_red, map, M->ncols, 1, 1);
     if (verbose > 0) {
       printf("%9.3f sec (rank M: %u)\n",
           walltime(t_load_start) / (1000000), M->nrows);
@@ -1341,14 +1320,14 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
     copy_block_ml_matrices_to_sparse_matrix(&B, &D_red, rank_D, &BD, 1, nthreads);
 
     map_fl_t *map2  = (map_fl_t *)malloc(sizeof(map_fl_t));
-    construct_fl_map_reduced(map2, map_D, BD->nrows, rank_D, BD->ncols, nthreads);
+    construct_fl_map_reduced(map2, map_D, BD->nrows, BD->ncols, nthreads);
     sbm_fl_t *B1    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
     sbm_fl_t *B2    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
     sbm_fl_t *D1    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
     sbm_fl_t *D2    = (sbm_fl_t *)malloc(sizeof(sbm_fl_t));
 
     splice_fl_matrix(BD, D1, D2, B1, B2, map2, BD->nrows, BD->ncols,
-        block_dimension, nrows_multiline, nthreads, free_mem, verbose, 1);
+        block_dimension, nrows_multiline, nthreads, free_mem, 1);
     if (verbose > 0) {
       gettimeofday(&t_load_start, NULL);
       printf("%-38s","Reducing D1 ...");
@@ -1391,7 +1370,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
       fflush(stdout);
     }
     combine_maps(map, &map_D, M->ncols, BD->ncols, 0);
-    reconstruct_matrix_block_reduced(M, A, B2, D2, map, M->ncols, 1, 1, 1, 0, nthreads);
+    reconstruct_matrix_block_reduced(M, B2, D2, map, M->ncols, 1, 1);
     if (verbose > 0) {
       printf("%9.3f sec (rank M: %u)\n",
           walltime(t_load_start) / (1000000), M->nrows);
@@ -1404,7 +1383,7 @@ int fl_block(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, in
   return 0;
 }
 
-int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, int free_mem,
+int fl_ml_A_C(sm_t *M, ri_t block_dimension, int nrows_multiline, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer) {
   struct timeval t_load_start;
   /*  submatrices A and C of multiline type, B and D of block type */
@@ -1423,7 +1402,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   map_fl_t *map_D = (map_fl_t   *)malloc(sizeof(map_fl_t)); /*  stores mappings for reduced D */
 
   splice_fl_matrix_ml_A_C(M, A, B, C, D, map, block_dimension, nrows_multiline, nthreads,
-      free_mem, verbose);
+      free_mem);
 
   if (verbose > 0) {
     //printf("<<<<\tDONE  splicing and mapping of input matrix.\n");
@@ -1641,7 +1620,7 @@ int fl_ml_A_C(sm_t *M, int block_dimension, int nrows_multiline, int nthreads, i
   }
   process_matrix(D_red, map_D, block_dimension);
   combine_maps(map, &map_D, M->ncols, D_red->ncols, 1);
-  reconstruct_matrix_ml(M, A, B, D_red, map, M->ncols, 1, 1, 0, 0, nthreads);
+  reconstruct_matrix_ml(M, A, B, D_red, map, M->ncols, 1);
 
   if (verbose > 0) {
     printf("%9.3f sec (rank M: %u)\n",

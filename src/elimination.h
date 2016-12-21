@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <x86intrin.h>
-#include "gbla_config.h"
+#include "../config.h"
 #include "mapping.h"
 #include "matrix.h"
 #if GBLA_WITH_FFLAS
@@ -47,6 +47,7 @@
 //#define NOSSE2
 
 #define DEBUG_NEW_ELIM  0
+#define DEBUG_ECHELONIZE  0
 #define COUNT_REDS  0
 
 #if COUNT_REDS
@@ -3079,7 +3080,7 @@ static inline void red_dense_triangular(const re_t *block_A,
  * \param block width bwidth
  */
 void copy_sparse_to_dense_block(
-		mbl_t *sparse_block, re_l_t **dense_block, int bheight, int bwidth) ;
+		mbl_t *sparse_block, re_l_t **dense_block, ri_t bheight, ci_t bwidth) ;
 
 /**
  * \brief Copies entry from dense block to sparse rows
@@ -3096,7 +3097,7 @@ void copy_sparse_to_dense_block(
  * \param modulus resp. field characteristic modulus
  */
 void copy_dense_block_to_sparse(
-		re_l_t **dense_block, mbl_t **sparse_block, int bheight, int bwidth,
+		re_l_t **dense_block, mbl_t **sparse_block, ri_t bheight, ci_t bwidth,
 		mod_t modulus);
 
 /**
@@ -3773,15 +3774,13 @@ int elim_fl_A_dense_blocks_task(const dbm_fl_t *A, dbm_fl_t *B,
  *
  * \param block submatrix B (right upper side)
  *
- * \param column index of blocks in B block_col_idx_B
- *
  * \param number of block rows in A nbrows_A
  *
  * \param characteristic of underlying field modulus
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
+int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B,
 		const ri_t nbrows_A, const mod_t modulus);
 
 /**
@@ -3795,15 +3794,13 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, const ci_t block_col_idx_B,
  *
  * \param dense block submatrix D (right lower side)
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \param number of threads nthrds
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C, dbm_fl_t *D, const int inv_scalars,
+int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C, dbm_fl_t *D,
     const mod_t modulus, const int nthrds);
 
 /**
@@ -3817,15 +3814,13 @@ int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C, dbm_fl_t *D, const in
  *
  * \param dense block submatrix D (right lower side)
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \param number of threads nthrds
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C, dbm_fl_t *D, const int inv_scalars,
+int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C, dbm_fl_t *D,
     const mod_t modulus, const int nthrds);
 
 /**
@@ -3839,15 +3834,13 @@ int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C, dbm_fl_t *D, const in
  *
  * \param dense block submatrix D (right lower side)
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \param number of threads nthrds
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C, dbm_fl_t *D, const int inv_scalars,
+int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C, dbm_fl_t *D,
     const mod_t modulus, const int nthrds);
 
 /**
@@ -3861,15 +3854,13 @@ int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C, dbm_fl_t *D, const in
  *
  * \param dense block submatrix D (right lower side)
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \param number of threads nthrds
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C, dbm_fl_t *D, const int inv_scalars,
+int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C, dbm_fl_t *D,
     const mod_t modulus, const int nthrds);
 
 /**
@@ -4108,15 +4099,13 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A, const mod_t modulus,
  *
  * \param number of block rows in C nblock_rows_C
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_intermediate_blocks_task(sb_fl_t *B, ibm_fl_t *C, dbm_fl_t *D,
     const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-    const int inv_scalars, const mod_t modulus);
+    const mod_t modulus);
 
 /**
  * \brief Different block tasks when reducing dense block submatrix C.
@@ -4131,15 +4120,13 @@ int elim_fl_C_intermediate_blocks_task(sb_fl_t *B, ibm_fl_t *C, dbm_fl_t *D,
  *
  * \param number of block rows in C nblock_rows_C
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
     const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-    const int inv_scalars, const mod_t modulus);
+    const mod_t modulus);
 
 /**
  * \brief Different block tasks when reducing sparse block submatrix C.
@@ -4154,15 +4141,13 @@ int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
  *
  * \param number of block rows in C nblock_rows_C
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
     const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-    const int inv_scalars, const mod_t modulus);
+    const mod_t modulus);
 
 /**
  * \brief Different block tasks when reducing dense block submatrix C.
@@ -4177,15 +4162,13 @@ int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
  *
  * \param number of block rows in C nblock_rows_C
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
     const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-    const int inv_scalars, const mod_t modulus);
+    const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the dense block submatrix C to zero.
@@ -4198,15 +4181,13 @@ int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
  *
  * \param dense block submatrix D (right lower side)
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \param number of threads nthrds
  *
  * \return 0 if success, 1 if failure
  */
-int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C, dbm_fl_t *D, const int inv_scalars,
+int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C, dbm_fl_t *D,
     const mod_t modulus, const int nthrds);
 
 /**
@@ -4222,15 +4203,13 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C, dbm_fl_t *D, const int inv_
  *
  * \param number of block rows in C nblock_rows_C
  *
- * \param inverse scalars? inv_scalars
- *
  * \param characteristic of underlying field modulus
  *
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_dense_blocks_task(dbm_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
     const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-    const int inv_scalars, const mod_t modulus);
+    const mod_t modulus);
 
 /**
  * \brief Elimination procedure which reduces the block submatrix C to zero.
@@ -4262,8 +4241,6 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const int inv_scalar
  *
  * \param block submatrix D (right lower side)
  *
- * \param column index of blocks in D block_col_idx_D
- *
  * \param number of block rows in C nblock_rows_C
  *
  * \param inverse scalars? inv_scalars
@@ -4273,7 +4250,7 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C, sbm_fl_t *D, const int inv_scalar
  * \return 0 if success, 1 if failure
  */
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-		const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+		const ri_t nbrows_C, const ci_t nbcols_C,
 		const int inv_scalars, const mod_t modulus);
 
 /**
@@ -4808,7 +4785,6 @@ static inline void reduce_dense_row(dm_t *A, const ri_t ri, const ri_t rj, const
   
   //printf("i initially %u\n",i);
   // leading nonzero element has to become zero
-  assert(MODP(A->row[ri]->val[i-1] + mult * reducers[i-1], A->mod) == 0);
   //A->row[ri]->val[i-1]  = 0;
 
 
@@ -4929,10 +4905,8 @@ static inline void reduce_dense_row_of_B_by_D(dm_t *B, const dm_t *D, const ri_t
  * \param dense row submatrix D
  *
  * \param global last pivot up to which to reduce sequentially global_last_piv
- *
- * \param number of threads nthrds
  */
-void pre_elim_sequential_completely(dm_t *D, const ri_t global_last_piv, const int nthrds);
+void pre_elim_sequential_completely(dm_t *D, const ri_t global_last_piv);
 
 /**
  * \brief Does a sequential pre elimination of D in order to start a parallel
@@ -5174,7 +5148,7 @@ static inline void reduce_B_by_D(dm_t *B, const dm_t *D, const ri_t curr_row_to_
     //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
     //printf("mult for %u = %u\n",i,mult);
     if (mult1 != 0) {
-      mult1  = D->mod - mult1;
+      mult1  = (re_t)(D->mod - mult1);
       B->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
       //printf("inverted mult for %u = %u\n",i,mult);
       // also updates lead for row i
@@ -5228,7 +5202,7 @@ static inline void completely_reduce_D(dm_t *D, const ri_t curr_row_to_reduce)
     //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
     //printf("mult for %u = %u\n",i,mult);
     if (mult1 != 0) {
-      mult1  = D->mod - mult1;
+      mult1  = (re_t)(D->mod - mult1);
       D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
       //printf("inverted mult for %u = %u\n",i,mult);
       // also updates lead for row i
@@ -5283,19 +5257,19 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
       //printf("A crr[%u]->lead %u || %u i[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+          mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
           /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
           mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         if (mult1 != 0) {
-          mult1  = D->mod - mult1;
+          mult1  = (re_t)(D->mod - mult1);
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           for (j=D->row[i]->piv_lead+1; j<D->row[i+1]->piv_lead; ++j)
             D->row[curr_row_to_reduce]->val[j]  += (re_l_t)mult1 * D->row[i]->piv_val[j];
           /* mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead], D->mod); */
           mult2  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead] % D->mod);
           if (mult2 != 0) {
-            mult2 = D->mod - mult2;
+            mult2 = (re_t)(D->mod - mult2);
             D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead]  = 0;
             for (j=D->row[i+1]->piv_lead+1; j<D->row[i+2]->piv_lead; ++j)
               D->row[curr_row_to_reduce]->val[j]  +=
@@ -5303,7 +5277,7 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
             /* mult3  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead], D->mod); */
             mult3  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead] % D->mod);
             if (mult3 != 0) {
-              mult3 = D->mod - mult3;
+              mult3 = (re_t)(D->mod - mult3);
               D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead]  = 0;
               reduce_dense_row_three(D, curr_row_to_reduce, i, i+1, i+2, mult1, mult2, mult3);
               // if reduced row i is zero row then swap row down and get a new
@@ -5336,14 +5310,14 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
     if (i == local_last_piv-1) {
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+          mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
           /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
           mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
-          mult1  = D->mod - mult1;
+          mult1  = (re_t)(D->mod - mult1);
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
@@ -5363,14 +5337,14 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
     if (i == local_last_piv) {
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+          mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
           /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
           mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
-          mult1  = D->mod - mult1;
+          mult1  = (re_t)(D->mod - mult1);
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
@@ -5390,14 +5364,14 @@ static inline void reduce_dense_row_pre_elim(dm_t *D, const ri_t curr_row_to_red
     if (i == local_last_piv) {
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+          mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
           /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
           mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
-          mult1  = D->mod - mult1;
+          mult1  = (re_t)(D->mod - mult1);
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
@@ -5441,19 +5415,19 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
       //printf("crr[%u]->lead %u || %u i[%u]->plead | %u i+1[%u]->plead | %u i+2[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i, D->row[i+1]->piv_lead, i+1, D->row[i+2]->piv_lead, i+2);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+          mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
           /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
           mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         if (mult1 != 0) {
-          mult1  = D->mod - mult1;
+          mult1  = (re_t)(D->mod - mult1);
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           for (j=D->row[i]->piv_lead+1; j<D->row[i+1]->piv_lead+1; ++j)
             D->row[curr_row_to_reduce]->val[j]  += (re_l_t)mult1 * D->row[i]->piv_val[j];
           /* mult2  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead], D->mod); */
           mult2  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead] % D->mod);
           if (mult2 != 0) {
-            mult2 = D->mod - mult2;
+            mult2 = (re_t)(D->mod - mult2);
             D->row[curr_row_to_reduce]->val[D->row[i+1]->piv_lead]  = 0;
             for (j=D->row[i+1]->piv_lead+1; j<D->row[i+2]->piv_lead+1; ++j)
               D->row[curr_row_to_reduce]->val[j]  +=
@@ -5461,7 +5435,7 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
             /* mult3  = MODP(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead], D->mod); */
             mult3  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead] % D->mod);
             if (mult3 != 0) {
-              mult3 = D->mod - mult3;
+              mult3 = (re_t)(D->mod - mult3);
               D->row[curr_row_to_reduce]->val[D->row[i+2]->piv_lead]  = 0;
               reduce_dense_row_three(D, curr_row_to_reduce, i, i+1, i+2, mult1, mult2, mult3);
               // if reduced row i is zero row then swap row down and get a new
@@ -5498,14 +5472,14 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
       //printf("crr[%u]->lead %u || %u i[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+          mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
           /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
           mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
-          mult1  = D->mod - mult1;
+          mult1  = (re_t)(D->mod - mult1);
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
@@ -5526,13 +5500,13 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
       //printf("crr[%u]->lead %u || %u i[%u]->plead\n", curr_row_to_reduce, D->row[curr_row_to_reduce]->lead, D->row[i]->piv_lead, i);
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+          mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
           /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
           mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         if (mult1 != 0) {
-          mult1  = D->mod - mult1;
+          mult1  = (re_t)(D->mod - mult1);
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
@@ -5552,14 +5526,14 @@ static inline void reduce_dense_row_general(dm_t *D, const ri_t curr_row_to_redu
     if (i == local_last_piv) {
       if (D->row[i]->piv_lead >= D->row[curr_row_to_reduce]->lead) {
         if (D->row[i]->piv_lead == D->row[curr_row_to_reduce]->lead)
-          mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
+          mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead];
         else
           /* mult1  = MODP(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead], D->mod); */
           mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead] % D->mod);
         //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
         //printf("mult for %u = %u\n",i,mult);
         if (mult1 != 0) {
-          mult1  = D->mod - mult1;
+          mult1  = (re_t)(D->mod - mult1);
           D->row[curr_row_to_reduce]->val[D->row[i]->piv_lead]  = 0;
           //printf("inverted mult for %u = %u\n",i,mult);
           // also updates lead for row i
@@ -5709,19 +5683,19 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
   while (i<local_last_piv) {
     if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
       if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
-        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
+        mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->lead];
       else
         /* mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod); */
         mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->lead] % D->mod);
       if (mult1 != 0) {
-        mult1  = D->mod - mult1;
+        mult1  = (re_t)(D->mod - mult1);
         D->row[curr_row_to_reduce]->val[D->row[i]->lead]  = 0;
         for (j=D->row[i]->lead+1; j<D->row[i+1]->lead+1; ++j)
           D->row[curr_row_to_reduce]->val[j]  += (re_l_t)mult1 * D->row[i]->piv_val[j];
         /* mult2  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead], D->mod); */
         mult2  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i+1]->lead] % D->mod);
         if (mult2 != 0) {
-          mult2 = D->mod - mult2;
+          mult2 = (re_t)(D->mod - mult2);
           reduce_dense_row_twice(D, curr_row_to_reduce, i, i+1, mult1, mult2);
           // if reduced row i is zero row then swap row down and get a new
           // row from the bottom
@@ -5749,14 +5723,14 @@ static inline void reduce_dense_row_task(dm_t *D, const ri_t curr_row_to_reduce,
   if (i == local_last_piv) {
     if (D->row[i]->lead >= D->row[curr_row_to_reduce]->lead) {
       if (D->row[i]->lead == D->row[curr_row_to_reduce]->lead)
-        mult1  = D->row[curr_row_to_reduce]->val[D->row[i]->lead];
+        mult1  = (re_t)D->row[curr_row_to_reduce]->val[D->row[i]->lead];
       else
         /* mult1  = (re_t)MODP(D->row[curr_row_to_reduce]->val[D->row[i]->lead], D->mod); */
         mult1  = (re_t)(D->row[curr_row_to_reduce]->val[D->row[i]->lead] % D->mod);
       //  printf("pos: %u <= %u | lead of row %u = %lu\n",D->row[icurr_row_to_reduce,D->row[curr_row_to_reduce]->val[D->row[i]->lead]);
       //printf("mult for %u = %u\n",i,mult);
       if (mult1 != 0) {
-        mult1  = D->mod - mult1;
+        mult1  = (re_t)(D->mod - mult1);
         //printf("inverted mult for %u = %u\n",i,mult);
         // also updates lead for row i
         //printf("lead in %u (from_row %u - reduced by %u) ",
@@ -5841,13 +5815,10 @@ static inline void push_row_to_waiting_list(wl_t *waiting_global, const ri_t row
  *
  * \param reduce or just store in multiline row? reduce
  * if 1 then reduction is done, else we only store the multiline row
- *
- * \param current multiline row in D the two dense arrays represent,
- * i.e. ml = A->ml[curr_row_to_reduce] curr_row_to_reduce
  */
 void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
 		re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
-		const int reduce, const ri_t curr_row_to_reduce);
+		const int reduce);
 
 /*  global variables for echelonization of D */
 extern  omp_lock_t echelonize_lock;

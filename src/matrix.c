@@ -53,8 +53,8 @@ void copy_block_ml_matrix_to_dns_matrix(sbm_fl_t **source, DNS **destination) {
   sbm_fl_t *src = *source;
   DNS *dst      = *destination;
 
-  const ri_t src_row_idx  = (ri_t) ceil((float) src->nrows / src->bheight);
-  const ci_t src_col_idx  = (ci_t) ceil((float) src->ncols / src->bwidth);
+  const ri_t src_row_idx  = (ri_t) ceil((float) src->nrows / (float)src->bheight);
+  const ci_t src_col_idx  = (ci_t) ceil((float) src->ncols / (float)src->bwidth);
   const bi_t ml_bheight   = src->bheight / __GBLA_NROWS_MULTILINE;
 
   const ri_t max_rows  = dst->row;
@@ -160,8 +160,8 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   out->pos    = (ci_t **)malloc(rl * sizeof(ci_t *));
   out->rwidth = (ci_t *) malloc(rl * sizeof(ci_t));
   memset(out->rwidth, 0, rl * sizeof(ci_t));
-  const ri_t rlin_bl = (ri_t) ceil((float) in_bl->nrows / in_bl->bheight);
-  const ci_t clin_bl = (ci_t) ceil((float) in_bl->ncols / in_bl->bwidth);
+  const ri_t rlin_bl = (ri_t) ceil((float) in_bl->nrows / (float)in_bl->bheight);
+  const ci_t clin_bl = (ci_t) ceil((float) in_bl->ncols / (float)in_bl->bwidth);
   /*  we need buffers for all multiline entries since the copying process */
   /*  revisits already filled up multilines.if we reset the buffer to zero, we */
   /*  might realloc only init_buffer memory and lose what we have already in the */
@@ -175,7 +175,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
   const bi_t ml_bheight = in_bl->bheight / __GBLA_NROWS_MULTILINE;
   /*  write D first into output matrix */
 
-  const ri_t rlin_ml = (ri_t) ceil((float) in_ml->nrows / __GBLA_NROWS_MULTILINE);
+  const ri_t rlin_ml = (ri_t) ceil((float) in_ml->nrows / (float)__GBLA_NROWS_MULTILINE);
   const ci_t clin_ml = in_ml->ncols;
 
   /*  we need buffers for all multiline entries since the copying process */
@@ -355,7 +355,7 @@ void copy_block_ml_matrices_to_sparse_matrix(sbm_fl_t **input_bl,
 	out->nnz = 0 ;
 	for (i=0 ; i < out->nrows ; ++i)
 		out->nnz += out->rwidth[i] ;
-	out->density = compute_density(out->nnz, out->nrows, out->ncols);
+	out->density = (float)compute_density(out->nnz, out->nrows, out->ncols);
 
   *output   = out;
 }
@@ -400,8 +400,8 @@ sm_fl_ml_t *copy_block_matrix_to_multiline_matrix(sbm_fl_t **input,
 #endif
   }
 
-  const ri_t rlin = (ri_t) ceil((float) in->nrows / in->bheight);
-  const ci_t clin = (ci_t) ceil((float) in->ncols / in->bwidth);
+  const ri_t rlin = (ri_t) ceil((float) in->nrows / (float)in->bheight);
+  const ci_t clin = (ci_t) ceil((float) in->ncols / (float)in->bwidth);
 	/* mli_t init_buffer = 2 * in->bwidth; */
   /*  we need buffers for all multiline entries since the copying process */
   /*  revisits already filled up multilines.if we reset the buffer to zero, we */
@@ -678,8 +678,8 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
   ri_t j;
   ri_t k;
 
-  const ri_t rlB            = (ri_t) ceil((float) A->nrows / bheight);
-  const ci_t clB            = (ci_t) ceil((float) A->ncols / bwidth);
+  const ri_t rlB            = (ri_t) ceil((float) A->nrows / (float)bheight);
+  const ci_t clB            = (ci_t) ceil((float) A->ncols / (float)bwidth);
   const ri_t ml_rlB         = (A->nrows % __GBLA_NROWS_MULTILINE == 0) ?
     A->nrows / __GBLA_NROWS_MULTILINE :
     A->nrows / __GBLA_NROWS_MULTILINE + 1;
@@ -845,7 +845,7 @@ sbm_fl_t *copy_multiline_to_block_matrix_rl(sm_fl_ml_t **A_in,
 }
 
 double compute_density(nnz_t nnz, ri_t nrows, ri_t ncols) {
-	return (double) (nnz * 100) / (nrows * (nnz_t)ncols);
+	return (double) (nnz * 100) / (double)(nrows * (nnz_t)ncols);
 }
 
 /* vim:sts=2:sw=2:ts=2:

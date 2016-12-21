@@ -69,7 +69,7 @@ void construct_fl_map(sm_t *M, map_fl_t *map) {
 }
 
 void construct_fl_map_reduced(map_fl_t *map, map_fl_t *map_D, ri_t rows_BD,
-    ri_t rank_D, ci_t coldim, int nthreads) {
+    ci_t coldim, int nthreads) {
   ri_t i;
 	/* ci_t j; */
 
@@ -114,7 +114,7 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
   int h1, h2;
   uint32_t h1_idx, h2_idx;
   re_t h1_val, h2_val;
-  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / __GBLA_NROWS_MULTILINE);
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / (float)__GBLA_NROWS_MULTILINE);
 	/* const uint32_t clA  = (uint32_t) ceil((float)A->ncols / __GBLA_NROWS_MULTILINE); */
   const ci_t coldim = A->ncols;
 
@@ -124,9 +124,9 @@ void process_matrix(sm_fl_ml_t *A, map_fl_t *map, const bi_t bheight) {
 
   for (i=0; i<rlA; ++i) {
     if (A->ml[i].sz > 0) {
-      h1 = get_head_multiline_hybrid(&(A->ml[i]), 0,
+      h1 = (int)get_head_multiline_hybrid(&(A->ml[i]), 0,
           &h1_val, &h1_idx, coldim);
-      h2 = get_head_multiline_hybrid(&(A->ml[i]), 1,
+      h2 = (int)get_head_multiline_hybrid(&(A->ml[i]), 1,
           &h2_val, &h2_idx, coldim);
       /*  Line 1 */
       if (h1 == -1) {
@@ -252,9 +252,8 @@ cleanup:
   *inner_map_in = inner_map;
 }
 
-void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl_t *D2,
-    map_fl_t *map, const ci_t coldim, int free_matrices,
-    int M_freed, int A_freed, int D_freed, int nthrds) {
+void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *B2, sbm_fl_t *D2,
+    map_fl_t *map, const ci_t coldim, int free_matrices, int A_freed) {
 
   int ret;
   uint8_t *vec_free_B2 = NULL, *vec_free_D2 = NULL;
@@ -289,10 +288,10 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
 
   /*  maximal row length in M is 1 + B2->ncols = 1 + D2->ncols */
   ci_t max_row_length = 1 + B2->ncols;
-  const uint32_t rlB  = (uint32_t) ceil((float)B2->nrows / B2->bheight);
-  const uint32_t clB  = (uint32_t) ceil((float)B2->ncols / B2->bwidth);
-  const uint32_t rlD  = (uint32_t) ceil((float)D2->nrows / D2->bheight);
-  const uint32_t clD  = (uint32_t) ceil((float)D2->ncols / D2->bwidth);
+  const uint32_t rlB  = (uint32_t) ceil((float)B2->nrows / (float)B2->bheight);
+  const uint32_t clB  = (uint32_t) ceil((float)B2->ncols / (float)B2->bwidth);
+  const uint32_t rlD  = (uint32_t) ceil((float)D2->nrows / (float)D2->bheight);
+  const uint32_t clD  = (uint32_t) ceil((float)D2->ncols / (float)D2->bwidth);
   M->nnz  = 0;
 
   int ctr = 0;
@@ -491,9 +490,9 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
 {
   ri_t i, j, k, l;
 
-  const ri_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
-  const ci_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
-  const ri_t rlD  = (uint32_t) ceil((float)D->rank / __GBLA_SIMD_BLOCK_SIZE);
+  const ri_t rlB  = (uint32_t) ceil((float)B->nrows / (float)__GBLA_SIMD_BLOCK_SIZE);
+  const ci_t clB  = (uint32_t) ceil((float)B->ncols / (float)__GBLA_SIMD_BLOCK_SIZE);
+  const ri_t rlD  = (uint32_t) ceil((float)D->rank / (float)__GBLA_SIMD_BLOCK_SIZE);
 
   M->nnz    = 0;
   M->nrows  = map->npiv + D->rank;
@@ -663,7 +662,7 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
   map = NULL;
 }
 
-void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_t *D,
+void reconstruct_matrix_block_no_multiline(sm_t *M, dbm_fl_t *B, dm_t *D,
     map_fl_t *map, const int nthrds)
 {
   /*  1 pivot from A and otherwise at most D->ncols = B->ncols elements */
@@ -672,9 +671,9 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
 
   ri_t i, j, k, l;
 
-  const ri_t rlB  = (uint32_t) ceil((float)B->nrows / __GBLA_SIMD_BLOCK_SIZE);
-  const ci_t clB  = (uint32_t) ceil((float)B->ncols / __GBLA_SIMD_BLOCK_SIZE);
-  const ri_t rlD  = (uint32_t) ceil((float)D->rank / __GBLA_SIMD_BLOCK_SIZE);
+  const ri_t rlB  = (uint32_t) ceil((float)B->nrows / (float)__GBLA_SIMD_BLOCK_SIZE);
+  const ci_t clB  = (uint32_t) ceil((float)B->ncols / (float)__GBLA_SIMD_BLOCK_SIZE);
+  const ri_t rlD  = (uint32_t) ceil((float)D->rank / (float)__GBLA_SIMD_BLOCK_SIZE);
 
   M->nnz    = 0;
   M->nrows  = map->npiv + D->rank;
@@ -819,9 +818,9 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
   map = NULL;
 }
 
-void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
+void reconstruct_matrix_block(sm_t *M, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
-    int M_freed, int A_freed, int D_freed, int nthrds) {
+    int A_freed) {
 
   int ret;
   uint8_t *vec_free_AB, *vec_free_D;
@@ -853,8 +852,8 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     new_piv_to_row[i] = new_piv;
     new_piv++;
   }
-  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
-  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / (float)B->bheight);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / (float)B->bwidth);
 
   M->nnz  = 0;
   ci_t block_row_idx, row_idx_block, block_start_idx, idx;
@@ -1018,8 +1017,7 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
 }
 
 void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
-    map_fl_t *map, const ci_t coldim, int free_matrices,
-    int M_freed, int A_freed, int D_freed, int nthrds) {
+    map_fl_t *map, const ci_t coldim, int free_matrices) {
 
   int ret;
   uint8_t *vec_free_AB, *vec_free_D;
@@ -1051,8 +1049,8 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
     new_piv_to_row[i] = new_piv;
     new_piv++;
   }
-  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
-  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / (float)B->bheight);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / (float)B->bwidth);
 
   M->nnz  = 0;
 
@@ -1242,11 +1240,10 @@ void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
 }
 
 void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t *B2,
-    sbm_fl_t *D1, sbm_fl_t *D2, map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
-    int block_dim, int rows_multiline, int nthrds, int destruct_input_matrix,
-    int verbose) {
+    sbm_fl_t *D1, sbm_fl_t *D2, map_fl_t *map, ci_t complete_ncols,
+    int block_dim, int rows_multiline, int nthrds) {
 
-  int bdim  = block_dim / rows_multiline;
+  ri_t bdim  = (ri_t)(block_dim / rows_multiline);
   /*  construct index map for Faugère-Lachartre decomposition of matrix M */
   /* construct_fl_map(M, map); */
 
@@ -1266,8 +1263,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlB1 = (uint32_t) ceil((float)B1->nrows / B1->bheight);
-  const uint32_t clB1 = (uint32_t) ceil((float)B1->ncols / B1->bwidth);
+  const uint32_t rlB1 = (uint32_t) ceil((float)B1->nrows / (float)B1->bheight);
+  const uint32_t clB1 = (uint32_t) ceil((float)B1->ncols / (float)B1->bwidth);
 
   B1->blocks = (mbl_t ***)malloc(rlB1 * sizeof(mbl_t **));
   for (i=0; i<rlB1; ++i) {
@@ -1295,8 +1292,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlB2  = (uint32_t) ceil((float)B2->nrows / B2->bheight);
-  const uint32_t clB2  = (uint32_t) ceil((float)B2->ncols / B2->bwidth);
+  const uint32_t rlB2  = (uint32_t) ceil((float)B2->nrows / (float)B2->bheight);
+  const uint32_t clB2  = (uint32_t) ceil((float)B2->ncols / (float)B2->bwidth);
 
   B2->blocks = (mbl_t ***)malloc(rlB2 * sizeof(mbl_t **));
   for (i=0; i<rlB2; ++i) {
@@ -1325,8 +1322,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlD1 = (uint32_t) ceil((float)D1->nrows / D1->bheight);
-  const uint32_t clD1 = (uint32_t) ceil((float)D1->ncols / D1->bwidth);
+  const uint32_t rlD1 = (uint32_t) ceil((float)D1->nrows / (float)D1->bheight);
+  const uint32_t clD1 = (uint32_t) ceil((float)D1->ncols / (float)D1->bwidth);
 
   D1->blocks = (mbl_t ***)malloc(rlD1 * sizeof(mbl_t **));
   for (i=0; i<rlD1; ++i) {
@@ -1354,8 +1351,8 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlD2  = (uint32_t) ceil((float)D2->nrows / D2->bheight);
-  const uint32_t clD2  = (uint32_t) ceil((float)D2->ncols / D2->bwidth);
+  const uint32_t rlD2  = (uint32_t) ceil((float)D2->nrows / (float)D2->bheight);
+  const uint32_t clD2  = (uint32_t) ceil((float)D2->ncols / (float)D2->bwidth);
 
   D2->blocks = (mbl_t ***)malloc(rlD2 * sizeof(mbl_t **));
   for (i=0; i<rlD2; ++i) {
@@ -1423,7 +1420,7 @@ void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t
 
 void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads) {
+    const int destruct_input_matrix, const int nthreads) {
 
   // construct index map for Faugère-Lachartre decomposition of matrix M
   if (map_defined == 0)
@@ -1458,7 +1455,7 @@ void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
 
 void splice_fl_matrix_hybrid(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
     hbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads) {
+    const int destruct_input_matrix, const int nthreads) {
 
   // construct index map for Faugère-Lachartre decomposition of matrix M
   if (map_defined == 0)
@@ -1493,7 +1490,7 @@ void splice_fl_matrix_hybrid(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
 
 void splice_fl_matrix_hybrid_dense(sm_t *M, hbm_fl_t *A, dbm_fl_t *B, hbm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads) {
+    const int destruct_input_matrix, const int nthreads) {
 
   // construct index map for Faugère-Lachartre decomposition of matrix M
   if (map_defined == 0)
@@ -1528,7 +1525,7 @@ void splice_fl_matrix_hybrid_dense(sm_t *M, hbm_fl_t *A, dbm_fl_t *B, hbm_fl_t *
 
 void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B, sm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads) {
+    const int destruct_input_matrix, const int nthreads) {
 
   // construct index map for Faugère-Lachartre decomposition of matrix M
   if (map_defined == 0)
@@ -1564,7 +1561,7 @@ void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B, sm_fl
 
 void splice_fl_matrix_sparse_dense_2(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads) {
+    const int destruct_input_matrix, const int nthreads) {
 
   // construct index map for Faugère-Lachartre decomposition of matrix M
   if (map_defined == 0)
@@ -1600,7 +1597,7 @@ void splice_fl_matrix_sparse_dense_2(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *
 
 void splice_fl_matrix_sparse_dense(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads) {
+    const int destruct_input_matrix, const int nthreads) {
 
   // construct index map for Faugère-Lachartre decomposition of matrix M
   if (map_defined == 0)
@@ -1637,10 +1634,10 @@ void splice_fl_matrix_sparse_dense(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dbm_fl_t *C
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                     map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
                     int block_dim, int rows_multiline,
-                    int nthreads, int destruct_input_matrix, int verbose,
+                    int nthreads, int destruct_input_matrix,
                     int map_defined) {
 
-  int bdim  = block_dim / rows_multiline;
+  ri_t bdim  = (ri_t)(block_dim / rows_multiline);
   /*  construct index map for Faugère-Lachartre decomposition of matrix M */
   if (map_defined == 0)
     construct_fl_map(M, map);
@@ -1661,8 +1658,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / A->bheight);
-  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
+  const uint32_t rlA  = (uint32_t) ceil((float)A->nrows / (float)A->bheight);
+  const uint32_t clA  = (uint32_t) ceil((float)A->ncols / (float)A->bwidth);
 
   A->blocks = (mbl_t ***)malloc(rlA * sizeof(mbl_t **));
   for (i=0; i<rlA; ++i) {
@@ -1690,8 +1687,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
-  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / (float)B->bheight);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / (float)B->bwidth);
 
   B->blocks = (mbl_t ***)malloc(rlB * sizeof(mbl_t **));
   for (i=0; i<rlB; ++i) {
@@ -1719,8 +1716,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / C->bheight);
-  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / C->bwidth);
+  const uint32_t rlC  = (uint32_t) ceil((float)C->nrows / (float)C->bheight);
+  const uint32_t clC  = (uint32_t) ceil((float)C->ncols / (float)C->bwidth);
 
   C->blocks = (mbl_t ***)malloc(rlC * sizeof(mbl_t **));
   for (i=0; i<rlC; ++i) {
@@ -1748,8 +1745,8 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
-  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / (float)D->bheight);
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / (float)D->bwidth);
 
   D->blocks = (mbl_t ***)malloc(rlD * sizeof(mbl_t **));
   for (i=0; i<rlD; ++i) {
@@ -1795,7 +1792,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       npiv++;
     }
     if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = l;
+      piv_start_idx[npiv/B->bheight]  = (uint32_t)l;
     }
   }
   /*  loop might overwrite piv_start_idx[0] with a wrong index; */
@@ -2045,7 +2042,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       /*  TODO: Try to improve this rather strange looping. */
 			assert((int)piv_start_idx[block_idx]>=0);
       for (l = ((int)piv_start_idx[block_idx]-1);
-          l > (int)piv_start_idx[block_idx+1]-1; --l) {
+          l > (int)(piv_start_idx[block_idx+1]-1); --l) {
         if (map->pri[l] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->pri[l];
           cvb++;
@@ -2077,7 +2074,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       npiv++;
 
     if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = l;
+      piv_start_idx[npiv/B->bheight]  = (uint32_t)l;
     }
   }
   /*  loop might overwrite piv_start_idx[0] with a wrong index; */
@@ -2103,7 +2100,7 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
       /*  TODO: Try to improve this rather strange looping. */
 			assert((int)piv_start_idx[block_idx]>=0);
       for (l = ((int)piv_start_idx[block_idx]-1);
-          l > (int)piv_start_idx[block_idx+1]-1; --l) {
+          l > (int)(piv_start_idx[block_idx+1]-1); --l) {
         if (map->npri[l] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->npri[l];
           cvb++;
@@ -2130,10 +2127,10 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
 
 
 void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
-                    sbm_fl_t *D, map_fl_t *map, int block_dim, int rows_multiline,
-                    int nthreads, int destruct_input_matrix, int verbose) {
+                    sbm_fl_t *D, map_fl_t *map, ri_t block_dim, ri_t rows_multiline,
+                    int nthreads, int destruct_input_matrix) {
 
-  int bdim  = block_dim / rows_multiline;
+  ri_t bdim  = (ri_t)(block_dim / rows_multiline);
   /*  construct index map for Faugère-Lachartre decomposition of matrix M */
   construct_fl_map(M, map);
 
@@ -2194,8 +2191,8 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / B->bheight);
-  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const uint32_t rlB  = (uint32_t) ceil((float)B->nrows / (float)B->bheight);
+  const uint32_t clB  = (uint32_t) ceil((float)B->ncols / (float)B->bwidth);
 
   B->blocks = (mbl_t ***)malloc(rlB * sizeof(mbl_t **));
   for (i=0; i<rlB; ++i) {
@@ -2223,8 +2220,8 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   /*  allocate memory for blocks */
 
   /*  row and column loops */
-  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / D->bheight);
-  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / D->bwidth);
+  const uint32_t rlD  = (uint32_t) ceil((float)D->nrows / (float)D->bheight);
+  const uint32_t clD  = (uint32_t) ceil((float)D->ncols / (float)D->bwidth);
 
   D->blocks = (mbl_t ***)malloc(rlD * sizeof(mbl_t **));
   for (i=0; i<rlD; ++i) {
@@ -2265,12 +2262,12 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
 
   /*  find blocks for construction of A & B */
 	assert((int)M->ncols>=0);
-  for (l = (int)M->ncols-1; l > -1; --l) {
+  for (l = (int)(M->ncols-1); l > -1; --l) {
     if (map->pri[l] != __GBLA_MINUS_ONE_32) {
       npiv++;
     }
     if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = l;
+      piv_start_idx[npiv/B->bheight]  = (uint32_t)l;
     }
   }
   /*  loop might overwrite piv_start_idx[0] with a wrong index; */
@@ -2301,7 +2298,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
   if (nb % 2) {
     nb--;
     for (i = ((int)piv_start_idx[nb]-1);
-        i > (int)piv_start_idx[nb+1]-1; --i) {
+        i > (int)(piv_start_idx[nb+1]-1); --i) {
       if (map->pri[i] != __GBLA_MINUS_ONE_32) {
         rihb[cvb] = map->pri[i];
         cvb++;
@@ -2519,7 +2516,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       /*  TODO: Try to improve this rather strange looping. */
 			assert((int)piv_start_idx[block_idx]>=0);
       for (l = ((int)piv_start_idx[block_idx]-1);
-          l > (int)piv_start_idx[block_idx+1]-1; --l) {
+          l > (int)(piv_start_idx[block_idx+1]-1); --l) {
         if (map->pri[l] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->pri[l];
           cvb++;
@@ -2551,7 +2548,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       npiv++;
 
     if (npiv % B->bheight == 0) {
-      piv_start_idx[npiv/B->bheight]  = l;
+      piv_start_idx[npiv/B->bheight]  = (uint32_t)l;
     }
   }
   /*  loop might overwrite piv_start_idx[0] with a wrong index; */
@@ -2576,7 +2573,7 @@ void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
       /*  "block". */
       /*  TODO: Try to improve this rather strange looping. */
       for (l = ((int)piv_start_idx[block_idx]-1);
-          l > (int)piv_start_idx[block_idx+1]-1; --l) {
+          l > (int)(piv_start_idx[block_idx+1]-1); --l) {
         if (map->npri[l] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = map->npri[l];
           cvb++;
@@ -2621,8 +2618,8 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 
 
   /*  column loops */
-  const ci_t clA  = (uint32_t) ceil((float)A->ncols / A->bwidth);
-  const ci_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const ci_t clA  = (uint32_t) ceil((float)A->ncols / (float)A->bwidth);
+  const ci_t clB  = (uint32_t) ceil((float)B->ncols / (float)B->bwidth);
 
   /*  Usually blocks in B tend to be denser than blocks in A, thus we allocate */
   /*  already at the beginning more memory for those lines. */
@@ -2649,6 +2646,8 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
         init_buffer_B = (bi_t)(B->bwidth/2);
       }
       break;
+    default:
+      break;
   }
 
   bi_t buffer_A[clA];
@@ -2662,9 +2661,9 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 
   /*  ususally cvb is divisible by 2, but for the last row of blocks there might */
   /*  be only an odd number of lines in the blocks */
-  uint16_t rounded_cvb  = cvb;
+  uint16_t rounded_cvb  = (uint16_t)cvb;
   if (cvb % 2)
-    rounded_cvb = cvb-1;
+    rounded_cvb--;
   for (i=0; i<rounded_cvb; i=i+2) {
     bi1 = rihb[i];
     bi2 = rihb[i+1];
@@ -2872,7 +2871,7 @@ void write_blocks_lr_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, map_fl_t *map,
 #endif
   if (i<cvb) {
     /*  now we know the correct number of multilines per block */
-    rounded_cvb = (rounded_cvb+2);
+    rounded_cvb = (uint16_t)(rounded_cvb+2);
     bi1 = rihb[i];
     i1  = 0;
     lib = i/2;
@@ -3001,7 +3000,7 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
 
 
   /*  column loops */
-  const ci_t clB  = (uint32_t) ceil((float)B->ncols / B->bwidth);
+  const ci_t clB  = (uint32_t) ceil((float)B->ncols / (float)B->bwidth);
 
   /*  Usually blocks in B tend to be denser than blocks in A, but here A is just */
   /*  a multiline sub matrix without blocks, so we also allocate enough initial */
@@ -3031,6 +3030,8 @@ void write_lr_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, map_fl_t *map,
         init_buffer_A = (bi_t)(2*B->bwidth);
         init_buffer_B = (bi_t)(B->bwidth/2);
       }
+      break;
+    default:
       break;
   }
 

@@ -23,6 +23,8 @@
 #ifndef GBLA_TYPES_H
 #define GBLA_TYPES_H
 
+#include <stdint.h>
+
 #if 0
 #define GBLA_USE_FLOAT 1
 /* #define GBLA_USE_INT16 XXX */

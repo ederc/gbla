@@ -23,6 +23,7 @@
 #endif
 
 #define DDEBUG 0
+#define DDDEBUG 0
 #define DDEBUG_C 0
 #define DDEBUG_D 0
 #define DDEBUG_DD 0
@@ -599,7 +600,7 @@ int elim_fl_A_dense_blocks_task(const dbm_fl_t *A, dbm_fl_t *B,
 
 //#if __GBLA_COLUMN_B
 int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C_in, dbm_fl_t *D,
-    const int inv_scalars, const mod_t modulus, const int nthrds) {
+    const mod_t modulus, const int nthrds) {
 
   ibm_fl_t *C = *C_in;
 
@@ -614,19 +615,19 @@ int elim_fl_C_intermediate_block(sb_fl_t *B, ibm_fl_t **C_in, dbm_fl_t *D,
     for (i=clD; i>0; --i) {
 #pragma omp task
       {
-        elim_fl_C_intermediate_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_intermediate_blocks_task(B, C, D, i-1, rlC, clC, modulus);
       }
     }
 #pragma omp taskwait
   }
   // free C
-  free_intermediate_submatrix(&C, nthrds);
+  free_intermediate_submatrix(&C);
   *C_in = C;
 
   return 0;
 }
 int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
-    const int inv_scalars, const mod_t modulus, const int nthrds) {
+    const mod_t modulus, const int nthrds) {
 
   dbm_fl_t *C = *C_in;
 
@@ -641,7 +642,7 @@ int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
     for (i=clD; i>0; --i) {
 #pragma omp task
       {
-        elim_fl_C_dense_sparse_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_dense_sparse_blocks_task(B, C, D, i-1, rlC, clC, modulus);
       }
     }
 #pragma omp taskwait
@@ -655,7 +656,7 @@ int elim_fl_C_dense_sparse_block(sb_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
 //#endif
 
 int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
-    const int inv_scalars, const mod_t modulus, const int nthrds) {
+    const mod_t modulus, const int nthrds) {
 
   sb_fl_t *C = *C_in;
 
@@ -670,7 +671,7 @@ int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
     for (i=clD; i>0; --i) {
 #pragma omp task
       {
-        elim_fl_C_sparse_sparse_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_sparse_sparse_blocks_task(B, C, D, i-1, rlC, clC, modulus);
       }
     }
 #pragma omp taskwait
@@ -683,7 +684,7 @@ int elim_fl_C_sparse_sparse_block(sb_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
 }
 
 int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
-    const int inv_scalars, const mod_t modulus, const int nthrds) {
+    const mod_t modulus, const int nthrds) {
 
   sb_fl_t *C = *C_in;
 
@@ -698,7 +699,7 @@ int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
     for (i=clD; i>0; --i) {
 #pragma omp task
       {
-        elim_fl_C_sparse_dense_blocks_task(B, C, D, i-1, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_sparse_dense_blocks_task(B, C, D, i-1, rlC, clC, modulus);
       }
     }
 #pragma omp taskwait
@@ -712,7 +713,7 @@ int elim_fl_C_sparse_dense_block(dbm_fl_t *B, sb_fl_t **C_in, dbm_fl_t *D,
 }
 
 int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
-    const int inv_scalars, const mod_t modulus, const int nthrds) {
+    const mod_t modulus, const int nthrds) {
 
   dbm_fl_t *C = *C_in;
 
@@ -727,7 +728,7 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
     for (i=0; i<clD; ++i) {
 #pragma omp task
       {
-        elim_fl_C_dense_blocks_task(B, C, D, i, rlC, clC, inv_scalars, modulus);
+        elim_fl_C_dense_blocks_task(B, C, D, i, rlC, clC, modulus);
       }
     }
 #pragma omp taskwait
@@ -742,7 +743,7 @@ int elim_fl_C_dense_block(dbm_fl_t *B, dbm_fl_t **C_in, dbm_fl_t *D,
 //#if __GBLA_COLUMN_B
 int elim_fl_C_intermediate_blocks_task(sb_fl_t *B, ibm_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-  const int inv_scalars, const mod_t modulus) {
+  const mod_t modulus) {
   ri_t j, k;
   re_l_t **wide_block;
   
@@ -781,7 +782,7 @@ int elim_fl_C_intermediate_blocks_task(sb_fl_t *B, ibm_fl_t *C, dbm_fl_t *D,
 }
 int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-  const int inv_scalars, const mod_t modulus) {
+  const mod_t modulus) {
   ri_t j, k;
   re_l_t **wide_block;
   
@@ -815,7 +816,7 @@ int elim_fl_C_dense_sparse_blocks_task(sb_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
 
 int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-  const int inv_scalars, const mod_t modulus) {
+  const mod_t modulus) {
   ri_t j, k;
   re_l_t **wide_block;
   
@@ -847,7 +848,7 @@ int elim_fl_C_sparse_sparse_blocks_task(sb_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
 
 int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-  const int inv_scalars, const mod_t modulus) {
+  const mod_t modulus) {
   ri_t j, k;
   re_l_t **wide_block;
   
@@ -878,7 +879,7 @@ int elim_fl_C_sparse_dense_blocks_task(dbm_fl_t *B, sb_fl_t *C, dbm_fl_t *D,
 
 int elim_fl_C_dense_blocks_task(dbm_fl_t *B, dbm_fl_t *C, dbm_fl_t *D,
   const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
-  const int inv_scalars, const mod_t modulus) {
+  const mod_t modulus) {
   ri_t j, k;
   re_l_t **wide_block;
   
@@ -911,9 +912,9 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   sbm_fl_t *A = *A_in;
   ci_t i/*, rc*/;
   ri_t j, k;
-  const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
-  const ri_t rlA  = (ri_t) ceil((float) A->nrows / A->bheight);
-  const ci_t clA  = (ci_t) ceil((float) A->ncols / A->bwidth);
+  const ci_t clB  = (ci_t) ceil((float) B->ncols / (float)B->bwidth);
+  const ri_t rlA  = (ri_t) ceil((float) A->nrows / (float)A->bheight);
+  const ci_t clA  = (ci_t) ceil((float) A->ncols / (float)A->bwidth);
 #pragma omp parallel num_threads(nthrds)
   {
 #pragma omp for
@@ -1037,10 +1038,10 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   sbm_fl_t *A = *A_in;
   ci_t i/*, rc*/;
   ri_t j, k;
-  int tid;
+  ri_t tid;
   /* const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth); */
-  const ri_t rlA  = (ri_t) ceil((float) A->nrows / A->bheight);
-  const ci_t clA  = (ci_t) ceil((float) A->ncols / A->bwidth);
+  const ri_t rlA  = (ri_t) ceil((float) A->nrows / (float)A->bheight);
+  const ci_t clA  = (ci_t) ceil((float) A->ncols / (float)A->bwidth);
 
   reduce_A_next_col_to_reduce = 0;
   omp_init_lock(&reduce_A_lock);
@@ -1048,8 +1049,8 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
 #pragma omp parallel shared(reduce_A_next_col_to_reduce) num_threads(nthrds)
   {
 #pragma omp for nowait
-    for (tid=0; tid<nthrds; ++tid) {
-      /*rc  =*/ elim_fl_A_blocks_task(A, B, tid, rlA, modulus);
+    for (tid=0; tid<(ri_t)nthrds; ++tid) {
+      /*rc  =*/ elim_fl_A_blocks_task(A, B, rlA, modulus);
     }
   }
   omp_destroy_lock(&reduce_A_lock);
@@ -1082,7 +1083,7 @@ int elim_fl_A_block(sbm_fl_t **A_in, sbm_fl_t *B, mod_t modulus, int nthrds) {
   return 0;
 }
 
-int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t nbrows_A, mod_t modulus) {
+int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ri_t nbrows_A, mod_t modulus) {
   int ret;
   bi_t i;
   ri_t j, k;
@@ -1095,7 +1096,7 @@ int elim_fl_A_blocks_task(sbm_fl_t *A, sbm_fl_t *B, ci_t block_col_idx_B, ri_t n
     } while (ret != 0);
   }
 
-  const ci_t clB  = (ci_t) ceil((float) B->ncols / B->bwidth);
+  const ci_t clB  = (ci_t) ceil((float) B->ncols / (float)B->bwidth);
   uint32_t lci; /*  local column index */
   while (1) {
     omp_set_lock(&reduce_A_lock);
@@ -1192,9 +1193,9 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
 
   ci_t i/*, rc*/;
   ri_t j, k;
-  const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
-  const ri_t rlC  = (ri_t) ceil((float) C->nrows / C->bheight);
-  const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
+  const ci_t clD  = (ci_t) ceil((float) D->ncols / (float)D->bwidth);
+  const ri_t rlC  = (ri_t) ceil((float) C->nrows / (float)C->bheight);
+  const ri_t clC  = (ci_t) ceil((float) C->ncols / (float)C->bwidth);
 #pragma omp parallel num_threads(nthrds)
   {
 #pragma omp for
@@ -1319,11 +1320,11 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
   sbm_fl_t *C = *C_in;
 
   ci_t i/*, rc*/;
-  int tid ;
+  ri_t tid ;
   ri_t j, k;
   /* const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth); */
-  const ri_t rlC  = (ri_t) ceil((float) C->nrows / C->bheight);
-  const ri_t clC  = (ci_t) ceil((float) C->ncols / C->bwidth);
+  const ri_t rlC  = (ri_t) ceil((float) C->nrows / (float)C->bheight);
+  const ri_t clC  = (ci_t) ceil((float) C->ncols / (float)C->bwidth);
 
   reduce_C_next_col_to_reduce = 0;
   omp_init_lock(&reduce_C_lock);
@@ -1331,8 +1332,8 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
 #pragma omp parallel shared(reduce_C_next_col_to_reduce) num_threads(nthrds)
   {
 #pragma omp for nowait
-    for (tid=0; tid<nthrds; ++tid) {
-      /*rc  =*/ elim_fl_C_blocks_task(B, C,  D, tid, rlC, clC, inv_scalars, modulus);
+    for (tid=0; tid<(ri_t)nthrds; ++tid) {
+      /*rc  =*/ elim_fl_C_blocks_task(B, C,  D, rlC, clC, inv_scalars, modulus);
     }
   }
   omp_destroy_lock(&reduce_C_lock);
@@ -1366,10 +1367,10 @@ int elim_fl_C_block(sbm_fl_t *B, sbm_fl_t **C_in, sbm_fl_t *D,
 }
 
 int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
-    const ci_t block_col_idx_D, const ri_t nbrows_C, const ci_t nbcols_C,
+    const ri_t nbrows_C, const ci_t nbcols_C,
     const int inv_scalars, const mod_t modulus) {
   int ret;
-  const ci_t clD  = (ci_t) ceil((float) D->ncols / D->bwidth);
+  const ci_t clD  = (ci_t) ceil((float) D->ncols / (float)D->bwidth);
   bi_t i;
   ri_t j, k;
   re_l_t *dense_block[D->bheight] __attribute__((aligned(0x1000)));
@@ -1409,9 +1410,6 @@ int elim_fl_C_blocks_task(sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
             D->bheight, D->bwidth);
       }
       for (k=0; k<last_block_idx; ++k) {
-#if DDEBUG_C
-        printf("j %d -- k %d -- lci %d\n", j, k, block_col_idx_D);
-#endif
         if (C->blocks[j][k] != NULL) {
           red_with_rectangular_block(C->blocks[j][k], B->blocks[k][lci],
               dense_block, B->bheight, inv_scalars, modulus);
@@ -1445,9 +1443,9 @@ void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_block,
 
     last_idx  = -1;
     if (block_A[i].val[2*(block_A[i].sz-1)+1] == 0)
-      last_idx  = block_A[i].sz-1;
+      last_idx  = (int)(block_A[i].sz-1);
     else
-      last_idx  = block_A[i].sz-2;
+      last_idx  = (int)(block_A[i].sz-2);
 
     register re_m_t Av1_col1, Av2_col1;
     register re_m_t Av1_col2, Av2_col2;
@@ -1506,7 +1504,7 @@ void red_with_triangular_block(mbl_t *block_A, re_l_t **dense_block,
 
     /*  reduce lines within the same multiline */
     if (block_A[i].sz > 1) {
-      j         = block_A[i].sz-2;
+      j         = (int)(block_A[i].sz-2);
       Av1_col1  = block_A[i].val[2*j+1];
       Ap1       = block_A[i].idx[j];
 
@@ -1640,44 +1638,44 @@ void red_with_rectangular_block(mbl_t *block_A, mbl_t *block_B, re_l_t **dense_b
 }
 
 void copy_dense_block_to_sparse(
-    re_l_t **dense_block, mbl_t **sparse_block_in, int bheight, int bwidth, mod_t modulus) {
+    re_l_t **dense_block, mbl_t **sparse_block_in, ri_t bheight, ci_t bwidth, mod_t modulus) {
 
   mbl_t *sparse_block = *sparse_block_in;
   bi_t i,j, k, ctr, buffer, rows_empty;
 
   /*  if block was empty in the beginning, reallocate memory */
   if (sparse_block == NULL) {
-    sparse_block  = (mbl_t *)malloc(bheight / __GBLA_NROWS_MULTILINE * sizeof(mbl_t));
-    for (i=0; i<(bheight / __GBLA_NROWS_MULTILINE); ++i) {
+    sparse_block  = (mbl_t *)malloc((unsigned long int)(bheight / __GBLA_NROWS_MULTILINE) * sizeof(mbl_t));
+    for (i=0; i<(bi_t)(bheight / __GBLA_NROWS_MULTILINE); ++i) {
       sparse_block[i].val = NULL;
       sparse_block[i].idx = NULL;
       sparse_block[i].sz  = sparse_block[i].dense =  0;
     }
   }
   rows_empty  = 0;
-  for (i=0; i<bheight/2; ++i) {
+  for (i=0; i<(bi_t)(bheight/2); ++i) {
     if (sparse_block[i].dense == 1) {
-      sparse_block[i].idx = (bi_t *)malloc(bwidth * sizeof(bi_t));
+      sparse_block[i].idx = (bi_t *)malloc((unsigned long int)bwidth * sizeof(bi_t));
     }
     ctr                 = 0;
     buffer              = sparse_block[i].sz;
     sparse_block[i].sz  = 0;
     sparse_block[i].dense = 0;
-    for (j=0; j<bwidth; ++j) {
+    for (j=0; j<(bi_t)bwidth; ++j) {
       if (dense_block[2*i][j] != 0) {
-        dense_block[2*i][j] = (re_l_t)(MODP(dense_block[2*i][j], modulus));
+        dense_block[2*i][j] = (re_l_t)(dense_block[2*i][j] % modulus);
       }
       if (dense_block[2*i+1][j] != 0) {
-        dense_block[2*i+1][j] = (re_l_t)(MODP(dense_block[2*i+1][j] , modulus));
+        dense_block[2*i+1][j] = (re_l_t)(dense_block[2*i+1][j] % modulus);
       }
       if (dense_block[2*i][j] != 0 || dense_block[2*i+1][j] != 0) {
         if (ctr >= buffer) {
           /*  if this happens just allocate memory for full block multiline row */
           sparse_block[i].idx = (bi_t*) realloc(
-              sparse_block[i].idx, bwidth * sizeof(bi_t));
+              sparse_block[i].idx, (long unsigned int)bwidth * sizeof(bi_t));
           sparse_block[i].val = (re_t*) realloc(
-              sparse_block[i].val, 2 * bwidth * sizeof(re_t));
-          buffer  = bwidth;
+              sparse_block[i].val, 2 * (long unsigned int)bwidth * sizeof(re_t));
+          buffer  = (bi_t)bwidth;
         }
         sparse_block[i].idx[ctr]      = j;
         sparse_block[i].val[2*ctr]    = (re_t) dense_block[2*i][j];
@@ -1706,7 +1704,7 @@ void copy_dense_block_to_sparse(
         rows_empty++;
       }
     } else { /*  dense multiline row */
-      re_t *tmp  = (re_t *)malloc(2 * bwidth * sizeof(re_t));
+      re_t *tmp  = (re_t *)malloc(2 * (long unsigned int)bwidth * sizeof(re_t));
       ctr  = 0;
       /* for (k=0; k<bwidth; ++k) { */
       k = 0;
@@ -1722,7 +1720,7 @@ void copy_dense_block_to_sparse(
           k++;
         }
       }
-      for (; k<bwidth; ++k) {
+      for (; k<(bi_t)bwidth; ++k) {
         tmp[2*k]   = 0;
         tmp[2*k+1] = 0;
       }
@@ -1730,13 +1728,13 @@ void copy_dense_block_to_sparse(
       sparse_block[i].idx   = NULL;
       free(sparse_block[i].val);
       sparse_block[i].val   = tmp;
-      sparse_block[i].sz    = bwidth;
+      sparse_block[i].sz    = (bi_t)bwidth;
       sparse_block[i].dense = 1;
     }
     /* } */
   }
   /*  if block is completely empty remove memory */
-  if (rows_empty == bheight/2) {
+  if (rows_empty == (bi_t)(bheight/2)) {
     free(sparse_block);
     sparse_block  = NULL;
   }
@@ -1881,7 +1879,7 @@ echelonize_again:
 
         // reduce this new pivot row completely
         completely_reduce_dense_row_task_new(D, i-1, i, global_last_piv);
-        for (int k=i-1; k>0; --k) {
+        for (int k=(int)(i-1); k>0; --k) {
           /*
           printf("BEFORE: ");
           for (int ii=0; ii<D->ncols; ++ii)
@@ -1890,7 +1888,7 @@ echelonize_again:
           */
           //completely_reduce_dense_row_task_new(D, i-1, i, global_last_piv);
           //printf("k-1 %u -- i %u | glp %u\n", k-1, i, global_last_piv);
-          completely_reduce_dense_row_task_new(D, k-1, i-1, i);
+          completely_reduce_dense_row_task_new(D, (ri_t)(k-1), i-1, i);
           /*
           printf("AFTER: ");
           for (int ii=0; ii<D->ncols; ++ii)
@@ -2164,7 +2162,7 @@ void pre_elim_sequential(dm_t *D, const ri_t last_row, const int nthrds)
   global_pre_elim = global_last_piv;
 }
 
-void pre_elim_sequential_completely(dm_t *D, const ri_t last_row, const int nthrds)
+void pre_elim_sequential_completely(dm_t *D, const ri_t last_row)
 {
   ri_t i, j, k;
 
@@ -2225,7 +2223,7 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
 #endif
 
   ri_t range;
-  ri_t *boundaries  = (ri_t *)malloc((nthrds+1) * sizeof(ri_t));
+  ri_t *boundaries  = (ri_t *)malloc((long unsigned int)(nthrds+1) * sizeof(ri_t));
 
   /*
    * sort is already done when copying block matrix to dense matrix format
@@ -2261,18 +2259,18 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
     while (duplicate != -1) {
       // if there are not enough rows for a good scaling, use only have of the
       // available threads
-      range = D->rank - duplicate;
+      range = (ri_t)((int)D->rank - duplicate);
       if (range < nthrds*nthrds)
         nthrds--;
       //if (ctr>3 && nthrds>1)
       //  nthrds--;
       if (nthrds<1)
         nthrds  = 1;
-      boundaries[0]         = duplicate;
+      boundaries[0]       = (ri_t)duplicate;
       boundaries[nthrds]  = D->rank;
-      thread_blocks  = (uint32_t) ceil((float)range / nthrds);
-      for (i=1; i<nthrds; ++i)
-        boundaries[i] = i*thread_blocks+duplicate;
+      thread_blocks  = (uint32_t) ceil((float)range / (float)nthrds);
+      for (i=1; i<(ri_t)nthrds; ++i)
+        boundaries[i] = i*thread_blocks+(ri_t)duplicate;
       //printf("ctr %u || %u || %u -- %u %u\n", ctr, D->rank, thread_blocks,
       //    D->row[thread_blocks-1]->lead, D->row[thread_blocks]->lead);
       //printf("\n----\n");
@@ -2280,12 +2278,12 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
       //  printf("%u - ",boundaries[i]);
       //printf("\n----\n");
       if (ctr>0) {
-        for (i=1; i<nthrds; ++i) {
+        for (i=1; i<(ri_t)nthrds; ++i) {
           if (D->row[boundaries[i]-1]->lead == D->row[boundaries[i]]->lead) {
             l = 2;
             while(D->row[i*thread_blocks-l]->lead == D->row[i*thread_blocks]->lead)
               ++l;
-            for (m=i; m<nthrds+1; ++m)
+            for (m=i; m<(ri_t)nthrds+1; ++m)
               boundaries[m] -= l-1;
           }
         }
@@ -2294,7 +2292,7 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
       {
         ri_t j, k;
 #pragma omp for
-        for (i=0; i<nthrds; ++i) {
+        for (i=0; i<(ri_t)nthrds; ++i) {
           // initialize an own matrix for each thread
           dm_t *DD  = (dm_t *)malloc(sizeof(dm_t));
           init_dm(DD, thread_blocks, D->ncols);
@@ -2364,7 +2362,7 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
       D->rank = i;
       for (i=1; i<D->rank; ++i) {
         if (D->row[i-1]->piv_lead == D->row[i]->piv_lead) {
-          duplicate = i-1;
+          duplicate = (int)(i-1);
           break;
         }
       }
@@ -2380,7 +2378,7 @@ ri_t elim_fl_dense_D_test(dm_t *D, int nthrds)
 ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
 {
   // setting global variables for open mp locks used later on
-  global_next_row_to_reduce = nthrds * 2;
+  global_next_row_to_reduce = (ri_t)nthrds * 2;
   global_last_piv           = 0;
 
 #if COUNT_REDS
@@ -2411,9 +2409,9 @@ ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
   //  if we have only 1 core then we do the complete elimination of D in
   //  pre_elim_sequential
   if (nthrds == 1)
-    pre_elim_sequential_completely(D, D->rank, nthrds);
+    pre_elim_sequential_completely(D, D->rank);
   else
-    pre_elim_sequential_completely(D, global_next_row_to_reduce-1, nthrds);
+    pre_elim_sequential_completely(D, global_next_row_to_reduce-1);
 
   // if rank is smaller than the row until which we have been sequentially pre
   // eliminating then all other rows of D are already zero
@@ -2449,7 +2447,7 @@ ri_t elim_fl_dense_D_completely(dm_t *D, int nthrds)
 ri_t elim_fl_dense_D(dm_t *D, int nthrds)
 {
   // setting global variables for open mp locks used later on
-  global_next_row_to_reduce = nthrds * 2;
+  global_next_row_to_reduce = (ri_t)nthrds * 2;
   global_last_piv           = 0;
 
 #if COUNT_REDS
@@ -2519,7 +2517,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
 
   ri_t i;
   /*  row indices for subdividing echelonization parts in D_red */
-  global_next_row_to_reduce     = nthrds * 2;
+  global_next_row_to_reduce     = (ri_t)nthrds * 2;
   global_last_piv               = global_next_row_to_reduce - 1;
 
   /*  meta data for the computation of the rank of D_red at the end */
@@ -2548,7 +2546,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
   D_red = copy_block_matrix_to_multiline_matrix(&D, D_red, 1, nthrds);
 #if DDEBUG_DD
   printf("BEFORE\n");
-  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GBLA_NROWS_MULTILINE);
+  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / (float)__GBLA_NROWS_MULTILINE);
   int ii,jj,kk,ll;
   for (ii=0; ii<rlD; ++ii) {
     printf("%d .. \n",ii);
@@ -2625,9 +2623,9 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
     }
 
 
-    head_line_1 = get_head_multiline_hybrid(&(D_red->ml[i]), 0,
+    head_line_1 = (int)get_head_multiline_hybrid(&(D_red->ml[i]), 0,
         &h_a1, &head_line_1_idx, coldim);
-    head_line_2 = get_head_multiline_hybrid(&(D_red->ml[i]), 1,
+    head_line_2 = (int)get_head_multiline_hybrid(&(D_red->ml[i]), 1,
         &h_a1, &head_line_2_idx, coldim);
 
     if (head_line_1 != -1)
@@ -2636,7 +2634,7 @@ ri_t elim_fl_D_block(sbm_fl_t *D, sm_fl_ml_t *D_red, mod_t modulus, int nthrds) 
       rank++;
   }
 #if DDEBUG_DONE
-  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / __GBLA_NROWS_MULTILINE);
+  const uint32_t rlD  = (uint32_t) ceil((float)D_red->nrows / (float)__GBLA_NROWS_MULTILINE);
   int ii,jj,kk,ll;
   printf("AFTER ALL\n");
   for (ii=0; ii<rlD; ++ii) {
@@ -2719,19 +2717,19 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
         if (ml_row->sz == 0)
           continue;
 
-        head_line_1 = get_head_multiline_hybrid(ml_row, 0,
+        head_line_1 = (int)get_head_multiline_hybrid(ml_row, 0,
             &h_a1, &head_line_1_idx, coldim);
-        head_line_2 = get_head_multiline_hybrid(ml_row, 1,
+        head_line_2 = (int)get_head_multiline_hybrid(ml_row, 1,
             &h_a2, &head_line_2_idx, coldim);
 
         if (head_line_1 != -1) {
-          v1_col1 = MODP(dense_array_1[head_line_1] , modulus);
-          v2_col1 = MODP(dense_array_2[head_line_1] , modulus);
+          v1_col1 = (re_t)(dense_array_1[head_line_1] % modulus);
+          v2_col1 = (re_t)(dense_array_2[head_line_1] % modulus);
 
           if (v1_col1 != 0)
-            v1_col1 = modulus - v1_col1;
+            v1_col1 = (re_t)((int)modulus - (int)v1_col1);
           if (v2_col1 != 0)
-            v2_col1 = modulus - v2_col1;
+            v2_col1 = (re_t)((int)modulus - (int)v2_col1);
         } else {
           v1_col1 = 0;
           v2_col1 = 0;
@@ -2741,19 +2739,19 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
         printf("v21 %d\n",v2_col1);
 #endif
         if (head_line_2 != -1) {
-          v1_col2 = MODP(dense_array_1[head_line_2] , modulus);
-          v2_col2 = MODP(dense_array_2[head_line_2] , modulus);
+          v1_col2 = (re_t)(dense_array_1[head_line_2] % modulus);
+          v2_col2 = (re_t)(dense_array_2[head_line_2] % modulus);
 
           intermediate_val  = ml_row->val[2*head_line_2_idx];
           tmp_val = v1_col2 + (re_m_t)v1_col1 * intermediate_val;
-          v1_col2 = MODP(tmp_val , modulus);
+          v1_col2 = (re_t)(tmp_val % modulus);
           tmp_val = v2_col2 + (re_m_t)v2_col1 * intermediate_val;
-          v2_col2 = MODP(tmp_val , modulus);
+          v2_col2 = (re_t)(tmp_val % modulus);
 
           if (v1_col2 != 0)
-            v1_col2 = modulus - v1_col2;
+            v1_col2 = (re_t)((int)modulus - (int)v1_col2);
           if (v2_col2 != 0)
-            v2_col2 = modulus - v2_col2;
+            v2_col2 = (re_t)((int)modulus - (int)v2_col2);
         } else {
           v1_col2 = 0;
           v2_col2 = 0;
@@ -2776,8 +2774,8 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
               *ml_row,
               dense_array_1,
               dense_array_2,
-              head_line_1,
-              head_line_2);
+              (ci_t)head_line_1,
+              (ci_t)head_line_2);
         }
       }
 #if DDEBUG_D
@@ -2803,7 +2801,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       if (head_line_1 >= head_line_2 && head_line_1 != -1 && head_line_2 != -1) {
         dense_array_2[head_line_1] =MODP(dense_array_2[head_line_1], modulus);
         if (dense_array_2[head_line_1] != 0) {
-          register re_m_t h = modulus - dense_array_2[head_line_1];
+          register re_m_t h = (re_m_t)(modulus - dense_array_2[head_line_1]);
           register re_m_t v__;
 #ifdef GBLA_USE_AVX_XXX
           for (k=head_line_1; k<coldim; ++k) {
@@ -2811,7 +2809,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
             dense_array_2[k]  +=  h * v__;
           }
 #else
-          for (k=head_line_1; k<coldim; ++k) {
+          for (k=(ci_t)head_line_1; k<coldim; ++k) {
             v__               =   CAST(dense_array_1[k]);
             dense_array_2[k]  +=  h * v__;
           }
@@ -2831,7 +2829,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       }
       memset(A->ml[i].val, 0, 2 * coldim * sizeof(re_t));
 
-#if DDEBUG_Dd
+#if DDEBUG_DD
       printf("DENSE1\n");
       for (int uu=0; uu<coldim; ++uu)
         printf("%lu :: ",dense_array_1[uu]);
@@ -2862,7 +2860,7 @@ ri_t echelonize_rows_sequential(sm_fl_ml_t *A, const ri_t from, const ri_t to,
       }
 #if DDEBUG_D
       printf("BEFORE NORMALIZE\n");
-      const uint32_t rlD  = (uint32_t) ceil((float)A->nrows / __GBLA_NROWS_MULTILINE);
+      const uint32_t rlD  = (uint32_t) ceil((float)A->nrows / (float)__GBLA_NROWS_MULTILINE);
       int ii,jj,kk,ll;
       for (ii=0; ii<rlD; ++ii) {
         printf("%d .. \n",ii);
@@ -3013,7 +3011,7 @@ int echelonize_rows_task(sm_fl_ml_t *A, const ri_t N,
        */
     if (A->ml[curr_row_to_reduce].val != NULL) {
       save_back_and_reduce(&(A->ml[curr_row_to_reduce]), dense_array_1,
-          dense_array_2, coldim, modulus, curr_row_fully_reduced, curr_row_to_reduce);
+          dense_array_2, coldim, modulus, curr_row_fully_reduced);
     }
     /*
        printf("AFTER A.val %p\n",A->ml[curr_row_to_reduce].val);
@@ -3096,9 +3094,9 @@ void echelonize_one_row(sm_fl_ml_t *A,
 #endif
 
 
-    head_line_1 = get_head_multiline_hybrid(ml_row, 0,
+    head_line_1 = (int)get_head_multiline_hybrid(ml_row, 0,
         &h_a1, &head_line_1_idx, coldim);
-    head_line_2 = get_head_multiline_hybrid(ml_row, 1,
+    head_line_2 = (int)get_head_multiline_hybrid(ml_row, 1,
         &h_a2, &head_line_2_idx, coldim);
 
 #if DEBUG_ECHELONIZE
@@ -3112,19 +3110,19 @@ void echelonize_one_row(sm_fl_ml_t *A,
       printf("d11 %lu\n",MODP(dense_array_1[head_line_1], modulus));
       printf("d21 %lu\n",MODP(dense_array_2[head_line_1], modulus));
 #endif
-      v1_col1 = MODP(dense_array_1[head_line_1], modulus);
-      v2_col1 = MODP(dense_array_2[head_line_1], modulus);
+      v1_col1 = (re_t)(dense_array_1[head_line_1] % modulus);
+      v2_col1 = (re_t)(dense_array_2[head_line_1] % modulus);
 #if DDEBUG_D_ONE
       printf("v11 %d\n",v1_col1);
       printf("v21 %d\n",v2_col1);
 #endif
 
       if (v1_col1 != 0) {
-        v1_col1 = modulus - v1_col1;
+        v1_col1 = (re_t)((int)modulus - (int)v1_col1);
         nzc = 1;
       }
       if (v2_col1 != 0) {
-        v2_col1 = modulus - v2_col1;
+        v2_col1 = (re_t)((int)modulus - (int)v2_col1);
         nzc = 1;
       }
     } else {
@@ -3137,8 +3135,8 @@ void echelonize_one_row(sm_fl_ml_t *A,
 #endif
     /* printf("hl2 %d => %d ?\n",head_line_2,head_line_2 != -1); */
     if (head_line_2 != -1) {
-      v1_col2 = MODP(dense_array_1[head_line_2], modulus);
-      v2_col2 = MODP(dense_array_2[head_line_2], modulus);
+      v1_col2 = (re_t)(dense_array_1[head_line_2] % modulus);
+      v2_col2 = (re_t)(dense_array_2[head_line_2] % modulus);
 #if DDEBUG_D_ONE
       printf("v12 %d\n",v1_col2);
       printf("v22 %d\n",v2_col2);
@@ -3146,20 +3144,20 @@ void echelonize_one_row(sm_fl_ml_t *A,
 
       intermediate_val  = ml_row->val[2*head_line_2_idx];
       tmp_val = v1_col2 + (re_m_t)v1_col1 * intermediate_val;
-      v1_col2 = MODP(tmp_val, modulus);
+      v1_col2 = (re_t)(tmp_val % modulus);
       tmp_val = v2_col2 + (re_m_t)v2_col1 * intermediate_val;
-      v2_col2 = MODP(tmp_val, modulus);
+      v2_col2 = (re_t)(tmp_val % modulus);
 #if DDEBUG_D_ONE
       printf("v12 %d\n",v1_col2);
       printf("v22 %d\n",v2_col2);
 #endif
 
       if (v1_col2 != 0) {
-        v1_col2 = modulus - v1_col2;
+        v1_col2 = (re_t)((int)modulus - (int)v1_col2);
         nzc = 1;
       }
       if (v2_col2 != 0) {
-        v2_col2 = modulus - v2_col2;
+        v2_col2 = (re_t)((int)modulus - (int)v2_col2);
         nzc = 1;
       }
     } else {
@@ -3185,8 +3183,8 @@ void echelonize_one_row(sm_fl_ml_t *A,
             *ml_row,
             dense_array_1,
             dense_array_2,
-            head_line_1,
-            head_line_2);
+            (ci_t)head_line_1,
+            (ci_t)head_line_2);
       }
     }
 #if DDEBUG_D
@@ -3202,7 +3200,7 @@ void echelonize_one_row(sm_fl_ml_t *A,
 
 void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     re_l_t *dense_array_2, const ci_t coldim, const mod_t modulus,
-    const int reduce, const ri_t curr_row_to_reduce) {
+    const int reduce) {
 
 
   if (reduce == 1) {
@@ -3233,7 +3231,7 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
     if (head_line_1 >= head_line_2 && head_line_1 != -1 && head_line_2 != -1) {
       dense_array_2[head_line_1] = MODP(dense_array_2[head_line_1], modulus);
       if (dense_array_2[head_line_1] != 0) {
-        register re_m_t h = modulus - dense_array_2[head_line_1];
+        register re_m_t h = (re_m_t)(modulus - dense_array_2[head_line_1]);
         register re_m_t v__;
 #ifdef GBLA_USE_AVX_XXX
         for (k=head_line_1; k<coldim; ++k) {
@@ -3241,7 +3239,7 @@ void save_back_and_reduce(ml_t *ml, re_l_t *dense_array_1,
           dense_array_2[k]  +=  h * v__;
         }
 #else
-        for (k=head_line_1; k<coldim; ++k) {
+        for (k=(ci_t)head_line_1; k<coldim; ++k) {
           v__               =   CAST(dense_array_1[k]);
           dense_array_2[k]  +=  h * v__;
         }
@@ -3313,7 +3311,7 @@ int elim_fl_C_ml(sm_fl_ml_t *C, sm_fl_ml_t *A, mod_t modulus, int nthrds) {
   ri_t i;
   /* ri_t |+ j, k, +| rc; */
 
-  const ri_t rlC  = (ri_t) ceil((float) C->nrows / __GBLA_NROWS_MULTILINE);
+  const ri_t rlC  = (ri_t) ceil((float) C->nrows / (float)__GBLA_NROWS_MULTILINE);
 #pragma omp parallel num_threads(nthrds)
   {
 #pragma omp for
@@ -3345,12 +3343,12 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
     const int nthrds)
 {
   sm_fl_t *A= *A_in;
-  ci_t i;
-  const ri_t rlC  = C->nrows;
+  int i;
+  const int rlC  = (int)C->nrows;
   
   // TRY 10 LINES AT ONCE
   if (rlC > 5000) {
-    int mod10 = 0, mod6 = 0, mod4 = 0, mod2 = 0;
+      int mod10 = 0, mod6 = 0, mod4 = 0, mod2 = 0;
     if (rlC > 9)
       mod2  = mod4  = mod6  = mod10  = rlC - rlC % 10;
     if (rlC-mod10 > 5)
@@ -3366,25 +3364,32 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
         //#pragma omp task untied
         if (rlC > 9) {
           for (i=0; i<rlC-9; i=i+10) {
+            const ci_t mod  = (ci_t)i;
 #pragma omp task untied
-            elim_fl_C_sparse_dense_keep_A_tasks_ten(C, A, i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, i+8, i+9, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_ten(C, A, mod, mod+1, mod+2,
+                mod+3, mod+4, mod+5, mod+6, mod+7, mod+8, mod+9, modulus);
           }
         }
         if (rlC-mod10 > 5) {
+          const ci_t mod  = (ci_t)mod10;
 #pragma omp task untied
-          elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, mod10, mod10+1, mod10+2, mod10+3, mod10+4, mod10+5, modulus);
+          elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, mod, mod+1, mod+2,
+              mod+3, mod+4, mod+5, modulus);
         }
         if (rlC-mod6 > 3) {
+          const ci_t mod  = (ci_t)mod6;
 #pragma omp task untied
-          elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod6, mod6+1, mod6+2, mod6+3, modulus);
+          elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod, mod+1, mod+2, mod+3, modulus);
         }
         if (rlC-mod4 > 1) {
+          const ci_t mod  = (ci_t)mod4;
 #pragma omp task untied
-          elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+          elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod, mod+1, modulus);
         }
         if (rlC-mod2 > 0) {
+          const ci_t mod  = (ci_t)mod2;
 #pragma omp task untied
-          elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+          elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod, modulus);
         }
       }
 #pragma omp taskwait
@@ -3406,21 +3411,25 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
           //#pragma omp task untied
           if (rlC > 5) {
             for (i=0; i<rlC-5; i=i+6) {
+              const ci_t mod  = (ci_t)i;
 #pragma omp task untied
-              elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, i, i+1, i+2, i+3, i+4, i+5, modulus);
+              elim_fl_C_sparse_dense_keep_A_tasks_six(C, A, mod, mod+1, mod+2, mod+3, mod+4, mod+5, modulus);
             }
           }
           if (rlC-mod6 > 3) {
+            const ci_t mod  = (ci_t)mod6;
 #pragma omp task untied
-            elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod6, mod6+1, mod6+2, mod6+3, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod, mod+1, mod+2, mod+3, modulus);
           }
           if (rlC-mod4 > 1) {
+            const ci_t mod  = (ci_t)mod4;
 #pragma omp task untied
-            elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod, mod+1, modulus);
           }
           if (rlC-mod2 > 0) {
+            const ci_t mod  = (ci_t)mod2;
 #pragma omp task untied
-            elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod, modulus);
           }
         }
 #pragma omp taskwait
@@ -3439,17 +3448,20 @@ int elim_fl_C_sparse_dense_keep_A(sm_fl_t *C, sm_fl_t **A_in, const mod_t modulu
           //#pragma omp task untied
           if (rlC > 3) {
             for (i=0; i<rlC-3; i=i+4) {
+              const ci_t mod  = (ci_t)i;
 #pragma omp task untied
-              elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, i, i+1, i+2, i+3, modulus);
+              elim_fl_C_sparse_dense_keep_A_tasks_four(C, A, mod, mod+1, mod+2, mod+3, modulus);
             }
           }
           if (rlC-mod4 > 1) {
+            const ci_t mod  = (ci_t)mod4;
 #pragma omp task untied
-            elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod4, mod4+1, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_double(C, A, mod, mod+1, modulus);
           }
           if (rlC-mod2 > 0) {
+            const ci_t mod  = (ci_t)mod2;
 #pragma omp task untied
-            elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod2, modulus);
+            elim_fl_C_sparse_dense_keep_A_tasks_single(C, A, mod, modulus);
           }
         }
 #pragma omp taskwait
@@ -3716,8 +3728,8 @@ int elim_fl_C_sparse_dense_keep_A_tasks_double(sm_fl_t *C, const sm_fl_t *A,
   copy_sparse_to_wide_row(wide_row1, C, idx1);
   copy_sparse_to_wide_row(wide_row2, C, idx2);
   for (i=start_idx; i<c_ncols-1; ++i) {
-    multiplier1 = MODP(wide_row1[i], modulus);
-    multiplier2 = MODP(wide_row2[i], modulus);
+    multiplier1 = (re_m_t)(wide_row1[i] % modulus);
+    multiplier2 = (re_m_t)(wide_row2[i] % modulus);
     if (multiplier1 != 0 && multiplier2 != 0) {
       multiplier1  = (re_m_t)(modulus - multiplier1);
       multiplier2  = (re_m_t)(modulus - multiplier2);
@@ -3739,8 +3751,8 @@ int elim_fl_C_sparse_dense_keep_A_tasks_double(sm_fl_t *C, const sm_fl_t *A,
     wide_row1[i] = multiplier1;
     wide_row2[i] = multiplier2;
   }
-  multiplier1          = MODP(wide_row1[c_ncols-1], modulus);
-  multiplier2          = MODP(wide_row2[c_ncols-1], modulus);
+  multiplier1          = (re_m_t)(wide_row1[c_ncols-1] % modulus);
+  multiplier2          = (re_m_t)(wide_row2[c_ncols-1] % modulus);
   if (multiplier1 != 0) {
     multiplier1  = (re_m_t)(modulus - multiplier1);
     nze_ctr1++;
@@ -3814,11 +3826,11 @@ int elim_fl_C_sparse_dense_keep_A_tasks_five(sm_fl_t *C, const sm_fl_t *A,
   copy_sparse_to_wide_row(wide_row[4], C, idx4);
   for (i=start_idx; i<c_ncols-1; ++i) {
     ctr = 0;
-    multiplier[0] = MODP(wide_row[0][i], modulus);
-    multiplier[1] = MODP(wide_row[1][i], modulus);
-    multiplier[2] = MODP(wide_row[2][i], modulus);
-    multiplier[3] = MODP(wide_row[3][i], modulus);
-    multiplier[4] = MODP(wide_row[4][i], modulus);
+    multiplier[0] = (re_m_t)(wide_row[0][i] % modulus);
+    multiplier[1] = (re_m_t)(wide_row[1][i] % modulus);
+    multiplier[2] = (re_m_t)(wide_row[2][i] % modulus);
+    multiplier[3] = (re_m_t)(wide_row[3][i] % modulus);
+    multiplier[4] = (re_m_t)(wide_row[4][i] % modulus);
 
     wide_row[0][i] = 0;
     wide_row[1][i] = 0;
@@ -3883,11 +3895,11 @@ int elim_fl_C_sparse_dense_keep_A_tasks_five(sm_fl_t *C, const sm_fl_t *A,
       wide_row[row_to_id[j]][i]  = mults[j]; 
     }
   }
-  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
-  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
-  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
-  multiplier[3] = MODP(wide_row[3][c_ncols-1], modulus);
-  multiplier[4] = MODP(wide_row[4][c_ncols-1], modulus);
+  multiplier[0] = (re_m_t)(wide_row[0][c_ncols-1] % modulus);
+  multiplier[1] = (re_m_t)(wide_row[1][c_ncols-1] % modulus);
+  multiplier[2] = (re_m_t)(wide_row[2][c_ncols-1] % modulus);
+  multiplier[3] = (re_m_t)(wide_row[3][c_ncols-1] % modulus);
+  multiplier[4] = (re_m_t)(wide_row[4][c_ncols-1] % modulus);
   if (multiplier[0] != 0) {
     multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
     nze_ctr[0]++;
@@ -4001,12 +4013,12 @@ int elim_fl_C_sparse_dense_keep_A_tasks_six(sm_fl_t *C, const sm_fl_t *A,
   copy_sparse_to_wide_row(wide_row[5], C, idx5);
   for (i=start_idx; i<c_ncols-1; ++i) {
     ctr = 0;
-    multiplier[0] = MODP(wide_row[0][i], modulus);
-    multiplier[1] = MODP(wide_row[1][i], modulus);
-    multiplier[2] = MODP(wide_row[2][i], modulus);
-    multiplier[3] = MODP(wide_row[3][i], modulus);
-    multiplier[4] = MODP(wide_row[4][i], modulus);
-    multiplier[5] = MODP(wide_row[5][i], modulus);
+    multiplier[0] = (re_m_t)(wide_row[0][i] % modulus);
+    multiplier[1] = (re_m_t)(wide_row[1][i] % modulus);
+    multiplier[2] = (re_m_t)(wide_row[2][i] % modulus);
+    multiplier[3] = (re_m_t)(wide_row[3][i] % modulus);
+    multiplier[4] = (re_m_t)(wide_row[4][i] % modulus);
+    multiplier[5] = (re_m_t)(wide_row[5][i] % modulus);
 
     wide_row[0][i] = 0;
     wide_row[1][i] = 0;
@@ -4082,12 +4094,12 @@ int elim_fl_C_sparse_dense_keep_A_tasks_six(sm_fl_t *C, const sm_fl_t *A,
       wide_row[row_to_id[j]][i]  = mults[j]; 
     }
   }
-  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
-  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
-  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
-  multiplier[3] = MODP(wide_row[3][c_ncols-1], modulus);
-  multiplier[4] = MODP(wide_row[4][c_ncols-1], modulus);
-  multiplier[5] = MODP(wide_row[5][c_ncols-1], modulus);
+  multiplier[0] = (re_m_t)(wide_row[0][c_ncols-1] % modulus);
+  multiplier[1] = (re_m_t)(wide_row[1][c_ncols-1] % modulus);
+  multiplier[2] = (re_m_t)(wide_row[2][c_ncols-1] % modulus);
+  multiplier[3] = (re_m_t)(wide_row[3][c_ncols-1] % modulus);
+  multiplier[4] = (re_m_t)(wide_row[4][c_ncols-1] % modulus);
+  multiplier[5] = (re_m_t)(wide_row[5][c_ncols-1] % modulus);
   if (multiplier[0] != 0) {
     multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
     nze_ctr[0]++;
@@ -4226,14 +4238,14 @@ int elim_fl_C_sparse_dense_keep_A_tasks_eight(sm_fl_t *C, const sm_fl_t *A,
   copy_sparse_to_wide_row(wide_row[7], C, idx7);
   for (i=start_idx; i<c_ncols-1; ++i) {
     ctr = 0;
-    multiplier[0] = MODP(wide_row[0][i], modulus);
-    multiplier[1] = MODP(wide_row[1][i], modulus);
-    multiplier[2] = MODP(wide_row[2][i], modulus);
-    multiplier[3] = MODP(wide_row[3][i], modulus);
-    multiplier[4] = MODP(wide_row[4][i], modulus);
-    multiplier[5] = MODP(wide_row[5][i], modulus);
-    multiplier[6] = MODP(wide_row[6][i], modulus);
-    multiplier[7] = MODP(wide_row[7][i], modulus);
+    multiplier[0] = (re_m_t)(wide_row[0][i] % modulus);
+    multiplier[1] = (re_m_t)(wide_row[1][i] % modulus);
+    multiplier[2] = (re_m_t)(wide_row[2][i] % modulus);
+    multiplier[3] = (re_m_t)(wide_row[3][i] % modulus);
+    multiplier[4] = (re_m_t)(wide_row[4][i] % modulus);
+    multiplier[5] = (re_m_t)(wide_row[5][i] % modulus);
+    multiplier[6] = (re_m_t)(wide_row[6][i] % modulus);
+    multiplier[7] = (re_m_t)(wide_row[7][i] % modulus);
 
     wide_row[0][i] = 0;
     wide_row[1][i] = 0;
@@ -4333,14 +4345,14 @@ int elim_fl_C_sparse_dense_keep_A_tasks_eight(sm_fl_t *C, const sm_fl_t *A,
       wide_row[row_to_id[j]][i]  = mults[j]; 
     }
   }
-  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
-  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
-  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
-  multiplier[3] = MODP(wide_row[3][c_ncols-1], modulus);
-  multiplier[4] = MODP(wide_row[4][c_ncols-1], modulus);
-  multiplier[5] = MODP(wide_row[5][c_ncols-1], modulus);
-  multiplier[6] = MODP(wide_row[6][c_ncols-1], modulus);
-  multiplier[7] = MODP(wide_row[7][c_ncols-1], modulus);
+  multiplier[0] = (re_m_t)(wide_row[0][c_ncols-1] % modulus);
+  multiplier[1] = (re_m_t)(wide_row[1][c_ncols-1] % modulus);
+  multiplier[2] = (re_m_t)(wide_row[2][c_ncols-1] % modulus);
+  multiplier[3] = (re_m_t)(wide_row[3][c_ncols-1] % modulus);
+  multiplier[4] = (re_m_t)(wide_row[4][c_ncols-1] % modulus);
+  multiplier[5] = (re_m_t)(wide_row[5][c_ncols-1] % modulus);
+  multiplier[6] = (re_m_t)(wide_row[6][c_ncols-1] % modulus);
+  multiplier[7] = (re_m_t)(wide_row[7][c_ncols-1] % modulus);
   if (multiplier[0] != 0) {
     multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
     nze_ctr[0]++;
@@ -4513,16 +4525,16 @@ int elim_fl_C_sparse_dense_keep_A_tasks_ten(sm_fl_t *C, const sm_fl_t *A,
   copy_sparse_to_wide_row(wide_row[9], C, idx9);
   for (i=start_idx; i<c_ncols-1; ++i) {
     ctr = 0;
-    multiplier[0] = MODP(wide_row[0][i], modulus);
-    multiplier[1] = MODP(wide_row[1][i], modulus);
-    multiplier[2] = MODP(wide_row[2][i], modulus);
-    multiplier[3] = MODP(wide_row[3][i], modulus);
-    multiplier[4] = MODP(wide_row[4][i], modulus);
-    multiplier[5] = MODP(wide_row[5][i], modulus);
-    multiplier[6] = MODP(wide_row[6][i], modulus);
-    multiplier[7] = MODP(wide_row[7][i], modulus);
-    multiplier[8] = MODP(wide_row[8][i], modulus);
-    multiplier[9] = MODP(wide_row[9][i], modulus);
+    multiplier[0] = (re_m_t)(wide_row[0][i] % modulus);
+    multiplier[1] = (re_m_t)(wide_row[1][i] % modulus);
+    multiplier[2] = (re_m_t)(wide_row[2][i] % modulus);
+    multiplier[3] = (re_m_t)(wide_row[3][i] % modulus);
+    multiplier[4] = (re_m_t)(wide_row[4][i] % modulus);
+    multiplier[5] = (re_m_t)(wide_row[5][i] % modulus);
+    multiplier[6] = (re_m_t)(wide_row[6][i] % modulus);
+    multiplier[7] = (re_m_t)(wide_row[7][i] % modulus);
+    multiplier[8] = (re_m_t)(wide_row[8][i] % modulus);
+    multiplier[9] = (re_m_t)(wide_row[9][i] % modulus);
 
     wide_row[0][i] = 0;
     wide_row[1][i] = 0;
@@ -4647,16 +4659,16 @@ int elim_fl_C_sparse_dense_keep_A_tasks_ten(sm_fl_t *C, const sm_fl_t *A,
       wide_row[row_to_id[j]][i]  = mults[j]; 
     }
   }
-  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
-  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
-  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
-  multiplier[3] = MODP(wide_row[3][c_ncols-1], modulus);
-  multiplier[4] = MODP(wide_row[4][c_ncols-1], modulus);
-  multiplier[5] = MODP(wide_row[5][c_ncols-1], modulus);
-  multiplier[6] = MODP(wide_row[6][c_ncols-1], modulus);
-  multiplier[7] = MODP(wide_row[7][c_ncols-1], modulus);
-  multiplier[8] = MODP(wide_row[8][c_ncols-1], modulus);
-  multiplier[9] = MODP(wide_row[9][c_ncols-1], modulus);
+  multiplier[0] = (re_m_t)(wide_row[0][c_ncols-1] % modulus);
+  multiplier[1] = (re_m_t)(wide_row[1][c_ncols-1] % modulus);
+  multiplier[2] = (re_m_t)(wide_row[2][c_ncols-1] % modulus);
+  multiplier[3] = (re_m_t)(wide_row[3][c_ncols-1] % modulus);
+  multiplier[4] = (re_m_t)(wide_row[4][c_ncols-1] % modulus);
+  multiplier[5] = (re_m_t)(wide_row[5][c_ncols-1] % modulus);
+  multiplier[6] = (re_m_t)(wide_row[6][c_ncols-1] % modulus);
+  multiplier[7] = (re_m_t)(wide_row[7][c_ncols-1] % modulus);
+  multiplier[8] = (re_m_t)(wide_row[8][c_ncols-1] % modulus);
+  multiplier[9] = (re_m_t)(wide_row[9][c_ncols-1] % modulus);
   if (multiplier[0] != 0) {
     multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
     nze_ctr[0]++;
@@ -4789,10 +4801,10 @@ int elim_fl_C_sparse_dense_keep_A_tasks_four(sm_fl_t *C, const sm_fl_t *A,
   copy_sparse_to_wide_row(wide_row[3], C, idx3);
   for (i=start_idx; i<c_ncols-1; ++i) {
     ctr = 0;
-    multiplier[0] = MODP(wide_row[0][i], modulus);
-    multiplier[1] = MODP(wide_row[1][i], modulus);
-    multiplier[2] = MODP(wide_row[2][i], modulus);
-    multiplier[3] = MODP(wide_row[3][i], modulus);
+    multiplier[0] = (re_m_t)(wide_row[0][i] % modulus);
+    multiplier[1] = (re_m_t)(wide_row[1][i] % modulus);
+    multiplier[2] = (re_m_t)(wide_row[2][i] % modulus);
+    multiplier[3] = (re_m_t)(wide_row[3][i] % modulus);
 
     wide_row[0][i] = 0;
     wide_row[1][i] = 0;
@@ -4844,10 +4856,10 @@ int elim_fl_C_sparse_dense_keep_A_tasks_four(sm_fl_t *C, const sm_fl_t *A,
       wide_row[row_to_id[j]][i]  = mults[j]; 
     }
   }
-  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
-  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
-  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
-  multiplier[3] = MODP(wide_row[3][c_ncols-1], modulus);
+  multiplier[0] = (re_m_t)(wide_row[0][c_ncols-1] % modulus);
+  multiplier[1] = (re_m_t)(wide_row[1][c_ncols-1] % modulus);
+  multiplier[2] = (re_m_t)(wide_row[2][c_ncols-1] % modulus);
+  multiplier[3] = (re_m_t)(wide_row[3][c_ncols-1] % modulus);
   if (multiplier[0] != 0) {
     multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
     nze_ctr[0]++;
@@ -4930,9 +4942,9 @@ int elim_fl_C_sparse_dense_keep_A_tasks_three(sm_fl_t *C, const sm_fl_t *A,
   for (i=start_idx; i<c_ncols-1; ++i) {
     rows[0] = rows[1] = rows[2] = NULL;
     ctr = 0;
-    multiplier[0] = MODP(wide_row[0][i], modulus);
-    multiplier[1] = MODP(wide_row[1][i], modulus);
-    multiplier[2] = MODP(wide_row[2][i], modulus);
+    multiplier[0] = (re_m_t)(wide_row[0][i] % modulus);
+    multiplier[1] = (re_m_t)(wide_row[1][i] % modulus);
+    multiplier[2] = (re_m_t)(wide_row[2][i] % modulus);
 #if 1
     wide_row[0][i] = 0;
     wide_row[1][i] = 0;
@@ -4973,9 +4985,9 @@ int elim_fl_C_sparse_dense_keep_A_tasks_three(sm_fl_t *C, const sm_fl_t *A,
       wide_row[row_to_id[j]][i]  = mults[j]; 
     }
   }
-  multiplier[0] = MODP(wide_row[0][c_ncols-1], modulus);
-  multiplier[1] = MODP(wide_row[1][c_ncols-1], modulus);
-  multiplier[2] = MODP(wide_row[2][c_ncols-1], modulus);
+  multiplier[0] = (re_m_t)(wide_row[0][c_ncols-1] % modulus);
+  multiplier[1] = (re_m_t)(wide_row[1][c_ncols-1] % modulus);
+  multiplier[2] = (re_m_t)(wide_row[2][c_ncols-1] % modulus);
   if (multiplier[0] != 0) {
     multiplier[0]  = (re_m_t)(modulus - multiplier[0]);
     nze_ctr0++;
@@ -5064,9 +5076,9 @@ int elim_fl_C_sparse_dense_keep_A_tasks_three(sm_fl_t *C, const sm_fl_t *A,
     wide_row2[i] = multiplier2;
     wide_row3[i] = multiplier3;
   }
-  multiplier1          = MODP(wide_row1[c_ncols-1], modulus);
-  multiplier2          = MODP(wide_row2[c_ncols-1], modulus);
-  multiplier3          = MODP(wide_row3[c_ncols-1], modulus);
+  multiplier1          = (re_m_t)(wide_row1[c_ncols-1] % modulus);
+  multiplier2          = (re_m_t)(wide_row2[c_ncols-1] % modulus);
+  multiplier3          = (re_m_t)(wide_row3[c_ncols-1] % modulus);
   if (multiplier1 != 0) {
     multiplier1  = (re_m_t)(modulus - multiplier1);
     nze_ctr1++;
@@ -5111,7 +5123,7 @@ int elim_fl_C_sparse_dense_keep_A_tasks_single(sm_fl_t *C, const sm_fl_t *A,
   
   copy_sparse_to_wide_row(wide_row, C, idx);
   for (i=start_idx; i<c_ncols-1; ++i) {
-    multiplier = MODP(wide_row[i], modulus);
+    multiplier = (re_m_t)(wide_row[i] % modulus);
     if (multiplier != 0) {
       multiplier  = (re_m_t)(modulus - multiplier);
       update_wide_row(wide_row, A, multiplier, i);
@@ -5119,7 +5131,7 @@ int elim_fl_C_sparse_dense_keep_A_tasks_single(sm_fl_t *C, const sm_fl_t *A,
     }     
     wide_row[i] = multiplier;
   }
-  multiplier          = MODP(wide_row[c_ncols-1], modulus);
+  multiplier          = (re_m_t)(wide_row[c_ncols-1] % modulus);
   if (multiplier != 0) {
     multiplier  = (re_m_t)(modulus - multiplier);
     nze_ctr++;
@@ -5167,8 +5179,8 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
       dense_array_C_2, coldim);
   for (i=start_idx; i<coldim; ++i) {
     Cp1 = i;
-    Cv1_col1  = MODP(dense_array_C_1[i], modulus);
-    Cv2_col1  = MODP(dense_array_C_2[i], modulus);
+    Cv1_col1  = (re_m_t)(dense_array_C_1[i] % modulus);
+    Cv2_col1  = (re_m_t)(dense_array_C_2[i] % modulus);
 
     if (Cv1_col1 == 0 && Cv2_col1 == 0)
       continue;
@@ -5183,15 +5195,15 @@ int elim_fl_C_ml_task(sm_fl_ml_t *C, sm_fl_ml_t *A, ri_t row_idx, mod_t modulus)
 
     if (row_in_A_mod == 1) {
       Cp2 = i+1;
-      Cv1_col2  = MODP(dense_array_C_1[i+1] , modulus);
-      Cv2_col2  = MODP(dense_array_C_2[i+1] , modulus);
+      Cv1_col2  = (re_m_t)(dense_array_C_1[i+1] % modulus);
+      Cv2_col2  = (re_m_t)(dense_array_C_2[i+1] % modulus);
 
       register re_t v__ = A->ml[row_in_A].val[2*1+1];
 
       tmp = Cv1_col2 + (re_m_t)Cv1_col1 * v__;
-      Cv1_col2 = MODP(tmp , modulus);
+      Cv1_col2 = (re_m_t)(tmp % modulus);
       tmp = Cv2_col2 + (re_m_t)Cv2_col1 * v__;
-      Cv2_col2 = MODP(tmp , modulus);
+      Cv2_col2 = (re_m_t)(tmp % modulus);
 
       if (Cv1_col2 != 0)
         Cv1_col2  = (re_m_t)modulus - Cv1_col2;
@@ -5416,12 +5428,12 @@ void red_dense_array_modular(re_l_t *dense_array, const bi_t bwidth, const mod_t
     STORE_4(dense_array+i, C);
   }
   for (; i<bwidth; ++i) {
-    dense_array[i]  = (re_l_t)(MODP(dense_array[i], modulus));
+    dense_array[i]  = (re_l_t)(dense_array[i] % modulus);
   }
 #else
   bi_t i;
   for (i=0; i<bwidth; ++i) {
-    dense_array[i]  = (re_l_t)(MODP(dense_array[i], modulus));
+    dense_array[i]  = (re_l_t)(dense_array[i] % modulus);
   }
 #endif
 }
@@ -5448,9 +5460,9 @@ int normalize_dense_array(re_l_t *dense_array,
   ELEM_4 Q,T ;
   ELEM_4 VAL = SET1_4(val);
 
-  i = h1 ;
+  i = (ci_t)h1 ;
   while ( i < coldim && NOTALIGNED(dense_array+i) ) {
-    dense_array[i]  =  MODP(dense_array[i]*val,modulus);
+    dense_array[i]  =  (dense_array[i]*val) % modulus;
     ++i;
   }
   CHECK_ALIGN(dense_array+i);
@@ -5463,13 +5475,13 @@ int normalize_dense_array(re_l_t *dense_array,
 
 
  for (; i<coldim; ++i) {
-    dense_array[i]  =  MODP(dense_array[i]*val,modulus);
+    dense_array[i]  =  (dense_array[i]*val) % modulus;
   }
 
 #else
-  for (i=h1; i<coldim; ++i) {
+  for (i=(ci_t)h1; i<coldim; ++i) {
     dense_array[i]  *=  val;
-    dense_array[i]  =  MODP(dense_array[i],modulus);
+    dense_array[i]  =  dense_array[i] % modulus;
   }
 #endif
   return h1;
@@ -5479,7 +5491,7 @@ int get_head_dense_array(re_l_t *dense_array,
     re_t *val, const ci_t coldim, const mod_t modulus) {
   ci_t i;
   for (i=0; i<coldim; ++i) {
-    *val  = MODP(dense_array[i], modulus);
+    *val  = (re_t)(dense_array[i] % modulus);
     if (*val != 0)
       return (int)i;
     else
@@ -6035,14 +6047,14 @@ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
   if (h1 == 0 || h1 == 1) {
     for (idx=0; idx<m->sz; ++idx) {
       tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
-      m->val[2*idx+1] = MODP(tmp_val, modulus);
+      m->val[2*idx+1] = (re_t)(tmp_val % modulus);
     }
   } else {
     /*  normalize h1 */
     if (h2 == 0 || h2 == 1) {
       for (idx=0; idx<m->sz; ++idx) {
         tmp_val       = (re_l_t)m->val[2*idx] * h1;
-        m->val[2*idx] = MODP(tmp_val,  modulus);
+        m->val[2*idx] = (re_t)(tmp_val % modulus);
       }
       /*  normalize h1 and h2 */
     } else {
@@ -6057,8 +6069,8 @@ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
 
       idx = 0 ;
       while (idx < 2*m->sz &&  NOTALIGNED(m->val+idx)  ) {
-        m->val[idx  ] = MODP(m->val[idx  ] * h1, modulus);
-        m->val[idx+1] = MODP(m->val[idx+1] * h2, modulus);
+        m->val[idx  ] = (re_t)((m->val[idx  ] * h1) % modulus);
+        m->val[idx+1] = (re_t)((m->val[idx+1] * h2) % modulus);
         idx+=2;
       }
       CHECK_ALIGN(m->val+idx);
@@ -6070,15 +6082,15 @@ void normalize_multiline(ml_t *m, const ci_t coldim, const mod_t modulus) {
       }
 
       for (; idx<2*m->sz; idx+=2) {
-        m->val[idx  ] = MODP(m->val[idx  ] * h1, modulus);
-        m->val[idx+1] = MODP(m->val[idx+1] * h2, modulus);
+        m->val[idx  ] = (re_t)((m->val[idx  ] * h1) % modulus);
+        m->val[idx+1] = (re_t)((m->val[idx+1] * h2) % modulus);
       }
 #else
       for (idx=0; idx<m->sz; ++idx) {
         tmp_val         = (re_l_t)m->val[2*idx] * h1;
-        m->val[2*idx]   = MODP(tmp_val, modulus);
+        m->val[2*idx]   = (re_t)(tmp_val % modulus);
         tmp_val         = (re_l_t)m->val[2*idx+1] * h2;
-        m->val[2*idx+1] = MODP(tmp_val, modulus);
+        m->val[2*idx+1] = (re_t)(tmp_val % modulus);
       }
 
 #endif
@@ -6213,11 +6225,12 @@ void sparse_scal_mul_sub_2_rows_vect_array_multiline(
 
 
 void inverse_val(re_t *x, const mod_t modulus) {
+  const int32_t modi  = (int32_t)modulus;
   assert(*x);
   if ( *x == 1 ) return ;
   assert((int32_t)modulus > 0);
   int32_t u1 = 1, u2 = 0;
-  int32_t v1 = 0, v3 = (int32_t)modulus;
+  int32_t v1 = 0, v3 = modi;
   int32_t u3 = (int32_t)*x, v2 = 1;
   while (v3 != 0) {
     int32_t q  = u3 / v3;
@@ -6231,13 +6244,13 @@ void inverse_val(re_t *x, const mod_t modulus) {
     u2  = v2; v2  = t2;
   }
   if (u1 < 0) {
-    u1  +=  modulus;
+    u1  +=  modi;
     /* check_inverse(*x,u1,modulus); */
     *x  =   (re_t)u1;
     return;
   }
-  if (u1 > (int32_t)modulus) {
-    u1  -=  modulus;
+  if (u1 > modi) {
+    u1  -=  modi;
     /* check_inverse(*x,u1,modulus); */
     *x  =   (re_t) u1;
     return;
@@ -6297,9 +6310,9 @@ void copy_dense_arrays_to_multiline(const re_l_t *dense_1,
   m->sz       = 0;
   ci_t i;
   re_l_t tmp_1, tmp_2;
-  for (i=start_pos; i<coldim; ++i) {
-    tmp_1 = MODP( dense_1[i], modulus);
-    tmp_2 = MODP( dense_2[i], modulus);
+  for (i=(ci_t)start_pos; i<coldim; ++i) {
+    tmp_1 = dense_1[i] % modulus;
+    tmp_2 = dense_2[i] % modulus;
     /* printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2); */
     if (tmp_1 != 0 || tmp_2 != 0) {
       if (m->sz >= buffer) { /*  realloc memory for multiline ml */
@@ -6330,8 +6343,8 @@ void copy_dense_array_to_zero_dense_multiline(const re_l_t *dense_1,
 #endif
   ci_t i;
   re_l_t tmp_1;
-  for (i=start_pos; i<coldim; ++i) {
-    tmp_1 = MODP(dense_1[i], modulus);
+  for (i=(ci_t)start_pos; i<coldim; ++i) {
+    tmp_1 = dense_1[i] % modulus;
     if (tmp_1 != 0) {
       m->val[2*i]   = (re_t)tmp_1;
     }
@@ -6551,9 +6564,9 @@ void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
 #endif
   ci_t i;
   re_l_t tmp_1, tmp_2;
-  for (i=start_pos; i<coldim; ++i) {
-    tmp_1 = MODP(dense_1[i], modulus);
-    tmp_2 = MODP(dense_2[i], modulus);
+  for (i=(ci_t)start_pos; i<coldim; ++i) {
+    tmp_1 = dense_1[i] % modulus;
+    tmp_2 = dense_2[i] % modulus;
     /* printf("t1 %lu -- t2 %lu\n",tmp_1,tmp_2); */
     if (tmp_1 != 0 || tmp_2 != 0) {
       /* printf("B %d v1 %u -- v2 %u\n",i,m->val[2*i],m->val[2*i+1]); */
@@ -6566,14 +6579,15 @@ void copy_dense_arrays_to_zero_dense_multiline(const re_l_t *dense_1,
 }
 
 int cmp_wle(const void *a, const void *b) {
-  return ((wle_t *)(b))->idx - ((wle_t *)(a))->idx;
+  return (int)(((wle_t *)(b))->idx) - (int)(((wle_t *)(a))->idx);
 }
 
 void copy_sparse_to_dense_block(
-    mbl_t *sparse_block, re_l_t **dense_block, int bheight, int bwidth) {
+    mbl_t *sparse_block, re_l_t **dense_block, ri_t bheight, ci_t bwidth) {
 
   bi_t i,j;
-  for (i=0; i<bheight/2; ++i) {
+  bi_t bhh  = (bi_t)(bheight/2);
+  for (i=0; i<bhh; ++i) {
     mli_t idx;
     /*  re_t val1, val2; */
 
@@ -6587,7 +6601,7 @@ void copy_sparse_to_dense_block(
         dense_block[2*i+1][idx] = sparse_block[i].val[2*j+1];
       }
     } else{
-      for (j=0; j<bwidth; ++j) {
+      for (j=0; j<(bi_t)bwidth; ++j) {
         dense_block[2*i  ][j] = sparse_block[i].val[2*j  ];
         dense_block[2*i+1][j] = sparse_block[i].val[2*j+1];
       }
@@ -6598,7 +6612,7 @@ void copy_sparse_to_dense_block(
 mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_idx) {
   mli_t i;
   if (m->sz == 0)
-    return -1;
+    return UINT32_MAX;
   for (i=0; i<m->sz; ++i) {
     if (m->val[2*i+line_idx] != 0) {
       *h      = m->val[2*i+line_idx];
@@ -6606,14 +6620,14 @@ mli_t get_head_multiline(const ml_t *m, const bi_t line_idx, re_t *h, mli_t *h_i
       return m->idx[i];
     }
   }
-  return -1;
+  return UINT32_MAX;
 }
 
 mli_t get_head_multiline_hybrid(const ml_t *m,
     const bi_t line_idx, re_t *h, mli_t *h_idx, const ci_t coldim) {
   mli_t i;
   if (m->sz == 0)
-    return -1;
+    return UINT32_MAX;
   if (m->sz < coldim) {
     return get_head_multiline(m, line_idx, h, h_idx);
   } else {
@@ -6625,7 +6639,7 @@ mli_t get_head_multiline_hybrid(const ml_t *m,
       }
     }
   }
-  return -1;
+  return UINT32_MAX;
 }
 
 /* HEADER STUFF PUT HERE */
@@ -6714,7 +6728,7 @@ void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
     re_t *tmp_val_ptr = (re_t *)malloc(2 * A->blocks[rbi][clA-1][i].sz * sizeof(re_t));
     /*  swap data */
     l = 0;
-    for (k=A->blocks[rbi][clA-1][i].sz-1; k>-1; --k) {
+    for (k=(int)(A->blocks[rbi][clA-1][i].sz-1); k>-1; --k) {
       tmp_idx_ptr[l]      = A->blocks[rbi][clA-1][i].idx[k];
       tmp_val_ptr[2*l]    = A->blocks[rbi][clA-1][i].val[2*k];
       tmp_val_ptr[2*l+1]  = A->blocks[rbi][clA-1][i].val[2*k+1];
@@ -6732,7 +6746,7 @@ void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
     tmp_val_ptr = old_val_ptr;
     /*  now go through all remaining blocks in the corresponding row (bir) */
     /*  check if the already allocated memory is enough for executing the swap */
-    for (j=clA-2; j>-1; --j) {
+    for (j=(int)(clA-2); j>-1; --j) {
       if (A->blocks[rbi][j+1][i].sz == A->blocks[rbi][j][i].sz) {
         /*   Memory is not enough, so allocate new (reallocation is used */
         /*   at the moment: It might be prolematic since the old entries are */
@@ -6749,7 +6763,7 @@ void swap_block_data(sbm_fl_t *A, const ci_t clA, const bi_t rbi,
             2 * A->blocks[rbi][j][i].sz * sizeof(re_t));
       }
       l = 0;
-      for (k=A->blocks[rbi][j][i].sz-1; k>-1; --k) {
+      for (k=(int)(A->blocks[rbi][j][i].sz-1); k>-1; --k) {
         tmp_idx_ptr[l]      = A->blocks[rbi][j][i].idx[k];
         tmp_val_ptr[2*l]    = A->blocks[rbi][j][i].val[2*k];
         tmp_val_ptr[2*l+1]  = A->blocks[rbi][j][i].val[2*k+1];

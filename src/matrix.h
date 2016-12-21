@@ -28,7 +28,7 @@
 #include <assert.h>
 #include <math.h>
 #include <omp.h>
-#include "gbla_config.h"
+#include "../config.h"
 #include "types.h"
 #if GBLA_WITH_FFLAS
 #include "../draft/matrix.h"
@@ -420,7 +420,7 @@ static inline ci_t get_number_sparse_col_blocks(const sb_fl_t *A)
  */
 static inline void init_sm_no_row_allocation(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
-  int i;
+  ri_t i;
 
   // initialize meta data for block submatrices
   A->nrows  = nrows;  // row dimension
@@ -452,7 +452,7 @@ static inline void init_sm_no_row_allocation(sm_fl_t *A, const ri_t nrows, const
  */
 static inline void init_sm(sm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
-  int i;
+  ri_t i;
 
   // initialize meta data for block submatrices
   A->nrows  = nrows;  // row dimension
@@ -512,7 +512,7 @@ static inline void init_dm(dm_t *A, const ri_t nrows, const ri_t ncols)
  */
 static inline void init_sb(sb_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
-  int i, j;
+  ri_t i, j;
 
   // initialize meta data for block submatrices
   A->nrows  = nrows;  // row dimension
@@ -561,7 +561,7 @@ static inline void init_sb(sb_fl_t *A, const ri_t nrows, const ri_t ncols)
  */
 static inline void init_hbm(hbm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
-  int i, j;
+  ri_t i, j;
 
   // initialize meta data for block submatrices
   A->nrows  = nrows;  // row dimension
@@ -594,7 +594,7 @@ static inline void init_hbm(hbm_fl_t *A, const ri_t nrows, const ri_t ncols)
  */
 static inline void init_ibm(ibm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
-  int i, j;
+  ri_t i, j;
 
   // initialize meta data for block submatrices
   A->nrows  = nrows;  // row dimension
@@ -630,7 +630,7 @@ static inline void init_ibm(ibm_fl_t *A, const ri_t nrows, const ri_t ncols)
  */
 static inline void init_dbm(dbm_fl_t *A, const ri_t nrows, const ri_t ncols)
 {
-  int i, j;
+  ri_t i, j;
 
   // initialize meta data for block submatrices
   A->nrows  = nrows;  // row dimension
@@ -768,14 +768,15 @@ static inline void free_hybrid_submatrix(hbm_fl_t **A_in, int nthrds)
   *A_in  = A;
 }
 
+void realloc_block_rows_B(sbm_fl_t *A, const ri_t rbi, const ci_t bir,
+    const bi_t lib, const bi_t init_buffer_A, bi_t *buffer_A);
+
 /**
  * \brief Frees given intermediate block submatrix A
  *
  * \param intermediate block submatrix A
- *
- * \param number of threads for parallel computation
  */
-static inline void free_intermediate_submatrix(ibm_fl_t **A_in, int nthrds)
+static inline void free_intermediate_submatrix(ibm_fl_t **A_in)
 {
   ibm_fl_t *A     = *A_in;
   const ci_t clA  = get_number_intermediate_col_blocks(A);
@@ -889,7 +890,7 @@ static inline int cmp_dr_pivs(const void *a, const void *b)
     return -1;
   if ((dr_t *)b == NULL)
     return 1;
-  return (*((dr_t **)(a)))->piv_lead - (*((dr_t **)(b)))->piv_lead;
+  return (int)((*((dr_t **)(a)))->piv_lead) - (int)((*((dr_t **)(b)))->piv_lead);
 }
 
 /**
@@ -921,7 +922,7 @@ static inline int cmp_dr(const void *a, const void *b)
     return -1;
   if ((dr_t *)b == NULL)
     return 1;
-  return (*((dr_t **)(a)))->lead - (*((dr_t **)(b)))->lead;
+  return (int)((*((dr_t **)(a)))->lead) - (int)((*((dr_t **)(b)))->lead);
 }
 
 /**

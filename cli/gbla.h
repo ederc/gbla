@@ -29,8 +29,8 @@
 #include <math.h>
 #include <unistd.h>
 #include "io.h"
-#include "mapping.h"
-#include "elimination.h"
+#include "../src/mapping.h"
+#include "../src/elimination.h"
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -352,7 +352,7 @@ int fl_ml_A(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int 
  *
  *  \param use third party dense reducer for D dense_reducer
  */
-int fl_ml_A_C(sm_t *M, int block_dimension, int rows_multiline, int nthreads, int free_mem,
+int fl_ml_A_C(sm_t *M, ri_t block_dimension, int rows_multiline, int nthreads, int free_mem,
     int verbose, int reduce_completely, int dense_reducer);
 
 #endif

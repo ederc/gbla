@@ -23,6 +23,7 @@
 #ifndef GBLA_CL_HELPER
 #define GBLA_CL_HELPER
 
+#define __GBLA_HAVE_OPENCL  0
 #if __GBLA_HAVE_OPENCL
 
 #include <stdarg.h>

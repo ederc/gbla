@@ -25,15 +25,18 @@
 #define GBLA_MAPPING_H
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include <math.h>
 #include <omp.h>
-#include "gbla_config.h"
+#include "../config.h"
 #include "elimination.h"
 #include "matrix.h"
 
 #define BUFFER  __GBLA_SIMD_BLOCK_SIZE
+#define DEBUG_RECONSTRUCT  0
+#define GBLA_DEBUG  0
 
 /**
  * \brief Indexer for subdividing sparse matrix into 4 parts as described by
@@ -151,8 +154,6 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
  *
  * \param input and output matrix M
  *
- * \param block sub matrix A
- *
  * \param block sub matrix B
  *
  * \param dense sub matrix D
@@ -161,15 +162,13 @@ void reconstruct_matrix_no_multiline_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B,
  *
  * \param number of threads
  */
-void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_t *D,
+void reconstruct_matrix_block_no_multiline(sm_t *M, dbm_fl_t *B, dm_t *D,
     map_fl_t *map, const int nthrds);
 
 /**
  * \brief Reconstructs matrix M after elimination process
  *
  * \param input and output matrix M
- *
- * \param block sub matrix A
  *
  * \param block sub matrix B
  *
@@ -181,24 +180,16 @@ void reconstruct_matrix_block_no_multiline(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dm_
  *
  * \param parameter to set/unset freeing of sub matrices free_matrices
  *
- * \param paramter indicating if M was already freed M_freed
- *
  * \param paramter indicating if A was already freed A_freed
- *
- * \param paramter indicating if D was already freed D_freed
- *
- * \param number of threads
  */
-void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
+void reconstruct_matrix_block(sm_t *M, sbm_fl_t *B, sm_fl_ml_t *D,
     map_fl_t *map, const ci_t coldim, int free_matrices,
-    int M_freed, int A_freed, int D_freed, int nthrds);
+    int A_freed);
 
 /**
  * \brief Reconstructs matrix M after full reduced row echelon process
  *
  * \param input and output matrix M
- *
- * \param block sub matrix A
  *
  * \param block sub matrix B2
  *
@@ -210,17 +201,10 @@ void reconstruct_matrix_block(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
  *
  * \param parameter to set/unset freeing of sub matrices free_matrices
  *
- * \param paramter indicating if M was already freed M_freed
- *
  * \param paramter indicating if A was already freed A_freed
- *
- * \param paramter indicating if D was already freed D_freed
- *
- * \param number of threads
  */
-void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl_t *D2,
-    map_fl_t *map, const ci_t coldim, int free_matrices,
-    int M_freed, int A_freed, int D_freed, int nthrds);
+void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *B2, sbm_fl_t *D2,
+    map_fl_t *map, const ci_t coldim, int free_matrices, int A_freed);
 
 /**
  * \brief Reconstructs matrix M after elimination process
@@ -238,18 +222,9 @@ void reconstruct_matrix_block_reduced(sm_t *M, sbm_fl_t *A, sbm_fl_t *B2, sbm_fl
  * \param column dimension of M coldim
  *
  * \param parameter to set/unset freeing of sub matrices free_matrices
- *
- * \param paramter indicating if M was already freed M_freed
- *
- * \param paramter indicating if A was already freed A_freed
- *
- * \param paramter indicating if D was already freed D_freed
- *
- * \param number of threads
  */
 void reconstruct_matrix_ml(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *D,
-    map_fl_t *map, const ci_t coldim, int free_matrices,
-    int M_freed, int A_freed, int D_freed, int nthrds);
+    map_fl_t *map, const ci_t coldim, int free_matrices);
 
 /**
  * \brief Reallocates memory for the rows of the multiline during the splicing of
@@ -737,7 +712,7 @@ static inline void insert_many_in_sb_by_column(sb_fl_t *A, const sm_t *M, const 
   bi_t i, k;
   register bi_t eil;
   // bir is the same for all elements
-  const register bi_t bir  = pos[i] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
+  register bi_t bir  = pos[i] / __GBLA_SIMD_BLOCK_SIZE; // block index in block row
   // allocate memory if needed, initialized to zero
   if (A->blocks[rbi][bir].val == NULL) {
     A->blocks[rbi][bir].val = (re_t **)malloc(__GBLA_SIMD_BLOCK_SIZE * sizeof(re_t *));
@@ -1086,14 +1061,12 @@ static inline void insert_in_hbm_inv(hbm_fl_t *A, const sm_t *M, const ci_t shif
  *
  * \param length of pos resp. ri length
  *
- * \param current row block index rbi
- *
  * \param current line in block lib
  *
  * \param row index of corresponding element in M bi
  */
 static inline void insert_many_in_dense_blocks(re_t **db, bi_t **col_sizes, const sm_t *M, const ci_t *pos,
-    const ci_t *ri, const bi_t length, const ri_t rbi, const ri_t lib, const ri_t bi)
+    const ci_t *ri, const bi_t length, const ri_t lib, const ri_t bi)
 {
   bi_t i;
   register bi_t eil;
@@ -1448,14 +1421,12 @@ static inline void insert_in_dbm_inv(dbm_fl_t *A, const sm_t *M, const ci_t shif
  *
  * \param number of rows of BD rows_BD
  *
- * \param rank of D rank_D
- *
  * \param column dimension of B and D coldim
  *
  * \param number of threads nthreads
  */
 void construct_fl_map_reduced(map_fl_t *map, map_fl_t *map_D, ri_t rows_BD,
-    ri_t rank_D, ci_t coldim, int nthreads);
+    ci_t coldim, int nthreads);
 
 /**
  * \brief Constructs an indexer map for a Faugère-Lachartre decomposition of the
@@ -1550,15 +1521,14 @@ static inline void init_pivot_block_start_indices(ri_t **piv_start_idx,
 {
   ri_t *psi = (ri_t *)malloc(
       ((nrows / __GBLA_SIMD_BLOCK_SIZE) + 2) * sizeof(ri_t));
-  int i;
   *npiv  = 0;
   // find blocks for construction of A & B
-  for (i = (int)range-1; i>-1; --i) {
+  for (int i = (int)(range-1); i>-1; --i) {
     if (map_piv[i] != __GBLA_MINUS_ONE_32) {
       (*npiv)++;
     }
     if ((*npiv % __GBLA_SIMD_BLOCK_SIZE) == 0) {
-      psi[*npiv/__GBLA_SIMD_BLOCK_SIZE]  = i;
+      psi[*npiv/__GBLA_SIMD_BLOCK_SIZE]  = (ri_t)i;
     }
   }
   // loop might overwrite piv_start_idx[0] with a wrong index;
@@ -1567,7 +1537,7 @@ static inline void init_pivot_block_start_indices(ri_t **piv_start_idx,
   psi[0]  = range;
 
   // set leftout entries to zero
-  for (i=*npiv/__GBLA_SIMD_BLOCK_SIZE+1;
+  for (ri_t i=*npiv/__GBLA_SIMD_BLOCK_SIZE+1;
       i < (nrows/__GBLA_SIMD_BLOCK_SIZE) + 2; ++i)
     psi[i] = 0;
 
@@ -1583,10 +1553,10 @@ static inline void init_pivot_block_start_indices(ri_t **piv_start_idx,
  *
  * \param current vector in block cvb
  */
-static inline void free_input_matrix(sm_t **M_in, const uint32_t *rihb, const uint16_t cvb)
+static inline void free_input_matrix(sm_t **M_in, const uint32_t *rihb, const bi_t cvb)
 {
   sm_t *M = *M_in;
-  int j;
+  bi_t j;
   for (j=0; j<cvb; ++j) {
     free(M->pos[rihb[j]]);
     M->pos[rihb[j]] = NULL;
@@ -1876,7 +1846,7 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
       } else {
         if (old_col_posB != (map->npc[it] / __GBLA_SIMD_BLOCK_SIZE)) {
           if (ctrB != 0) {
-            insert_many_in_dense_blocks(dense_blocks, db_col_sizes, M, itB, riB, ctrB, rbi, i, bi);
+            insert_many_in_dense_blocks(dense_blocks, db_col_sizes, M, itB, riB, ctrB, i, bi);
             ctrB  = 0;
           }
           itB[ctrB]     = map->npc[it];
@@ -1896,7 +1866,7 @@ static inline void write_sparse_sparse_blocks_matrix_keep_A_many(
     if (ctrA > 0)
       insert_many_in_sm(A, M, itA, riA, ctrA, rbi, i, bi); 
     if (ctrB > 0)
-      insert_many_in_dense_blocks(dense_blocks, db_col_sizes, M, itB, riB, ctrB, rbi, i, bi);
+      insert_many_in_dense_blocks(dense_blocks, db_col_sizes, M, itB, riB, ctrB, i, bi);
   }
 
   // write data from dense blocks into B
@@ -2544,7 +2514,7 @@ static inline void fill_sparse_dense_submatrices_keep_A(sm_t *M, sm_fl_t *A,
       // "block".
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+          i > (int)(piv_start_idx[block_idx+1]-1); --i) {
         if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
@@ -2609,7 +2579,7 @@ static inline void fill_sparse_sparse_submatrices_keep_A(sm_t *M, sm_fl_t *A,
         // "block".
         // TODO: Try to improve this rather strange looping.
         for (i = ((int)piv_start_idx[block_idx]-1);
-            i > (int)piv_start_idx[block_idx+1]-1; --i) {
+            i > (int)(piv_start_idx[block_idx+1]-1); --i) {
           if (range[i] != __GBLA_MINUS_ONE_32) {
             rihb[cvb] = range[i];
             cvb++;
@@ -2675,7 +2645,7 @@ static inline void fill_sparse_dense_submatrices_inv_keep_A(sm_t *M, sm_fl_t *A,
       // "block".
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+          i > (int)(piv_start_idx[block_idx+1]-1); --i) {
         if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
@@ -2737,7 +2707,7 @@ static inline void fill_sparse_dense_submatrices_no_inversion(sm_t *M, sb_fl_t *
       // "block".
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+          i > (int)(piv_start_idx[block_idx+1]-1); --i) {
         if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
@@ -2799,7 +2769,7 @@ static inline void fill_sparse_dense_submatrices(sm_t *M, sb_fl_t *A, dbm_fl_t *
       // "block".
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+          i > (int)(piv_start_idx[block_idx+1]-1); --i) {
         if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
@@ -2860,7 +2830,7 @@ static inline void fill_hybrid_dense_submatrices(sm_t *M, hbm_fl_t *A, dbm_fl_t 
       // "block".
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+          i > (int)(piv_start_idx[block_idx+1]-1); --i) {
         if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
@@ -2919,7 +2889,7 @@ static inline void fill_hybrid_submatrices(sm_t *M, hbm_fl_t *A, hbm_fl_t *B,
       // "block".
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+          i > (int)(piv_start_idx[block_idx+1]-1); --i) {
         if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
@@ -2978,7 +2948,7 @@ static inline void fill_dense_submatrices(sm_t *M, dbm_fl_t *A, dbm_fl_t *B,
       // "block".
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+          i > (int)(piv_start_idx[block_idx+1]-1); --i) {
         if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
@@ -3039,7 +3009,7 @@ static inline void fill_dense_submatrices_diagonalize(sm_t *M, dbm_fl_t *A, dbm_
       // "block".
       // TODO: Try to improve this rather strange looping.
       for (i = ((int)piv_start_idx[block_idx]-1);
-          i > (int)piv_start_idx[block_idx+1]-1; --i) {
+          i > (int)(piv_start_idx[block_idx+1]-1); --i) {
         if (range[i] != __GBLA_MINUS_ONE_32) {
           rihb[cvb] = range[i];
           cvb++;
@@ -3090,15 +3060,17 @@ static inline void fill_dense_submatrices_diagonalize(sm_t *M, dbm_fl_t *A, dbm_
  *
  *  \param number of threads to be used nthreads
  *
- *  \param level of verbosity
- *
  *  \param checks if map was already defined outside map_defined
  */
 void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *D,
                       map_fl_t *map, ri_t complete_nrows, ci_t complete_ncols,
                       int block_dim, int rows_multiline,
-                      int nthreads, int destruct_input_matrix, int verbose,
+                      int nthreads, int destruct_input_matrix,
                       int map_defined);
+
+void splice_fl_matrix_reduced(sbm_fl_t *B, sm_fl_ml_t *D, sbm_fl_t *B1, sbm_fl_t *B2,
+    sbm_fl_t *D1, sbm_fl_t *D2, map_fl_t *map, ci_t complete_ncols,
+    int block_dim, int rows_multiline, int nthrds);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -3131,13 +3103,11 @@ void splice_fl_matrix(sm_t *M, sbm_fl_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm_fl_t *
  *
  *  \param destructing input matrix on the go? destruct_input_matrix
  *
- *  \param level of verbosity
- *
  *  \param number of threads to be used nthreads
  */
 void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B, sm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads);
+    const int destruct_input_matrix, const int nthreads);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -3170,13 +3140,11 @@ void splice_fl_matrix_sparse_dense_keep_A(sm_t *M, sm_fl_t *A, sb_fl_t *B, sm_fl
  *
  *  \param destructing input matrix on the go? destruct_input_matrix
  *
- *  \param level of verbosity
- *
  *  \param number of threads to be used nthreads
  */
 void splice_fl_matrix_sparse_dense_2(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads);
+    const int destruct_input_matrix, const int nthreads);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -3209,13 +3177,11 @@ void splice_fl_matrix_sparse_dense_2(sm_t *M, sb_fl_t *A, dbm_fl_t *B, sb_fl_t *
  *
  *  \param destructing input matrix on the go? destruct_input_matrix
  *
- *  \param level of verbosity
- *
  *  \param number of threads to be used nthreads
  */
 void splice_fl_matrix_sparse_dense(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads);
+    const int destruct_input_matrix, const int nthreads);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -3248,13 +3214,11 @@ void splice_fl_matrix_sparse_dense(sm_t *M, sb_fl_t *A, dbm_fl_t *B, dbm_fl_t *C
  *
  *  \param destructing input matrix on the go? destruct_input_matrix
  *
- *  \param level of verbosity
- *
  *  \param number of threads to be used nthreads
  */
 void splice_fl_matrix_hybrid_dense(sm_t *M, hbm_fl_t *A, dbm_fl_t *B, hbm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads);
+    const int destruct_input_matrix, const int nthreads);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -3287,13 +3251,11 @@ void splice_fl_matrix_hybrid_dense(sm_t *M, hbm_fl_t *A, dbm_fl_t *B, hbm_fl_t *
  *
  *  \param destructing input matrix on the go? destruct_input_matrix
  *
- *  \param level of verbosity
- *
  *  \param number of threads to be used nthreads
  */
 void splice_fl_matrix_hybrid(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
     hbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads);
+    const int destruct_input_matrix, const int nthreads);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -3326,13 +3288,11 @@ void splice_fl_matrix_hybrid(sm_t *M, hbm_fl_t *A, hbm_fl_t *B, hbm_fl_t *C,
  *
  *  \param destructing input matrix on the go? destruct_input_matrix
  *
- *  \param level of verbosity
- *
  *  \param number of threads to be used nthreads
  */
 void splice_fl_matrix_dense(sm_t *M, dbm_fl_t *A, dbm_fl_t *B, dbm_fl_t *C,
     dbm_fl_t *D, map_fl_t *map, const int map_defined,
-    const int destruct_input_matrix, const int verbose, const int nthreads);
+    const int destruct_input_matrix, const int nthreads);
 
 /**
  * \brief Constructs the subdivision of M into ABCD in the
@@ -3409,12 +3369,10 @@ void splice_fl_matrix_ml_A(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sbm_fl_t *C, sbm
  *  \param destructing input matrix on the go? destruct_input_matrix
  *
  *  \param number of threads to be used nthreads
- *
- *  \param level of verbosity
  */
 void splice_fl_matrix_ml_A_C(sm_t *M, sm_fl_ml_t *A, sbm_fl_t *B, sm_fl_ml_t *C,
-                      sbm_fl_t *D, map_fl_t *map, int block_dim, int rows_multiline,
-                      int nthreads, int destruct_input_matrix, int verbose);
+                      sbm_fl_t *D, map_fl_t *map, ri_t block_dim, ri_t rows_multiline,
+                      int nthreads, int destruct_input_matrix);
 
 
 /**
