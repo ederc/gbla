@@ -18,7 +18,7 @@ m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT
 
 AC_CONFIG_SRCDIR([config.h.in])
-AC_CONFIG_HEADERS(config.h)
+AC_CONFIG_HEADERS([config.h src/gbla_config.h])
 
 # Checks for programs.
 AC_PROG_AWK
